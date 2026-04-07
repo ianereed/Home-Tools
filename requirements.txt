@@ -1,0 +1,7 @@
+streamlit>=1.30.0
+garminconnect>=0.2.25
+stravalib>=2.0
+keyring>=25.0.0
+requests>=2.31.0
+pandas>=2.1.0
+plotly>=5.18.0
