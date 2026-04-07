@@ -12,7 +12,7 @@ Built April 2026 with Claude Code.
 ```
 cd ~/Documents/Claude/Health\ Dashboard && ./run.sh
 ```
-Opens at http://localhost:8501 on your Mac, or http://100.110.39.36:8501 from your phone via Tailscale.
+Opens at http://localhost:8501 on your Mac, or http://YOUR.TAILSCALE.IP:8501 from your phone via Tailscale.
 
 ### Collect fresh data
 ```
@@ -59,8 +59,8 @@ Garmin Watch ──→ Strava ──→ Strava API ──→ Mac Python ──�
    - Or just run manually: `python -m collectors.collect_all --days 7`
 
 3. **Tailscale VPN** — mesh VPN connecting your Mac and iPhone so you can view the dashboard from your phone over any network
-   - Mac Tailscale IP: `100.110.39.36`
-   - Dashboard URL from phone: `http://100.110.39.36:8501`
+   - Mac Tailscale IP: check Tailscale app on Mac for your IP
+   - Dashboard URL from phone: `http://YOUR.TAILSCALE.IP:8501`
 
 ---
 
@@ -68,7 +68,7 @@ Garmin Watch ──→ Strava ──→ Strava API ──→ Mac Python ──�
 
 ### Health Auto Export App ($5)
 1. Install "Health Auto Export" by K-Duo from App Store
-2. Create automation → REST API → URL: `http://Ians-MacBook-Pro.local:8095/`
+2. Create automation → REST API → URL: `http://YOUR-MAC-NAME.local:8095/`
 3. Format: JSON. Metrics: Heart Rate, Resting Heart Rate, Sleep Analysis, HRV
 4. Sync cadence: every 6 hours
 
@@ -82,14 +82,14 @@ This silently exports health data every time you plug in your phone.
 ### Tailscale
 1. Install Tailscale on Mac and iPhone
 2. Sign in with the same account on both
-3. Access dashboard from phone at `http://100.110.39.36:8501`
+3. Access dashboard from phone at `http://YOUR.TAILSCALE.IP:8501`
 4. Add to Home Screen from Safari for an app-like icon
 
 ### Intervals.icu (for Suunto data)
 1. Free account at intervals.icu
 2. Connected to Suunto under Settings → Connections
 3. API key stored in macOS Keychain
-4. Athlete ID: i547472
+4. Athlete ID: (find yours at intervals.icu → Settings → API)
 
 ---
 
@@ -200,13 +200,13 @@ If venv is broken: `python3 -m venv venv && source venv/bin/activate && pip inst
 1. Check receiver: `curl http://localhost:8095/` — should say "running"
 2. Check logs: `tail ~/Documents/Claude/Health\ Dashboard/data/receiver.log`
 3. If receiver is down: `launchctl load ~/Library/LaunchAgents/com.health-dashboard.receiver.plist`
-4. Make sure Health Auto Export app URL is `http://Ians-MacBook-Pro.local:8095/`
+4. Make sure Health Auto Export app URL is `http://YOUR-MAC-NAME.local:8095/`
 5. Plug in your phone to trigger the Shortcut automation
 
 ### Can't access from phone
 1. Make sure Tailscale is connected on both Mac and iPhone (check Tailscale app)
 2. Make sure Streamlit is running on Mac (`./run.sh`)
-3. URL: `http://100.110.39.36:8501`
+3. URL: `http://YOUR.TAILSCALE.IP:8501`
 4. If Tailscale IP changed: check Tailscale app on Mac for current IP
 
 ### Strava token expired

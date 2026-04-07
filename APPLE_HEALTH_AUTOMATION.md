@@ -59,7 +59,7 @@ If exports stop working:
 2. Update the URL in Health Auto Export app settings
 
 To prevent this, you can assign a static IP to your Mac in your router settings,
-or use your Mac's `.local` hostname (e.g., `http://Ians-MacBook-Pro.local:8095/`).
+or use your Mac's `.local` hostname (e.g., `http://YOUR-MAC-NAME.local:8095/`).
 
 ## Verifying It Works
 
