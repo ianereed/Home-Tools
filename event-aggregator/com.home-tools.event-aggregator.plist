@@ -4,27 +4,27 @@
 <plist version="1.0">
 <dict>
   <key>Label</key>
-  <string>com.antora.event-aggregator</string>
+  <string>com.home-tools.event-aggregator</string>
 
   <key>ProgramArguments</key>
   <array>
     <!-- Update these paths to match your environment -->
     <string>/usr/local/bin/python3</string>
-    <string>/Users/YOURUSERNAME/path/to/Antora-Analytics/event-aggregator/main.py</string>
+    <string>/Users/YOURUSERNAME/path/to/Home-Tools/event-aggregator/main.py</string>
   </array>
 
   <key>WorkingDirectory</key>
-  <string>/Users/YOURUSERNAME/path/to/Antora-Analytics/event-aggregator</string>
+  <string>/Users/YOURUSERNAME/path/to/Home-Tools/event-aggregator</string>
 
   <!-- Run every 15 minutes -->
   <key>StartInterval</key>
   <integer>900</integer>
 
   <key>StandardOutPath</key>
-  <string>/tmp/antora-event-aggregator.log</string>
+  <string>/tmp/home-tools-event-aggregator.log</string>
 
   <key>StandardErrorPath</key>
-  <string>/tmp/antora-event-aggregator-error.log</string>
+  <string>/tmp/home-tools-event-aggregator-error.log</string>
 
   <key>RunAtLoad</key>
   <false/>

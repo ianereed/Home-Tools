@@ -3,8 +3,8 @@
 # Edit the ProgramArguments and WorkingDirectory in the .plist first.
 set -euo pipefail
 
-PLIST_SRC="$(dirname "$0")/com.antora.event-aggregator.plist"
-PLIST_DEST="$HOME/Library/LaunchAgents/com.antora.event-aggregator.plist"
+PLIST_SRC="$(dirname "$0")/com.home-tools.event-aggregator.plist"
+PLIST_DEST="$HOME/Library/LaunchAgents/com.home-tools.event-aggregator.plist"
 
 cp "$PLIST_SRC" "$PLIST_DEST"
 launchctl unload "$PLIST_DEST" 2>/dev/null || true

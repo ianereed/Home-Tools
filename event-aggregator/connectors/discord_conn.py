@@ -46,7 +46,7 @@ class DiscordConnector(BaseConnector):
             self._session = requests.Session()
             self._session.headers.update({
                 "Authorization": f"Bot {config.DISCORD_BOT_TOKEN}",
-                "User-Agent": "AntoraEventAggregator/1.0",
+                "User-Agent": "HomeToolsEventAggregator/1.0",
             })
         return self._session
 

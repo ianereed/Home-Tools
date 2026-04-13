@@ -84,9 +84,9 @@ Before each phase, add the corresponding `.env` variables from `.env.example`.
 - `gcal_token.json` — auto-generated after first OAuth flow
 
 ### Install scheduler (Phase 7)
-1. Edit `com.antora.event-aggregator.plist` — update `YOURUSERNAME` and the repo path
+1. Edit `com.home-tools.event-aggregator.plist` — update `YOURUSERNAME` and the repo path
 2. Run `bash install_scheduler.sh`
-3. Logs: `/tmp/antora-event-aggregator.log`
+3. Logs: `/tmp/home-tools-event-aggregator.log`
 
 ---
 

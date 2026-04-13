@@ -10,7 +10,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 # Load from event-aggregator/.env (standalone); also check parent repo root as fallback
-# so this works whether you run from event-aggregator/ or from the Antora-Analytics root.
+# so this works whether you run from event-aggregator/ or from the Home-Tools root.
 _here = Path(__file__).parent
 load_dotenv(_here / ".env")
 load_dotenv(_here.parent / ".env")  # no-op if vars already set
