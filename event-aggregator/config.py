@@ -51,8 +51,7 @@ SLACK_BOT_TOKEN: str = _get("SLACK_BOT_TOKEN")
 SLACK_MONITOR_CHANNELS: list[str] = [
     c.strip() for c in _get("SLACK_MONITOR_CHANNELS").split(",") if c.strip()
 ]
-SLACK_DIGEST_USER_ID: str = _get("SLACK_DIGEST_USER_ID")  # your Slack user ID for DMs
-SLACK_EVENT_LOG_CHANNEL: str = _get("SLACK_EVENT_LOG_CHANNEL", "#event-log")
+SLACK_NOTIFY_CHANNEL: str = _get("SLACK_NOTIFY_CHANNEL", "ian-event-aggregator")
 
 # ── Discord ─────────────────────────────────────────────────────────────────
 DISCORD_BOT_TOKEN: str = _get("DISCORD_BOT_TOKEN")
@@ -73,6 +72,33 @@ WHATSAPP_DB_PATH: str = _get(
 DIGEST_DAILY_HOUR: int = int(_get("DIGEST_DAILY_HOUR", "7"))
 DIGEST_WEEKLY_DOW: int = int(_get("DIGEST_WEEKLY_DOW", "0"))  # 0 = Monday
 
+# ── Timezone ─────────────────────────────────────────────────────────────────
+USER_TIMEZONE: str = _get("USER_TIMEZONE", "America/Los_Angeles")
+
+# ── Confidence bands ─────────────────────────────────────────────────────────
+# medium = minimum confidence to create any event (with [?] prefix)
+# high   = minimum confidence to create event without prefix
+CONFIDENCE_BANDS: dict[str, dict[str, float]] = {
+    "gmail":    {"medium": 0.50, "high": 0.75},
+    "gcal":     {"medium": 0.50, "high": 0.75},
+    "slack":    {"medium": 0.60, "high": 0.80},
+    "imessage": {"medium": 0.65, "high": 0.82},
+    "whatsapp": {"medium": 0.65, "high": 0.82},
+    "discord":  {"medium": 0.60, "high": 0.80},
+    "default":  {"medium": 0.55, "high": 0.78},
+}
+
+# ── GCal category colors ─────────────────────────────────────────────────────
+# Values are GCal colorId strings (1–11)
+CATEGORY_COLORS: dict[str, str] = {
+    "work":     "9",   # blueberry
+    "personal": "10",  # basil
+    "social":   "6",   # tangerine
+    "health":   "4",   # flamingo
+    "travel":   "5",   # banana
+    "other":    "1",   # lavender
+}
+
 
 def validate_for_sources(sources: list[str]) -> None:
     """Raise EnvironmentError for any missing vars required by the given sources."""
@@ -80,7 +106,7 @@ def validate_for_sources(sources: list[str]) -> None:
         "gmail": [("GMAIL_CREDENTIALS_JSON", GMAIL_CREDENTIALS_JSON)],
         "gcal": [("GCAL_TOKEN_JSON", GCAL_TOKEN_JSON)],
         "slack": [("SLACK_BOT_TOKEN", SLACK_BOT_TOKEN)],
-        "discord": [("DISCORD_BOT_TOKEN", DISCORD_BOT_TOKEN)],
+        # discord: token is optional — connector self-skips with a warning if unset
     }
     missing = []
     for src in sources:

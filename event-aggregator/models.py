@@ -29,6 +29,29 @@ class CandidateEvent:
     confidence: float        # 0.0–1.0
     source: str
     source_id: str
+    source_url: str | None = None  # deep link back to the original message, if available
+
+    # Confidence band — set by extractor based on per-source thresholds
+    # "medium" = create with [?] prefix; "high" = create normally
+    confidence_band: str = "high"
+
+    # Update / cancel signals — set by extractor from LLM, resolved by main.py
+    is_update: bool = False
+    original_title_hint: str | None = None   # LLM's best guess at the existing event title
+    gcal_event_id_to_update: str | None = None  # resolved by main.py from state/snapshot
+    is_cancellation: bool = False
+
+    # Recurrence — flagged by LLM; write is skipped to prevent duplicate creation
+    is_recurring: bool = False
+    recurrence_hint: str | None = None
+
+    # Attendees suggested by LLM or extracted from message headers
+    # Each dict: {"name": str, "email": str | None}
+    # Not added to GCal invites yet — surfaced in Slack notification only
+    suggested_attendees: list[dict] = field(default_factory=list)
+
+    # Category for GCal color coding
+    category: str = "other"
 
     def __post_init__(self) -> None:
         # Clamp confidence to valid range

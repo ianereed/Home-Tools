@@ -119,33 +119,48 @@ def fetch_year_ahead(service) -> list[CalendarEvent]:
     """
     Fetch all GCal events from today through +365 days.
     `service` is a built googleapiclient.discovery resource.
-
-    TODO (Phase 6): call from the main pipeline after GCal auth is complete.
+    Paginates automatically; returns at most 2500 × N events.
     """
+    import config  # avoid circular import at module level
+
     now = datetime.now(tz=timezone.utc)
     year_out = now + timedelta(days=365)
 
-    # TODO: paginate through all events
-    # result = service.events().list(
-    #     calendarId=config.GCAL_TARGET_CALENDAR_ID,
-    #     timeMin=now.isoformat(),
-    #     timeMax=year_out.isoformat(),
-    #     singleEvents=True,
-    #     orderBy="startTime",
-    #     maxResults=2500,
-    # ).execute()
-    # items = result.get("items", [])
-    # return [_gcal_item_to_event(item) for item in items]
+    events: list[CalendarEvent] = []
+    page_token: str | None = None
 
-    logger.warning("fetch_year_ahead not yet implemented — returning []")
-    return []
+    while True:
+        kwargs: dict = {
+            "calendarId": config.GCAL_TARGET_CALENDAR_ID,
+            "timeMin": now.isoformat(),
+            "timeMax": year_out.isoformat(),
+            "singleEvents": True,
+            "orderBy": "startTime",
+            "maxResults": 2500,
+        }
+        if page_token:
+            kwargs["pageToken"] = page_token
+
+        result = service.events().list(**kwargs).execute()
+        for item in result.get("items", []):
+            try:
+                events.append(_gcal_item_to_event(item))
+            except Exception as exc:
+                logger.debug("skipping malformed event %s: %s", item.get("id"), exc)
+
+        page_token = result.get("nextPageToken")
+        if not page_token:
+            break
+
+    logger.debug("fetch_year_ahead: %d event(s) fetched", len(events))
+    return events
 
 
 def _gcal_item_to_event(item: dict) -> CalendarEvent:
-    start = item["start"].get("dateTime") or item["start"].get("date")
-    end = item["end"].get("dateTime") or item["end"].get("date")
-    start_dt = datetime.fromisoformat(start.replace("Z", "+00:00"))
-    end_dt = datetime.fromisoformat(end.replace("Z", "+00:00"))
+    start_raw = item["start"].get("dateTime") or item["start"].get("date")
+    end_raw = item["end"].get("dateTime") or item["end"].get("date")
+    start_dt = _parse_gcal_dt(start_raw)
+    end_dt = _parse_gcal_dt(end_raw)
     return CalendarEvent(
         gcal_id=item["id"],
         title=item.get("summary", "(no title)"),
@@ -154,3 +169,13 @@ def _gcal_item_to_event(item: dict) -> CalendarEvent:
         location=item.get("location"),
         source_description=item.get("description", ""),
     )
+
+
+def _parse_gcal_dt(value: str) -> datetime:
+    """Parse a GCal dateTime or date string into a UTC-aware datetime."""
+    value = value.replace("Z", "+00:00")
+    dt = datetime.fromisoformat(value)
+    if dt.tzinfo is None:
+        # All-day event (date-only string like "2026-04-15") — treat as UTC midnight
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt

@@ -72,6 +72,74 @@ class State:
         if fp not in fps:
             fps.append(fp)
 
+    # ── digest schedule tracking ─────────────────────────────────────────────
+
+    def last_digest_daily(self) -> datetime | None:
+        return _parse_dt(self._data.get("last_digest_daily"))
+
+    def set_last_digest_daily(self, dt: datetime | None = None) -> None:
+        self._data["last_digest_daily"] = (dt or _utcnow()).isoformat()
+
+    def last_digest_weekly(self) -> datetime | None:
+        return _parse_dt(self._data.get("last_digest_weekly"))
+
+    def set_last_digest_weekly(self, dt: datetime | None = None) -> None:
+        self._data["last_digest_weekly"] = (dt or _utcnow()).isoformat()
+
+    # ── written events (for update/cancel lookup) ─────────────────────────────
+
+    def add_written_event(
+        self,
+        gcal_id: str,
+        title: str,
+        start_iso: str,
+        fingerprint: str,
+        is_tentative: bool = False,
+    ) -> None:
+        bucket = self._data.setdefault("written_events", {})
+        bucket[gcal_id] = {
+            "title": title,
+            "start": start_iso,
+            "fingerprint": fingerprint,
+            "created_at": _utcnow().isoformat(),
+            "is_tentative": is_tentative,
+        }
+
+    def get_written_events(self) -> dict[str, dict]:
+        return self._data.get("written_events", {})
+
+    # ── day thread tracking (Slack channel threading) ─────────────────────────
+
+    def get_day_thread(self) -> tuple[str | None, str | None]:
+        """Returns (thread_ts, date_str) for today's Slack thread, or (None, None)."""
+        return (
+            self._data.get("day_thread_ts"),
+            self._data.get("day_thread_date"),
+        )
+
+    def set_day_thread(self, ts: str, date_str: str) -> None:
+        self._data["day_thread_ts"] = ts
+        self._data["day_thread_date"] = date_str
+
+    # ── calendar snapshot (for digest diffing) ────────────────────────────────
+
+    def calendar_snapshot(self) -> dict[str, dict]:
+        """Last-known year-ahead events keyed by gcal_id."""
+        return self._data.get("calendar_snapshot", {})
+
+    def update_calendar_snapshot(self, events: list) -> None:
+        """Persist current year-ahead events for next-run diff. Accepts CalendarEvent list."""
+        self._data["calendar_snapshot"] = {
+            e.gcal_id: {
+                "title": e.title,
+                "start": e.start_dt.isoformat(),
+                "end": e.end_dt.isoformat(),
+                "location": e.location,
+                "source_description": e.source_description,
+            }
+            for e in events
+        }
+
     # ── pruning ───────────────────────────────────────────────────────────────
 
     def prune(self) -> None:
@@ -91,6 +159,13 @@ class State:
         fps = self._data.get("written_fingerprints", [])
         self._data["written_fingerprints"] = fps[-5000:]
 
+        # Prune written_events: cap to most recent 200 entries (keyed by gcal_id).
+        we = self._data.get("written_events", {})
+        if len(we) > 200:
+            # Sort by created_at and keep newest 200
+            sorted_ids = sorted(we, key=lambda k: we[k].get("created_at", ""), reverse=True)
+            self._data["written_events"] = {k: we[k] for k in sorted_ids[:200]}
+
         logger.debug("state pruned")
 
 
@@ -109,6 +184,16 @@ def load() -> State:
 
 def save(state: State) -> None:
     state.prune()
-    with STATE_PATH.open("w") as f:
-        json.dump(state._data, f, indent=2, default=str)
+    import tempfile
+    fd, tmp_path = tempfile.mkstemp(dir=STATE_PATH.parent, prefix=".state_", suffix=".tmp")
+    try:
+        with open(fd, "w") as f:
+            json.dump(state._data, f, indent=2, default=str)
+        Path(tmp_path).replace(STATE_PATH)
+    except Exception:
+        try:
+            Path(tmp_path).unlink(missing_ok=True)
+        except OSError:
+            pass
+        raise
     logger.debug("state saved to %s", STATE_PATH)

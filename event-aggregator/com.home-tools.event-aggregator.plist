@@ -8,13 +8,12 @@
 
   <key>ProgramArguments</key>
   <array>
-    <!-- Update these paths to match your environment -->
-    <string>/usr/local/bin/python3</string>
-    <string>/Users/YOURUSERNAME/path/to/Home-Tools/event-aggregator/main.py</string>
+    <string>/Library/Frameworks/Python.framework/Versions/3.14/bin/python3</string>
+    <string>/Users/ianreed/Documents/GitHub/Home-Tools/event-aggregator/main.py</string>
   </array>
 
   <key>WorkingDirectory</key>
-  <string>/Users/YOURUSERNAME/path/to/Home-Tools/event-aggregator</string>
+  <string>/Users/ianreed/Documents/GitHub/Home-Tools/event-aggregator</string>
 
   <!-- Run every 15 minutes -->
   <key>StartInterval</key>

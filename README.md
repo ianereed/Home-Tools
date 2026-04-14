@@ -1,6 +1,6 @@
 # Home-Tools
 
-Personal tooling repo. Three independent projects:
+Personal tooling repo. Four independent projects:
 
 ---
 
@@ -20,3 +20,8 @@ See [`event-aggregator/README.md`](event-aggregator/README.md) for setup and usa
 Python scripts for building and managing a Colorado trip itinerary in Google Sheets.
 
 See [`colorado-trip/research-context.md`](colorado-trip/research-context.md) for context.
+
+### `meal-planner/`
+Google Sheets + Todoist grocery automation. A dynamic menu in the Sheet pushes any recipe's ingredients to Todoist, categorized by aisle section via Claude. A Python script consolidates the list when multiple recipes overlap. A photo capture modal lets you add new recipes by pointing your camera at a cookbook page.
+
+See [`meal-planner/apps-script/SETUP.md`](meal-planner/apps-script/SETUP.md) for setup.

@@ -1,36 +1,222 @@
 """
-Slack notifier — sends digest messages to the user via DM.
+Slack notifier — posts to ian-event-aggregator channel with daily threading.
 
-Reuses SLACK_BOT_TOKEN. Target: SLACK_DIGEST_USER_ID (your Slack user ID).
+One Slack thread per calendar day. All event actions (created, updated, cancelled)
+and the run summary are posted as replies to that day's thread.
+The thread opener is only created when the first action of the day occurs — no
+empty threads from runs that found nothing.
+
+Thread ts is persisted in state.json so replies stay in the same thread all day.
 """
 from __future__ import annotations
 
+import fcntl
 import logging
-from typing import Any
+from datetime import datetime, timezone
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    import state as state_module
+
+import config
 
 logger = logging.getLogger(__name__)
 
 
-def send_dm(blocks: list[dict[str, Any]], fallback_text: str) -> bool:
-    """
-    Send a Slack DM to the configured user. Returns True on success.
-    blocks: Slack Block Kit payload
-    fallback_text: plain-text summary for notifications
-    """
-    try:
-        import config
-        if not config.SLACK_BOT_TOKEN or not config.SLACK_DIGEST_USER_ID:
-            logger.warning("Slack notifier: SLACK_BOT_TOKEN or SLACK_DIGEST_USER_ID not set")
-            return False
+def _client():
+    from slack_sdk import WebClient
+    return WebClient(token=config.SLACK_BOT_TOKEN)
 
-        from slack_sdk import WebClient
-        client = WebClient(token=config.SLACK_BOT_TOKEN)
+
+def get_or_create_day_thread(state: "state_module.State") -> str | None:
+    """
+    Return the Slack thread_ts for today's thread in ian-event-aggregator.
+    Creates a new top-level post if today has no thread yet.
+    Returns None if Slack is not configured or the post fails.
+    """
+    if not config.SLACK_BOT_TOKEN:
+        return None
+
+    today_str = datetime.now(tz=timezone.utc).strftime("%Y-%m-%d")
+    thread_ts, thread_date = state.get_day_thread()
+
+    if thread_ts and thread_date == today_str:
+        return thread_ts
+
+    # Use a file lock so two overlapping runs don't create duplicate day threads
+    import state as _state
+    lock_path = _state.STATE_PATH.parent / ".slack_thread.lock"
+    try:
+        with lock_path.open("a") as lock_file:
+            fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
+            # Re-read from disk after acquiring lock — another process may have
+            # already created today's thread while we were waiting
+            fresh = _state.load()
+            thread_ts, thread_date = fresh.get_day_thread()
+            if thread_ts and thread_date == today_str:
+                state.set_day_thread(thread_ts, today_str)
+                return thread_ts
+
+            # New day — create a fresh thread opener
+            client = _client()
+            date_display = datetime.now(tz=timezone.utc).strftime("%B %-d, %Y")
+            result = client.chat_postMessage(
+                channel=config.SLACK_NOTIFY_CHANNEL,
+                text=f"Event Aggregator — {date_display}",
+            )
+            if result.get("ok"):
+                ts = result["ts"]
+                state.set_day_thread(ts, today_str)
+                _state.save(state)  # flush to disk inside the lock before releasing
+                return ts
+            logger.warning("slack notifier: failed to create day thread: %s", result.get("error"))
+            return None
+    except Exception as exc:
+        logger.warning("slack notifier: could not create day thread: %s", exc)
+        return None
+
+
+def post_event_action(
+    thread_ts: str,
+    action: str,
+    title: str,
+    start_dt: datetime | None,
+    source: str,
+    category: str = "other",
+    confidence_band: str = "high",
+    suggested_attendees: list[dict] | None = None,
+    conflicts: list[str] | None = None,
+    original_title: str | None = None,
+) -> bool:
+    """
+    Post a single event action as a reply to the day thread.
+
+    action: "created", "updated", "cancelled", "skipped_recurring"
+    Returns True on success.
+    """
+    if not config.SLACK_BOT_TOKEN or not thread_ts:
+        return False
+
+    action_icon = {
+        "created": ":calendar:",
+        "updated": ":pencil2:",
+        "cancelled": ":wastebasket:",
+        "skipped_recurring": ":repeat:",
+    }.get(action, ":calendar:")
+
+    action_label = {
+        "created": "created?" if confidence_band == "medium" else "created",
+        "updated": "updated",
+        "cancelled": "cancelled",
+        "skipped_recurring": "recurring — skipped",
+    }.get(action, action)
+
+    start_str = start_dt.strftime("%b %-d %-I:%M%p").lower() if start_dt else "unknown time"
+
+    if action == "updated" and original_title and original_title != title:
+        event_line = f"*{original_title}* → *{title}* | {start_str}"
+    elif action == "cancelled":
+        event_line = f"*{title}*"
+    else:
+        event_line = f"*{title}* | {start_str} | `{category}` | `{source}`"
+
+    lines = [f"{action_icon} [{action_label}] {event_line}"]
+
+    if suggested_attendees:
+        attendee_parts = []
+        for a in suggested_attendees[:5]:
+            name = a.get("name", "")
+            email = a.get("email")
+            if email:
+                attendee_parts.append(f"{name} <{email}>" if name else email)
+            elif name:
+                attendee_parts.append(name)
+        if attendee_parts:
+            lines.append(f"  :busts_in_silhouette: Suggested invitees: {', '.join(attendee_parts)}")
+
+    if conflicts:
+        conflict_str = ", ".join(f"'{c}'" for c in conflicts[:3])
+        lines.append(f"  :warning: Conflict: {conflict_str}")
+
+    text = "\n".join(lines)
+
+    try:
+        client = _client()
         result = client.chat_postMessage(
-            channel=config.SLACK_DIGEST_USER_ID,
-            text=fallback_text,
-            blocks=blocks,
+            channel=config.SLACK_NOTIFY_CHANNEL,
+            thread_ts=thread_ts,
+            text=text,
         )
         return bool(result.get("ok"))
     except Exception as exc:
-        logger.warning("Slack notifier: failed to send DM: %s", exc)
+        logger.warning("slack notifier: post_event_action failed: %s", exc)
+        return False
+
+
+def post_run_summary(
+    thread_ts: str,
+    created: int,
+    updated: int,
+    cancelled: int,
+    skipped_low_confidence: int,
+    skipped_recurring: int,
+    skipped_duplicate: int,
+) -> bool:
+    """
+    Post a run summary as a reply to the day thread.
+    Only posts if at least one action occurred — no noise from empty runs.
+    """
+    if not config.SLACK_BOT_TOKEN or not thread_ts:
+        return False
+
+    total_actions = created + updated + cancelled
+    if total_actions == 0 and skipped_low_confidence == 0 and skipped_recurring == 0:
+        return True  # nothing to report
+
+    parts = []
+    if created:
+        parts.append(f"{created} created")
+    if updated:
+        parts.append(f"{updated} updated")
+    if cancelled:
+        parts.append(f"{cancelled} cancelled")
+    if skipped_low_confidence:
+        parts.append(f"{skipped_low_confidence} skipped (low confidence)")
+    if skipped_recurring:
+        parts.append(f"{skipped_recurring} recurring (skipped)")
+    if skipped_duplicate:
+        parts.append(f"{skipped_duplicate} duplicate (skipped)")
+
+    if not parts:
+        return True
+
+    summary = "Run complete: " + ", ".join(parts)
+
+    try:
+        client = _client()
+        result = client.chat_postMessage(
+            channel=config.SLACK_NOTIFY_CHANNEL,
+            thread_ts=thread_ts,
+            text=f":white_check_mark: {summary}",
+        )
+        return bool(result.get("ok"))
+    except Exception as exc:
+        logger.warning("slack notifier: post_run_summary failed: %s", exc)
+        return False
+
+
+def post_to_thread(thread_ts: str, text: str) -> bool:
+    """Generic helper: post any text as a reply to the day thread."""
+    if not config.SLACK_BOT_TOKEN or not thread_ts:
+        return False
+    try:
+        client = _client()
+        result = client.chat_postMessage(
+            channel=config.SLACK_NOTIFY_CHANNEL,
+            thread_ts=thread_ts,
+            text=text,
+        )
+        return bool(result.get("ok"))
+    except Exception as exc:
+        logger.warning("slack notifier: post_to_thread failed: %s", exc)
         return False

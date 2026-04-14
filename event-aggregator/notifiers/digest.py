@@ -4,21 +4,19 @@ Digest builder and scheduler.
 Daily digest  → changes (new/updated/deleted) in the next 14 days
 Weekly digest → changes in the 14–365 day window
 
-"Changes" = events that appeared or were modified since the last digest run.
-Delivered as Slack DMs via slack_notifier.
-
-Both digests include:
-- Conflict warnings from the calendar analyzer
-- Source attribution so you can trace back to the originating message
+Both digests are posted as replies to the ian-event-aggregator day thread.
 """
 from __future__ import annotations
 
 import logging
 from datetime import datetime, timedelta, timezone
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from analyzers.calendar_analyzer import CalendarAnalysis, CalendarEvent, Conflict
 from notifiers import slack_notifier
+
+if TYPE_CHECKING:
+    import state as state_module
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +29,7 @@ def send_daily_digest(
     new_events: list[CalendarEvent],
     updated_events: list[CalendarEvent],
     removed_events: list[CalendarEvent],
+    state: "state_module.State",
 ) -> bool:
     """Send daily digest covering changes in the next 14 days."""
     now = datetime.now(tz=timezone.utc)
@@ -48,21 +47,25 @@ def send_daily_digest(
         logger.debug("daily digest: no changes in next 14 days — skipping")
         return True
 
-    blocks = _build_digest_blocks(
+    thread_ts = slack_notifier.get_or_create_day_thread(state)
+    if not thread_ts:
+        return False
+
+    text = _build_digest_text(
         title=f":calendar: Daily Digest — Next 14 Days ({now.strftime('%b %d')})",
         new_events=upcoming_new,
         updated_events=upcoming_updated,
         removed_events=upcoming_removed,
         conflicts=near_conflicts,
     )
-    fallback = f"Daily digest: {len(upcoming_new)} new, {len(upcoming_updated)} updated events in next 14 days"
-    return slack_notifier.send_dm(blocks, fallback)
+    return slack_notifier.post_to_thread(thread_ts, text)
 
 
 def send_weekly_digest(
     analysis: CalendarAnalysis,
     new_events: list[CalendarEvent],
     updated_events: list[CalendarEvent],
+    state: "state_module.State",
 ) -> bool:
     """Send weekly digest covering changes in the 14–365 day window."""
     now = datetime.now(tz=timezone.utc)
@@ -80,33 +83,33 @@ def send_weekly_digest(
         logger.debug("weekly digest: no changes beyond 14 days — skipping")
         return True
 
-    blocks = _build_digest_blocks(
+    thread_ts = slack_notifier.get_or_create_day_thread(state)
+    if not thread_ts:
+        return False
+
+    text = _build_digest_text(
         title=f":telescope: Weekly Digest — 14 Days to 1 Year ({now.strftime('%b %d')})",
         new_events=far_new,
         updated_events=far_updated,
         removed_events=[],
         conflicts=far_conflicts,
     )
-    fallback = f"Weekly digest: {len(far_new)} new events in the 14–365 day window"
-    return slack_notifier.send_dm(blocks, fallback)
+    return slack_notifier.post_to_thread(thread_ts, text)
 
 
-def _build_digest_blocks(
+def _build_digest_text(
     title: str,
     new_events: list[CalendarEvent],
     updated_events: list[CalendarEvent],
     removed_events: list[CalendarEvent],
     conflicts: list[Conflict],
-) -> list[dict[str, Any]]:
-    blocks: list[dict[str, Any]] = [
-        {"type": "header", "text": {"type": "plain_text", "text": title}},
-    ]
+) -> str:
+    lines = [f"*{title}*"]
 
     def _event_line(e: CalendarEvent, prefix: str = "") -> str:
         date_str = e.start_dt.strftime("%b %d %H:%M")
         source = ""
         if "via event-aggregator | source:" in (e.source_description or ""):
-            # Extract "source: X" from description
             try:
                 source = e.source_description.split("source:")[1].strip().rstrip("]")
                 source = f"  `{source}`"
@@ -116,32 +119,26 @@ def _build_digest_blocks(
         return f"{prefix}*{e.title}* — {date_str}{loc}{source}"
 
     if new_events:
-        lines = "\n".join(_event_line(e, "• ") for e in new_events[:20])
-        blocks.append(_section(f":new: *New ({len(new_events)})*\n{lines}"))
+        lines.append(f"\n:new: *New ({len(new_events)})*")
+        lines.extend(_event_line(e, "• ") for e in new_events[:20])
 
     if updated_events:
-        lines = "\n".join(_event_line(e, "• ") for e in updated_events[:10])
-        blocks.append(_section(f":pencil2: *Updated ({len(updated_events)})*\n{lines}"))
+        lines.append(f"\n:pencil2: *Updated ({len(updated_events)})*")
+        lines.extend(_event_line(e, "• ") for e in updated_events[:10])
 
     if removed_events:
-        lines = "\n".join(_event_line(e, "• ") for e in removed_events[:10])
-        blocks.append(_section(f":wastebasket: *Removed ({len(removed_events)})*\n{lines}"))
+        lines.append(f"\n:wastebasket: *Removed ({len(removed_events)})*")
+        lines.extend(_event_line(e, "• ") for e in removed_events[:10])
 
     if conflicts:
-        conflict_lines = []
+        lines.append("\n:rotating_light: *Scheduling Conflicts*")
         for c in conflicts[:5]:
             if c.conflict_type == "overlap":
-                msg = f":red_circle: *Overlap*: {c.event_a.title} / {c.event_b.title}"
+                lines.append(f":red_circle: *Overlap*: {c.event_a.title} / {c.event_b.title}")
             else:
-                msg = (
+                lines.append(
                     f":warning: *Travel risk* ({c.gap_minutes:.0f} min gap): "
                     f"{c.event_a.title} → {c.event_b.title}"
                 )
-            conflict_lines.append(msg)
-        blocks.append(_section(":rotating_light: *Scheduling Conflicts*\n" + "\n".join(conflict_lines)))
 
-    return blocks
-
-
-def _section(text: str) -> dict[str, Any]:
-    return {"type": "section", "text": {"type": "mrkdwn", "text": text[:3000]}}
+    return "\n".join(lines)[:3000]
