@@ -12,7 +12,7 @@ from datetime import timedelta
 
 from thefuzz import fuzz
 
-from models import CandidateEvent
+from models import CandidateEvent, CandidateTodo
 
 _FUZZY_THRESHOLD = 85
 _TIME_WINDOW = timedelta(minutes=60)
@@ -21,6 +21,13 @@ _TIME_WINDOW = timedelta(minutes=60)
 def fingerprint(event: CandidateEvent) -> str:
     """Stable fingerprint: sha256(normalized_title + YYYY-MM-DD)."""
     key = event.title.lower().strip() + event.start_dt.date().isoformat()
+    return hashlib.sha256(key.encode()).hexdigest()
+
+
+def todo_fingerprint(todo: CandidateTodo) -> str:
+    """Stable fingerprint: sha256(normalized_title + source + source_id).
+    Deduplicates the same todo extracted from the same message across runs."""
+    key = todo.title.lower().strip() + todo.source + todo.source_id
     return hashlib.sha256(key.encode()).hexdigest()
 
 

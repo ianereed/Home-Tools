@@ -144,6 +144,37 @@ class State:
             for e in events
         }
 
+    # ── todo fingerprints ─────────────────────────────────────────────────────
+
+    def has_todo_fingerprint(self, fp: str) -> bool:
+        return fp in self._data.get("written_todo_fingerprints", [])
+
+    def add_todo_fingerprint(self, fp: str) -> None:
+        fps = self._data.setdefault("written_todo_fingerprints", [])
+        if fp not in fps:
+            fps.append(fp)
+
+    # ── todoist project ID cache ──────────────────────────────────────────────
+
+    def get_todoist_project_id(self) -> str | None:
+        return self._data.get("todoist_project_id")
+
+    def set_todoist_project_id(self, project_id: str) -> None:
+        self._data["todoist_project_id"] = project_id
+
+    # ── warned conflicts ──────────────────────────────────────────────────────
+
+    def is_conflict_warned(self, fp: str) -> bool:
+        """Return True if this conflict fingerprint has already been reported."""
+        return fp in self._data.get("warned_conflict_ids", {})
+
+    def mark_conflicts_warned(self, fps: list[str]) -> None:
+        """Record conflict fingerprints as reported (using today's date)."""
+        today = _utcnow().strftime("%Y-%m-%d")
+        bucket = self._data.setdefault("warned_conflict_ids", {})
+        for fp in fps:
+            bucket[fp] = today
+
     # ── pruning ───────────────────────────────────────────────────────────────
 
     def prune(self) -> None:
@@ -177,6 +208,20 @@ class State:
             # Sort by created_at and keep newest 200
             sorted_ids = sorted(we, key=lambda k: we[k].get("created_at", ""), reverse=True)
             self._data["written_events"] = {k: we[k] for k in sorted_ids[:200]}
+
+        # Prune written_todo_fingerprints: cap to most recent 5000 entries.
+        fps = self._data.get("written_todo_fingerprints", [])
+        self._data["written_todo_fingerprints"] = fps[-5000:]
+
+        # Prune warned_conflict_ids: drop entries older than 30 days.
+        # Values are ISO date strings (YYYY-MM-DD); string comparison works for ISO dates.
+        cutoff_date = cutoff.strftime("%Y-%m-%d")
+        warned = self._data.get("warned_conflict_ids", {})
+        self._data["warned_conflict_ids"] = {
+            fp: date_str
+            for fp, date_str in warned.items()
+            if date_str >= cutoff_date
+        }
 
         logger.debug("state pruned")
 

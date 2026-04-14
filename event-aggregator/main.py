@@ -32,12 +32,13 @@ from connectors.imessage import IMessageConnector
 from connectors.notifications import NotificationCenterConnector
 from connectors.slack import SlackConnector
 from connectors.whatsapp import WhatsAppConnector
-from dedup import fingerprint, is_duplicate
+from dedup import fingerprint, is_duplicate, todo_fingerprint
 from logs.event_log import record as log_event, record_cancellation
-from models import CandidateEvent
+from models import CandidateEvent, CandidateTodo
 from notifiers import digest as digest_module
 from notifiers import slack_notifier
 from writers import google_calendar as gcal_writer
+from writers import todoist_writer
 
 logging.basicConfig(
     level=logging.INFO,
@@ -131,6 +132,11 @@ def main() -> int:
         state_module.save(state)
         return 0
 
+    # Capture run start time before fetching — used as last_run so that
+    # messages arriving during the long Ollama extraction phase are not
+    # silently dropped (their timestamps fall between fetch and end-of-run).
+    run_start = datetime.now(timezone.utc)
+
     # ── Collect messages from all selected sources ───────────────────────────
     all_messages = []
     seen_connectors: set[type] = set()
@@ -151,14 +157,16 @@ def main() -> int:
         logger.info("  → %d message(s)", len(msgs))
         all_messages.extend(msgs)
 
-    # ── Extract candidate events ─────────────────────────────────────────────
+    # ── Extract candidate events and todos ───────────────────────────────────
     all_candidates: list[CandidateEvent] = []
+    all_todos: list[CandidateTodo] = []
     if extractor.check_ollama_available() or args.mock:
         for msg in all_messages:
             if state.is_seen(msg.source, msg.id):
                 continue
-            candidates = extractor.extract(msg)
-            all_candidates.extend(candidates)
+            events, todos = extractor.extract(msg)
+            all_candidates.extend(events)
+            all_todos.extend(todos)
             state.mark_seen(msg.source, msg.id)
     else:
         logger.warning("Skipping extraction — Ollama unavailable")
@@ -191,6 +199,9 @@ def main() -> int:
         "skipped_duplicate": 0,
     }
 
+    # Collect event actions for a single batched Slack post at end of run
+    pending_actions: list[dict] = []
+
     # Slack thread for this run (only created if something happens)
     thread_ts: str | None = None
 
@@ -211,16 +222,13 @@ def main() -> int:
                 candidate.title, candidate.recurrence_hint, candidate.source,
             )
             if not args.dry_run and not args.mock:
-                t = _get_thread()
-                if t:
-                    slack_notifier.post_event_action(
-                        thread_ts=t,
-                        action="skipped_recurring",
-                        title=candidate.title,
-                        start_dt=candidate.start_dt,
-                        source=candidate.source,
-                        category=candidate.category,
-                    )
+                pending_actions.append({
+                    "action": "skipped_recurring",
+                    "title": candidate.title,
+                    "start_dt": candidate.start_dt,
+                    "source": candidate.source,
+                    "category": candidate.category,
+                })
             continue
 
         # Cancellation path
@@ -241,15 +249,12 @@ def main() -> int:
                     candidate.source,
                 )
                 if not args.dry_run and not args.mock:
-                    t = _get_thread()
-                    if t:
-                        slack_notifier.post_event_action(
-                            thread_ts=t,
-                            action="cancelled",
-                            title=candidate.original_title_hint or candidate.title,
-                            start_dt=None,
-                            source=candidate.source,
-                        )
+                    pending_actions.append({
+                        "action": "cancelled",
+                        "title": candidate.original_title_hint or candidate.title,
+                        "start_dt": None,
+                        "source": candidate.source,
+                    })
             continue
 
         # Update path
@@ -275,20 +280,17 @@ def main() -> int:
                     candidate.confidence, candidate.source,
                 )
                 if not args.dry_run and not args.mock:
-                    t = _get_thread()
-                    if t:
-                        slack_notifier.post_event_action(
-                            thread_ts=t,
-                            action="updated",
-                            title=candidate.title,
-                            start_dt=candidate.start_dt,
-                            source=candidate.source,
-                            category=candidate.category,
-                            confidence_band=candidate.confidence_band,
-                            suggested_attendees=candidate.suggested_attendees or None,
-                            conflicts=conflicts or None,
-                            original_title=candidate.original_title_hint,
-                        )
+                    pending_actions.append({
+                        "action": "updated",
+                        "title": candidate.title,
+                        "start_dt": candidate.start_dt,
+                        "source": candidate.source,
+                        "category": candidate.category,
+                        "confidence_band": candidate.confidence_band,
+                        "suggested_attendees": candidate.suggested_attendees or None,
+                        "conflicts": conflicts or None,
+                        "original_title": candidate.original_title_hint,
+                    })
             elif args.dry_run:
                 logger.info(
                     "DRY RUN: would update %r on %s (confidence=%.2f, source=%s)",
@@ -325,19 +327,16 @@ def main() -> int:
                 candidate.confidence, candidate.confidence_band, candidate.source,
             )
             if not args.dry_run and not args.mock:
-                t = _get_thread()
-                if t:
-                    slack_notifier.post_event_action(
-                        thread_ts=t,
-                        action="created",
-                        title=candidate.title,
-                        start_dt=candidate.start_dt,
-                        source=candidate.source,
-                        category=candidate.category,
-                        confidence_band=candidate.confidence_band,
-                        suggested_attendees=candidate.suggested_attendees or None,
-                        conflicts=conflicts or None,
-                    )
+                pending_actions.append({
+                    "action": "created",
+                    "title": candidate.title,
+                    "start_dt": candidate.start_dt,
+                    "source": candidate.source,
+                    "category": candidate.category,
+                    "confidence_band": candidate.confidence_band,
+                    "suggested_attendees": candidate.suggested_attendees or None,
+                    "conflicts": conflicts or None,
+                })
         elif args.dry_run:
             logger.info(
                 "DRY RUN: %r on %s (confidence=%.2f, band=%s, source=%s)",
@@ -356,11 +355,55 @@ def main() -> int:
         " [DRY RUN]" if args.dry_run else "",
     )
 
+    # ── Post batched event actions to Slack ──────────────────────────────────
+    if pending_actions and not args.dry_run and not args.mock:
+        t = _get_thread()
+        if t:
+            slack_notifier.post_event_batch(t, pending_actions)
+
+    # ── Process todo items ───────────────────────────────────────────────────
+    todos_created = 0
+    if config.TODOIST_API_TOKEN and all_todos:
+        project_id = todoist_writer.get_or_create_project(
+            config.TODOIST_API_TOKEN, config.TODOIST_PROJECT_NAME, state
+        )
+        if project_id:
+            for todo in all_todos:
+                fp = todo_fingerprint(todo)
+                if state.has_todo_fingerprint(fp):
+                    logger.debug("skip duplicate todo: %r", todo.title)
+                    continue
+                ok = todoist_writer.create_task(
+                    config.TODOIST_API_TOKEN, project_id, todo, dry_run=args.dry_run
+                )
+                if ok:
+                    todos_created += 1
+                    state.add_todo_fingerprint(fp)
+                    logger.info(
+                        "%stodo: %r (source=%s, priority=%s, confidence=%.2f)",
+                        "DRY RUN " if args.dry_run else "",
+                        todo.title, todo.source, todo.priority, todo.confidence,
+                    )
+                    if not args.dry_run and not args.mock:
+                        t = _get_thread()
+                        if t:
+                            slack_notifier.post_todo_action(
+                                thread_ts=t,
+                                title=todo.title,
+                                source=todo.source,
+                                context=todo.context,
+                                due_date=todo.due_date,
+                                priority=todo.priority,
+                            )
+    elif all_todos and not config.TODOIST_API_TOKEN:
+        logger.debug("todoist: %d todo(s) extracted but TODOIST_API_TOKEN not set — skipping", len(all_todos))
+
     # ── Post run summary to Slack thread ─────────────────────────────────────
     if not args.dry_run and not args.mock:
         t = _get_thread()
         # Only post summary if something happened this run
-        if t and (total_actions > 0 or counts["skipped_recurring"] > 0 or counts["skipped_low_confidence"] > 0):
+        if t and (total_actions > 0 or counts["skipped_recurring"] > 0
+                  or counts["skipped_low_confidence"] > 0 or todos_created > 0):
             slack_notifier.post_run_summary(
                 thread_ts=t,
                 created=counts["created"],
@@ -369,17 +412,21 @@ def main() -> int:
                 skipped_low_confidence=counts["skipped_low_confidence"],
                 skipped_recurring=counts["skipped_recurring"],
                 skipped_duplicate=counts["skipped_duplicate"],
+                todos_created=todos_created,
             )
 
     # ── Update last_run timestamps ───────────────────────────────────────────
+    # Use run_start (not now) so messages that arrived during extraction
+    # are caught by the next run rather than falling through the gap.
     for source in sources:
-        state.set_last_run(source)
+        state.set_last_run(source, run_start)
 
     state_module.save(state)
 
     # ── Send digests ─────────────────────────────────────────────────────────
     if not args.dry_run and not args.mock:
         _send_digests(state, dry_run=False)
+        state_module.save(state)  # persist last_digest_* and calendar snapshot
 
     return 0
 

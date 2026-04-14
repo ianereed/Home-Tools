@@ -153,6 +153,136 @@ def post_event_action(
         return False
 
 
+def post_event_batch(
+    thread_ts: str,
+    actions: list[dict],
+) -> bool:
+    """
+    Post all event actions from a run as a single batched message.
+
+    Each item in actions is a dict with keys:
+      action, title, start_dt, source, category (opt), confidence_band (opt),
+      suggested_attendees (opt), conflicts (opt), original_title (opt)
+    """
+    if not config.SLACK_BOT_TOKEN or not thread_ts or not actions:
+        return False
+
+    lines: list[str] = []
+    reported_conflicts: set[str] = set()  # suppress repeats across the batch
+    for a in actions:
+        action = a["action"]
+        title = a["title"]
+        start_dt: datetime | None = a.get("start_dt")
+        source = a.get("source", "")
+        category = a.get("category", "other")
+        confidence_band = a.get("confidence_band", "high")
+        suggested_attendees: list[dict] | None = a.get("suggested_attendees")
+        conflicts: list[str] | None = a.get("conflicts")
+        original_title: str | None = a.get("original_title")
+
+        action_icon = {
+            "created": ":calendar:",
+            "updated": ":pencil2:",
+            "cancelled": ":wastebasket:",
+            "skipped_recurring": ":repeat:",
+        }.get(action, ":calendar:")
+
+        action_label = {
+            "created": "created?" if confidence_band == "medium" else "created",
+            "updated": "updated",
+            "cancelled": "cancelled",
+            "skipped_recurring": "recurring — skipped",
+        }.get(action, action)
+
+        start_str = start_dt.strftime("%b %-d %-I:%M%p").lower() if start_dt else "unknown time"
+
+        if action == "updated" and original_title and original_title != title:
+            event_line = f"*{original_title}* → *{title}* | {start_str}"
+        elif action == "cancelled":
+            event_line = f"*{title}*"
+        else:
+            event_line = f"*{title}* | {start_str} | `{category}` | `{source}`"
+
+        line = f"{action_icon} [{action_label}] {event_line}"
+
+        if suggested_attendees:
+            attendee_parts = []
+            for att in suggested_attendees[:5]:
+                name = att.get("name", "")
+                email = att.get("email")
+                # Skip calendar subscription names (not real people)
+                if "calendar" in name.lower():
+                    continue
+                if email:
+                    attendee_parts.append(f"{name} <{email}>" if name else email)
+                elif name:
+                    attendee_parts.append(name)
+            if attendee_parts:
+                line += f"\n  :busts_in_silhouette: Suggested invitees: {', '.join(attendee_parts)}"
+
+        if conflicts:
+            # Only surface each conflicting event once per batch
+            new_conflicts = [c for c in conflicts if c not in reported_conflicts]
+            if new_conflicts:
+                conflict_str = ", ".join(f"'{c}'" for c in new_conflicts[:3])
+                line += f"\n  :warning: Conflict: {conflict_str}"
+                reported_conflicts.update(new_conflicts)
+
+        lines.append(line)
+
+    text = "\n".join(lines)
+    try:
+        client = _client()
+        result = client.chat_postMessage(
+            channel=config.SLACK_NOTIFY_CHANNEL,
+            thread_ts=thread_ts,
+            text=text,
+        )
+        return bool(result.get("ok"))
+    except Exception as exc:
+        logger.warning("slack notifier: post_event_batch failed: %s", exc)
+        return False
+
+
+def post_todo_action(
+    thread_ts: str,
+    title: str,
+    source: str,
+    context: str | None,
+    due_date: str | None,
+    priority: str = "normal",
+) -> bool:
+    """Post a todo item creation notification as a reply to the day thread."""
+    if not config.SLACK_BOT_TOKEN or not thread_ts:
+        return False
+
+    priority_icon = {
+        "urgent": ":red_circle:",
+        "high": ":large_orange_circle:",
+    }.get(priority, ":white_circle:")
+
+    lines = [f"{priority_icon} [todo] *{title}*"]
+    if context:
+        lines.append(f"  :speech_balloon: {context}")
+    if due_date:
+        lines.append(f"  :calendar: Due: {due_date}")
+    lines.append(f"  `{source}`")
+
+    text = "\n".join(lines)
+
+    try:
+        client = _client()
+        result = client.chat_postMessage(
+            channel=config.SLACK_NOTIFY_CHANNEL,
+            thread_ts=thread_ts,
+            text=text,
+        )
+        return bool(result.get("ok"))
+    except Exception as exc:
+        logger.warning("slack notifier: post_todo_action failed: %s", exc)
+        return False
+
+
 def post_run_summary(
     thread_ts: str,
     created: int,
@@ -161,6 +291,7 @@ def post_run_summary(
     skipped_low_confidence: int,
     skipped_recurring: int,
     skipped_duplicate: int,
+    todos_created: int = 0,
 ) -> bool:
     """
     Post a run summary as a reply to the day thread.
@@ -170,7 +301,8 @@ def post_run_summary(
         return False
 
     total_actions = created + updated + cancelled
-    if total_actions == 0 and skipped_low_confidence == 0 and skipped_recurring == 0:
+    if (total_actions == 0 and skipped_low_confidence == 0
+            and skipped_recurring == 0 and todos_created == 0):
         return True  # nothing to report
 
     parts = []
@@ -180,6 +312,8 @@ def post_run_summary(
         parts.append(f"{updated} updated")
     if cancelled:
         parts.append(f"{cancelled} cancelled")
+    if todos_created:
+        parts.append(f"{todos_created} todo(s) added")
     if skipped_low_confidence:
         parts.append(f"{skipped_low_confidence} skipped (low confidence)")
     if skipped_recurring:

@@ -65,3 +65,19 @@ class WrittenEvent:
     gcal_event_id: str
     fingerprint: str  # sha256(title.lower() + date_str)
     candidate: CandidateEvent
+
+
+@dataclass
+class CandidateTodo:
+    title: str                 # short actionable description, max 200 chars
+    source: str                # "gmail", "imessage", etc.
+    source_id: str             # RawMessage.id — used for fingerprinting
+    source_url: str | None     # deep link back to original message
+    confidence: float          # 0.0–1.0
+    context: str | None        # who/what/where context sentence
+    due_date: str | None       # YYYY-MM-DD or None
+    priority: str = "normal"   # "urgent" | "high" | "normal" | "low"
+
+    def __post_init__(self) -> None:
+        self.confidence = max(0.0, min(1.0, self.confidence))
+        self.title = self.title[:200].strip()

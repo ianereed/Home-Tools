@@ -6,20 +6,17 @@ Ollama process — your message content never leaves your machine.
 
 ---
 
-## Where we left off
-
-**Status: Phase 1 scaffold complete.** The full pipeline structure is in place with all connectors
-stubbed out. Phases 2–6 implement the real API connections incrementally.
+## Status: All phases complete
 
 | Phase | What | Status |
 |-------|------|--------|
 | 1 | Scaffold + mock pipeline | ✅ Done |
-| 2 | Gmail + Google Calendar writer | ⬜ Next |
-| 3 | iMessage + WhatsApp (local SQLite) | ⬜ |
-| 4 | Slack + Discord | ⬜ |
-| 5 | Messenger + Instagram (Notification Center) | ⬜ |
-| 6 | GCal reader + year-ahead analysis + digests | ⬜ |
-| 7 | launchd scheduler | ⬜ (plist written, needs path customization) |
+| 2 | Gmail + Google Calendar writer | ✅ Done |
+| 3 | iMessage + WhatsApp (local SQLite) | ✅ Done |
+| 4 | Slack + Discord | ✅ Done |
+| 5 | Messenger + Instagram (Notification Center) | ✅ Done |
+| 6 | GCal reader + year-ahead analysis + digests | ✅ Done |
+| 7 | launchd scheduler | ✅ Done |
 
 ---
 
@@ -84,9 +81,9 @@ Before each phase, add the corresponding `.env` variables from `.env.example`.
 - `gcal_token.json` — auto-generated after first OAuth flow
 
 ### Install scheduler (Phase 7)
-1. Edit `com.home-tools.event-aggregator.plist` — update `YOURUSERNAME` and the repo path
-2. Run `bash install_scheduler.sh`
-3. Logs: `/tmp/home-tools-event-aggregator.log`
+1. Run `bash install_scheduler.sh`
+2. Logs: `/tmp/home-tools-event-aggregator.log` (stdout), `/tmp/home-tools-event-aggregator-error.log` (stderr)
+3. To uninstall: `launchctl unload ~/Library/LaunchAgents/com.home-tools.event-aggregator.plist && rm ~/Library/LaunchAgents/com.home-tools.event-aggregator.plist`
 
 ---
 

@@ -100,7 +100,8 @@ def _check_conflicts(service, candidate: CandidateEvent) -> list[str]:
         return [
             item.get("summary", "")
             for item in result.get("items", [])
-            if item.get("summary")
+            # Skip all-day events (start.date present instead of start.dateTime)
+            if item.get("summary") and not item.get("start", {}).get("date")
         ]
     except Exception as exc:
         logger.debug("conflict check failed: %s", exc)

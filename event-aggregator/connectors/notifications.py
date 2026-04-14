@@ -45,9 +45,9 @@ class NotificationCenterConnector(BaseConnector):
     source_name = "notifications"  # internal; individual messages get "messenger"/"instagram"
 
     def __init__(self) -> None:
-        logger.warning(
-            "notifications connector: reading macOS system notification DB — "
-            "filtering STRICTLY to Messenger/Instagram bundle IDs only"
+        logger.debug(
+            "notifications connector: will read macOS Notification Center DB "
+            "filtered strictly to Messenger/Instagram bundle IDs"
         )
 
     def fetch(self, since: datetime, mock: bool = False) -> list[RawMessage]:
@@ -57,9 +57,11 @@ class NotificationCenterConnector(BaseConnector):
 
         db_paths = glob.glob(_NC_DB_GLOB)
         if not db_paths:
-            logger.warning(
+            logger.debug(
                 "Notification Center DB not found at %s — "
-                "check Full Disk Access permissions", _NC_DB_GLOB
+                "Messenger/Instagram notifications unavailable (macOS Sequoia "
+                "removed this DB; or grant Full Disk Access to enable it)",
+                _NC_DB_GLOB,
             )
             return []
 

@@ -16,7 +16,7 @@ from typing import Any
 import requests
 
 import config
-from models import CandidateEvent, RawMessage
+from models import CandidateEvent, CandidateTodo, RawMessage
 
 logger = logging.getLogger(__name__)
 
@@ -57,10 +57,18 @@ _SCHEMA = (
     '  "recurrence_hint": "e.g. weekly on Tuesdays, or null",\n'
     '  "attendees": [{"name": "...", "email": "... or null"}],\n'
     '  "category": "work|personal|social|health|travel|other"\n'
+    "}],\n"
+    '"todos": [{\n'
+    '  "title": "short action item (max 200 chars)",\n'
+    '  "context": "who this involves and what it is about, or null",\n'
+    '  "due_date": "YYYY-MM-DD or null",\n'
+    '  "priority": "urgent|high|normal|low",\n'
+    '  "confidence": 0.0\n'
     "}]}\n"
-    'If no events are found, return: {"events": []}\n'
+    'If no events are found, use: "events": []\n'
+    'If no action items are found, use: "todos": []\n'
     "\n"
-    "Field instructions:\n"
+    "Event field instructions:\n"
     "- confidence: 0.0–1.0. How certain are you this is a real scheduled event with a specific date/time?\n"
     "- is_update: true if this message reschedules or changes details of a previously-mentioned event\n"
     "- original_title_hint: your best guess at the existing event title, only when is_update is true\n"
@@ -70,7 +78,16 @@ _SCHEMA = (
     "- category: best-fit category for GCal color coding\n"
     f"- Today's date is {_TODAY_PLACEHOLDER}. Use this to resolve relative dates like 'next Friday' or 'this Thursday'.\n"
     f"- The user's local timezone is {_TIMEZONE_PLACEHOLDER}. "
-    "Interpret all relative times in that timezone and return ISO8601 with UTC offset."
+    "Interpret all relative times in that timezone and return ISO8601 with UTC offset.\n"
+    "\n"
+    "Todo field instructions:\n"
+    "- Extract: commitments you made, tasks assigned to you, things to follow up on\n"
+    "- Do NOT put scheduled calendar events in todos — those belong in events only\n"
+    "- title: short, actionable description (e.g. 'Send Q2 report to Sarah', 'Review draft proposal')\n"
+    "- context: who you were talking with and what message or thread this came from\n"
+    "- due_date: only if an explicit deadline is mentioned, otherwise null\n"
+    "- priority: urgent=must do immediately, high=important, normal=standard, low=nice-to-have\n"
+    "- confidence: 0.0–1.0. How certain are you this is a real action item you need to act on?"
 )
 
 # Intro lines per source type
@@ -266,7 +283,7 @@ def _validate_event(raw: dict[str, Any]) -> CandidateEvent | None:
 
 # ── Ollama call ───────────────────────────────────────────────────────────────
 
-def _call_ollama(prompt: str) -> list[dict[str, Any]]:
+def _call_ollama(prompt: str) -> dict[str, Any]:
     payload = {
         "model": config.OLLAMA_MODEL,
         "prompt": prompt,
@@ -281,21 +298,64 @@ def _call_ollama(prompt: str) -> list[dict[str, Any]]:
     )
     resp.raise_for_status()
     text = resp.json().get("response", "")
-    data = json.loads(text)
-    return data.get("events", [])
+    return json.loads(text)
+
+
+_VALID_PRIORITIES = {"urgent", "high", "normal", "low"}
+_DUE_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+
+
+def _validate_todo(raw: dict[str, Any]) -> CandidateTodo | None:
+    """Validate and sanitize a single LLM-extracted todo dict. Returns None if invalid."""
+    try:
+        title = str(raw.get("title", "")).strip()[:_TITLE_MAX_CHARS]
+        if not title or _UNSAFE_TITLE_RE.search(title):
+            return None
+
+        confidence = float(raw.get("confidence", 0.0))
+        confidence = max(0.0, min(1.0, confidence))
+
+        context = raw.get("context")
+        if context:
+            context = str(context).strip()[:500] or None
+
+        due_date = raw.get("due_date")
+        if due_date:
+            due_date = str(due_date).strip()
+            if not _DUE_DATE_RE.match(due_date):
+                due_date = None
+
+        priority = str(raw.get("priority") or "normal").lower().strip()
+        if priority not in _VALID_PRIORITIES:
+            priority = "normal"
+
+        return CandidateTodo(
+            title=title,
+            source="",      # filled in by caller
+            source_id="",
+            source_url=None,
+            confidence=confidence,
+            context=context,
+            due_date=due_date,
+            priority=priority,
+        )
+    except (ValueError, TypeError, KeyError):
+        return None
 
 
 # ── Public API ────────────────────────────────────────────────────────────────
 
-def extract(message: RawMessage) -> list[CandidateEvent]:
+def extract(message: RawMessage) -> tuple[list[CandidateEvent], list[CandidateTodo]]:
     """
-    Extract candidate events from a single RawMessage via Ollama.
-    Returns an empty list on any failure — never raises.
+    Extract candidate events and todo items from a single RawMessage via Ollama.
+    Returns (events, todos); both lists may be empty. Never raises.
 
-    Confidence banding (per config.CONFIDENCE_BANDS):
+    Event confidence banding (per config.CONFIDENCE_BANDS):
     - below medium threshold → event dropped
     - medium to high         → event returned with confidence_band="medium"
     - at or above high       → event returned with confidence_band="high"
+
+    Todo items below config.TODOIST_TODO_MIN_CONFIDENCE are dropped.
     """
     bands = config.CONFIDENCE_BANDS.get(message.source, config.CONFIDENCE_BANDS["default"])
     medium_threshold = bands["medium"]
@@ -303,10 +363,10 @@ def extract(message: RawMessage) -> list[CandidateEvent]:
 
     prompt = _build_prompt(message)
 
-    raw_events: list[dict[str, Any]] = []
+    raw_data: dict[str, Any] = {}
     for attempt in range(3):
         try:
-            raw_events = _call_ollama(prompt)
+            raw_data = _call_ollama(prompt)
             break
         except (requests.RequestException, json.JSONDecodeError, KeyError) as exc:
             if attempt < 2:
@@ -321,15 +381,15 @@ def extract(message: RawMessage) -> list[CandidateEvent]:
                     "extractor: skipping source=%s id=%s after 3 failures",
                     message.source, message.id,
                 )
-                return []
+                return [], []
 
-    candidates = []
-    for raw in raw_events:
+    # ── Extract events ────────────────────────────────────────────────────────
+    candidates: list[CandidateEvent] = []
+    for raw in raw_data.get("events", []):
         event = _validate_event(raw)
         if event is None:
             continue
 
-        # Drop low-confidence events entirely
         if event.confidence < medium_threshold:
             logger.debug(
                 "extractor: dropping low-confidence event %r (%.2f < %.2f) source=%s",
@@ -337,18 +397,14 @@ def extract(message: RawMessage) -> list[CandidateEvent]:
             )
             continue
 
-        # Set confidence band
         event.confidence_band = "high" if event.confidence >= high_threshold else "medium"
-
         event.source = message.source
         event.source_id = message.id
         event.source_url = message.metadata.get("source_url")
 
-        # For Gmail, merge To/CC emails into attendees if not already present
         if message.source == "gmail":
             _merge_gmail_attendees(event, message.metadata)
 
-        # For GCal invites, set attendees from structured metadata
         if message.source == "gcal" and not event.suggested_attendees:
             gcal_attendees = message.metadata.get("attendees", [])
             event.suggested_attendees = [
@@ -357,11 +413,30 @@ def extract(message: RawMessage) -> list[CandidateEvent]:
 
         candidates.append(event)
 
+    # ── Extract todos ─────────────────────────────────────────────────────────
+    todos: list[CandidateTodo] = []
+    for raw in raw_data.get("todos", []):
+        todo = _validate_todo(raw)
+        if todo is None:
+            continue
+
+        if todo.confidence < config.TODOIST_TODO_MIN_CONFIDENCE:
+            logger.debug(
+                "extractor: dropping low-confidence todo %r (%.2f < %.2f) source=%s",
+                todo.title, todo.confidence, config.TODOIST_TODO_MIN_CONFIDENCE, message.source,
+            )
+            continue
+
+        todo.source = message.source
+        todo.source_id = message.id
+        todo.source_url = message.metadata.get("source_url")
+        todos.append(todo)
+
     logger.debug(
-        "extractor: source=%s id=%s → %d candidate(s)",
-        message.source, message.id, len(candidates),
+        "extractor: source=%s id=%s → %d event(s), %d todo(s)",
+        message.source, message.id, len(candidates), len(todos),
     )
-    return candidates
+    return candidates, todos
 
 
 def _merge_gmail_attendees(event: CandidateEvent, metadata: dict) -> None:

@@ -24,6 +24,11 @@ _SHORT_WINDOW_DAYS = 14
 _LONG_WINDOW_DAYS = 365
 
 
+def _conflict_fp(c: Conflict) -> str:
+    """Stable fingerprint for a conflict pair, independent of ordering."""
+    return "||".join(sorted([c.event_a.gcal_id, c.event_b.gcal_id]))
+
+
 def send_daily_digest(
     analysis: CalendarAnalysis,
     new_events: list[CalendarEvent],
@@ -42,8 +47,10 @@ def send_daily_digest(
         c for c in analysis.conflicts
         if c.event_a.start_dt <= cutoff or c.event_b.start_dt <= cutoff
     ]
+    # Only warn about conflict pairs not already reported
+    new_conflicts = [c for c in near_conflicts if not state.is_conflict_warned(_conflict_fp(c))]
 
-    if not (upcoming_new or upcoming_updated or upcoming_removed or near_conflicts):
+    if not (upcoming_new or upcoming_updated or upcoming_removed or new_conflicts):
         logger.debug("daily digest: no changes in next 14 days — skipping")
         return True
 
@@ -56,9 +63,12 @@ def send_daily_digest(
         new_events=upcoming_new,
         updated_events=upcoming_updated,
         removed_events=upcoming_removed,
-        conflicts=near_conflicts,
+        conflicts=new_conflicts,
     )
-    return slack_notifier.post_to_thread(thread_ts, text)
+    ok = slack_notifier.post_to_thread(thread_ts, text)
+    if ok and new_conflicts:
+        state.mark_conflicts_warned([_conflict_fp(c) for c in new_conflicts])
+    return ok
 
 
 def send_weekly_digest(
@@ -78,8 +88,10 @@ def send_weekly_digest(
         c for c in analysis.conflicts
         if near_cutoff < c.event_a.start_dt <= far_cutoff
     ]
+    # Only warn about conflict pairs not already reported
+    new_far_conflicts = [c for c in far_conflicts if not state.is_conflict_warned(_conflict_fp(c))]
 
-    if not (far_new or far_updated or far_conflicts):
+    if not (far_new or far_updated or new_far_conflicts):
         logger.debug("weekly digest: no changes beyond 14 days — skipping")
         return True
 
@@ -92,9 +104,12 @@ def send_weekly_digest(
         new_events=far_new,
         updated_events=far_updated,
         removed_events=[],
-        conflicts=far_conflicts,
+        conflicts=new_far_conflicts,
     )
-    return slack_notifier.post_to_thread(thread_ts, text)
+    ok = slack_notifier.post_to_thread(thread_ts, text)
+    if ok and new_far_conflicts:
+        state.mark_conflicts_warned([_conflict_fp(c) for c in new_far_conflicts])
+    return ok
 
 
 def _build_digest_text(
@@ -132,13 +147,32 @@ def _build_digest_text(
 
     if conflicts:
         lines.append("\n:rotating_light: *Scheduling Conflicts*")
-        for c in conflicts[:5]:
+
+        # Group overlaps by the anchor event (event_a always starts first / is the
+        # longer event). This collapses "multi-day event spans N others" from N
+        # identical-looking lines into one compact line.
+        overlap_groups: dict[str, tuple] = {}
+        travel_risks: list[Conflict] = []
+        for c in conflicts:
             if c.conflict_type == "overlap":
-                lines.append(f":red_circle: *Overlap*: {c.event_a.title} / {c.event_b.title}")
+                if c.event_a.gcal_id not in overlap_groups:
+                    overlap_groups[c.event_a.gcal_id] = (c.event_a, [])
+                overlap_groups[c.event_a.gcal_id][1].append(c.event_b)
             else:
-                lines.append(
-                    f":warning: *Travel risk* ({c.gap_minutes:.0f} min gap): "
-                    f"{c.event_a.title} → {c.event_b.title}"
-                )
+                travel_risks.append(c)
+
+        for anchor, others in overlap_groups.values():
+            if len(others) == 1:
+                lines.append(f":red_circle: *Overlap*: {anchor.title} / {others[0].title}")
+            else:
+                listed = ", ".join(o.title for o in others[:6])
+                more = f" (+{len(others) - 6} more)" if len(others) > 6 else ""
+                lines.append(f":red_circle: *Overlap*: *{anchor.title}* / {listed}{more}")
+
+        for c in travel_risks[:5]:
+            lines.append(
+                f":warning: *Travel risk* ({c.gap_minutes:.0f} min gap): "
+                f"{c.event_a.title} → {c.event_b.title}"
+            )
 
     return "\n".join(lines)[:3000]

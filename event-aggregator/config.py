@@ -88,6 +88,11 @@ CONFIDENCE_BANDS: dict[str, dict[str, float]] = {
     "default":  {"medium": 0.55, "high": 0.78},
 }
 
+# ── Todoist (optional) ───────────────────────────────────────────────────────
+TODOIST_API_TOKEN: str = _get("TODOIST_API_TOKEN")
+TODOIST_PROJECT_NAME: str = _get("TODOIST_PROJECT_NAME", "automated todo aggregation")
+TODOIST_TODO_MIN_CONFIDENCE: float = float(_get("TODOIST_TODO_MIN_CONFIDENCE", "0.65"))
+
 # ── GCal category colors ─────────────────────────────────────────────────────
 # Values are GCal colorId strings (1–11)
 CATEGORY_COLORS: dict[str, str] = {
