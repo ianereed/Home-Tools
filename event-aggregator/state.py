@@ -55,12 +55,16 @@ class State:
     # ── seen IDs ─────────────────────────────────────────────────────────────
 
     def is_seen(self, source: str, msg_id: str) -> bool:
-        return msg_id in self._data.get("seen_message_ids", {}).get(source, [])
+        for entry in self._data.get("seen_message_ids", {}).get(source, []):
+            eid = entry["id"] if isinstance(entry, dict) else entry
+            if eid == msg_id:
+                return True
+        return False
 
     def mark_seen(self, source: str, msg_id: str) -> None:
         bucket = self._data.setdefault("seen_message_ids", {}).setdefault(source, [])
-        if msg_id not in bucket:
-            bucket.append(msg_id)
+        if not self.is_seen(source, msg_id):
+            bucket.append({"id": msg_id, "ts": _utcnow().isoformat()})
 
     # ── fingerprints ─────────────────────────────────────────────────────────
 
@@ -146,12 +150,20 @@ class State:
         """Remove stale entries to prevent unbounded growth."""
         cutoff = _utcnow() - timedelta(days=30)
 
-        # Prune seen_message_ids: keep only IDs seen after cutoff.
-        # We can't know when an ID was added without a separate timestamp index,
-        # so instead we cap each source bucket to the most recent 1000 entries.
+        # Prune seen_message_ids by age (30 days), floor at 1000 most recent.
+        # Entries are {"id": ..., "ts": ...}; bare strings are migrated on read.
         for source in self._data.get("seen_message_ids", {}):
             bucket = self._data["seen_message_ids"][source]
-            self._data["seen_message_ids"][source] = bucket[-1000:]
+            recent = []
+            for entry in bucket:
+                if isinstance(entry, dict):
+                    ts = _parse_dt(entry.get("ts"))
+                    if ts is None or ts >= cutoff:
+                        recent.append(entry)
+                else:
+                    # Migrate old bare-string format — assign now as ts
+                    recent.append({"id": entry, "ts": _utcnow().isoformat()})
+            self._data["seen_message_ids"][source] = recent[-1000:]
 
         # Prune fingerprints: format is sha256(title+date), date embedded as YYYY-MM-DD.
         # We can't decode the hash, so keep fingerprints for up to 30 days past last_run.

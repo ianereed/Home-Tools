@@ -34,9 +34,9 @@ def is_duplicate(
     """
     fp = fingerprint(candidate)
     for existing in existing_events:
-        if fingerprint(existing) == fp:
-            return True
         time_diff = abs(candidate.start_dt - existing.start_dt)
+        if fingerprint(existing) == fp and time_diff <= _TIME_WINDOW:
+            return True
         if (
             fuzz.ratio(candidate.title.lower(), existing.title.lower()) > _FUZZY_THRESHOLD
             and time_diff <= _TIME_WINDOW
