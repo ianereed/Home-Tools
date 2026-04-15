@@ -32,8 +32,13 @@ function onOpen() {
     .addItem('Consolidate List', 'consolidateList_')
     .addItem('Sort List', 'sortList_')
     .addItem('Clear List', 'clearList_')
+    .addSeparator()
+    .addItem('Create / Update Readme Sheet', 'createReadmeSheet_')
     .addToUi();
 }
+
+// Reserved sheet name — excluded from recipe lists and photo capture dropdown
+const README_SHEET_NAME = 'readme';
 
 // =============================================================================
 // Recipe sidebar — multi-select push
@@ -433,9 +438,11 @@ function getSheet_(sheetName) {
   return sheet;
 }
 
-/** Returns all sheet tab names in their current order. */
+/** Returns all recipe sheet tab names (excludes the readme sheet). */
 function getSheetNames_() {
-  return SpreadsheetApp.getActiveSpreadsheet().getSheets().map(s => s.getName());
+  return SpreadsheetApp.getActiveSpreadsheet().getSheets()
+    .map(s => s.getName())
+    .filter(n => n.toLowerCase() !== README_SHEET_NAME);
 }
 
 /**
@@ -461,6 +468,75 @@ function getRecipeNames_(sheetName) {
     if (name) results.push({ name: String(name), colIndex: idx });
   });
   return results;
+}
+
+// =============================================================================
+// Readme sheet
+// =============================================================================
+
+/**
+ * Creates (or overwrites) a "readme" sheet tab with usage instructions.
+ * Run once from the Grocery menu after setup.
+ */
+function createReadmeSheet_() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName(README_SHEET_NAME);
+  if (sheet) {
+    sheet.clear();
+  } else {
+    sheet = ss.insertSheet(README_SHEET_NAME);
+    // Move to first position
+    ss.setActiveSheet(sheet);
+    ss.moveActiveSheet(1);
+  }
+
+  const GITHUB_URL = 'https://github.com/ianereed/Home-Tools/tree/main/meal-planner';
+  const rows = [
+    // [text, fontSize, bold, italic, hexColor]
+    ['Meal Planner', 20, true, false, '#1a73e8'],
+    ['', 11, false, false, null],
+    ['A Google Sheets + Todoist grocery automation tool.', 12, false, true, '#5f6368'],
+    ['Source code and setup guide: ' + GITHUB_URL, 11, false, false, '#1a73e8'],
+    ['', 11, false, false, null],
+    ['HOW IT WORKS', 11, true, false, '#202124'],
+    ['Each sheet tab holds up to 20 recipes (one recipe per column).', 11, false, false, null],
+    ['Row 1 = recipe name. Rows 2+ = ingredients ("2 cups flour", "1 lb chicken").', 11, false, false, null],
+    ['', 11, false, false, null],
+    ['GROCERY MENU', 11, true, false, '#202124'],
+    ['Build Grocery List   - Pick recipes from any sheet; ingredients are pushed to Todoist.', 11, false, false, null],
+    ['Add Recipe from Photo - Take or upload a photo; Gemini extracts the recipe automatically.', 11, false, false, null],
+    ['Consolidate List     - Merge duplicate ingredients and sum quantities via Gemini.', 11, false, false, null],
+    ['Sort List            - Alphabetize items within each Todoist section.', 11, false, false, null],
+    ['Clear List           - Delete all meal-planner tasks from Todoist.', 11, false, false, null],
+    ['', 11, false, false, null],
+    ['BULK IMPORT (terminal)', 11, true, false, '#202124'],
+    ['python bulk_import.py ~/photos/ --sheet "Asian" --yes', 11, false, false, null],
+    ['Processes a folder of recipe photos via Gemini and writes them to the named sheet.', 11, false, false, null],
+    ['', 11, false, false, null],
+    ['TIPS', 11, true, false, '#202124'],
+    ['Add new sheet tabs anytime — the tool discovers them automatically.', 11, false, false, null],
+    ['Renaming tabs is safe; names are never cached.', 11, false, false, null],
+    ['This sheet is excluded from all recipe lists and dropdowns.', 11, false, false, null],
+  ];
+
+  rows.forEach((row, i) => {
+    const [text, fontSize, bold, italic, color] = row;
+    const cell = sheet.getRange(i + 1, 1);
+    cell.setValue(text);
+    cell.setFontSize(fontSize);
+    cell.setFontWeight(bold ? 'bold' : 'normal');
+    cell.setFontStyle(italic ? 'italic' : 'normal');
+    if (color) cell.setFontColor(color);
+  });
+
+  // Widen column A so text isn't clipped
+  sheet.setColumnWidth(1, 680);
+
+  // Freeze row 1 and set tab color
+  sheet.setFrozenRows(1);
+  sheet.setTabColor('#1a73e8');
+
+  SpreadsheetApp.getActiveSpreadsheet().toast('Readme sheet created.', 'Done', 3);
 }
 
 // =============================================================================
