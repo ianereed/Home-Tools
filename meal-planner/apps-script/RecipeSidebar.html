@@ -18,6 +18,7 @@
     #add-btn { width: 100%; padding: 8px; background: #1a73e8; color: white; border: none; border-radius: 4px; font-size: 13px; font-weight: 500; cursor: pointer; }
     #add-btn:hover:not(:disabled) { background: #1765cc; }
     #add-btn:disabled { background: #dadce0; color: #80868b; cursor: default; }
+    #gemini-count { font-size: 11px; color: #5f6368; margin: -4px 0 10px 0; }
     #status { margin-top: 8px; font-size: 12px; min-height: 16px; word-wrap: break-word; }
     .msg { padding: 16px 10px; color: #5f6368; font-style: italic; text-align: center; }
   </style>
@@ -25,6 +26,7 @@
 <body>
 
 <h3>Select Recipes</h3>
+<div id="gemini-count">Loading…</div>
 <div id="controls">
   <a onclick="selectAll()">Select all</a>
   <a onclick="deselectAll()">Deselect all</a>
@@ -103,6 +105,9 @@ function addToList() {
       statusEl.textContent = msg;
       statusEl.style.color = '#137333';
       document.getElementById('add-btn').disabled = false;
+      var countEl = document.getElementById('gemini-count');
+      var m = countEl.textContent.match(/\d+/);
+      if (m) updateGeminiCount(20 - Math.max(0, parseInt(m[0], 10) - 1));
     })
     .withFailureHandler(function(err) {
       statusEl.textContent = 'Error: ' + (err && err.message ? err.message : String(err));
@@ -111,6 +116,19 @@ function addToList() {
     })
     .pushSelectedRecipes(selections);
 }
+
+function updateGeminiCount(used) {
+  var remaining = Math.max(0, 20 - used);
+  document.getElementById('gemini-count').textContent =
+    'You have ' + remaining + ' remaining exports today.';
+}
+
+google.script.run
+  .withSuccessHandler(updateGeminiCount)
+  .withFailureHandler(function() {
+    document.getElementById('gemini-count').textContent = '';
+  })
+  .getGeminiCallCount();
 
 init();
 </script>

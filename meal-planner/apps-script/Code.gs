@@ -18,6 +18,7 @@
 
 const PROPS = PropertiesService.getScriptProperties();
 const TODOIST_LABEL = 'meal-planner';
+const GEMINI_DAILY_LIMIT = 20;
 
 // =============================================================================
 // Menu
@@ -161,8 +162,10 @@ function categorizeIngredients_(ingredients) {
   const body = JSON.parse(raw);
 
   if (!body.candidates || body.candidates.length === 0) {
-    throw new Error('Gemini error: ' + raw);
+    const msg = (body.error && body.error.message) || raw;
+    throw new Error('Gemini error: ' + msg);
   }
+  trackGeminiCall_();
 
   const text = body.candidates[0].content.parts[0].text;
   const match = text.match(/\[[\s\S]*\]/);
@@ -212,8 +215,10 @@ function consolidateList_() {
   const raw = resp.getContentText();
   const body = JSON.parse(raw);
   if (!body.candidates || body.candidates.length === 0) {
-    throw new Error('Gemini error: ' + raw);
+    const msg = (body.error && body.error.message) || raw;
+    throw new Error('Gemini error: ' + msg);
   }
+  trackGeminiCall_();
 
   const text = body.candidates[0].content.parts[0].text;
   const match = text.match(/\[[\s\S]*\]/);
@@ -375,6 +380,11 @@ function parseRecipeImage(base64Data, mimeType, sheetName) {
   );
 
   const body = JSON.parse(resp.getContentText());
+  if (!body.candidates || body.candidates.length === 0) {
+    const msg = (body.error && body.error.message) || resp.getContentText();
+    throw new Error('Gemini error: ' + msg);
+  }
+  trackGeminiCall_();
   const text = body.candidates[0].content.parts[0].text;
 
   const match = text.match(/\{[\s\S]*\}/);
@@ -389,6 +399,30 @@ function parseRecipeImage(base64Data, mimeType, sheetName) {
   });
 
   return recipe.name;
+}
+
+// =============================================================================
+// Gemini usage tracking
+// =============================================================================
+
+/** Increment today's Gemini call count and return the new total. */
+function trackGeminiCall_() {
+  const today = Utilities.formatDate(new Date(), 'America/Los_Angeles', 'yyyy-MM-dd'); // Pacific date — matches Google's RPD reset
+  const storedDate = PROPS.getProperty('GEMINI_CALL_DATE') || '';
+  let count = storedDate === today
+    ? parseInt(PROPS.getProperty('GEMINI_CALL_COUNT') || '0', 10)
+    : 0;
+  count++;
+  PROPS.setProperty('GEMINI_CALL_DATE', today);
+  PROPS.setProperty('GEMINI_CALL_COUNT', String(count));
+  return count;
+}
+
+/** Returns calls used today (0 if it's a new UTC day). Called from sidebar JS. */
+function getGeminiCallCount() {
+  const today = Utilities.formatDate(new Date(), 'America/Los_Angeles', 'yyyy-MM-dd');
+  if (PROPS.getProperty('GEMINI_CALL_DATE') !== today) return 0;
+  return parseInt(PROPS.getProperty('GEMINI_CALL_COUNT') || '0', 10);
 }
 
 // =============================================================================
