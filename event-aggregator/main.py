@@ -39,6 +39,7 @@ from notifiers import digest as digest_module
 from notifiers import slack_notifier
 from writers import google_calendar as gcal_writer
 from writers import todoist_writer
+import image_pipeline
 
 logging.basicConfig(
     level=logging.INFO,
@@ -104,6 +105,481 @@ def _resolve_gcal_id(title_hint: str, state: state_module.State) -> str | None:
     return None
 
 
+def _format_calendar_context(events: list[CalendarEvent]) -> str:
+    """
+    Build a compact calendar context string for injection into the Ollama prompt.
+    Skips all-day events (no time component). Hard cap applied by extractor.
+    """
+    lines = []
+    for e in events:
+        # Skip all-day events (start_dt is midnight UTC with no time significance)
+        try:
+            if e.start_dt.hour == 0 and e.start_dt.minute == 0 and e.start_dt.second == 0:
+                # Heuristic: all-day events stored as UTC midnight
+                continue
+        except AttributeError:
+            continue
+        start_str = e.start_dt.strftime("%b %-d %-I:%M%p").lower()
+        end_str = e.end_dt.strftime("%-I:%M%p").lower() if e.end_dt else ""
+        time_range = f"{start_str}-{end_str}" if end_str else start_str
+        lines.append(f"- {time_range}: {e.title}")
+    return "\n".join(lines)
+
+
+def _candidate_to_proposal_item(candidate: CandidateEvent, num: int, conflicts: list[str]) -> dict:
+    """Serialize a CandidateEvent into a storable proposal dict."""
+    return {
+        "num": num,
+        "status": "pending",
+        "title": candidate.title,
+        "start_dt": candidate.start_dt.isoformat(),
+        "end_dt": candidate.end_dt.isoformat() if candidate.end_dt else None,
+        "location": candidate.location,
+        "confidence": candidate.confidence,
+        "confidence_band": candidate.confidence_band,
+        "category": candidate.category,
+        "source": candidate.source,
+        "source_id": candidate.source_id,
+        "source_url": candidate.source_url,
+        "fingerprint": fingerprint(candidate),
+        "is_update": candidate.is_update,
+        "is_cancellation": candidate.is_cancellation,
+        "original_title_hint": candidate.original_title_hint,
+        "gcal_event_id_to_update": candidate.gcal_event_id_to_update,
+        "is_recurring": candidate.is_recurring,
+        "recurrence_hint": candidate.recurrence_hint,
+        "suggested_attendees": candidate.suggested_attendees or [],
+        "conflicts": conflicts,
+    }
+
+
+def _proposal_item_to_candidate(item: dict) -> CandidateEvent:
+    """Reconstruct a CandidateEvent from a stored proposal dict."""
+    from datetime import timezone as tz
+    start_dt = datetime.fromisoformat(item["start_dt"])
+    if start_dt.tzinfo is None:
+        start_dt = start_dt.replace(tzinfo=tz.utc)
+    end_dt = None
+    if item.get("end_dt"):
+        end_dt = datetime.fromisoformat(item["end_dt"])
+        if end_dt.tzinfo is None:
+            end_dt = end_dt.replace(tzinfo=tz.utc)
+    return CandidateEvent(
+        title=item["title"],
+        start_dt=start_dt,
+        end_dt=end_dt,
+        location=item.get("location"),
+        confidence=item["confidence"],
+        source=item["source"],
+        source_id=item["source_id"],
+        source_url=item.get("source_url"),
+        confidence_band=item.get("confidence_band", "high"),
+        is_update=item.get("is_update", False),
+        original_title_hint=item.get("original_title_hint"),
+        gcal_event_id_to_update=item.get("gcal_event_id_to_update"),
+        is_cancellation=item.get("is_cancellation", False),
+        is_recurring=item.get("is_recurring", False),
+        recurrence_hint=item.get("recurrence_hint"),
+        suggested_attendees=item.get("suggested_attendees") or [],
+        category=item.get("category", "other"),
+    )
+
+
+def _process_pending_approvals(
+    state: state_module.State,
+    dry_run: bool,
+    thread_ts: str | None,
+) -> tuple[int, int, int]:
+    """
+    Check pending proposals for approval/rejection replies and act on them.
+
+    Returns (approved_count, rejected_count, expired_count).
+    """
+    approved = 0
+    rejected = 0
+    snapshot = state.calendar_snapshot()
+
+    # 1. Expire old proposals
+    expired_items = state.expire_old_proposals(hours=config.PROPOSAL_EXPIRY_HOURS)
+    for item in expired_items:
+        fp = item.get("fingerprint")
+        if fp:
+            state.remove_proposal_fingerprint(fp)
+        logger.info("Proposal #%d expired: %r", item["num"], item["title"])
+    expired = len(expired_items)
+
+    if expired and thread_ts and not dry_run:
+        titles = ", ".join(f"#{i['num']} {i['title']}" for i in expired_items[:5])
+        slack_notifier.post_to_thread(
+            thread_ts,
+            f":hourglass: {expired} proposal{'s' if expired != 1 else ''} expired (no response after "
+            f"{config.PROPOSAL_EXPIRY_HOURS}h): {titles}",
+        )
+
+    # 2. Check for approvals in each pending batch
+    day_thread_ts, _ = state.get_day_thread()
+    if not day_thread_ts:
+        return approved, rejected, expired
+
+    for batch in state.get_pending_proposals():
+        batch_slack_ts = batch.get("slack_ts")
+        if not batch_slack_ts:
+            continue
+
+        try:
+            replies = slack_notifier.check_proposal_replies(day_thread_ts, batch_slack_ts)
+        except Exception as exc:
+            logger.warning("Error checking proposal replies for batch %s: %s", batch.get("batch_id"), exc)
+            continue
+
+        approve_all = replies["approve_all"]
+        reject_all = replies["reject_all"]
+        approve_nums = set(replies["approve_nums"])
+        reject_nums = set(replies["reject_nums"])
+
+        # Process rejections first so approvals win if both specified for same #
+        for item in batch.get("items", []):
+            num = item["num"]
+            if item["status"] != "pending":
+                continue
+
+            should_reject = reject_all or num in reject_nums
+            should_approve = approve_all or num in approve_nums
+
+            if should_reject and not should_approve:
+                rejected_item = state.reject_proposal(num)
+                if rejected_item:
+                    fp = rejected_item.get("fingerprint")
+                    if fp:
+                        state.remove_proposal_fingerprint(fp)
+                    rejected += 1
+                    logger.info("Proposal #%d rejected: %r", num, item["title"])
+
+            elif should_approve:
+                approved_item = state.approve_proposal(num)
+                if not approved_item:
+                    continue
+
+                candidate = _proposal_item_to_candidate(approved_item)
+                now = datetime.now(timezone.utc)
+
+                # Skip if event is now in the past
+                if candidate.start_dt < now:
+                    logger.info("Proposal #%d skipped — event time has passed: %r", num, candidate.title)
+                    if thread_ts and not dry_run:
+                        slack_notifier.post_to_thread(
+                            thread_ts,
+                            f":warning: Proposal #{num} skipped — event time has already passed: *{candidate.title}*",
+                        )
+                    continue
+
+                # Execute the appropriate GCal action
+                action_taken = None
+                new_conflicts: list[str] = []
+
+                if candidate.is_cancellation and candidate.gcal_event_id_to_update:
+                    deleted = gcal_writer.delete_event(
+                        candidate.gcal_event_id_to_update, dry_run=dry_run
+                    )
+                    if deleted:
+                        record_cancellation(
+                            gcal_id=candidate.gcal_event_id_to_update,
+                            title=candidate.original_title_hint or candidate.title,
+                            source=candidate.source,
+                        )
+                        action_taken = "cancelled"
+
+                elif candidate.gcal_event_id_to_update:
+                    written, new_conflicts = gcal_writer.update_event(
+                        candidate.gcal_event_id_to_update, candidate, dry_run=dry_run
+                    )
+                    if written:
+                        state.add_written_event(
+                            gcal_id=written.gcal_event_id,
+                            title=candidate.title,
+                            start_iso=candidate.start_dt.isoformat(),
+                            fingerprint=written.fingerprint,
+                            is_tentative=(candidate.confidence_band == "medium"),
+                        )
+                        log_event(written, action="updated", conflicts=new_conflicts)
+                        action_taken = "updated"
+
+                else:
+                    written, new_conflicts = gcal_writer.write_event(
+                        candidate, dry_run=dry_run, snapshot=snapshot
+                    )
+                    if written:
+                        state.add_fingerprint(written.fingerprint)
+                        state.add_written_event(
+                            gcal_id=written.gcal_event_id,
+                            title=candidate.title,
+                            start_iso=candidate.start_dt.isoformat(),
+                            fingerprint=written.fingerprint,
+                            is_tentative=(candidate.confidence_band == "medium"),
+                        )
+                        log_event(written, action="created", conflicts=new_conflicts)
+                        action_taken = "created"
+
+                if action_taken:
+                    approved += 1
+                    logger.info(
+                        "%sProposal #%d %s: %r on %s",
+                        "DRY RUN " if dry_run else "",
+                        num, action_taken, candidate.title,
+                        candidate.start_dt.date() if not candidate.is_cancellation else "n/a",
+                    )
+                    if thread_ts and not dry_run:
+                        action_icon = {
+                            "created": ":white_check_mark:",
+                            "updated": ":pencil2:",
+                            "cancelled": ":wastebasket:",
+                        }.get(action_taken, ":white_check_mark:")
+                        start_str = ""
+                        if not candidate.is_cancellation:
+                            try:
+                                start_str = f" | {candidate.start_dt.strftime('%b %-d %-I:%M%p').lower()}"
+                            except Exception:
+                                pass
+                        conflict_note = ""
+                        if new_conflicts:
+                            conflict_note = f"\n  :warning: New conflict: {', '.join(new_conflicts[:3])}"
+                        slack_notifier.post_to_thread(
+                            thread_ts,
+                            f"{action_icon} #{num} {action_taken}: *{candidate.title}*{start_str}{conflict_note}",
+                        )
+
+    return approved, rejected, expired
+
+
+def _propose_events(
+    all_candidates: list[CandidateEvent],
+    state: state_module.State,
+    snapshot: dict,
+    dry_run: bool,
+    mock: bool,
+    get_thread,
+) -> dict:
+    """
+    In proposal mode: collect candidates into a batch, post to Slack, store in state.
+    Returns counts dict.
+    """
+    counts = {
+        "skipped_recurring": 0,
+        "skipped_duplicate": 0,
+        "proposed": 0,
+    }
+
+    batch_items: list[dict] = []
+    now = datetime.now(timezone.utc)
+
+    # Get GCal service once for conflict checks (avoid per-candidate auth overhead)
+    gcal_service_for_conflicts = None
+    if not dry_run and not mock:
+        try:
+            gcal_service_for_conflicts = gcal_writer._get_service()
+        except Exception:
+            pass
+
+    for candidate in all_candidates:
+        if candidate.is_recurring:
+            counts["skipped_recurring"] += 1
+            logger.info("RECURRING skipped (propose mode): %r", candidate.title)
+            continue
+
+        # Skip past events
+        if candidate.start_dt < now and not candidate.is_cancellation:
+            logger.info("Skipping past event: %r on %s", candidate.title, candidate.start_dt.date())
+            continue
+
+        fp = fingerprint(candidate)
+        if state.has_fingerprint(fp):
+            counts["skipped_duplicate"] += 1
+            logger.debug("Skip duplicate proposal: %r (fingerprint match)", candidate.title)
+            continue
+
+        # Get conflict info upfront so it shows in the proposal
+        conflicts: list[str] = []
+        if gcal_service_for_conflicts and not candidate.is_cancellation:
+            try:
+                conflicts = gcal_writer._check_conflicts(gcal_service_for_conflicts, candidate)
+            except Exception:
+                pass
+
+        num = state.next_proposal_num()
+        item = _candidate_to_proposal_item(candidate, num, conflicts)
+        batch_items.append(item)
+
+        # Register fingerprint immediately to prevent cross-source re-proposal
+        state.add_fingerprint(fp)
+        counts["proposed"] += 1
+
+    if not batch_items:
+        return counts
+
+    # Build the batch
+    now_str = datetime.now(timezone.utc).strftime("%Y-%m-%d_%H:%M")
+    batch = {
+        "batch_id": now_str,
+        "slack_ts": None,  # filled in after posting
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "items": batch_items,
+    }
+    state.add_proposal_batch(batch)
+
+    # Post to Slack
+    if not mock:
+        thread_ts = get_thread()
+        if thread_ts:
+            posted_ts = slack_notifier.post_proposals(thread_ts, batch_items)
+            if posted_ts:
+                state.set_proposal_slack_ts(now_str, posted_ts)
+                logger.info(
+                    "Posted %d proposal(s) to Slack (batch %s, ts=%s)",
+                    len(batch_items), now_str, posted_ts,
+                )
+            else:
+                logger.warning("Failed to post proposals to Slack")
+    else:
+        # Log proposals for mock/dry-run mode
+        for item in batch_items:
+            logger.info(
+                "MOCK PROPOSE #%d: %r on %s (confidence=%.2f, source=%s)",
+                item["num"], item["title"],
+                item.get("start_dt", "")[:10],
+                item["confidence"], item["source"],
+            )
+
+    return counts
+
+
+def _auto_create_events(
+    all_candidates: list[CandidateEvent],
+    state: state_module.State,
+    snapshot: dict,
+    dry_run: bool,
+    mock: bool,
+    get_thread,
+) -> dict:
+    """
+    In auto mode: write events to GCal immediately (original behavior).
+    Returns counts dict.
+    """
+    counts = {
+        "created": 0,
+        "updated": 0,
+        "cancelled": 0,
+        "skipped_low_confidence": 0,
+        "skipped_recurring": 0,
+        "skipped_duplicate": 0,
+    }
+    pending_actions: list[dict] = []
+
+    for candidate in all_candidates:
+
+        if candidate.is_recurring:
+            counts["skipped_recurring"] += 1
+            logger.info("RECURRING skipped: %r hint=%r (source=%s)", candidate.title, candidate.recurrence_hint, candidate.source)
+            if not dry_run and not mock:
+                pending_actions.append({
+                    "action": "skipped_recurring",
+                    "title": candidate.title,
+                    "start_dt": candidate.start_dt,
+                    "source": candidate.source,
+                    "category": candidate.category,
+                })
+            continue
+
+        if candidate.is_cancellation and candidate.gcal_event_id_to_update:
+            deleted = gcal_writer.delete_event(candidate.gcal_event_id_to_update, dry_run=dry_run)
+            if deleted:
+                counts["cancelled"] += 1
+                record_cancellation(
+                    gcal_id=candidate.gcal_event_id_to_update,
+                    title=candidate.original_title_hint or candidate.title,
+                    source=candidate.source,
+                )
+                logger.info("%scancelled: %r (gcal_id=%s, source=%s)", "DRY RUN " if dry_run else "", candidate.original_title_hint or candidate.title, candidate.gcal_event_id_to_update, candidate.source)
+                if not dry_run and not mock:
+                    pending_actions.append({
+                        "action": "cancelled",
+                        "title": candidate.original_title_hint or candidate.title,
+                        "start_dt": None,
+                        "source": candidate.source,
+                    })
+            continue
+
+        if candidate.gcal_event_id_to_update:
+            written, conflicts = gcal_writer.update_event(candidate.gcal_event_id_to_update, candidate, dry_run=dry_run)
+            if written:
+                counts["updated"] += 1
+                log_event(written, action="updated", conflicts=conflicts)
+                state.add_written_event(
+                    gcal_id=written.gcal_event_id,
+                    title=candidate.title,
+                    start_iso=candidate.start_dt.isoformat(),
+                    fingerprint=written.fingerprint,
+                    is_tentative=(candidate.confidence_band == "medium"),
+                )
+                logger.info("%supdated: %r on %s (confidence=%.2f, source=%s)", "DRY RUN " if dry_run else "", candidate.title, candidate.start_dt.date(), candidate.confidence, candidate.source)
+                if not dry_run and not mock:
+                    pending_actions.append({
+                        "action": "updated",
+                        "title": candidate.title,
+                        "start_dt": candidate.start_dt,
+                        "source": candidate.source,
+                        "category": candidate.category,
+                        "confidence_band": candidate.confidence_band,
+                        "suggested_attendees": candidate.suggested_attendees or None,
+                        "conflicts": conflicts or None,
+                        "original_title": candidate.original_title_hint,
+                    })
+            elif dry_run:
+                logger.info("DRY RUN: would update %r on %s (confidence=%.2f, source=%s)", candidate.title, candidate.start_dt.date(), candidate.confidence, candidate.source)
+            continue
+
+        fp = fingerprint(candidate)
+        if state.has_fingerprint(fp):
+            counts["skipped_duplicate"] += 1
+            logger.debug("skip duplicate: %r (fingerprint match)", candidate.title)
+            continue
+
+        written, conflicts = gcal_writer.write_event(candidate, dry_run=dry_run, snapshot=snapshot)
+        if written:
+            counts["created"] += 1
+            state.add_fingerprint(fp)
+            log_event(written, action="created", conflicts=conflicts)
+            state.add_written_event(
+                gcal_id=written.gcal_event_id,
+                title=candidate.title,
+                start_iso=candidate.start_dt.isoformat(),
+                fingerprint=written.fingerprint,
+                is_tentative=(candidate.confidence_band == "medium"),
+            )
+            logger.info("%screated: %r on %s (confidence=%.2f, band=%s, source=%s)", "DRY RUN " if dry_run else "", candidate.title, candidate.start_dt.date(), candidate.confidence, candidate.confidence_band, candidate.source)
+            if not dry_run and not mock:
+                pending_actions.append({
+                    "action": "created",
+                    "title": candidate.title,
+                    "start_dt": candidate.start_dt,
+                    "source": candidate.source,
+                    "category": candidate.category,
+                    "confidence_band": candidate.confidence_band,
+                    "suggested_attendees": candidate.suggested_attendees or None,
+                    "conflicts": conflicts or None,
+                })
+        elif dry_run:
+            logger.info("DRY RUN: %r on %s (confidence=%.2f, band=%s, source=%s)", candidate.title, candidate.start_dt.date(), candidate.confidence, candidate.confidence_band, candidate.source)
+        else:
+            counts["skipped_duplicate"] += 1
+
+    if pending_actions and not dry_run and not mock:
+        t = get_thread()
+        if t:
+            slack_notifier.post_event_batch(t, pending_actions)
+
+    return counts
+
+
 def main() -> int:
     args = parse_args()
     if args.verbose:
@@ -132,12 +608,49 @@ def main() -> int:
         state_module.save(state)
         return 0
 
-    # Capture run start time before fetching — used as last_run so that
-    # messages arriving during the long Ollama extraction phase are not
-    # silently dropped (their timestamps fall between fetch and end-of-run).
     run_start = datetime.now(timezone.utc)
 
-    # ── Collect messages from all selected sources ───────────────────────────
+    # Slack thread (lazily created on first action)
+    thread_ts: str | None = None
+
+    def _get_thread() -> str | None:
+        nonlocal thread_ts
+        if not args.dry_run and not args.mock and thread_ts is None:
+            thread_ts = slack_notifier.get_or_create_day_thread(state)
+        return thread_ts
+
+    # ── Phase 0: Process pending approvals ──────────────────────────────────
+    if config.EVENT_APPROVAL_MODE == "propose" and not args.mock:
+        t = _get_thread()
+        approved, rejected, expired = _process_pending_approvals(
+            state, dry_run=args.dry_run, thread_ts=t
+        )
+        if approved or rejected or expired:
+            logger.info(
+                "Approvals: %d approved, %d rejected, %d expired",
+                approved, rejected, expired,
+            )
+
+    # ── Phase 1: Fetch calendar context for Ollama prompt injection ──────────
+    calendar_context = ""
+    if not args.mock and not args.dry_run:
+        try:
+            creds = google_auth.get_credentials(
+                scopes=["https://www.googleapis.com/auth/calendar.events"],
+                token_path=config.GCAL_TOKEN_JSON,
+                credentials_path=config.GMAIL_CREDENTIALS_JSON,
+                keyring_key="gcal_token",
+            )
+            gcal_service = build("calendar", "v3", credentials=creds)
+            upcoming = calendar_analyzer.fetch_upcoming(
+                gcal_service, weeks=config.CALENDAR_CONTEXT_WEEKS
+            )
+            calendar_context = _format_calendar_context(upcoming)
+            logger.debug("Calendar context: %d upcoming events (%d chars)", len(upcoming), len(calendar_context))
+        except Exception as exc:
+            logger.debug("Could not fetch calendar context: %s", exc)
+
+    # ── Phase 2: Collect messages from all selected sources ──────────────────
     all_messages = []
     seen_connectors: set[type] = set()
 
@@ -157,14 +670,14 @@ def main() -> int:
         logger.info("  → %d message(s)", len(msgs))
         all_messages.extend(msgs)
 
-    # ── Extract candidate events and todos ───────────────────────────────────
+    # ── Phase 3: Extract candidate events and todos ──────────────────────────
     all_candidates: list[CandidateEvent] = []
     all_todos: list[CandidateTodo] = []
     if extractor.check_ollama_available() or args.mock:
         for msg in all_messages:
             if state.is_seen(msg.source, msg.id):
                 continue
-            events, todos = extractor.extract(msg)
+            events, todos = extractor.extract(msg, calendar_context=calendar_context)
             all_candidates.extend(events)
             all_todos.extend(todos)
             state.mark_seen(msg.source, msg.id)
@@ -173,7 +686,7 @@ def main() -> int:
 
     logger.info("Extraction complete: %d candidate event(s) total", len(all_candidates))
 
-    # ── Resolve update/cancel gcal IDs ───────────────────────────────────────
+    # ── Phase 4: Resolve update/cancel gcal IDs ──────────────────────────────
     for candidate in all_candidates:
         if (candidate.is_update or candidate.is_cancellation) and candidate.original_title_hint:
             if candidate.confidence >= _UPDATE_CANCEL_MIN_CONFIDENCE:
@@ -186,182 +699,39 @@ def main() -> int:
                         candidate.original_title_hint,
                     )
 
-    # ── Snapshot for cross-calendar dedup ───────────────────────────────────
     snapshot = state.calendar_snapshot()
 
-    # ── Run counters for summary ──────────────────────────────────────────────
-    counts = {
-        "created": 0,
-        "updated": 0,
-        "cancelled": 0,
-        "skipped_low_confidence": 0,
-        "skipped_recurring": 0,
-        "skipped_duplicate": 0,
-    }
+    # ── Phase 5: Branch by approval mode ────────────────────────────────────
+    propose_counts: dict = {}
+    auto_counts: dict = {}
 
-    # Collect event actions for a single batched Slack post at end of run
-    pending_actions: list[dict] = []
-
-    # Slack thread for this run (only created if something happens)
-    thread_ts: str | None = None
-
-    def _get_thread() -> str | None:
-        nonlocal thread_ts
-        if not args.dry_run and not args.mock and thread_ts is None:
-            thread_ts = slack_notifier.get_or_create_day_thread(state)
-        return thread_ts
-
-    # ── Process each candidate ───────────────────────────────────────────────
-    for candidate in all_candidates:
-
-        # Recurring events — log and skip (don't create duplicates)
-        if candidate.is_recurring:
-            counts["skipped_recurring"] += 1
-            logger.info(
-                "RECURRING skipped: %r hint=%r (source=%s)",
-                candidate.title, candidate.recurrence_hint, candidate.source,
-            )
-            if not args.dry_run and not args.mock:
-                pending_actions.append({
-                    "action": "skipped_recurring",
-                    "title": candidate.title,
-                    "start_dt": candidate.start_dt,
-                    "source": candidate.source,
-                    "category": candidate.category,
-                })
-            continue
-
-        # Cancellation path
-        if candidate.is_cancellation and candidate.gcal_event_id_to_update:
-            deleted = gcal_writer.delete_event(candidate.gcal_event_id_to_update, dry_run=args.dry_run)
-            if deleted:
-                counts["cancelled"] += 1
-                record_cancellation(
-                    gcal_id=candidate.gcal_event_id_to_update,
-                    title=candidate.original_title_hint or candidate.title,
-                    source=candidate.source,
-                )
-                logger.info(
-                    "%scancelled: %r (gcal_id=%s, source=%s)",
-                    "DRY RUN " if args.dry_run else "",
-                    candidate.original_title_hint or candidate.title,
-                    candidate.gcal_event_id_to_update,
-                    candidate.source,
-                )
-                if not args.dry_run and not args.mock:
-                    pending_actions.append({
-                        "action": "cancelled",
-                        "title": candidate.original_title_hint or candidate.title,
-                        "start_dt": None,
-                        "source": candidate.source,
-                    })
-            continue
-
-        # Update path
-        if candidate.gcal_event_id_to_update:
-            written, conflicts = gcal_writer.update_event(
-                candidate.gcal_event_id_to_update, candidate, dry_run=args.dry_run
-            )
-            if written:
-                counts["updated"] += 1
-                log_event(written, action="updated", conflicts=conflicts)
-                # Update written_events with new time
-                state.add_written_event(
-                    gcal_id=written.gcal_event_id,
-                    title=candidate.title,
-                    start_iso=candidate.start_dt.isoformat(),
-                    fingerprint=written.fingerprint,
-                    is_tentative=(candidate.confidence_band == "medium"),
-                )
-                logger.info(
-                    "%supdated: %r on %s (confidence=%.2f, source=%s)",
-                    "DRY RUN " if args.dry_run else "",
-                    candidate.title, candidate.start_dt.date(),
-                    candidate.confidence, candidate.source,
-                )
-                if not args.dry_run and not args.mock:
-                    pending_actions.append({
-                        "action": "updated",
-                        "title": candidate.title,
-                        "start_dt": candidate.start_dt,
-                        "source": candidate.source,
-                        "category": candidate.category,
-                        "confidence_band": candidate.confidence_band,
-                        "suggested_attendees": candidate.suggested_attendees or None,
-                        "conflicts": conflicts or None,
-                        "original_title": candidate.original_title_hint,
-                    })
-            elif args.dry_run:
-                logger.info(
-                    "DRY RUN: would update %r on %s (confidence=%.2f, source=%s)",
-                    candidate.title, candidate.start_dt.date(),
-                    candidate.confidence, candidate.source,
-                )
-            continue
-
-        # Standard create path — fingerprint dedup
-        fp = fingerprint(candidate)
-        if state.has_fingerprint(fp):
-            counts["skipped_duplicate"] += 1
-            logger.debug("skip duplicate: %r (fingerprint match)", candidate.title)
-            continue
-
-        written, conflicts = gcal_writer.write_event(
-            candidate, dry_run=args.dry_run, snapshot=snapshot
+    if config.EVENT_APPROVAL_MODE == "propose":
+        propose_counts = _propose_events(
+            all_candidates, state, snapshot,
+            dry_run=args.dry_run, mock=args.mock, get_thread=_get_thread,
         )
-        if written:
-            counts["created"] += 1
-            state.add_fingerprint(fp)
-            log_event(written, action="created", conflicts=conflicts)
-            state.add_written_event(
-                gcal_id=written.gcal_event_id,
-                title=candidate.title,
-                start_iso=candidate.start_dt.isoformat(),
-                fingerprint=written.fingerprint,
-                is_tentative=(candidate.confidence_band == "medium"),
-            )
-            logger.info(
-                "%screated: %r on %s (confidence=%.2f, band=%s, source=%s)",
-                "DRY RUN " if args.dry_run else "",
-                candidate.title, candidate.start_dt.date(),
-                candidate.confidence, candidate.confidence_band, candidate.source,
-            )
-            if not args.dry_run and not args.mock:
-                pending_actions.append({
-                    "action": "created",
-                    "title": candidate.title,
-                    "start_dt": candidate.start_dt,
-                    "source": candidate.source,
-                    "category": candidate.category,
-                    "confidence_band": candidate.confidence_band,
-                    "suggested_attendees": candidate.suggested_attendees or None,
-                    "conflicts": conflicts or None,
-                })
-        elif args.dry_run:
-            logger.info(
-                "DRY RUN: %r on %s (confidence=%.2f, band=%s, source=%s)",
-                candidate.title, candidate.start_dt.date(),
-                candidate.confidence, candidate.confidence_band, candidate.source,
-            )
-        else:
-            # write_event returned None without dry_run = deduped by cross-calendar check
-            counts["skipped_duplicate"] += 1
+        proposed = propose_counts.get("proposed", 0)
+        skipped_recurring = propose_counts.get("skipped_recurring", 0)
+        skipped_duplicate = propose_counts.get("skipped_duplicate", 0)
+        logger.info(
+            "Propose mode: %d proposed, %d recurring skipped, %d duplicates skipped%s",
+            proposed, skipped_recurring, skipped_duplicate,
+            " [DRY RUN]" if args.dry_run else "",
+        )
+    else:
+        auto_counts = _auto_create_events(
+            all_candidates, state, snapshot,
+            dry_run=args.dry_run, mock=args.mock, get_thread=_get_thread,
+        )
+        logger.info(
+            "Auto mode: %d created, %d updated, %d cancelled, %d recurring skipped, %d duplicates skipped%s",
+            auto_counts.get("created", 0), auto_counts.get("updated", 0),
+            auto_counts.get("cancelled", 0), auto_counts.get("skipped_recurring", 0),
+            auto_counts.get("skipped_duplicate", 0),
+            " [DRY RUN]" if args.dry_run else "",
+        )
 
-    total_actions = counts["created"] + counts["updated"] + counts["cancelled"]
-    logger.info(
-        "Run complete: %d created, %d updated, %d cancelled, %d recurring skipped, %d duplicates skipped%s",
-        counts["created"], counts["updated"], counts["cancelled"],
-        counts["skipped_recurring"], counts["skipped_duplicate"],
-        " [DRY RUN]" if args.dry_run else "",
-    )
-
-    # ── Post batched event actions to Slack ──────────────────────────────────
-    if pending_actions and not args.dry_run and not args.mock:
-        t = _get_thread()
-        if t:
-            slack_notifier.post_event_batch(t, pending_actions)
-
-    # ── Process todo items ───────────────────────────────────────────────────
+    # ── Phase 6: Process todo items ──────────────────────────────────────────
     todos_created = 0
     if config.TODOIST_API_TOKEN and all_todos:
         project_id = todoist_writer.get_or_create_project(
@@ -398,35 +768,76 @@ def main() -> int:
     elif all_todos and not config.TODOIST_API_TOKEN:
         logger.debug("todoist: %d todo(s) extracted but TODOIST_API_TOKEN not set — skipping", len(all_todos))
 
-    # ── Post run summary to Slack thread ─────────────────────────────────────
+    # ── Phase 7: Process file uploads from Slack (image/PDF intake) ──────────
+    files_processed = 0
+    if "slack" in sources and (config.GEMINI_API_KEY or args.mock):
+        file_result = image_pipeline.process_slack_files(
+            state=state,
+            dry_run=args.dry_run,
+            mock=args.mock,
+        )
+        files_processed = file_result["processed"]
+        if files_processed or file_result["flushed"]:
+            logger.info(
+                "File intake: %d processed, %d calendar events, %d NAS-written, %d staged, %d flushed, %d errors",
+                file_result["processed"], file_result["calendar_created"],
+                file_result["nas_written"], file_result["staged_pending"],
+                file_result["flushed"], file_result["errors"],
+            )
+        state.set_last_run("slack_file", run_start)
+    elif "slack" in sources and not config.GEMINI_API_KEY and not args.mock:
+        logger.debug("GEMINI_API_KEY not set — file intake pipeline disabled")
+
+    # ── Phase 8: Post run summary to Slack thread ────────────────────────────
     if not args.dry_run and not args.mock:
         t = _get_thread()
-        # Only post summary if something happened this run
-        if t and (total_actions > 0 or counts["skipped_recurring"] > 0
-                  or counts["skipped_low_confidence"] > 0 or todos_created > 0):
-            slack_notifier.post_run_summary(
-                thread_ts=t,
-                created=counts["created"],
-                updated=counts["updated"],
-                cancelled=counts["cancelled"],
-                skipped_low_confidence=counts["skipped_low_confidence"],
-                skipped_recurring=counts["skipped_recurring"],
-                skipped_duplicate=counts["skipped_duplicate"],
-                todos_created=todos_created,
-            )
+        pending_proposal_count = len(state.get_pending_proposals())
+        # In propose mode, report proposals in the summary; in auto mode, use auto counts
+        if config.EVENT_APPROVAL_MODE == "propose":
+            proposed = propose_counts.get("proposed", 0)
+            skipped_recurring = propose_counts.get("skipped_recurring", 0)
+            skipped_duplicate = propose_counts.get("skipped_duplicate", 0)
+            if t and (proposed or skipped_recurring or skipped_duplicate or todos_created or files_processed):
+                slack_notifier.post_run_summary(
+                    thread_ts=t,
+                    created=0,
+                    updated=0,
+                    cancelled=0,
+                    skipped_low_confidence=0,
+                    skipped_recurring=skipped_recurring,
+                    skipped_duplicate=skipped_duplicate,
+                    todos_created=todos_created,
+                    files_processed=files_processed,
+                    proposed=proposed,
+                    pending_proposals=pending_proposal_count,
+                )
+        else:
+            total_actions = auto_counts.get("created", 0) + auto_counts.get("updated", 0) + auto_counts.get("cancelled", 0)
+            if t and (total_actions > 0 or auto_counts.get("skipped_recurring", 0) > 0
+                      or auto_counts.get("skipped_low_confidence", 0) > 0 or todos_created > 0
+                      or files_processed > 0):
+                slack_notifier.post_run_summary(
+                    thread_ts=t,
+                    created=auto_counts.get("created", 0),
+                    updated=auto_counts.get("updated", 0),
+                    cancelled=auto_counts.get("cancelled", 0),
+                    skipped_low_confidence=auto_counts.get("skipped_low_confidence", 0),
+                    skipped_recurring=auto_counts.get("skipped_recurring", 0),
+                    skipped_duplicate=auto_counts.get("skipped_duplicate", 0),
+                    todos_created=todos_created,
+                    files_processed=files_processed,
+                )
 
-    # ── Update last_run timestamps ───────────────────────────────────────────
-    # Use run_start (not now) so messages that arrived during extraction
-    # are caught by the next run rather than falling through the gap.
+    # ── Update last_run timestamps ────────────────────────────────────────────
     for source in sources:
         state.set_last_run(source, run_start)
 
     state_module.save(state)
 
-    # ── Send digests ─────────────────────────────────────────────────────────
+    # ── Send digests ──────────────────────────────────────────────────────────
     if not args.dry_run and not args.mock:
         _send_digests(state, dry_run=False)
-        state_module.save(state)  # persist last_digest_* and calendar snapshot
+        state_module.save(state)
 
     return 0
 
@@ -465,7 +876,7 @@ def _send_digests(state: state_module.State, dry_run: bool = False) -> None:
 
     try:
         creds = google_auth.get_credentials(
-            scopes=["https://www.googleapis.com/auth/calendar.readonly"],
+            scopes=["https://www.googleapis.com/auth/calendar.events"],
             token_path=config.GCAL_TOKEN_JSON,
             credentials_path=config.GMAIL_CREDENTIALS_JSON,
             keyring_key="gcal_token",
@@ -481,10 +892,15 @@ def _send_digests(state: state_module.State, dry_run: bool = False) -> None:
         current_events, state.calendar_snapshot()
     )
 
+    pending_proposals = len(state.get_pending_proposals())
+
     if should_daily:
         logger.info("sending daily digest (%d new, %d updated, %d removed)",
                     len(new_events), len(updated_events), len(removed_events))
-        digest_module.send_daily_digest(analysis, new_events, updated_events, removed_events, state)
+        digest_module.send_daily_digest(
+            analysis, new_events, updated_events, removed_events, state,
+            pending_proposals=pending_proposals,
+        )
         state.set_last_digest_daily()
 
     if should_weekly:

@@ -35,6 +35,7 @@ def send_daily_digest(
     updated_events: list[CalendarEvent],
     removed_events: list[CalendarEvent],
     state: "state_module.State",
+    pending_proposals: int = 0,
 ) -> bool:
     """Send daily digest covering changes in the next 14 days."""
     now = datetime.now(tz=timezone.utc)
@@ -50,7 +51,7 @@ def send_daily_digest(
     # Only warn about conflict pairs not already reported
     new_conflicts = [c for c in near_conflicts if not state.is_conflict_warned(_conflict_fp(c))]
 
-    if not (upcoming_new or upcoming_updated or upcoming_removed or new_conflicts):
+    if not (upcoming_new or upcoming_updated or upcoming_removed or new_conflicts or pending_proposals):
         logger.debug("daily digest: no changes in next 14 days — skipping")
         return True
 
@@ -64,6 +65,7 @@ def send_daily_digest(
         updated_events=upcoming_updated,
         removed_events=upcoming_removed,
         conflicts=new_conflicts,
+        pending_proposals=pending_proposals,
     )
     ok = slack_notifier.post_to_thread(thread_ts, text)
     if ok and new_conflicts:
@@ -118,8 +120,15 @@ def _build_digest_text(
     updated_events: list[CalendarEvent],
     removed_events: list[CalendarEvent],
     conflicts: list[Conflict],
+    pending_proposals: int = 0,
 ) -> str:
     lines = [f"*{title}*"]
+
+    if pending_proposals:
+        lines.append(
+            f"\n:clipboard: *{pending_proposals} event proposal{'s' if pending_proposals != 1 else ''} "
+            f"awaiting approval* — reply `approve` in the day thread to create all"
+        )
 
     def _event_line(e: CalendarEvent, prefix: str = "") -> str:
         date_str = e.start_dt.strftime("%b %d %H:%M")

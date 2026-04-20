@@ -283,6 +283,63 @@ def post_todo_action(
         return False
 
 
+def post_file_result(
+    thread_ts: str,
+    analysis: Any,
+    nas_path: str | None,
+    events_created: int,
+    events_proposed: int = 0,
+    auto_processed: bool = False,
+    page_count: int = 1,
+) -> bool:
+    """Post a file intake result as a reply to the original upload message.
+
+    Replies in the file upload's own thread (not the day thread).
+    PHI-safe: uses summary only, not full extracted text.
+    """
+    if not config.SLACK_BOT_TOKEN or not thread_ts:
+        return False
+
+    from models import FileAnalysisResult
+    assert isinstance(analysis, FileAnalysisResult)
+
+    category_display = analysis.primary_category
+    if analysis.subcategory:
+        category_display += f" / {analysis.subcategory}"
+
+    doc_label = f"{page_count}-page document" if page_count > 1 else "document"
+    lines = [f":file_folder: *Filed {doc_label} to {category_display}*"]
+
+    if auto_processed:
+        lines.append(":hourglass: _Auto-processed after 12 hours — reply 'done' to process sooner next time_")
+
+    if nas_path:
+        lines.append(f"NAS: `{nas_path}`")
+    else:
+        lines.append(":hourglass_flowing_sand: Staged locally — will sync to NAS on next run")
+
+    if events_proposed:
+        lines.append(f":clipboard: {events_proposed} calendar event(s) proposed for approval — check day thread")
+    elif events_created:
+        lines.append(f":calendar: {events_created} calendar event(s) created")
+
+    lines.append(f"_{analysis.summary}_")
+
+    text = "\n".join(lines)
+
+    try:
+        client = _client()
+        result = client.chat_postMessage(
+            channel=config.SLACK_NOTIFY_CHANNEL,
+            thread_ts=thread_ts,
+            text=text,
+        )
+        return bool(result.get("ok"))
+    except Exception as exc:
+        logger.warning("slack notifier: post_file_result failed: %s", exc)
+        return False
+
+
 def post_run_summary(
     thread_ts: str,
     created: int,
@@ -292,6 +349,9 @@ def post_run_summary(
     skipped_recurring: int,
     skipped_duplicate: int,
     todos_created: int = 0,
+    files_processed: int = 0,
+    proposed: int = 0,
+    pending_proposals: int = 0,
 ) -> bool:
     """
     Post a run summary as a reply to the day thread.
@@ -302,10 +362,13 @@ def post_run_summary(
 
     total_actions = created + updated + cancelled
     if (total_actions == 0 and skipped_low_confidence == 0
-            and skipped_recurring == 0 and todos_created == 0):
+            and skipped_recurring == 0 and todos_created == 0
+            and files_processed == 0 and proposed == 0):
         return True  # nothing to report
 
     parts = []
+    if proposed:
+        parts.append(f"{proposed} event{'s' if proposed != 1 else ''} proposed for approval")
     if created:
         parts.append(f"{created} created")
     if updated:
@@ -320,11 +383,15 @@ def post_run_summary(
         parts.append(f"{skipped_recurring} recurring (skipped)")
     if skipped_duplicate:
         parts.append(f"{skipped_duplicate} duplicate (skipped)")
+    if files_processed:
+        parts.append(f"{files_processed} file(s) filed")
 
     if not parts:
         return True
 
     summary = "Run complete: " + ", ".join(parts)
+    if pending_proposals:
+        summary += f"\n:clipboard: {pending_proposals} proposal{'s' if pending_proposals != 1 else ''} awaiting approval — reply `approve` to create all"
 
     try:
         client = _client()
@@ -337,6 +404,165 @@ def post_run_summary(
     except Exception as exc:
         logger.warning("slack notifier: post_run_summary failed: %s", exc)
         return False
+
+
+def post_proposals(thread_ts: str, items: list[dict]) -> str | None:
+    """
+    Post a numbered list of event proposals as a reply in the day thread.
+
+    Each item is a proposal dict from state.pending_proposals[*].items[*].
+    Returns the Slack message ts of the posted message (needed to check replies),
+    or None on failure.
+    """
+    if not config.SLACK_BOT_TOKEN or not thread_ts or not items:
+        return None
+
+    lines = [f":clipboard: *{len(items)} event proposal{'s' if len(items) != 1 else ''}* — reply to approve/reject\n"]
+
+    for item in items:
+        num = item["num"]
+        title = item["title"]
+        confidence_band = item.get("confidence_band", "high")
+        category = item.get("category", "other")
+        source = item.get("source", "")
+        is_update = item.get("is_update", False)
+        is_cancellation = item.get("is_cancellation", False)
+        conflicts = item.get("conflicts") or []
+        attendees = item.get("suggested_attendees") or []
+        source_url = item.get("source_url")
+
+        # Parse start time for display
+        start_str = "unknown time"
+        try:
+            start_dt = datetime.fromisoformat(item["start_dt"])
+            start_str = start_dt.strftime("%b %-d %-I:%M%p").lower()
+        except (KeyError, ValueError, TypeError):
+            pass
+
+        # Choose icon and label
+        if is_cancellation:
+            icon = ":wastebasket:"
+            label = "[cancel]"
+        elif is_update:
+            icon = ":pencil2:"
+            label = "[update]"
+        else:
+            icon = ":calendar:"
+            label = ""
+
+        title_display = f"[?] {title}" if confidence_band == "medium" else title
+
+        if is_cancellation:
+            event_line = f"{icon} `#{num}` {label} *{title_display}*"
+        elif is_update:
+            original = item.get("original_title_hint") or title
+            event_line = f"{icon} `#{num}` {label} *{original}* → *{title_display}* | {start_str}"
+        else:
+            event_line = f"{icon} `#{num}` *{title_display}* | {start_str} | `{category}` | `{source}`"
+
+        if source_url:
+            event_line += f" | <{source_url}|source>"
+
+        lines.append(event_line)
+
+        # Attendees (skip "calendar" noise names)
+        attendee_parts = []
+        for a in attendees[:5]:
+            name = a.get("name", "")
+            email = a.get("email")
+            if "calendar" in name.lower():
+                continue
+            if email:
+                attendee_parts.append(f"{name} <{email}>" if name else email)
+            elif name:
+                attendee_parts.append(name)
+        if attendee_parts:
+            lines.append(f"    :busts_in_silhouette: {', '.join(attendee_parts)}")
+
+        # Conflicts
+        if conflicts:
+            conflict_str = ", ".join(f"'{c}'" for c in conflicts[:3])
+            lines.append(f"    :warning: Conflict: {conflict_str}")
+
+    lines.append("")
+    lines.append("Reply: `approve` (all) · `approve 1,3` · `reject 2` · `reject all`")
+
+    text = "\n".join(lines)
+
+    try:
+        client = _client()
+        result = client.chat_postMessage(
+            channel=config.SLACK_NOTIFY_CHANNEL,
+            thread_ts=thread_ts,
+            text=text,
+        )
+        if result.get("ok"):
+            return result["ts"]
+        logger.warning("slack notifier: post_proposals failed: %s", result.get("error"))
+        return None
+    except Exception as exc:
+        logger.warning("slack notifier: post_proposals error: %s", exc)
+        return None
+
+
+def check_proposal_replies(day_thread_ts: str, proposal_ts: str) -> dict:
+    """
+    Check the day thread for approval/rejection replies posted after proposal_ts.
+
+    Parses replies that start with "approve" or "reject" (case-insensitive).
+    Returns:
+      {
+        "approve_all": bool,
+        "approve_nums": list[int],
+        "reject_all": bool,
+        "reject_nums": list[int],
+      }
+    """
+    result = {"approve_all": False, "approve_nums": [], "reject_all": False, "reject_nums": []}
+
+    if not config.SLACK_BOT_TOKEN:
+        return result
+
+    try:
+        client = _client()
+        replies = client.conversations_replies(
+            channel=config.SLACK_NOTIFY_CHANNEL,
+            ts=day_thread_ts,
+            oldest=proposal_ts,
+        )
+        for msg in replies.get("messages", []):
+            if msg.get("ts") == proposal_ts:
+                continue  # skip the proposal message itself
+            text = msg.get("text", "").strip().lower()
+            if not text:
+                continue
+
+            if text.startswith("approve"):
+                rest = text[len("approve"):].strip(" ,:")
+                if not rest or rest in ("all", "everything"):
+                    result["approve_all"] = True
+                else:
+                    nums = _parse_nums(rest)
+                    result["approve_nums"].extend(nums)
+
+            elif text.startswith("reject"):
+                rest = text[len("reject"):].strip(" ,:")
+                if not rest or rest in ("all", "everything"):
+                    result["reject_all"] = True
+                else:
+                    nums = _parse_nums(rest)
+                    result["reject_nums"].extend(nums)
+
+    except Exception as exc:
+        logger.warning("slack notifier: check_proposal_replies error: %s", exc)
+
+    return result
+
+
+def _parse_nums(text: str) -> list[int]:
+    """Extract integers from a comma/space-separated string like '1,3,5' or '1 3 5'."""
+    import re
+    return [int(m) for m in re.findall(r'\d+', text)]
 
 
 def post_to_thread(thread_ts: str, text: str) -> bool:

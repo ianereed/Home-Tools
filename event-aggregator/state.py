@@ -175,6 +175,87 @@ class State:
         for fp in fps:
             bucket[fp] = today
 
+    # ── proposal counter ─────────────────────────────────────────────────────────
+
+    def next_proposal_num(self) -> int:
+        """Return the next globally unique proposal number for today.
+
+        Counter resets daily so numbers stay short (single/double digits).
+        Numbers are unique within a calendar day.
+        """
+        today = datetime.now(tz=timezone.utc).strftime("%Y-%m-%d")
+        counter_date = self._data.get("proposal_counter_date")
+        if counter_date != today:
+            self._data["proposal_counter"] = 0
+            self._data["proposal_counter_date"] = today
+        n = self._data.get("proposal_counter", 0) + 1
+        self._data["proposal_counter"] = n
+        return n
+
+    # ── pending proposals ─────────────────────────────────────────────────────
+
+    def get_pending_proposals(self) -> list[dict]:
+        """Return all proposal batches that have at least one pending item."""
+        all_batches = self._data.get("pending_proposals", [])
+        return [b for b in all_batches if any(i["status"] == "pending" for i in b.get("items", []))]
+
+    def add_proposal_batch(self, batch: dict) -> None:
+        """Append a new proposal batch to state."""
+        self._data.setdefault("pending_proposals", []).append(batch)
+
+    def set_proposal_slack_ts(self, batch_id: str, slack_ts: str) -> None:
+        """Store the Slack message ts after a proposal batch is posted."""
+        for batch in self._data.get("pending_proposals", []):
+            if batch.get("batch_id") == batch_id:
+                batch["slack_ts"] = slack_ts
+                return
+
+    def approve_proposal(self, num: int) -> dict | None:
+        """Mark a proposal item as approved. Returns the item dict or None if not found."""
+        for batch in self._data.get("pending_proposals", []):
+            for item in batch.get("items", []):
+                if item["num"] == num and item["status"] == "pending":
+                    item["status"] = "approved"
+                    return item
+        return None
+
+    def reject_proposal(self, num: int) -> dict | None:
+        """Mark a proposal item as rejected. Returns the item or None if not found."""
+        for batch in self._data.get("pending_proposals", []):
+            for item in batch.get("items", []):
+                if item["num"] == num and item["status"] == "pending":
+                    item["status"] = "rejected"
+                    return item
+        return None
+
+    def expire_old_proposals(self, hours: int) -> list[dict]:
+        """Mark proposals older than `hours` as expired. Returns list of expired items."""
+        cutoff = _utcnow() - timedelta(hours=hours)
+        expired = []
+        for batch in self._data.get("pending_proposals", []):
+            created = _parse_dt(batch.get("created_at"))
+            if created and created < cutoff:
+                for item in batch.get("items", []):
+                    if item["status"] == "pending":
+                        item["status"] = "expired"
+                        expired.append(item)
+        return expired
+
+    def remove_proposal_fingerprint(self, fp: str) -> None:
+        """Remove a fingerprint that was added for a proposal (on reject/expire)."""
+        fps = self._data.get("written_fingerprints", [])
+        if fp in fps:
+            fps.remove(fp)
+
+    # ── processed Slack files (image/PDF intake) ────────────────────────────────
+
+    def is_file_processed(self, file_id: str) -> bool:
+        return file_id in self._data.get("processed_slack_files", {})
+
+    def mark_file_processed(self, file_id: str, info: dict) -> None:
+        bucket = self._data.setdefault("processed_slack_files", {})
+        bucket[file_id] = {**info, "processed_at": _utcnow().isoformat()}
+
     # ── pruning ───────────────────────────────────────────────────────────────
 
     def prune(self) -> None:
@@ -222,6 +303,33 @@ class State:
             for fp, date_str in warned.items()
             if date_str >= cutoff_date
         }
+
+        # Prune processed_slack_files: 90-day window, cap 500 entries.
+        psf = self._data.get("processed_slack_files", {})
+        cutoff_90 = (_utcnow() - timedelta(days=90)).isoformat()
+        psf = {
+            fid: info for fid, info in psf.items()
+            if info.get("processed_at", "") >= cutoff_90
+        }
+        if len(psf) > 500:
+            sorted_ids = sorted(
+                psf, key=lambda k: psf[k].get("processed_at", ""), reverse=True
+            )
+            psf = {k: psf[k] for k in sorted_ids[:500]}
+        self._data["processed_slack_files"] = psf
+
+        # Prune pending_proposals: remove batches where all items are non-pending
+        # AND the batch is older than 72 hours (3x the default expiry window).
+        cutoff_proposals = _utcnow() - timedelta(hours=72)
+        proposals = self._data.get("pending_proposals", [])
+        kept = []
+        for batch in proposals:
+            created = _parse_dt(batch.get("created_at"))
+            all_done = all(i["status"] != "pending" for i in batch.get("items", []))
+            if all_done and created and created < cutoff_proposals:
+                continue  # drop stale resolved batch
+            kept.append(batch)
+        self._data["pending_proposals"] = kept
 
         logger.debug("state pruned")
 

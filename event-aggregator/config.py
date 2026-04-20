@@ -93,6 +93,26 @@ TODOIST_API_TOKEN: str = _get("TODOIST_API_TOKEN")
 TODOIST_PROJECT_NAME: str = _get("TODOIST_PROJECT_NAME", "automated todo aggregation")
 TODOIST_TODO_MIN_CONFIDENCE: float = float(_get("TODOIST_TODO_MIN_CONFIDENCE", "0.65"))
 
+# ── Gemini (image/PDF analysis, optional) ────────────────────────────────────
+GEMINI_API_KEY: str = _get("GEMINI_API_KEY")
+GEMINI_MODEL: str = _get("GEMINI_MODEL", "gemini-2.5-pro")
+
+# ── NAS / staging ────────────────────────────────────────────────────────────
+NAS_ROOT: str = _get("NAS_ROOT", "/Volumes/Share1")
+LOCAL_STAGING_DIR: str = _get(
+    "LOCAL_STAGING_DIR", "~/Documents/event-aggregator-intake"
+)
+IMAGE_CONFIDENCE_MIN: float = float(_get("IMAGE_CONFIDENCE_MIN", "0.3"))
+
+# ── Event approval mode ──────────────────────────────────────────────────────
+# "propose" = post to Slack for approval before writing to GCal (default)
+# "auto"    = write to GCal immediately (original behavior)
+EVENT_APPROVAL_MODE: str = _get("EVENT_APPROVAL_MODE", "propose")
+# Hours before an unacted proposal expires and is cleaned up
+PROPOSAL_EXPIRY_HOURS: int = int(_get("PROPOSAL_EXPIRY_HOURS", "48"))
+# Weeks of upcoming calendar events to inject into Ollama extraction prompt
+CALENDAR_CONTEXT_WEEKS: int = int(_get("CALENDAR_CONTEXT_WEEKS", "4"))
+
 # ── GCal category colors ─────────────────────────────────────────────────────
 # Values are GCal colorId strings (1–11)
 CATEGORY_COLORS: dict[str, str] = {

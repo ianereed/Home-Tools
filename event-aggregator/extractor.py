@@ -162,7 +162,10 @@ def _build_context_block(msg: RawMessage) -> str:
     return "\n".join(lines)
 
 
-def _build_prompt(msg: RawMessage) -> str:
+_CALENDAR_CONTEXT_MAX_CHARS = 1500
+
+
+def _build_prompt(msg: RawMessage, calendar_context: str = "") -> str:
     """Construct the full prompt string for this message."""
     intro_key = _SOURCE_TO_INTRO.get(msg.source, "default")
     intro = _SOURCE_INTROS[intro_key]
@@ -179,6 +182,13 @@ def _build_prompt(msg: RawMessage) -> str:
     if context_block:
         parts.append(context_block)
     parts.append(schema)
+    if calendar_context:
+        cal_block = calendar_context[:_CALENDAR_CONTEXT_MAX_CHARS]
+        parts.append(
+            "\nYour calendar for the next few weeks (use this to detect updates, "
+            "avoid proposing duplicates, and resolve relative references like "
+            "'move the meeting'):\n" + cal_block
+        )
     parts.append("")
     parts.append("Message:")
     parts.append(msg.body_text[:_BODY_MAX_CHARS])
@@ -345,10 +355,13 @@ def _validate_todo(raw: dict[str, Any]) -> CandidateTodo | None:
 
 # ── Public API ────────────────────────────────────────────────────────────────
 
-def extract(message: RawMessage) -> tuple[list[CandidateEvent], list[CandidateTodo]]:
+def extract(message: RawMessage, calendar_context: str = "") -> tuple[list[CandidateEvent], list[CandidateTodo]]:
     """
     Extract candidate events and todo items from a single RawMessage via Ollama.
     Returns (events, todos); both lists may be empty. Never raises.
+
+    calendar_context: optional compact string of upcoming calendar events,
+    injected into the prompt to help Ollama detect updates and avoid duplicates.
 
     Event confidence banding (per config.CONFIDENCE_BANDS):
     - below medium threshold → event dropped
@@ -361,7 +374,7 @@ def extract(message: RawMessage) -> tuple[list[CandidateEvent], list[CandidateTo
     medium_threshold = bands["medium"]
     high_threshold = bands["high"]
 
-    prompt = _build_prompt(message)
+    prompt = _build_prompt(message, calendar_context=calendar_context)
 
     raw_data: dict[str, Any] = {}
     for attempt in range(3):

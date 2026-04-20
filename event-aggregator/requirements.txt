@@ -14,5 +14,8 @@ python-Levenshtein>=0.25
 keyring>=25.0
 python-dotenv>=1.0
 
-# HTTP (Discord REST, Ollama)
+# HTTP (Discord REST, Ollama, Gemini)
 requests>=2.31
+
+# PDF generation (image/PDF intake pipeline)
+reportlab>=4.0

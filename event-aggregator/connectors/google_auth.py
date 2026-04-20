@@ -81,9 +81,15 @@ def get_credentials(
     # 3. Refresh if expired
     if creds and creds.expired and creds.refresh_token:
         logger.debug("refreshing OAuth token for %s", keyring_key)
-        creds.refresh(Request())
-        _persist(creds, token_file, keyring_key)
-        return creds
+        try:
+            creds.refresh(Request())
+            _persist(creds, token_file, keyring_key)
+            return creds
+        except Exception as exc:
+            # invalid_grant (revoked/expired refresh token) or invalid_scope —
+            # fall through to the browser OAuth flow to get a fresh token.
+            logger.debug("token refresh failed for %s (%s) — re-authorizing", keyring_key, exc)
+            creds = None
 
     if creds and creds.valid:
         return creds

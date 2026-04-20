@@ -81,3 +81,26 @@ class CandidateTodo:
     def __post_init__(self) -> None:
         self.confidence = max(0.0, min(1.0, self.confidence))
         self.title = self.title[:200].strip()
+
+
+@dataclass
+class FileAnalysisResult:
+    """Result of analyzing an image or PDF uploaded to Slack via Gemini vision.
+
+    Privacy note: structured_text is PRIVATE — same treatment as RawMessage.body_text.
+    """
+    file_id: str                          # Slack file ID
+    primary_category: str                 # NAS top-level folder (e.g. "Healthcare")
+    subcategory: str | None               # NAS subfolder (e.g. "0-Ian Healthcare")
+    confidence: float                     # 0.0–1.0
+    title: str                            # AI-generated descriptive title
+    date: str | None                      # YYYY-MM-DD if detected
+    structured_text: str                  # extracted content — PRIVATE
+    summary: str                          # one-line summary safe for Slack
+    calendar_items: list[CandidateEvent] = field(default_factory=list)
+    original_filename: str = ""
+    source_slack_ts: str = ""             # Slack message ts for threading replies
+
+    def __post_init__(self) -> None:
+        self.confidence = max(0.0, min(1.0, self.confidence))
+        self.title = self.title[:200].strip()

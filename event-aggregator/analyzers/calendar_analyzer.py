@@ -156,6 +156,47 @@ def fetch_year_ahead(service) -> list[CalendarEvent]:
     return events
 
 
+def fetch_upcoming(service, weeks: int = 4) -> list[CalendarEvent]:
+    """
+    Fetch GCal events for the next N weeks (lighter than fetch_year_ahead).
+    Used for injecting calendar context into the Ollama extraction prompt.
+    `service` is a built googleapiclient.discovery resource.
+    """
+    import config  # avoid circular import at module level
+
+    now = datetime.now(tz=timezone.utc)
+    horizon = now + timedelta(weeks=weeks)
+
+    events: list[CalendarEvent] = []
+    page_token: str | None = None
+
+    while True:
+        kwargs: dict = {
+            "calendarId": config.GCAL_TARGET_CALENDAR_ID,
+            "timeMin": now.isoformat(),
+            "timeMax": horizon.isoformat(),
+            "singleEvents": True,
+            "orderBy": "startTime",
+            "maxResults": 250,
+        }
+        if page_token:
+            kwargs["pageToken"] = page_token
+
+        result = service.events().list(**kwargs).execute()
+        for item in result.get("items", []):
+            try:
+                events.append(_gcal_item_to_event(item))
+            except Exception as exc:
+                logger.debug("skipping malformed event %s: %s", item.get("id"), exc)
+
+        page_token = result.get("nextPageToken")
+        if not page_token:
+            break
+
+    logger.debug("fetch_upcoming: %d event(s) over next %d weeks", len(events), weeks)
+    return events
+
+
 def _gcal_item_to_event(item: dict) -> CalendarEvent:
     start_raw = item["start"].get("dateTime") or item["start"].get("date")
     end_raw = item["end"].get("dateTime") or item["end"].get("date")
