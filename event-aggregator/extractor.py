@@ -299,7 +299,7 @@ def _call_ollama(prompt: str) -> dict[str, Any]:
         "prompt": prompt,
         "stream": False,
         "format": "json",
-        "keep_alive": "10m",
+        "keep_alive": "10s",
     }
     resp = requests.post(
         f"{config.OLLAMA_BASE_URL}/api/generate",

@@ -16,6 +16,8 @@ import logging
 import sys
 from datetime import datetime, timezone
 
+import requests
+
 from googleapiclient.discovery import build
 from thefuzz import fuzz
 
@@ -76,6 +78,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--source", default="", help="Comma-separated sources to run (default: all)")
     parser.add_argument("--digest-only", action="store_true", help="Send digests, skip extraction")
     parser.add_argument("--verbose", "-v", action="store_true", help="Debug logging")
+    parser.add_argument("--force", action="store_true", help="Run all phases regardless of idle state")
     return parser.parse_args()
 
 
@@ -103,6 +106,22 @@ def _resolve_gcal_id(title_hint: str, state: state_module.State) -> str | None:
             return gcal_id
 
     return None
+
+
+def _unload_ollama_models() -> None:
+    """Explicitly unload all Ollama models to free RAM immediately."""
+    for model in [config.OLLAMA_MODEL, config.LOCAL_VISION_MODEL]:
+        if not model:
+            continue
+        try:
+            requests.post(
+                f"{config.OLLAMA_BASE_URL}/api/generate",
+                json={"model": model, "keep_alive": 0},
+                timeout=10,
+            )
+            logger.debug("Unloaded Ollama model: %s", model)
+        except Exception:
+            pass  # best-effort — model may not be loaded
 
 
 def _format_calendar_context(events: list[CalendarEvent]) -> str:
@@ -681,10 +700,27 @@ def main() -> int:
         logger.info("  → %d message(s)", len(msgs))
         all_messages.extend(msgs)
 
+    # ── Idle check: gate heavy phases on system idle ──────────────────────────
+    from idle import get_idle_seconds
+    extraction_ran = False
+    if args.mock or args.force:
+        system_is_idle = True
+    else:
+        idle_secs = get_idle_seconds()
+        system_is_idle = idle_secs >= config.IDLE_MIN_SECONDS
+        if not system_is_idle:
+            logger.info(
+                "System active (idle %.0fs < %ds) — deferring extraction and image analysis to next idle run",
+                idle_secs, config.IDLE_MIN_SECONDS,
+            )
+
     # ── Phase 3: Extract candidate events and todos ──────────────────────────
     all_candidates: list[CandidateEvent] = []
     all_todos: list[CandidateTodo] = []
-    if extractor.check_ollama_available() or args.mock:
+    if not system_is_idle:
+        logger.debug("Skipping extraction — system not idle")
+    elif extractor.check_ollama_available() or args.mock:
+        extraction_ran = True
         for msg in all_messages:
             if state.is_seen(msg.source, msg.id):
                 continue
@@ -781,7 +817,9 @@ def main() -> int:
 
     # ── Phase 7: Process file uploads from Slack (image/PDF intake) ──────────
     files_processed = 0
-    if "slack" in sources and (config.GEMINI_API_KEY or args.mock):
+    if not system_is_idle:
+        logger.debug("Skipping file intake — system not idle")
+    elif "slack" in sources and (config.GEMINI_API_KEY or config.LOCAL_VISION_MODEL or args.mock):
         file_result = image_pipeline.process_slack_files(
             state=state,
             dry_run=args.dry_run,
@@ -796,8 +834,12 @@ def main() -> int:
                 file_result["flushed"], file_result["errors"],
             )
         state.set_last_run("slack_file", run_start)
-    elif "slack" in sources and not config.GEMINI_API_KEY and not args.mock:
-        logger.debug("GEMINI_API_KEY not set — file intake pipeline disabled")
+    elif "slack" in sources and not config.GEMINI_API_KEY and not config.LOCAL_VISION_MODEL and not args.mock:
+        logger.debug("No vision model configured — file intake pipeline disabled")
+
+    # ── Unload models after heavy phases ───────────────────────────────────
+    if system_is_idle and not args.mock:
+        _unload_ollama_models()
 
     # ── Phase 8: Post run summary to Slack thread ────────────────────────────
     if not args.dry_run and not args.mock:
@@ -839,9 +881,12 @@ def main() -> int:
                     files_processed=files_processed,
                 )
 
-    # ── Update last_run timestamps ────────────────────────────────────────────
-    for source in sources:
-        state.set_last_run(source, run_start)
+    # ── Update last_run timestamps (only if extraction actually ran) ──────────
+    if extraction_ran:
+        for source in sources:
+            state.set_last_run(source, run_start)
+    else:
+        logger.debug("Skipping last_run update — extraction was deferred")
 
     state_module.save(state)
 

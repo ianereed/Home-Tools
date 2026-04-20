@@ -38,6 +38,9 @@ GEMINI_FALLBACK_MODELS: str = _get(
     "GEMINI_FALLBACK_MODELS", "gemini-2.5-flash-lite,gemini-2.5-flash"
 )
 
+# ── Idle gating (skip heavy phases when user is active) ────────────────────
+IDLE_MIN_SECONDS: int = int(_get("IDLE_MIN_SECONDS", "300"))  # 5 minutes
+
 # ── Google (Gmail + GCal) ───────────────────────────────────────────────────
 GMAIL_CREDENTIALS_JSON: str = _get(
     "GMAIL_CREDENTIALS_JSON", "credentials/gmail_oauth.json"
