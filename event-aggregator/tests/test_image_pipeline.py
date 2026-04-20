@@ -627,7 +627,7 @@ class TestCheckLocalVisionAvailable:
         from unittest.mock import MagicMock
         mock_resp = MagicMock()
         mock_resp.status_code = 200
-        mock_resp.json.return_value = {"models": [{"name": "llama3.2:latest"}]}
+        mock_resp.json.return_value = {"models": [{"name": "qwen2.5:7b"}]}
         with patch("requests.get", return_value=mock_resp):
             with patch("config.LOCAL_VISION_MODEL", "qwen2.5vl:7b"):
                 assert check_local_vision_available() is False
@@ -638,7 +638,7 @@ class TestCheckLocalVisionAvailable:
         mock_resp = MagicMock()
         mock_resp.status_code = 200
         mock_resp.json.return_value = {
-            "models": [{"name": "llama3.2:latest"}, {"name": "qwen2.5vl:7b"}]
+            "models": [{"name": "qwen2.5:7b"}, {"name": "qwen2.5vl:7b"}]
         }
         with patch("requests.get", return_value=mock_resp):
             with patch("config.LOCAL_VISION_MODEL", "qwen2.5vl:7b"):

@@ -2,7 +2,7 @@
 Local-first image/PDF analyzer for the intake pipeline.
 
 Analysis order:
-  1. Local: qwen2.5vl (vision/OCR/classify) + llama3.2 (calendar detection)
+  1. Local: qwen2.5vl (vision/OCR/classify) + qwen2.5 (calendar detection)
   2. Cloud fallback: gemini-2.5-flash-lite → gemini-2.5-flash
 
 Privacy: all structured_text is treated as PRIVATE (same as RawMessage.body_text).
@@ -82,7 +82,7 @@ If no category matches, use "Documents".
 Today's date is {today}.
 """
 
-# ── Calendar detection prompt for llama3.2 ────────────────────────────────────
+# ── Calendar detection prompt for text model (OLLAMA_MODEL) ───────────────────
 
 _CALENDAR_DETECT_PROMPT = """\
 You are analyzing text extracted from a document. Find any calendar-relevant items
@@ -162,7 +162,7 @@ def _analyze_page_local(file_bytes: bytes, filename: str, mimetype: str) -> dict
     """Analyze a single image page via local qwen2.5vl vision model.
 
     Returns the raw parsed dict (classification + extraction) or None on failure.
-    Does NOT include calendar_items — those are handled separately by llama3.2.
+    Does NOT include calendar_items — those are handled separately by the text model.
     """
     if not config.LOCAL_VISION_MODEL:
         return None
@@ -203,12 +203,12 @@ def _analyze_page_local(file_bytes: bytes, filename: str, mimetype: str) -> dict
 
 
 def _detect_calendar_items_local(structured_text: str) -> list[CandidateEvent]:
-    """Run llama3.2 on extracted text to detect calendar-relevant items."""
+    """Run the text model on extracted text to detect calendar-relevant items."""
     if not structured_text or not structured_text.strip():
         return []
 
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    # Truncate text to avoid overwhelming llama3.2 context
+    # Truncate text to keep within model context limits
     text_snippet = structured_text[:4000]
     prompt = _CALENDAR_DETECT_PROMPT.format(today=today, text=text_snippet)
 
@@ -229,7 +229,7 @@ def _detect_calendar_items_local(structured_text: str) -> list[CandidateEvent]:
         parsed = json.loads(text)
         return _parse_calendar_items(parsed.get("calendar_items", []))
     except Exception as exc:
-        logger.debug("Calendar detection: llama3.2 error: %s", exc)
+        logger.debug("Calendar detection: text model error: %s", exc)
         return []
 
 
@@ -322,7 +322,7 @@ def _analyze_local(
     pages: list[tuple[bytes, str, str]],
     accompanying_text: str = "",
 ) -> FileAnalysisResult | None:
-    """Full local pipeline: qwen2.5vl per page → merge → llama3.2 calendar detection."""
+    """Full local pipeline: qwen2.5vl per page → merge → text model calendar detection."""
     page_dicts = []
     filenames = []
     for i, (file_bytes, filename, mimetype) in enumerate(pages):
@@ -348,7 +348,7 @@ def _analyze_local(
     if merged is None:
         return None
 
-    # Calendar detection via llama3.2 on merged text
+    # Calendar detection via text model on merged text
     calendar_items = _detect_calendar_items_local(merged.structured_text)
     merged.calendar_items = calendar_items
     if calendar_items:
