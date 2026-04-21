@@ -38,6 +38,7 @@ NAS_CATEGORIES = {
     "Recipes": "Recipe screenshots, cooking instructions, menu photos",
     "334_Iris": "House-related documents for 334 Iris address — mortgage, HOA, utilities, maintenance",
     "Wedding": "Wedding-related photos and documents",
+    "Books": "Book files, ebooks, audiobook notes",
 }
 
 
@@ -315,6 +316,7 @@ def _merge_page_results(page_dicts: list[dict], filenames: list[str]) -> FileAna
         structured_text=merged_text,
         summary=ext.get("summary", "Document analyzed")[:120],
         calendar_items=[],  # populated later by _detect_calendar_items_local
+        document_type=ext.get("document_type", ""),
         original_filename=filenames[0] if filenames else "",
     )
 
@@ -453,6 +455,7 @@ def _merge_gemini_results(results: list[FileAnalysisResult]) -> FileAnalysisResu
         structured_text=merged_text,
         summary=best.summary,
         calendar_items=all_items,
+        document_type=best.document_type,
         original_filename=best.original_filename,
     )
 
@@ -591,6 +594,7 @@ def _parse_gemini_response(data: dict, filename: str) -> FileAnalysisResult | No
             structured_text=extraction.get("structured_text", ""),
             summary=extraction.get("summary", "Document analyzed")[:120],
             calendar_items=_parse_calendar_items(raw_calendar),
+            document_type=extraction.get("document_type", ""),
             original_filename=filename,
         )
     except Exception as exc:
@@ -820,6 +824,7 @@ def _mock_result(filename: str) -> FileAnalysisResult:
             "No real document was analyzed.\n"
         ),
         summary=f"Mock document analysis of {filename}",
+        document_type="medical_form",
         calendar_items=[
             CandidateEvent(
                 title="Mock Follow-up Appointment",

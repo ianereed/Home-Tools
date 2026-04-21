@@ -98,6 +98,7 @@ class FileAnalysisResult:
     structured_text: str                  # extracted content — PRIVATE
     summary: str                          # one-line summary safe for Slack
     calendar_items: list[CandidateEvent] = field(default_factory=list)
+    document_type: str = ""               # e.g. "medical_form", "receipt", "insurance_eob"
     original_filename: str = ""
     source_slack_ts: str = ""             # Slack message ts for threading replies
 

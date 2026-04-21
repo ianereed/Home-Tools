@@ -155,10 +155,12 @@ class TestStageDocumentLocally:
         with patch("config.LOCAL_STAGING_DIR", self.tmpdir):
             path = stage_document_locally(self.result, pages, "thread_001")
             staging = Path(path)
-            assert (staging / "page_01.jpg").exists()
-            assert (staging / "page_02.png").exists()
-            assert (staging / "page_03.jpg").exists()
+            # Pages named with title slug + page number
+            assert (staging / "multi-page-lab-results_page01.jpg").exists()
+            assert (staging / "multi-page-lab-results_page02.png").exists()
+            assert (staging / "multi-page-lab-results_page03.jpg").exists()
             assert (staging / "extraction.txt").exists()
+            assert (staging / "summary.txt").exists()
             meta = json.loads((staging / "_metadata.json").read_text())
             assert meta["page_count"] == 3
 
@@ -336,10 +338,11 @@ class TestFileWriter:
             path = stage_locally(self.result, b"FAKE_IMAGE_DATA", ".png")
             staging = Path(path)
             assert staging.exists()
-            assert (staging / "original.png").exists()
+            # File named with title slug instead of "original"
+            assert (staging / "test-document.png").exists()
             assert (staging / "extraction.txt").exists()
+            assert (staging / "summary.txt").exists()
             assert (staging / "_metadata.json").exists()
-            # PDF might fail if reportlab not installed, but txt and original must exist
             meta = json.loads((staging / "_metadata.json").read_text())
             assert meta["file_id"] == "F_TEST_WRITE"
             assert meta["primary_category"] == "Healthcare"
@@ -370,12 +373,15 @@ class TestFileWriter:
                     (Path(nas_dir) / "Healthcare" / "0-Ian Healthcare").mkdir(parents=True)
                     nas_path = copy_to_nas(staging_path, self.result, dry_run=False)
                     assert nas_path is not None
-                    # Verify files were copied
+                    # Verify files were copied (named with title slug)
                     nas = Path(nas_path)
-                    assert (nas / "original.png").exists()
+                    assert (nas / "test-document.png").exists()
                     assert (nas / "extraction.txt").exists()
+                    assert (nas / "summary.txt").exists()
                     # _metadata.json should NOT be on NAS
                     assert not (nas / "_metadata.json").exists()
+                    # NAS path should include year and doc type
+                    assert "/2026/" in nas_path
                     # Purge staging
                     purge_staging(staging_path)
                     assert not Path(staging_path).exists()

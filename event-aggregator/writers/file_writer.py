@@ -6,6 +6,10 @@ Files are ALWAYS staged to ~/Documents/event-aggregator-intake/{file_id}/ first,
 then copied to the NAS. Local staging is purged only after a successful NAS write.
 
 If the NAS is offline, files stay staged locally and are flushed on the next run.
+
+NAS path structure:
+  {NAS_ROOT}/{category}/{subcategory}/{year}/{doc_type}/{date}_{slug}/
+  e.g. /Volumes/Share1/Healthcare/0-Ian Healthcare/2026/Visit-Notes/2026-04-20_sutter-post-op/
 """
 from __future__ import annotations
 
@@ -20,6 +24,45 @@ from pathlib import Path
 import config
 
 logger = logging.getLogger(__name__)
+
+
+# ── Document type → folder name mapping ────────────────────────────────────────
+
+_DOC_TYPE_FOLDER = {
+    "medical_portal_screenshot": "Portal-Screenshots",
+    "medical_form": "Forms",
+    "insurance_eob": "Insurance-EOB",
+    "insurance_document": "Insurance",
+    "prescription": "Prescriptions",
+    "lab_results": "Lab-Results",
+    "receipt": "Receipts",
+    "invoice": "Invoices",
+    "tax_form": "Tax-Documents",
+    "bank_statement": "Bank-Statements",
+    "contract": "Contracts",
+    "id_card": "ID-Cards",
+    "recipe": "Recipes",
+    "photo": "Photos",
+    "home_improvement": "Projects",
+    "mortgage_document": "Mortgage",
+    "utility_bill": "Utilities",
+}
+
+
+def _doc_type_to_folder(doc_type: str) -> str:
+    """Map a document_type string to a clean folder name.
+
+    Uses the lookup table first, then falls back to title-casing the raw type.
+    """
+    if not doc_type:
+        return "General"
+    mapped = _DOC_TYPE_FOLDER.get(doc_type.lower().strip())
+    if mapped:
+        return mapped
+    # Fallback: "appointment_confirmation" → "Appointment-Confirmation"
+    return "-".join(
+        word.capitalize() for word in doc_type.replace("_", " ").split()
+    ) or "General"
 
 
 def _staging_root() -> Path:
@@ -41,19 +84,24 @@ def _nas_available() -> bool:
 
 
 def _build_nas_path(result) -> Path:
-    """Build the target NAS directory path from a FileAnalysisResult."""
+    """Build the target NAS directory path from a FileAnalysisResult.
+
+    Structure: {NAS_ROOT}/{category}/{subcategory}/{year}/{doc_type}/{date}_{slug}/
+    """
     from models import FileAnalysisResult
     assert isinstance(result, FileAnalysisResult)
 
     category = result.primary_category
     subcategory = result.subcategory
     date_str = result.date or datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    year = date_str[:4]
+    doc_type_folder = _doc_type_to_folder(getattr(result, "document_type", ""))
     slug = _slugify(result.title)
 
     if subcategory:
-        base = Path(config.NAS_ROOT) / category / subcategory
+        base = Path(config.NAS_ROOT) / category / subcategory / year / doc_type_folder
     else:
-        base = Path(config.NAS_ROOT) / category
+        base = Path(config.NAS_ROOT) / category / year / doc_type_folder
 
     dirname = f"{date_str}_{slug}"
     target = base / dirname
@@ -116,8 +164,32 @@ def _generate_pdf(text: str, title: str, date: str | None, output_path: Path) ->
     c.save()
 
 
+def _write_summary(result, staging_dir: Path) -> None:
+    """Write a human-readable summary.txt alongside the staged files."""
+    from models import FileAnalysisResult
+    assert isinstance(result, FileAnalysisResult)
+
+    category_display = result.primary_category
+    if result.subcategory:
+        category_display += f" / {result.subcategory}"
+
+    lines = [
+        f"Title: {result.title}",
+        f"Date: {result.date or 'unknown'}",
+        f"Category: {category_display}",
+        f"Document Type: {getattr(result, 'document_type', '') or 'unclassified'}",
+        f"Confidence: {result.confidence:.2f}",
+        f"Source: Slack file upload ({result.file_id})",
+        f"Original filename: {result.original_filename or 'unknown'}",
+        "",
+        f"Summary: {result.summary}",
+    ]
+    summary_path = staging_dir / "summary.txt"
+    summary_path.write_text("\n".join(lines), encoding="utf-8")
+
+
 def stage_locally(result, file_bytes: bytes, original_ext: str) -> str:
-    """Write original file + extraction.txt + extraction.pdf to local staging.
+    """Write original file + extraction.txt + extraction.pdf + summary.txt to local staging.
 
     Returns the staging directory path as a string.
     """
@@ -127,8 +199,9 @@ def stage_locally(result, file_bytes: bytes, original_ext: str) -> str:
     staging_dir = _staging_root() / result.file_id
     staging_dir.mkdir(parents=True, exist_ok=True)
 
-    # Save original file
-    original_path = staging_dir / f"original{original_ext}"
+    # Save original file with descriptive name
+    file_slug = _slugify(result.title, max_len=40) or "original"
+    original_path = staging_dir / f"{file_slug}{original_ext}"
     original_path.write_bytes(file_bytes)
 
     # Save extraction text
@@ -141,7 +214,9 @@ def stage_locally(result, file_bytes: bytes, original_ext: str) -> str:
         _generate_pdf(result.structured_text, result.title, result.date, pdf_path)
     except Exception as exc:
         logger.warning("PDF generation failed for %s: %s", result.file_id, exc)
-        # Still continue — txt and original are the essential outputs
+
+    # Save summary
+    _write_summary(result, staging_dir)
 
     # Save metadata for flush_pending_staged to reconstruct the NAS path
     meta = {
@@ -150,6 +225,7 @@ def stage_locally(result, file_bytes: bytes, original_ext: str) -> str:
         "subcategory": result.subcategory,
         "title": result.title,
         "date": result.date,
+        "document_type": getattr(result, "document_type", ""),
         "summary": result.summary,
         "original_filename": result.original_filename,
         "staged_at": datetime.now(timezone.utc).isoformat(),
@@ -168,8 +244,8 @@ def stage_document_locally(
 ) -> str:
     """Stage a multi-page document to local intake folder.
 
-    Creates one folder with page_01.ext, page_02.ext, ..., plus
-    extraction.txt, extraction.pdf, and _metadata.json.
+    Creates one folder with descriptively-named page files, plus
+    extraction.txt, extraction.pdf, summary.txt, and _metadata.json.
 
     Args:
         result: FileAnalysisResult for the complete document
@@ -184,10 +260,11 @@ def stage_document_locally(
     staging_dir = _staging_root() / staging_id
     staging_dir.mkdir(parents=True, exist_ok=True)
 
-    # Save each page with zero-padded numbering
+    # Save each page with descriptive name + zero-padded numbering
+    file_slug = _slugify(result.title, max_len=40) or "page"
     for i, (file_bytes, filename, mimetype) in enumerate(pages, 1):
         ext = Path(filename).suffix or _ext_from_mimetype(mimetype)
-        page_path = staging_dir / f"page_{i:02d}{ext}"
+        page_path = staging_dir / f"{file_slug}_page{i:02d}{ext}"
         page_path.write_bytes(file_bytes)
 
     # Save extraction text
@@ -201,6 +278,9 @@ def stage_document_locally(
     except Exception as exc:
         logger.warning("PDF generation failed for %s: %s", staging_id, exc)
 
+    # Save summary
+    _write_summary(result, staging_dir)
+
     # Save metadata
     meta = {
         "file_id": result.file_id,
@@ -209,6 +289,7 @@ def stage_document_locally(
         "subcategory": result.subcategory,
         "title": result.title,
         "date": result.date,
+        "document_type": getattr(result, "document_type", ""),
         "summary": result.summary,
         "original_filename": result.original_filename,
         "page_count": len(pages),
@@ -318,6 +399,7 @@ def flush_pending_staged(dry_run: bool = False) -> list[tuple[str, str]]:
             date=meta.get("date"),
             structured_text="",
             summary=meta.get("summary", ""),
+            document_type=meta.get("document_type", ""),
             original_filename=meta.get("original_filename", ""),
         )
 
