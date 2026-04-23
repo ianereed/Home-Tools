@@ -173,56 +173,103 @@ Script updates.
 ## Phase 6 — Minimal monitoring
 
 Goal: get a phone ping when any LaunchAgent fails, without building
-dashboards.
+dashboards. With 6 agents now running (ollama, event-aggregator, and the
+5 health-dashboard agents), silent failures have a higher cost.
 
-1. **Sign up for Pushover** (https://pushover.net, $5 one-time per device)
-   OR self-host ntfy. Pushover is faster to set up.
-2. **Store Pushover tokens in macOS Keychain** (not in plaintext `.env`):
-   ```python
-   # On the mini, one-time in a Python shell:
-   import keyring
-   keyring.set_password("pushover", "app_token", "xxx")
-   keyring.set_password("pushover", "user_key", "xxx")
-   ```
-3. **Write a shared `~/Home-Tools/bin/notify.sh`** that reads the Keychain
-   via the `security` CLI and POSTs to Pushover. Wrap each LaunchAgent's
-   Python invocation with a shell that traps non-zero exits and calls
-   `notify.sh`.
-4. **Weekly SSH-failure digest** as a LaunchAgent:
+### Scope
+
+1. **Pick a push channel.** Pushover ($5 one-time per device, single API
+   POST with curl) or self-hosted ntfy (free, needs a public endpoint —
+   can ride on Tailscale HTTPS funnel for free). Pushover is faster to set
+   up for a single user; ntfy is the path if we ever add multi-user or
+   want Slack-like channels. **Recommend: Pushover, defer ntfy.**
+
+2. **Store the Pushover creds in the login keychain** using the same
+   pattern we set up for health-dashboard:
+   - Services: `pushover-mac-mini` / accounts: `app_token`, `user_key`
+   - Write via `security add-generic-password -U ... ~/Library/Keychains/login.keychain-db`
+     (see `reference_mac_mini_porting_checklist.md`)
+
+3. **Write `~/Home-Tools/bin/notify.sh`** — one shared script, reads creds
+   via `security find-generic-password -w`, POSTs to
+   `https://api.pushover.net/1/messages.json`. Takes args: title, message,
+   priority (default 0, 1=high for failures).
+
+4. **Wrap each LaunchAgent** with a `trap`-ing shell script so non-zero
+   Python exits trigger `notify.sh`. Rather than edit each plist's
+   `ProgramArguments`, introduce a single wrapper: `~/Home-Tools/bin/run-agent.sh`
+   that runs `"$@"` and on failure sends the tail of the log via notify.
+   Update the 6 plists to invoke the wrapper.
+
+5. **Heartbeat / liveness check** — a new LaunchAgent that runs every
+   30 min and checks:
+   - `launchctl list | grep health-dashboard` — all 5 present
+   - `curl -sf http://127.0.0.1:8095/` — receiver responding
+   - `curl -sf http://127.0.0.1:8501/` — streamlit responding
+   - `curl -sf http://127.0.0.1:11434/api/tags` — ollama responding
+   - health.db `mtime` is <25h old (detects stuck receiver even when the
+     process is "running")
+   Any failure → one Pushover alert. Suppress repeats with a lockfile so
+   a stuck receiver doesn't page every 30 min.
+
+6. **Weekly SSH-failure digest** as a LaunchAgent, once per week:
    `log show --predicate 'process == "sshd"' --last 7d | grep -i "failed\|invalid"`
-   → pipe to notify.sh once a week.
-5. **Monthly port audit** — not automated; set a calendar reminder to run
-   `sudo lsof -iTCP -sTCP:LISTEN -n -P` and compare to the expected
-   baseline (sshd, screensharing, ollama, utun*). Anything else = investigate.
+   → pipe to notify.sh (low priority).
+
+7. **Port-audit reminder** — not automated; calendar reminder to run
+   `sudo lsof -iTCP -sTCP:LISTEN -n -P` and diff against the expected
+   baseline (sshd, screensharing, ollama, 8095, 8501, utun*). Anything
+   unexpected → investigate.
 
 ### What to skip unless actually needed
 
-- iStatistica / Stats menu bar apps (can't see them, it's headless)
-- Uptime Kuma / Netdata dashboards
-- Structured log shipping
+- iStatistica / Stats menu bar apps (can't see them — headless)
+- Uptime Kuma / Netdata dashboards (the streamlit page already gives us
+  eyes-on-glass when we want it)
+- Structured log shipping (Elastic/Loki etc. — overkill for 6 agents)
 
 ---
 
 ## Phase 7 — Backup
 
 Goal: 3-2-1 backup for the mini so we can recover from disk failure or
-ransomware.
+ransomware. Now that `health.db` is the authoritative copy (laptop's DB is
+frozen at the 2026-04-22 cutover), losing it = re-scraping from Intervals +
+Strava APIs, which only cover recent data. Protect it.
 
-1. **Local snapshots — Time Machine** to an external SSD or SMB share on a
-   NAS:
+### What actually matters to protect
+
+- `~/Home-Tools/health-dashboard/data/health.db` (91MB, active)
+- `~/Home-Tools/event-aggregator/*.db` or similar state
+- `~/Library/Keychains/login.keychain-db` (7 health-dashboard secrets;
+  reproducible but a pain to re-migrate)
+- `~/Library/LaunchAgents/com.*.plist` (6 files — reproducible from repo)
+- Future `~/Home-Tools/finance-monitor/**` data once Phase 8 lands
+
+### Scope
+
+1. **Local: Time Machine** to an external SSD or SMB share on a NAS:
    - System Settings → General → Time Machine → Add Backup Disk
    - Check "Encrypt backups" (critical)
    - Leave on automatic hourly schedule
-2. **Off-site — restic or Arq** to B2 / Wasabi / S3. Restic is free, Arq is
-   $50/yr with a nicer GUI. Either works.
-   - Key goes in 1Password (not on the mini — defeats the purpose)
+2. **Off-site: restic** to B2 / Wasabi / S3. Restic is free, well-audited,
+   has good macOS support. Run as a LaunchAgent at 03:00 daily.
+   - Repository password goes in the login keychain (new entry:
+     `restic-<project-backup>/password`)
    - Initial backup may take hours; let it run overnight
    - Daily incremental after that
 3. **Test a restore.** Pick one file, restore it to a scratch dir, diff.
    Untested backups aren't backups.
 4. **Exclude** from both: `.venv/` directories, `__pycache__/`, `.git/`
-   (optional, git lives on GitHub anyway), large model weights (they're
-   redownloadable via `ollama pull`).
+   (optional, git lives on GitHub anyway), large model weights under
+   `~/.ollama/models/**` (redownloadable via `ollama pull`).
+
+### Open question
+
+- Do we have a NAS available for SMB-target Time Machine? If not, buy a
+  cheap external SSD (~$50 for 1TB) and skip SMB. Or skip Time Machine
+  entirely and rely on restic to B2 for everything. **Revisit when we
+  start Phase 7** — don't buy hardware speculatively.
 
 ---
 
@@ -231,6 +278,15 @@ ransomware.
 This is the original driver for the server. Multi-week scope. Work at
 `~/Home-Tools/finance-monitor/` (new directory, not yet created).
 
+### Pre-work (apply the porting checklist before writing code)
+
+Before starting code, do the mini-side setup work from
+`reference_mac_mini_porting_checklist.md`. Specifically: the YNAB and
+Gmail OAuth tokens need to go into the login keychain via the shim
+pattern, and if finance-monitor exposes any HTTP interface (e.g., an
+approval web UI for iMessage-gated transactions), Python's already in the
+AFW allowlist so no extra work there.
+
 ### Planned sub-phases
 
 1. **YNAB read-only client** — Python package wrapping YNAB's REST API with
@@ -238,24 +294,29 @@ This is the original driver for the server. Multi-week scope. Work at
 2. **Amazon order reconciliation** — Gmail API parses Amazon confirmation
    emails, matches them to YNAB Amazon transactions, Ollama categorizes item
    lists, writes subtransactions via YNAB PATCH.
-3. **Daily morning digest** — cron (launchd), Ollama summarizes yesterday's
-   spending, sends via Pushover / iMessage (once BlueBubbles is up).
+3. **Daily morning digest** — launchd, Ollama summarizes yesterday's
+   spending, sends via Pushover (iMessage once BlueBubbles is up —
+   deferred).
 4. **Weekly review + monthly retirement checks** — on top of the daily.
 5. **Anomaly detection** — flag unusual payees, large charges, missed
    deposits.
 
-### Security controls (per the original research)
+### Security controls
 
-- YNAB token in macOS Keychain, never in `.env`.
+- YNAB + Gmail tokens in the login keychain (services:
+  `finance-monitor-ynab`, `finance-monitor-gmail`), never in `.env`. Use
+  the keyring shim from health-dashboard as the template for
+  `finance-monitor/__init__.py`.
 - Trusted-tier / untrusted-tier split: email parsing (untrusted input) can
   only *propose* categorizations; never POST to YNAB automatically above a
-  threshold. User approves via iMessage for anything >$200 or new payee.
+  threshold. User approves via Pushover-link-back for anything >$200 or
+  new payee. (iMessage-based approval deferred with BlueBubbles.)
 - Gmail OAuth in read-only scope (no send access).
 - Per-request `keep_alive=-1` + `num_ctx=8192` to Ollama for batch email
   parses; otherwise defaults.
 
-This phase deserves its own PLAN.md when we get to it — don't try to fit it
-all in here.
+This phase deserves its own `finance-monitor/PLAN.md` when we start. Don't
+try to fit the whole design in this Mac-mini-level plan.
 
 ---
 
@@ -279,11 +340,19 @@ all in here.
 - `~/.claude/plans/i-want-you-to-tranquil-pearl.md` — frozen initial setup
   plan (phases 0–7 as originally scoped); preserved for history
 - Memory entries to pull context from at session start:
-  - `project_mac_mini_path_cleanup.md` — two sed rewrites + pycache gotcha
+  - `reference_mac_mini_porting_checklist.md` — **start here** when adding
+    a new project on the mini; reproducible order-of-ops
+  - `project_mac_mini_keychain_shim.md` — empty-password login keychain +
+    `KEYCHAIN_PATH` env var + keyring shim pattern
+  - `feedback_macos_afw_python.md` — allow Python through AFW before any
+    non-loopback bind or you'll chase a phantom "app is broken" bug
+  - `project_mac_mini_path_cleanup.md` — sed rewrites + pycache gotcha +
+    the safe `git pull` pattern for the mini's mutated working tree
   - `feedback_macos_tcc_avoid_protected_paths.md` — why code lives at
     `~/Home-Tools`, not `~/Documents`
   - `feedback_mac_mini_readme_upkeep.md` — keep README in sync
-  - `project_health_dashboard.md` — pre-existing outstanding fixes
+  - `project_health_dashboard.md` — current state of the dashboard on
+    the mini
   - `project_event_aggregator.md` / `project_setup_state.md` — what the
     event-aggregator expects
   - `feedback_privacy.md` + `feedback_mock_dryrun.md` — never run real data
@@ -296,8 +365,8 @@ all in here.
 Paste into the opening prompt something like:
 
 > Read `Mac-mini/PLAN.md` and `Mac-mini/README.md` in this repo, then let's
-> continue the Mac mini build from where we left off. Next up is Phase 5b
-> (port health-dashboard).
+> continue the Mac mini build from where we left off. Next up is Phase 6
+> (Pushover failure monitoring).
 
 That's enough context — the plan points at the memory files and the README,
 so Claude will pick up from there.
