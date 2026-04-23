@@ -300,6 +300,7 @@ def _call_ollama(prompt: str) -> dict[str, Any]:
         "stream": False,
         "format": "json",
         "keep_alive": "10s",
+        "think": False,  # disable qwen3 chain-of-thought; safe no-op on other models
     }
     resp = requests.post(
         f"{config.OLLAMA_BASE_URL}/api/generate",

@@ -185,6 +185,7 @@ def _analyze_page_local(file_bytes: bytes, filename: str, mimetype: str) -> dict
                 "stream": False,
                 "format": "json",
                 "keep_alive": "10s",
+                "think": False,
                 "options": {"temperature": 0.1},
             },
             timeout=120,
@@ -223,6 +224,7 @@ def _detect_calendar_items_local(structured_text: str) -> list[CandidateEvent]:
                 "stream": False,
                 "format": "json",
                 "keep_alive": "10s",
+                "think": False,
             },
             timeout=120,
         )

@@ -153,6 +153,7 @@ def _gen(base_url: str, model: str, prompt: str, *,
     body: dict = {
         "model": model, "prompt": prompt, "stream": stream,
         "format": "json",
+        "think": False,  # disable qwen3 chain-of-thought; safe no-op on other models
         "options": {"num_ctx": num_ctx, "temperature": 0.1},
         "keep_alive": "10s",
     }
@@ -166,6 +167,7 @@ def _gen_stream(base_url: str, model: str, prompt: str, num_ctx: int = 8192) -> 
     body = {
         "model": model, "prompt": prompt, "stream": True,
         "format": "json",
+        "think": False,
         "options": {"num_ctx": num_ctx, "temperature": 0.1},
         "keep_alive": "10s",
     }
