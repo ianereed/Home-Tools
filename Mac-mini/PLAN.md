@@ -6,7 +6,7 @@ Living plan for the ongoing build. Update as phases advance. Pair this with
 
 ---
 
-## Quick status (as of 2026-04-23)
+## Quick status (as of 2026-04-24)
 
 Phases 0–5 complete. Event-aggregator + health-dashboard both running on the
 mini under launchd at `~/Home-Tools/<project>` with `.venv`-based LaunchAgents.
@@ -19,9 +19,11 @@ Google Calendar. Medical-records and meal-planner stay on the laptop (user
 decision — medical-records Slack migration deferred, meal-planner is Apps
 Script).
 
-Phase 8 (finance-monitor) Phase 1 scaffolding is complete (2026-04-23):
-code at `~/Home-Tools/finance-monitor/`, awaiting mini-side venv + Slack
-app setup. Phases 6, 7, and 8 Phase 2+ remain.
+Phase 8 (finance-monitor) Phases 1 + 2 are LIVE on the mini (2026-04-24):
+Slack bot DMs locked to `ALLOWED_SLACK_USER_IDS` with 60s per-user rate limit;
+read-only YNAB API sync runs every 5 min from the watcher LaunchAgent
+(transactions + monthly category snapshots in new `budget_months` table); CSV
+imports retired from 2026-04-24 forward. Phases 6, 7, and 8 Phase 3+ remain.
 
 See `README.md` for the full status table and running services.
 
@@ -282,50 +284,66 @@ Strava APIs, which only cover recent data. Protect it.
 
 ---
 
-## Phase 8 — Finance automation (IN PROGRESS — Phase 1 done 2026-04-23)
+## Phase 8 — Finance automation (Phases 1 + 2 LIVE 2026-04-24)
 
-Work at `~/Home-Tools/finance-monitor/`. Phase 1 scaffolding is complete.
+Work at `~/Home-Tools/finance-monitor/`. Two LaunchAgents running on the mini:
+KeepAlive Slack bot + 5-min interval watcher (which now also runs YNAB API
+sync at the top of each cycle).
 
-### Phase 1 — Local Q&A (DONE 2026-04-23)
+### Phase 1 — Local Q&A (DONE 2026-04-23, hardened 2026-04-24)
 
-- YNAB CSV export ingestion (`ingest/ynab_csv.py`) → SQLite
+- YNAB CSV export ingestion (`ingest/ynab_csv.py`) → SQLite — kept for
+  historical CSVs; retired as a live source 2026-04-24
 - PDF ingestion via pdfplumber (`ingest/pdf_importer.py`) for advisor plan docs
-- Plain-English Q&A engine (`query_engine.py`) — routes to transaction or document mode, calls qwen3:14b locally
-- Slack DM bot (`slack_bot.py`) — Socket Mode, DMs only (workspace is shared), dedicated Finance Bot Slack app
-- Watcher (`watcher.py`) — scans `intake/` every 5 min, imports new CSVs and PDFs
-- Two LaunchAgents: KeepAlive for Slack bot, 5-min interval for watcher
+- Image OCR ingestion via qwen2.5vl:7b (`ingest/image_importer.py`)
+- Plain-English Q&A engine (`query_engine.py`) — routes to transaction or
+  document mode, calls qwen3:14b locally
+- Slack DM bot (`slack_bot.py`) — Socket Mode, DMs only, dedicated Finance Bot
+  Slack app. **Locked down 2026-04-24:** `ALLOWED_SLACK_USER_IDS` allowlist
+  in `.env` rejects unauthorized senders; 60s per-user rate limit; sender ID
+  in audit logs. Startup warns if allowlist is empty.
 
-**Mini setup still needed (user action):**
-1. Create Finance Bot Slack app (api.slack.com/apps) — Socket Mode, `im:history` / `im:write` / `chat:write` scopes
-2. Store tokens: `security add-generic-password -s finance-monitor-slack -a app_token -w "xapp-..."` and `bot_token`
-3. Create venv + install deps: `python3.12 -m venv .venv && .venv/bin/pip install -r requirements.txt`
-4. Load LaunchAgents: `launchctl load ~/Library/LaunchAgents/com.home-tools.finance-monitor*.plist`
-5. Drop YNAB CSV export + advisor PDF into `~/Home-Tools/finance-monitor/intake/`
+### Phase 2 — Read-only YNAB API sync (DONE 2026-04-24)
+
+- `ingest/ynab_api.py` — `YnabClient` exposes ONLY `.get()`. Read-only is a
+  hard requirement; never add write methods. Sync handles delta via YNAB's
+  `last_knowledge_of_server` cursor, monthly category snapshots into a new
+  `budget_months` table, deleted-transaction propagation, and auto-discovery
+  of the single budget ID.
+- New SQLite tables: `budget_months` (per-month per-category budgeted /
+  activity / balance) and `sync_state` (cursor + flags).
+- New env vars in `.env`: `YNAB_API_TOKEN` (PAT from
+  https://app.ynab.com/settings/developer), `YNAB_BUDGET_ID` (optional,
+  auto-discovered), `YNAB_API_CUTOFF=2026-04-24` (the date API takes over from
+  CSV imports). One-time CSV cleanup deletes `ynab_csv` rows dated ≥ cutoff.
+- Wired into the existing 5-min watcher LaunchAgent. Sync `never raises`,
+  so YNAB outages don't kill file intake. Manual run: `python main.py sync`.
+- One-off backfill on 2026-04-24 pulled the single 2026-04-23 transaction
+  that was made after the final CSV export.
 
 **To use:**
-- DM the Finance Bot in Slack with any question: "How much did I spend on restaurants last month?"
-- To analyze the advisor plan: "Analyze the portfolio allocation in the financial plan"
+- DM the Finance Bot in Slack with any question: "How much did I spend on
+  restaurants last month?"
+- To analyze the advisor plan: "Analyze the portfolio allocation in the
+  financial plan"
 - CLI test: `python main.py ask "What were my top 5 categories this month?"`
+- Stats: `python main.py stats` (now includes by-source counts + month count)
 
-### Phase 2 — YNAB API (future)
-
-Replace manual CSV drops with automated hourly sync:
-- `ingest/ynab.py` — YNAB REST API client with `since_date` delta polling
-- YNAB API token in keychain: `service="finance-monitor-ynab"`, `account="api_token"`
-- LaunchAgent: `com.home-tools.finance-monitor-ynab-sync.plist` (StartInterval: 3600)
-
-### Phase 3+ — (original sub-phases 2–5)
+### Phase 3+ — Future
 
 - Amazon order reconciliation via Gmail API
 - Daily/weekly spending digests via Pushover
 - Anomaly detection
 
-### Security controls
+### Security controls (current state)
 
-- Slack tokens in keychain (never in `.env`)
+- YNAB PAT in `.env` (PATs have full read+write at the YNAB level; read-only
+  is enforced **client-side** by `YnabClient.get()` being the only HTTP method)
+- Slack tokens in `.env` (consistent with rest of project)
+- Slack DM allowlist via `ALLOWED_SLACK_USER_IDS`; rate-limited; audit-logged
 - No LangChain (active critical CVEs: CVE-2025-68664 CVSS 9.3, CVE-2024-36480 CVSS 9.0)
-- All data local (SQLite on mini, Ollama on localhost:11434)
-- Slack bot DM-only — no channel posting
+- All data local (SQLite on mini, Ollama on `127.0.0.1:11434`)
+- Slack bot DM-only — never posts to channels
 
 ---
 

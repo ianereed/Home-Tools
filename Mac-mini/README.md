@@ -32,7 +32,7 @@ Tailscale.
 | 5 | Port `Home-Tools` repo to server | ✅ 2026-04-22 — event-aggregator + health-dashboard fully migrated (event-aggregator staging moved to `~/Home-Tools/event-aggregator/staging/` out of TCC-protected path; laptop instance disabled, mini is sole writer). Medical-records + meal-planner intentionally stay on laptop. |
 | 6 | Minimal monitoring (launchd logs + Pushover) | ⏳ Pending |
 | 7 | Backup (Time Machine + off-site) | ⏳ Pending |
-| 8 | Finance automation scripts (YNAB, Amazon reconciliation) | ⏳ Pending |
+| 8 | Finance automation scripts (YNAB, Amazon reconciliation) | 🟢 Phase 1 + 2 LIVE 2026-04-24 — Slack bot + read-only YNAB API sync running on the mini; Amazon reconciliation deferred |
 | 9 | Slack UX split — dispatcher bot + `#ian-image-intake` (local-only classify/OCR) | 🟡 Code complete 2026-04-24; user must create Slack app + channel before loading LaunchAgent |
 | 10 | (Deferred) BlueBubbles iMessage bridge | ⏳ Deferred |
 | 11 | (Deferred) Hermes Agent / OpenClaw eval | ⏳ Deferred |
@@ -85,6 +85,13 @@ Tailscale.
   - `nomic-embed-text` (F16, ~275MB) — embeddings for future RAG
 - **event-aggregator schedule**: every 10 min (upgraded from 15 min 2026-04-22); heavy
   phases (Ollama extraction + vision) run 24/7 — no time-window gate on the mini
+- **finance-monitor** at `~/Home-Tools/finance-monitor` with 2 LaunchAgents:
+  `com.home-tools.finance-monitor` (Slack bot, KeepAlive — Socket Mode,
+  DM-only, locked to `ALLOWED_SLACK_USER_IDS`, 60s/user rate limit) and
+  `com.home-tools.finance-monitor-watcher` (every 5 min — runs read-only
+  YNAB API sync first, then scans `intake/` for CSVs/PDFs/images). YNAB API
+  client is GET-only by design (hard requirement); cutoff `2026-04-24`. Live
+  data: `~/Home-Tools/finance-monitor/data/finance.db`
 
 ## Key decisions (2026-04-22)
 
