@@ -34,6 +34,12 @@ ALLOWED_SLACK_USER_IDS: frozenset[str] = frozenset(
     if uid.strip()
 )
 
+# YNAB API (read-only). PAT from https://app.ynab.com/settings/developer.
+# Budget ID is auto-discovered on first sync if there's exactly one budget.
+YNAB_API_TOKEN: str = _get("YNAB_API_TOKEN")
+YNAB_BUDGET_ID: str = _get("YNAB_BUDGET_ID")
+YNAB_API_CUTOFF: str = _get("YNAB_API_CUTOFF", "2026-04-24")
+
 DB_PATH: Path = BASE_DIR / "data" / "finance.db"
 INTAKE_DIR: Path = BASE_DIR / "intake"
 IMPORTED_DIR: Path = BASE_DIR / "imported"

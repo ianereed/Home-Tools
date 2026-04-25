@@ -11,7 +11,7 @@ from pathlib import Path
 
 import config
 import db
-from ingest import pdf_importer, ynab_csv
+from ingest import pdf_importer, ynab_api, ynab_csv
 
 logging.basicConfig(
     level=logging.INFO,
@@ -31,6 +31,9 @@ def _dest_dir() -> Path:
 def run() -> None:
     db.init_db()
     config.INTAKE_DIR.mkdir(parents=True, exist_ok=True)
+
+    status = ynab_api.sync()
+    logger.info("watcher: ynab sync → %s", status)
 
     files = list(config.INTAKE_DIR.iterdir())
     if not files:

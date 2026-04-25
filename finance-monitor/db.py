@@ -45,6 +45,25 @@ def init_db() -> None:
         CREATE INDEX IF NOT EXISTS idx_txn_date     ON transactions(date);
         CREATE INDEX IF NOT EXISTS idx_txn_category ON transactions(category);
         CREATE INDEX IF NOT EXISTS idx_txn_xfer     ON transactions(is_transfer);
+
+        CREATE TABLE IF NOT EXISTS budget_months (
+            month          TEXT NOT NULL,
+            category_id    TEXT NOT NULL,
+            category_name  TEXT NOT NULL,
+            category_group TEXT,
+            budgeted       REAL NOT NULL,
+            activity       REAL NOT NULL,
+            balance        REAL NOT NULL,
+            fetched_at     TEXT NOT NULL,
+            PRIMARY KEY (month, category_id)
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_bm_month ON budget_months(month);
+
+        CREATE TABLE IF NOT EXISTS sync_state (
+            key   TEXT PRIMARY KEY,
+            value TEXT NOT NULL
+        );
     """)
     conn.commit()
     conn.close()
