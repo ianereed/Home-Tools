@@ -10,6 +10,7 @@ Credentials stored in .env:
 """
 import logging
 import sys
+import time
 
 from slack_bolt import App
 from slack_bolt.adapter.socket_mode import SocketModeHandler
@@ -25,6 +26,9 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+_RATE_LIMIT_SECONDS = 60
+_user_last_query: dict[str, float] = {}
+
 
 def run() -> None:
     db.init_db()
@@ -33,6 +37,12 @@ def run() -> None:
         raise RuntimeError("SLACK_APP_TOKEN not set — add it to .env")
     if not config.SLACK_BOT_TOKEN:
         raise RuntimeError("SLACK_BOT_TOKEN not set — add it to .env")
+
+    if not config.ALLOWED_SLACK_USER_IDS:
+        logger.warning(
+            "finance-bot: ALLOWED_SLACK_USER_IDS is not set — "
+            "any workspace member can DM the bot and query your financial data"
+        )
 
     bot_token = config.SLACK_BOT_TOKEN
     app_token = config.SLACK_APP_TOKEN
@@ -52,7 +62,21 @@ def run() -> None:
         if not question:
             return
 
-        logger.info("finance-bot: received DM (len=%d)", len(question))
+        sender = event.get("user", "")
+        if config.ALLOWED_SLACK_USER_IDS and sender not in config.ALLOWED_SLACK_USER_IDS:
+            logger.warning("finance-bot: rejected DM from unauthorized user %s", sender)
+            say("Sorry, you're not authorized to use this bot.")
+            return
+
+        now = time.monotonic()
+        elapsed = now - _user_last_query.get(sender, 0)
+        if elapsed < _RATE_LIMIT_SECONDS:
+            remaining = int(_RATE_LIMIT_SECONDS - elapsed)
+            say(f"_Please wait {remaining}s before asking another question._")
+            return
+        _user_last_query[sender] = now
+
+        logger.info("finance-bot: received DM from %s (len=%d)", sender, len(question))
 
         # Acknowledge immediately so the user knows we're working
         thinking_resp = say("_Thinking..._")
@@ -65,7 +89,7 @@ def run() -> None:
             ts=thinking_resp["ts"],
             text=answer,
         )
-        logger.info("finance-bot: answered DM")
+        logger.info("finance-bot: answered DM for %s", sender)
 
     logger.info("finance-bot: starting Socket Mode handler")
     handler = SocketModeHandler(app, app_token)
