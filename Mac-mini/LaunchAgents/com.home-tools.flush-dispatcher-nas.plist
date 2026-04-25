@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.home-tools.flush-dispatcher-nas</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>/Users/homeserver/Home-Tools/Mac-mini/scripts/flush-dispatcher-nas.sh</string>
+  </array>
+
+  <key>RunAtLoad</key>
+  <true/>
+
+  <!-- Every 30 minutes. Mount + flush are independent agents; if NAS is
+       unmounted at flush time, this exits 0 and tries again next tick. -->
+  <key>StartInterval</key>
+  <integer>1800</integer>
+
+  <key>StandardOutPath</key>
+  <string>/Users/homeserver/Library/Logs/home-tools-flush-dispatcher-nas.log</string>
+
+  <key>StandardErrorPath</key>
+  <string>/Users/homeserver/Library/Logs/home-tools-flush-dispatcher-nas-error.log</string>
+</dict>
+</plist>
