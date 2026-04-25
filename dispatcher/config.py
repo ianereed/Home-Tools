@@ -27,12 +27,16 @@ def _get(key: str, default: str = "") -> str:
 def _keychain(account: str, service: str = "dispatcher-slack") -> str:
     """Read a password from the macOS login keychain via the `security` CLI.
 
-    Returns "" on any failure. Same pattern as finance-monitor's keychain use.
+    On the mini, the `security` CLI from non-aqua sessions can't reach the
+    default keychain via the search list — the keychain path must be passed
+    positionally. Fall through to the standard login keychain when
+    KEYCHAIN_PATH isn't set so this works in both LaunchAgent and SSH-shell
+    contexts.
     """
-    keychain_path = os.environ.get("KEYCHAIN_PATH", "")
-    cmd = ["security", "find-generic-password", "-s", service, "-a", account, "-w"]
-    if keychain_path:
-        cmd.append(keychain_path)
+    keychain_path = os.environ.get("KEYCHAIN_PATH") or os.path.expanduser(
+        "~/Library/Keychains/login.keychain-db"
+    )
+    cmd = ["security", "find-generic-password", "-s", service, "-a", account, "-w", keychain_path]
     try:
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=5)
         if result.returncode == 0:
