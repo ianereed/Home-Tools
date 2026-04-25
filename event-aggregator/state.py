@@ -112,6 +112,19 @@ class State:
     def get_written_events(self) -> dict[str, dict]:
         return self._data.get("written_events", {})
 
+    def last_written_event(self) -> tuple[str, dict] | None:
+        """Return the (gcal_id, event_dict) with the most recent created_at, or None."""
+        events = self._data.get("written_events", {})
+        if not events:
+            return None
+        gcal_id = max(events, key=lambda k: events[k].get("created_at", ""))
+        return gcal_id, events[gcal_id]
+
+    def remove_written_event(self, gcal_id: str) -> dict | None:
+        """Pop an entry from written_events. Returns the removed dict or None."""
+        events = self._data.get("written_events", {})
+        return events.pop(gcal_id, None)
+
     # ── day thread tracking (Slack channel threading) ─────────────────────────
 
     def get_day_thread(self) -> tuple[str | None, str | None]:

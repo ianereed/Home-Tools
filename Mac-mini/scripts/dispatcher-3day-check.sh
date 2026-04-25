@@ -42,14 +42,23 @@ fi
 
 # 2. Logs — error/traceback lines in the last 200 lines of stdout, plus the
 #    size of the stderr log (anything substantial there is suspicious).
+#    Plist log paths moved to ~/Library/Logs/ on 2026-04-24; check both
+#    locations so this script keeps working if it ever ships ahead of the
+#    plist change.
 err_count=0
-if [[ -f /tmp/home-tools-dispatcher.log ]]; then
-  err_count=$(tail -200 /tmp/home-tools-dispatcher.log | grep -cE "ERROR|Traceback|Exception:" || true)
-fi
+for log in "$HOME/Library/Logs/home-tools-dispatcher.log" /tmp/home-tools-dispatcher.log; do
+  if [[ -f "$log" ]]; then
+    err_count=$(tail -200 "$log" | grep -cE "ERROR|Traceback|Exception:" || true)
+    break
+  fi
+done
 err_log_size=0
-if [[ -f /tmp/home-tools-dispatcher-error.log ]]; then
-  err_log_size=$(wc -c < /tmp/home-tools-dispatcher-error.log | tr -d ' ')
-fi
+for log in "$HOME/Library/Logs/home-tools-dispatcher-error.log" /tmp/home-tools-dispatcher-error.log; do
+  if [[ -f "$log" ]]; then
+    err_log_size=$(wc -c < "$log" | tr -d ' ')
+    break
+  fi
+done
 if (( err_count > 0 )); then
   findings+=(":warning: $err_count error/traceback line(s) in dispatcher.log tail")
 fi

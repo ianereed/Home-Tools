@@ -8,6 +8,7 @@ event-aggregator project.
 from __future__ import annotations
 
 import logging
+import os
 import re
 import subprocess
 from dataclasses import dataclass
@@ -26,7 +27,11 @@ HELP_TEXT = (
     "• `last run` — show summary of the most recent run\n"
     "• `pending` — list pending proposals\n"
     "• `what's on <timeframe>` — ask about upcoming events, e.g. `what's on friday`\n"
-    "• `conflicts <timeframe>` — check for overlaps, e.g. `conflicts this week`\n"
+    "• `conflicts <timeframe>` — check for overlaps\n"
+    "• `changes` / `changes since <when>` — recent activity (default last 24h; `<when>` accepts `1d`, `12h`, `30m`, ISO date)\n"
+    "• `watch` / `watch <channel>` / `mute <channel>` — list/toggle event-aggregator's monitored Slack channels\n"
+    "• `force scan` — kick off an event-aggregator run immediately\n"
+    "• `undo last` — delete the most recently written GCal event\n"
     "• `help` / `?` — show this message\n"
 )
 
@@ -81,8 +86,56 @@ def handle(raw_text: str) -> CommandResult | None:
             return CommandResult(ok=False, text="Usage: `add: <event description>`")
         return _ea_cli(["add-event", "--text", description])
 
+    # changes [since <when>]
+    if first == "changes":
+        m = re.match(r"changes\s+since\s+(.+)", text, re.IGNORECASE)
+        if m:
+            return _ea_cli(["changes", "--since", m.group(1).strip()])
+        return _ea_cli(["changes"])  # defaults to 1d
+
+    # watch (list) / watch <channel> / mute <channel>
+    if first == "watch":
+        if not rest:
+            return _ea_cli(["config", "--list-channels"])
+        return _ea_cli(["config", "--watch", rest])
+
+    if first == "mute":
+        if not rest:
+            return CommandResult(ok=False, text="Usage: `mute <channel-name>`")
+        return _ea_cli(["config", "--mute", rest])
+
+    # force scan
+    if lower.startswith("force scan") or lower == "force":
+        return _force_scan()
+
+    # undo last
+    if lower.startswith("undo last") or lower == "undo":
+        return _ea_cli(["undo-last"])
+
     # Not a recognized command — let the caller decide (usually: ignore).
     return None
+
+
+def _force_scan() -> CommandResult:
+    """Trigger an immediate event-aggregator launchd run via launchctl kickstart."""
+    label = "com.home-tools.event-aggregator"
+    try:
+        result = subprocess.run(
+            ["launchctl", "kickstart", "-k", f"gui/{os.getuid()}/{label}"],
+            capture_output=True, text=True, timeout=5,
+        )
+    except Exception as exc:
+        return CommandResult(ok=False, text=f":x: kickstart failed: {exc}")
+    if result.returncode != 0:
+        tail = (result.stderr or result.stdout or "").strip()[:300]
+        return CommandResult(
+            ok=False,
+            text=f":x: `launchctl kickstart {label}` exited {result.returncode}: `{tail}`",
+        )
+    return CommandResult(
+        ok=True,
+        text=f":zap: kicked off `{label}` — check the log in ~30s for results",
+    )
 
 
 def _ea_cli(args: list[str]) -> CommandResult:

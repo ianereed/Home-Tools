@@ -52,6 +52,16 @@ def main() -> int:
     p.add_argument("--calendar", default="")
     p.add_argument("--conflicts", default="")
 
+    p = sub.add_parser("config", help="Toggle SLACK_MONITOR_CHANNELS in .env atomically")
+    p.add_argument("--mute", default="", help="Channel name to remove")
+    p.add_argument("--watch", default="", help="Channel name to add")
+    p.add_argument("--list-channels", action="store_true", help="List currently watched channels")
+
+    p = sub.add_parser("undo-last", help="Delete the most recently written GCal event")
+
+    p = sub.add_parser("changes", help="Show calendar changes from event_log.jsonl")
+    p.add_argument("--since", default="1d", help="ISO date/datetime, or relative like 1d/12h/30m")
+
     args = parser.parse_args()
 
     # Quiet default logging when emitting JSON on stdout; the dispatcher parses it.
@@ -78,6 +88,12 @@ def main() -> int:
         return _cmd_status(as_json=args.json, only_pending=args.pending, only_last_run=args.last_run)
     if args.cmd == "query":
         return _cmd_query(calendar=args.calendar, conflicts=args.conflicts)
+    if args.cmd == "config":
+        return _cmd_config(mute=args.mute, watch=args.watch, list_channels=args.list_channels)
+    if args.cmd == "undo-last":
+        return _cmd_undo_last()
+    if args.cmd == "changes":
+        return _cmd_changes(since=args.since)
     return 1
 
 
@@ -472,6 +488,245 @@ def _cmd_query(calendar: str, conflicts: str) -> int:
 
     print(answer or "_(no answer)_")
     return 0
+
+
+# ── config (mute/watch SLACK_MONITOR_CHANNELS) ───────────────────────────────
+
+def _cmd_config(mute: str, watch: str, list_channels: bool) -> int:
+    """Atomically toggle a channel in event-aggregator/.env.
+
+    Reuses python-dotenv's set_key() which writes via tempfile + os.replace().
+    After mutation, kickstart event-aggregator so the change applies on the
+    next launchd tick (or the immediate kickstart, whichever comes first).
+    """
+    import os
+    import subprocess
+
+    import config as _cfg
+    from dotenv import dotenv_values, set_key
+
+    env_path = Path(_cfg.__file__).parent / ".env"
+    if not env_path.exists():
+        # Create empty .env if missing — set_key would create it but more
+        # explicitly here so the user sees a useful message.
+        env_path.touch()
+
+    if list_channels:
+        current = dotenv_values(env_path).get("SLACK_MONITOR_CHANNELS") or ""
+        chans = [c.strip() for c in current.split(",") if c.strip()]
+        if not chans:
+            print("_No channels currently watched._")
+        else:
+            print("*Currently watching:* " + ", ".join(f"`{c}`" for c in chans))
+        return 0
+
+    if not mute and not watch:
+        print(":warning: Specify --mute, --watch, or --list-channels", file=sys.stderr)
+        return 1
+
+    # Read current value (.env wins over env vars; if neither, start empty)
+    raw = dotenv_values(env_path).get("SLACK_MONITOR_CHANNELS", "")
+    if raw is None:
+        raw = ""
+    chans = [c.strip() for c in raw.split(",") if c.strip()]
+
+    target = (mute or watch).lstrip("#").strip()
+    target_lc = target.lower()
+
+    if mute:
+        new_chans = [c for c in chans if c.lower() != target_lc]
+        if len(new_chans) == len(chans):
+            print(f":information_source: `{target}` was not in the watch list.")
+            return 0
+        action = "muted"
+    else:
+        if any(c.lower() == target_lc for c in chans):
+            print(f":information_source: `{target}` already watched.")
+            return 0
+        new_chans = chans + [target]
+        action = "watching"
+
+    new_csv = ",".join(new_chans)
+    set_key(str(env_path), "SLACK_MONITOR_CHANNELS", new_csv, quote_mode="never")
+
+    # Kickstart event-aggregator so the next run picks up the new value.
+    # Best-effort: a kickstart failure shouldn't fail the command.
+    kickstart_ok = False
+    try:
+        result = subprocess.run(
+            ["launchctl", "kickstart", "-k", f"gui/{os.getuid()}/com.home-tools.event-aggregator"],
+            capture_output=True, text=True, timeout=5,
+        )
+        kickstart_ok = result.returncode == 0
+    except Exception:
+        pass
+
+    note = "" if kickstart_ok else " _(kickstart failed; change applies on next 10-min tick)_"
+    print(f":white_check_mark: {action} `{target}` — `SLACK_MONITOR_CHANNELS` is now `{new_csv or '(empty)'}`{note}")
+    return 0
+
+
+# ── undo-last ────────────────────────────────────────────────────────────────
+
+def _cmd_undo_last() -> int:
+    """Delete the most-recently-written GCal event."""
+    import state as state_module
+    from writers import google_calendar as gcal_writer
+
+    state = state_module.load()
+    last = state.last_written_event()
+    if last is None:
+        print("_No events have been written yet._")
+        return 0
+    gcal_id, info = last
+
+    title = info.get("title", "(no title)")
+    start = info.get("start", "")
+    created_at = info.get("created_at", "")
+
+    deleted = gcal_writer.delete_event(gcal_id, dry_run=False)
+    if not deleted:
+        print(f":x: Could not delete `{gcal_id}` — `{title}` (may already be gone in GCal). State NOT modified.")
+        return 1
+
+    state.remove_written_event(gcal_id)
+    state_module.save(state)
+
+    when = ""
+    try:
+        # Render start as "Apr 25 2pm" if it parses
+        dt = datetime.fromisoformat(start)
+        when = f" | {dt.strftime('%b %-d %-I:%M%p').lower()}"
+    except Exception:
+        pass
+
+    age_note = ""
+    try:
+        ca = datetime.fromisoformat(created_at)
+        secs = (datetime.now(timezone.utc) - ca).total_seconds()
+        if secs < 60:
+            age_note = "\n_GCal may show propagation lag for a few seconds._"
+    except Exception:
+        pass
+
+    print(f":wastebasket: undid: *{title}*{when}{age_note}")
+    return 0
+
+
+# ── changes (event_log.jsonl reader) ─────────────────────────────────────────
+
+def _cmd_changes(since: str) -> int:
+    """Read event_log.jsonl, filter by ts >= cutoff, group by action, format."""
+    cutoff = _parse_since(since)
+    if cutoff is None:
+        print(f":x: could not parse `--since {since}`. Use ISO date, ISO datetime, or relative like `1d`/`12h`/`30m`.", file=sys.stderr)
+        return 1
+
+    import config as _cfg
+    log_path = Path(_cfg.__file__).parent / "event_log.jsonl"
+    if not log_path.exists():
+        print("_event_log.jsonl is empty — no changes recorded yet._")
+        return 0
+
+    created: list[dict] = []
+    updated: list[dict] = []
+    cancelled: list[dict] = []
+
+    try:
+        with log_path.open("r") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    entry = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                ts_str = entry.get("ts", "")
+                try:
+                    ts = datetime.fromisoformat(ts_str)
+                except ValueError:
+                    continue
+                if ts.tzinfo is None:
+                    ts = ts.replace(tzinfo=timezone.utc)
+                if ts < cutoff:
+                    continue
+                action = entry.get("action", "")
+                if action == "created":
+                    created.append(entry)
+                elif action == "updated":
+                    updated.append(entry)
+                elif action == "cancelled":
+                    cancelled.append(entry)
+    except OSError as exc:
+        print(f":x: could not read event_log.jsonl: {exc}", file=sys.stderr)
+        return 1
+
+    if not (created or updated or cancelled):
+        print(f"_No changes since {cutoff.isoformat(timespec='minutes')}._")
+        return 0
+
+    lines: list[str] = [f"*Calendar changes since {cutoff.isoformat(timespec='minutes')}:*"]
+    if created:
+        lines.append(f":white_check_mark: created ({len(created)}):")
+        for e in created[:20]:
+            lines.append("  • " + _format_change_line(e))
+        if len(created) > 20:
+            lines.append(f"  …and {len(created) - 20} more")
+    if updated:
+        lines.append(f":pencil2: updated ({len(updated)}):")
+        for e in updated[:20]:
+            lines.append("  • " + _format_change_line(e))
+        if len(updated) > 20:
+            lines.append(f"  …and {len(updated) - 20} more")
+    if cancelled:
+        lines.append(f":wastebasket: cancelled ({len(cancelled)}):")
+        for e in cancelled[:20]:
+            lines.append("  • " + _format_change_line(e))
+        if len(cancelled) > 20:
+            lines.append(f"  …and {len(cancelled) - 20} more")
+
+    print("\n".join(lines))
+    return 0
+
+
+def _format_change_line(entry: dict) -> str:
+    title = entry.get("title", "(untitled)")
+    start = entry.get("start", "")
+    when = ""
+    try:
+        dt = datetime.fromisoformat(start)
+        when = dt.strftime("%b %-d %-I:%M%p").lower() + " — "
+    except Exception:
+        pass
+    src = entry.get("source")
+    src_note = f" _({src})_" if src else ""
+    return f"{when}*{title}*{src_note}"
+
+
+def _parse_since(raw: str) -> datetime | None:
+    """Parse `1d` / `7d` / `12h` / `30m` / ISO date / ISO datetime → UTC datetime."""
+    import re
+    raw = (raw or "").strip()
+    if not raw:
+        return None
+
+    m = re.fullmatch(r"(\d+)\s*([dhm])", raw, re.IGNORECASE)
+    if m:
+        n = int(m.group(1))
+        unit = m.group(2).lower()
+        seconds = n * {"d": 86400, "h": 3600, "m": 60}[unit]
+        from datetime import timedelta
+        return datetime.now(timezone.utc) - timedelta(seconds=seconds)
+
+    # ISO date (no time) → midnight UTC of that date
+    try:
+        dt = datetime.fromisoformat(raw)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt
+    except ValueError:
+        return None
 
 
 # ── helpers ──────────────────────────────────────────────────────────────────
