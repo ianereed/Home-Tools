@@ -1,9 +1,8 @@
 """
-Tests for the image/PDF intake pipeline.
+Tests for the image/PDF intake pipeline (local-only, post-cloud-removal).
 
-Covers: Slack file detection (mock), local-first analyzer (mock + unit),
-Gemini cloud fallback (mock), file writer (staging/NAS), state tracking,
-and end-to-end --mock --dry-run flow.
+Covers: local analyzer (mock + unit), file writer (staging/NAS), state
+tracking, ingest_local_file end-to-end in mock mode.
 """
 from __future__ import annotations
 
@@ -19,31 +18,7 @@ import pytest
 from models import CandidateEvent, FileAnalysisResult
 
 
-# ── Multi-page document mock data tests ─────────────────────────────────────
-
-
-class TestMultiFileMockData:
-    def test_multifile_message_returns_one_message(self):
-        from tests.mock_data import slack_multifile_message
-        since = datetime(2020, 1, 1, tzinfo=timezone.utc)
-        msgs = slack_multifile_message(since)
-        assert len(msgs) == 1
-
-    def test_multifile_message_has_multiple_files(self):
-        from tests.mock_data import slack_multifile_message
-        since = datetime(2020, 1, 1, tzinfo=timezone.utc)
-        msg = slack_multifile_message(since)[0]
-        assert len(msg.metadata["files"]) == 3
-
-    def test_thread_collection_is_flagged(self):
-        from tests.mock_data import slack_thread_collection_message
-        since = datetime(2020, 1, 1, tzinfo=timezone.utc)
-        msg = slack_thread_collection_message(since)[0]
-        assert msg.metadata["is_thread_collection"] is True
-        assert len(msg.metadata["files"]) == 3
-
-
-# ── Gemini analyzer multi-document tests ────────────────────────────────────
+# ── analyze_document (mock) ───────────────────────────────────────────────────
 
 
 class TestAnalyzeDocumentMock:
@@ -56,7 +31,6 @@ class TestAnalyzeDocumentMock:
         ]
         result = analyze_document(pages=pages, mock=True)
         assert result is not None
-        assert isinstance(result, FileAnalysisResult)
         assert result.primary_category == "Healthcare"
         assert result.confidence > 0
 
@@ -66,65 +40,7 @@ class TestAnalyzeDocumentMock:
         assert result is None
 
 
-# ── Image compression tests ──────────────────────────────────────────────────
-
-
-class TestPreparePages:
-    def _make_real_jpeg(self, width: int = 100, height: int = 100) -> bytes:
-        """Create a real JPEG image bytes using Pillow."""
-        import io
-        from PIL import Image
-        img = Image.new("RGB", (width, height), color=(128, 64, 32))
-        buf = io.BytesIO()
-        img.save(buf, format="JPEG", quality=90)
-        return buf.getvalue()
-
-    def test_under_budget_unchanged(self):
-        from analyzers.image_analyzer import _prepare_pages
-        pages = [
-            (b"small" * 100, "p1.jpg", "image/jpeg"),
-            (b"small" * 100, "p2.jpg", "image/jpeg"),
-        ]
-        result = _prepare_pages(pages, max_total_mb=100.0)
-        assert result is pages  # same object returned — no copy
-
-    def test_pdfs_not_compressed(self):
-        from analyzers.image_analyzer import _prepare_pages
-        pdf_bytes = b"PDF" * (1024 * 1024)  # ~3MB
-        pages = [(pdf_bytes, "doc.pdf", "application/pdf")]
-        result = _prepare_pages(pages, max_total_mb=0.001)
-        # PDF should be unchanged
-        assert result[0][0] is pdf_bytes
-        assert result[0][2] == "application/pdf"
-
-    def test_large_jpeg_is_compressed(self):
-        from analyzers.image_analyzer import _prepare_pages
-        # Create a real JPEG at 2500x2500 with noise (resists compression)
-        import io
-        import random
-        from PIL import Image
-        random.seed(42)
-        pixels = [(random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
-                  for _ in range(2500 * 2500)]
-        img = Image.new("RGB", (2500, 2500))
-        img.putdata(pixels)
-        buf = io.BytesIO()
-        img.save(buf, format="JPEG", quality=95)
-        large_jpeg = buf.getvalue()
-
-        # Use a budget tighter than the actual total size
-        total_mb = len(large_jpeg) * 3 / (1024 * 1024)
-        budget_mb = total_mb * 0.3  # 30% of actual size forces compression
-
-        pages = [(large_jpeg, "big.jpg", "image/jpeg")] * 3
-        result = _prepare_pages(pages, max_total_mb=budget_mb)
-
-        total_before = len(large_jpeg) * 3
-        total_after = sum(len(b) for b, _, _ in result)
-        assert total_after < total_before
-
-
-# ── File writer multi-page staging tests ────────────────────────────────────
+# ── File writer multi-page staging ────────────────────────────────────────────
 
 
 class TestStageDocumentLocally:
@@ -155,7 +71,6 @@ class TestStageDocumentLocally:
         with patch("config.LOCAL_STAGING_DIR", self.tmpdir):
             path = stage_document_locally(self.result, pages, "thread_001")
             staging = Path(path)
-            # Pages named with title slug + page number
             assert (staging / "multi-page-lab-results_page01.jpg").exists()
             assert (staging / "multi-page-lab-results_page02.png").exists()
             assert (staging / "multi-page-lab-results_page03.jpg").exists()
@@ -173,36 +88,7 @@ class TestStageDocumentLocally:
             assert meta["page_count"] == 5
 
 
-# ── Pipeline routing tests ───────────────────────────────────────────────────
-
-
-class TestPipelineRouting:
-    def test_single_file_message_not_thread(self):
-        """Single file, no thread flag → should use single-file path."""
-        from tests.mock_data import slack_file_messages
-        since = datetime(2020, 1, 1, tzinfo=timezone.utc)
-        msgs = slack_file_messages(since)
-        single = [m for m in msgs if len(m.metadata["files"]) == 1]
-        assert len(single) > 0
-        for msg in single:
-            assert not msg.metadata.get("is_thread_collection")
-
-    def test_multifile_message_has_multiple_files(self):
-        """Multi-file message → pipeline should use document path."""
-        from tests.mock_data import slack_multifile_message
-        since = datetime(2020, 1, 1, tzinfo=timezone.utc)
-        msgs = slack_multifile_message(since)
-        assert len(msgs[0].metadata["files"]) > 1
-
-    def test_thread_collection_flagged(self):
-        """Thread collection → pipeline should use document path."""
-        from tests.mock_data import slack_thread_collection_message
-        since = datetime(2020, 1, 1, tzinfo=timezone.utc)
-        msg = slack_thread_collection_message(since)[0]
-        assert msg.metadata["is_thread_collection"] is True
-
-
-# ── FileAnalysisResult model tests ──────────────────────────────────────────
+# ── FileAnalysisResult model ─────────────────────────────────────────────────
 
 
 class TestFileAnalysisResult:
@@ -231,39 +117,7 @@ class TestFileAnalysisResult:
         assert len(r.title) == 200
 
 
-# ── Mock data tests ─────────────────────────────────────────────────────────
-
-
-class TestSlackFileMockData:
-    def test_returns_messages(self):
-        from tests.mock_data import slack_file_messages
-        since = datetime(2020, 1, 1, tzinfo=timezone.utc)
-        msgs = slack_file_messages(since)
-        assert len(msgs) == 3
-
-    def test_message_structure(self):
-        from tests.mock_data import slack_file_messages
-        since = datetime(2020, 1, 1, tzinfo=timezone.utc)
-        msg = slack_file_messages(since)[0]
-        assert msg.source == "slack_file"
-        assert "files" in msg.metadata
-        assert len(msg.metadata["files"]) > 0
-        f = msg.metadata["files"][0]
-        assert "id" in f
-        assert "name" in f
-        assert "mimetype" in f
-        assert "url_private_download" in f
-
-    def test_pdf_mock_present(self):
-        from tests.mock_data import slack_file_messages
-        since = datetime(2020, 1, 1, tzinfo=timezone.utc)
-        msgs = slack_file_messages(since)
-        mimetypes = [m.metadata["files"][0]["mimetype"] for m in msgs]
-        assert "application/pdf" in mimetypes
-        assert "image/png" in mimetypes
-
-
-# ── Gemini analyzer mock tests ──────────────────────────────────────────────
+# ── Local analyzer mock ──────────────────────────────────────────────────────
 
 
 class TestImageAnalyzerMock:
@@ -292,7 +146,7 @@ class TestImageAnalyzerMock:
         assert isinstance(result.calendar_items[0], CandidateEvent)
 
 
-# ── State tracking tests ────────────────────────────────────────────────────
+# ── State tracking ───────────────────────────────────────────────────────────
 
 
 class TestStateFileProcessing:
@@ -311,7 +165,7 @@ class TestStateFileProcessing:
         assert s.is_file_processed("F_RECENT")
 
 
-# ── File writer tests ───────────────────────────────────────────────────────
+# ── File writer ──────────────────────────────────────────────────────────────
 
 
 class TestFileWriter:
@@ -338,7 +192,6 @@ class TestFileWriter:
             path = stage_locally(self.result, b"FAKE_IMAGE_DATA", ".png")
             staging = Path(path)
             assert staging.exists()
-            # File named with title slug instead of "original"
             assert (staging / "test-document.png").exists()
             assert (staging / "extraction.txt").exists()
             assert (staging / "summary.txt").exists()
@@ -354,7 +207,6 @@ class TestFileWriter:
             nas_dir = tempfile.mkdtemp()
             try:
                 with patch("config.NAS_ROOT", nas_dir):
-                    # Create expected category directory
                     (Path(nas_dir) / "Healthcare" / "0-Ian Healthcare").mkdir(parents=True)
                     nas_path = copy_to_nas(staging_path, self.result, dry_run=True)
                     assert nas_path is not None
@@ -373,16 +225,12 @@ class TestFileWriter:
                     (Path(nas_dir) / "Healthcare" / "0-Ian Healthcare").mkdir(parents=True)
                     nas_path = copy_to_nas(staging_path, self.result, dry_run=False)
                     assert nas_path is not None
-                    # Verify files were copied (named with title slug)
                     nas = Path(nas_path)
                     assert (nas / "test-document.png").exists()
                     assert (nas / "extraction.txt").exists()
                     assert (nas / "summary.txt").exists()
-                    # _metadata.json should NOT be on NAS
                     assert not (nas / "_metadata.json").exists()
-                    # NAS path should include year and doc type
                     assert "/2026/" in nas_path
-                    # Purge staging
                     purge_staging(staging_path)
                     assert not Path(staging_path).exists()
             finally:
@@ -407,37 +255,12 @@ class TestFileWriter:
                     flushed = flush_pending_staged(dry_run=False)
                     assert len(flushed) == 1
                     assert flushed[0][0] == "F_TEST_WRITE"
-                    # Staging dir should be purged
                     assert not (Path(self.tmpdir) / "F_TEST_WRITE").exists()
             finally:
                 shutil.rmtree(nas_dir, ignore_errors=True)
 
 
-# ── Local-first analyzer unit tests ─────────────────────────────────────────
-
-
-class TestSplitPages:
-    def test_split_even(self):
-        from analyzers.image_analyzer import _split_pages
-        pages = [(b"", f"p{i}.jpg", "image/jpeg") for i in range(8)]
-        batches = _split_pages(pages, 4)
-        assert len(batches) == 2
-        assert len(batches[0]) == 4
-        assert len(batches[1]) == 4
-
-    def test_split_uneven(self):
-        from analyzers.image_analyzer import _split_pages
-        pages = [(b"", f"p{i}.jpg", "image/jpeg") for i in range(10)]
-        batches = _split_pages(pages, 4)
-        assert len(batches) == 3
-        assert len(batches[2]) == 2
-
-    def test_split_smaller_than_max(self):
-        from analyzers.image_analyzer import _split_pages
-        pages = [(b"", f"p{i}.jpg", "image/jpeg") for i in range(3)]
-        batches = _split_pages(pages, 4)
-        assert len(batches) == 1
-        assert len(batches[0]) == 3
+# ── Per-page merge ───────────────────────────────────────────────────────────
 
 
 class TestMergePageResults:
@@ -495,60 +318,13 @@ class TestMergePageResults:
         assert result.subcategory == "0-Ian Healthcare"
 
 
-class TestMergeGeminiResults:
-    def _make_result(self, confidence: float, text: str) -> FileAnalysisResult:
-        return FileAnalysisResult(
-            file_id="",
-            primary_category="Financial",
-            subcategory=None,
-            confidence=confidence,
-            title="Test Doc",
-            date="2026-04-20",
-            structured_text=text,
-            summary="A financial document",
-        )
-
-    def test_structured_text_merged(self):
-        from analyzers.image_analyzer import _merge_gemini_results
-        r1 = self._make_result(0.9, "Batch 1 text")
-        r2 = self._make_result(0.8, "Batch 2 text")
-        merged = _merge_gemini_results([r1, r2])
-        assert "Batch 1 text" in merged.structured_text
-        assert "Batch 2 text" in merged.structured_text
-
-    def test_best_confidence_wins(self):
-        from analyzers.image_analyzer import _merge_gemini_results
-        r1 = self._make_result(0.7, "A")
-        r2 = self._make_result(0.95, "B")
-        merged = _merge_gemini_results([r1, r2])
-        assert merged.confidence == 0.95
-
-    def test_calendar_items_deduplicated(self):
-        from analyzers.image_analyzer import _merge_gemini_results
-        from datetime import timedelta
-        now = datetime.now(timezone.utc).replace(microsecond=0)
-        event = CandidateEvent(
-            title="Doctor Appointment", start_dt=now, end_dt=None, location=None,
-            confidence=0.85, source="slack_file", source_id="f1", category="health",
-        )
-        event2 = CandidateEvent(
-            title="Doctor Appointment", start_dt=now + timedelta(minutes=5), end_dt=None,
-            location=None, confidence=0.85, source="slack_file", source_id="f2", category="health",
-        )
-        r1 = self._make_result(0.9, "A")
-        r1.calendar_items = [event]
-        r2 = self._make_result(0.8, "B")
-        r2.calendar_items = [event2]  # same event, slightly different time
-        merged = _merge_gemini_results([r1, r2])
-        assert len(merged.calendar_items) == 1  # deduplicated
+# ── Local vision fallback (Ollama unreachable) ───────────────────────────────
 
 
 class TestAnalyzePageLocalFallback:
-    """Test that _analyze_page_local returns None gracefully when Ollama is unreachable."""
-
     def test_returns_none_when_ollama_unreachable(self):
         from analyzers.image_analyzer import _analyze_page_local
-        with patch("config.OLLAMA_BASE_URL", "http://localhost:19999"):  # nothing here
+        with patch("config.OLLAMA_BASE_URL", "http://localhost:19999"):
             result = _analyze_page_local(b"fake", "test.jpg", "image/jpeg")
         assert result is None
 
@@ -561,64 +337,6 @@ class TestAnalyzePageLocalFallback:
         mock_resp.raise_for_status = MagicMock()
         with patch("requests.post", return_value=mock_resp):
             result = _analyze_page_local(b"fake", "test.jpg", "image/jpeg")
-        assert result is None
-
-
-class TestCloudFallbackChain:
-    """Test that cloud fallback tries models in order and stops on first success."""
-
-    def test_succeeds_on_first_model(self):
-        from analyzers.image_analyzer import _analyze_cloud_fallback
-        mock_result = FileAnalysisResult(
-            file_id="", primary_category="Financial", subcategory=None,
-            confidence=0.9, title="Receipt", date=None,
-            structured_text="Some text", summary="A receipt",
-        )
-        with patch("analyzers.image_analyzer._analyze_gemini", return_value=mock_result) as mock_fn:
-            with patch("config.GEMINI_API_KEY", "fake-key"):
-                with patch("config.GEMINI_FALLBACK_MODELS", "gemini-2.5-flash-lite,gemini-2.5-flash"):
-                    result = _analyze_cloud_fallback(
-                        [(b"fake", "test.jpg", "image/jpeg")], ""
-                    )
-        assert result is mock_result
-        assert mock_fn.call_count == 1
-        assert mock_fn.call_args[0][2] == "gemini-2.5-flash-lite"
-
-    def test_falls_through_to_second_model(self):
-        from analyzers.image_analyzer import _analyze_cloud_fallback
-        mock_result = FileAnalysisResult(
-            file_id="", primary_category="Financial", subcategory=None,
-            confidence=0.85, title="Doc", date=None,
-            structured_text="Text", summary="A doc",
-        )
-
-        def side_effect(pages, text, model):
-            if model == "gemini-2.5-flash-lite":
-                return None  # first model fails
-            return mock_result
-
-        with patch("analyzers.image_analyzer._analyze_gemini", side_effect=side_effect):
-            with patch("config.GEMINI_API_KEY", "fake-key"):
-                with patch("config.GEMINI_FALLBACK_MODELS", "gemini-2.5-flash-lite,gemini-2.5-flash"):
-                    result = _analyze_cloud_fallback(
-                        [(b"fake", "test.jpg", "image/jpeg")], ""
-                    )
-        assert result is mock_result
-
-    def test_returns_none_when_all_fail(self):
-        from analyzers.image_analyzer import _analyze_cloud_fallback
-        with patch("analyzers.image_analyzer._analyze_gemini", return_value=None):
-            with patch("config.GEMINI_API_KEY", "fake-key"):
-                with patch("config.GEMINI_FALLBACK_MODELS", "gemini-2.5-flash-lite,gemini-2.5-flash"):
-                    result = _analyze_cloud_fallback(
-                        [(b"fake", "test.jpg", "image/jpeg")], ""
-                    )
-        assert result is None
-
-    def test_returns_none_with_no_api_key(self):
-        from analyzers.image_analyzer import _analyze_cloud_fallback
-        with patch("config.GEMINI_API_KEY", ""):
-            result = _analyze_cloud_fallback([(b"fake", "test.jpg", "image/jpeg")], "")
         assert result is None
 
 
@@ -649,3 +367,34 @@ class TestCheckLocalVisionAvailable:
         with patch("requests.get", return_value=mock_resp):
             with patch("config.LOCAL_VISION_MODEL", "qwen2.5vl:7b"):
                 assert check_local_vision_available() is True
+
+
+# ── ingest_local_file (end-to-end via mock) ──────────────────────────────────
+
+
+class TestIngestLocalFile:
+    def setup_method(self):
+        self.staging = tempfile.mkdtemp()
+        self.nas = tempfile.mkdtemp()
+
+    def teardown_method(self):
+        shutil.rmtree(self.staging, ignore_errors=True)
+        shutil.rmtree(self.nas, ignore_errors=True)
+
+    def test_mock_ingest_writes_to_staging(self, tmp_path):
+        """Mock-mode ingest produces a staging dir and a summary string; no network calls."""
+        import state as state_module
+        from image_pipeline import ingest_local_file
+
+        file_path = tmp_path / "test.png"
+        file_path.write_bytes(b"FAKE_IMAGE_BYTES")
+
+        with patch("config.LOCAL_STAGING_DIR", self.staging), \
+             patch("config.NAS_ROOT", self.nas):
+            # NAS expects the Healthcare/0-Ian Healthcare tree from the mock result
+            (Path(self.nas) / "Healthcare" / "0-Ian Healthcare").mkdir(parents=True)
+            state = state_module.State({})
+            summary = ingest_local_file(file_path, state, dry_run=False, mock=True)
+
+        assert ":white_check_mark:" in summary
+        assert "Healthcare" in summary

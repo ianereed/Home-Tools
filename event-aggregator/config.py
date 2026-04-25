@@ -34,9 +34,6 @@ def _get(key: str, default: str = "") -> str:
 OLLAMA_BASE_URL: str = _get("OLLAMA_BASE_URL", "http://localhost:11434")
 OLLAMA_MODEL: str = _get("OLLAMA_MODEL", "qwen3:14b")
 LOCAL_VISION_MODEL: str = _get("LOCAL_VISION_MODEL", "qwen2.5vl:7b")
-GEMINI_FALLBACK_MODELS: str = _get(
-    "GEMINI_FALLBACK_MODELS", "gemini-2.5-flash-lite,gemini-2.5-flash"
-)
 
 # ── Heavy-phase time window (local time, USER_TIMEZONE) ────────────────────
 # Ollama extraction and image analysis only run when the local hour is in
@@ -104,10 +101,6 @@ CONFIDENCE_BANDS: dict[str, dict[str, float]] = {
 TODOIST_API_TOKEN: str = _get("TODOIST_API_TOKEN")
 TODOIST_PROJECT_NAME: str = _get("TODOIST_PROJECT_NAME", "automated todo aggregation")
 TODOIST_TODO_MIN_CONFIDENCE: float = float(_get("TODOIST_TODO_MIN_CONFIDENCE", "0.65"))
-
-# ── Gemini (image/PDF analysis, optional) ────────────────────────────────────
-GEMINI_API_KEY: str = _get("GEMINI_API_KEY")
-GEMINI_MODEL: str = _get("GEMINI_MODEL", "gemini-2.5-pro")
 
 # ── NAS / staging ────────────────────────────────────────────────────────────
 NAS_ROOT: str = _get("NAS_ROOT", "/Volumes/Share1")

@@ -1,9 +1,10 @@
 """
-Local-first image/PDF analyzer for the intake pipeline.
+Local-only image/PDF analyzer for the intake pipeline.
 
-Analysis order:
-  1. Local: qwen2.5vl (vision/OCR/classify) + qwen3 (calendar detection)
-  2. Cloud fallback: gemini-2.5-flash-lite → gemini-2.5-flash
+Pipeline: qwen2.5vl (vision/OCR/classify per page) + qwen3 (calendar detection
+from merged text). All processing happens on the mini's Ollama instance; no
+cloud fallback exists — the previous Gemini path was removed 2026-04-24 as
+part of the privacy-first Slack overhaul.
 
 Privacy: all structured_text is treated as PRIVATE (same as RawMessage.body_text).
 """
@@ -13,7 +14,6 @@ import base64
 import json
 import logging
 import re
-import time
 from datetime import datetime, timezone
 
 import requests
@@ -24,9 +24,8 @@ from models import CandidateEvent, FileAnalysisResult
 logger = logging.getLogger(__name__)
 
 MAX_FILE_SIZE_MB = 20
-_GEMINI_BATCH_MAX_PAGES = 4  # max pages per Gemini API call
 
-# NAS folder mapping — used in both local and cloud prompts.
+# NAS folder mapping — used in the vision prompt below.
 NAS_CATEGORIES = {
     "Healthcare/0-Ian Healthcare": "Ian's medical records, health portal screenshots, prescriptions, insurance docs, lab results, EOBs",
     "Healthcare/0-Anny Healthcare": "Anny's medical records",
@@ -39,6 +38,7 @@ NAS_CATEGORIES = {
     "334_Iris": "House-related documents for 334 Iris address — mortgage, HOA, utilities, maintenance",
     "Wedding": "Wedding-related photos and documents",
     "Books": "Book files, ebooks, audiobook notes",
+    "Events": "Save-the-dates, wedding invitations, event flyers, tickets with specific date/time",
 }
 
 
@@ -113,49 +113,6 @@ Document text:
 {text}
 """
 
-# ── Gemini prompts (multi-page) ───────────────────────────────────────────────
-
-_GEMINI_SYSTEM_PROMPT = """\
-You are a document analysis assistant. You will receive one or more document pages.
-Your job is to:
-1. CLASSIFY the document into the correct filing category.
-2. EXTRACT all meaningful text from ALL pages combined into one structured document.
-3. DETECT any calendar-relevant items (appointments, deadlines, due dates) across all pages.
-
-## Filing categories (choose the best match):
-{categories}
-
-If no category matches well, use "Documents" as the default.
-
-## Output format
-Return ONLY valid JSON:
-{{
-  "classification": {{
-    "primary_category": "<NAS path from the list above>",
-    "confidence": <0.0-1.0>,
-    "reasoning": "<one sentence>"
-  }},
-  "extraction": {{
-    "document_type": "<e.g. medical_form, insurance_document, tax_form, receipt>",
-    "title": "<descriptive title for the complete document, max 80 chars>",
-    "date": "<YYYY-MM-DD if visible, otherwise null>",
-    "structured_text": "<full extracted text, organized with ALL-CAPS section headers and --- separators>",
-    "summary": "<one-line summary of the complete document, max 120 chars, safe to post publicly>"
-  }},
-  "calendar_items": [
-    {{
-      "title": "<event title>",
-      "start": "<ISO 8601 datetime with timezone>",
-      "end": "<ISO 8601 datetime or null>",
-      "location": "<location or null>",
-      "category": "<work|personal|social|health|travel|other>"
-    }}
-  ]
-}}
-
-Today's date is {today}.
-"""
-
 
 # ── Local analysis ─────────────────────────────────────────────────────────────
 
@@ -211,7 +168,6 @@ def _detect_calendar_items_local(structured_text: str) -> list[CandidateEvent]:
         return []
 
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    # Truncate text to keep within model context limits
     text_snippet = structured_text[:4000]
     prompt = _CALENDAR_DETECT_PROMPT.format(today=today, text=text_snippet)
 
@@ -283,7 +239,6 @@ def _merge_page_results(page_dicts: list[dict], filenames: list[str]) -> FileAna
     if not page_dicts:
         return None
 
-    # Pick the page with highest classification confidence
     best = max(page_dicts, key=lambda d: d.get("classification", {}).get("confidence", 0.0))
     cls = best.get("classification", {})
     ext = best.get("extraction", {})
@@ -293,7 +248,6 @@ def _merge_page_results(page_dicts: list[dict], filenames: list[str]) -> FileAna
     category = parts[0]
     subcategory = parts[1] if len(parts) > 1 else None
 
-    # Merge structured_text from all pages
     text_parts = []
     for i, (d, fname) in enumerate(zip(page_dicts, filenames), 1):
         page_text = d.get("extraction", {}).get("structured_text", "")
@@ -301,7 +255,6 @@ def _merge_page_results(page_dicts: list[dict], filenames: list[str]) -> FileAna
             text_parts.append(f"--- PAGE {i} ({fname}) ---\n{page_text}")
     merged_text = "\n\n".join(text_parts)
 
-    # First non-null date wins
     date = None
     for d in page_dicts:
         date = d.get("extraction", {}).get("date")
@@ -309,7 +262,7 @@ def _merge_page_results(page_dicts: list[dict], filenames: list[str]) -> FileAna
             break
 
     return FileAnalysisResult(
-        file_id="",  # set by caller
+        file_id="",
         primary_category=category,
         subcategory=subcategory,
         confidence=float(cls.get("confidence", 0.5)),
@@ -317,7 +270,7 @@ def _merge_page_results(page_dicts: list[dict], filenames: list[str]) -> FileAna
         date=date,
         structured_text=merged_text,
         summary=ext.get("summary", "Document analyzed")[:120],
-        calendar_items=[],  # populated later by _detect_calendar_items_local
+        calendar_items=[],
         document_type=ext.get("document_type", ""),
         original_filename=filenames[0] if filenames else "",
     )
@@ -342,7 +295,6 @@ def _analyze_local(
     if not page_dicts:
         return None
 
-    # Warn if we only got partial results
     if len(page_dicts) < len(pages):
         logger.info(
             "Local vision: %d/%d pages analyzed successfully",
@@ -353,7 +305,6 @@ def _analyze_local(
     if merged is None:
         return None
 
-    # Calendar detection via text model on merged text
     calendar_items = _detect_calendar_items_local(merged.structured_text)
     merged.calendar_items = calendar_items
     if calendar_items:
@@ -362,357 +313,60 @@ def _analyze_local(
     return merged
 
 
-# ── Gemini (cloud fallback) ────────────────────────────────────────────────────
+# ── PDF rasterization (required because Ollama vision can't read PDF bytes) ────
 
-def _parse_retry_delay(resp: requests.Response) -> int:
-    """Extract retry delay from a 429 response, defaulting to 60s."""
-    try:
-        body = resp.json()
-        for detail in body.get("error", {}).get("details", []):
-            if detail.get("@type", "").endswith("RetryInfo"):
-                delay_str = detail.get("retryDelay", "60s")
-                return min(30, int(re.sub(r"[^0-9]", "", delay_str) or "30") + 2)
-    except Exception:
-        pass
-    return 30  # cap at 30s so retries aren't wasted
-
-
-def _analyze_gemini(
-    pages: list[tuple[bytes, str, str]],
-    accompanying_text: str,
-    model: str,
-) -> FileAnalysisResult | None:
-    """Try a single Gemini model on up to _GEMINI_BATCH_MAX_PAGES pages.
-
-    For documents with more pages, splits into batches and merges.
-    Returns FileAnalysisResult or None on failure.
-    """
-    if not config.GEMINI_API_KEY:
-        return None
-
-    if len(pages) > _GEMINI_BATCH_MAX_PAGES:
-        return _analyze_gemini_batched(pages, accompanying_text, model)
-
-    return _analyze_gemini_batch(pages, accompanying_text, model, batch_label=None)
-
-
-def _split_pages(
-    pages: list[tuple[bytes, str, str]], max_per_batch: int
-) -> list[list[tuple[bytes, str, str]]]:
-    """Chunk pages into sublists of at most max_per_batch."""
-    return [pages[i:i + max_per_batch] for i in range(0, len(pages), max_per_batch)]
-
-
-def _analyze_gemini_batched(
-    pages: list[tuple[bytes, str, str]],
-    accompanying_text: str,
-    model: str,
-) -> FileAnalysisResult | None:
-    """Split large document into batches, analyze each, merge results."""
-    batches = _split_pages(pages, _GEMINI_BATCH_MAX_PAGES)
-    n = len(batches)
-    logger.info("Gemini %s: splitting %d pages into %d batch(es)", model, len(pages), n)
-
-    batch_results: list[FileAnalysisResult] = []
-    for i, batch in enumerate(batches):
-        label = f"batch {i+1}/{n}"
-        text = accompanying_text if i == 0 else ""
-        result = _analyze_gemini_batch(batch, text, model, batch_label=label)
-        if result is not None:
-            batch_results.append(result)
-        else:
-            logger.warning("Gemini %s: %s failed — continuing with other batches", model, label)
-
-    if not batch_results:
-        return None
-    if len(batch_results) == 1:
-        return batch_results[0]
-    return _merge_gemini_results(batch_results)
-
-
-def _merge_gemini_results(results: list[FileAnalysisResult]) -> FileAnalysisResult:
-    """Merge multiple FileAnalysisResult objects (from Gemini batches) into one."""
-    best = max(results, key=lambda r: r.confidence)
-
-    merged_text = "\n\n".join(
-        f"--- BATCH {i+1} ---\n{r.structured_text}"
-        for i, r in enumerate(results)
-        if r.structured_text
-    )
-
-    # Deduplicate calendar items by title+start proximity
-    all_items: list[CandidateEvent] = []
-    for r in results:
-        for item in r.calendar_items:
-            if not _calendar_item_is_duplicate(item, all_items):
-                all_items.append(item)
-
-    return FileAnalysisResult(
-        file_id=best.file_id,
-        primary_category=best.primary_category,
-        subcategory=best.subcategory,
-        confidence=best.confidence,
-        title=best.title,
-        date=next((r.date for r in results if r.date), None),
-        structured_text=merged_text,
-        summary=best.summary,
-        calendar_items=all_items,
-        document_type=best.document_type,
-        original_filename=best.original_filename,
-    )
-
-
-def _calendar_item_is_duplicate(
-    item: CandidateEvent, existing: list[CandidateEvent]
-) -> bool:
-    """True if a calendar item is already in the list (same title + start ±30 min)."""
-    from datetime import timedelta
-    from thefuzz import fuzz
-    for e in existing:
-        if fuzz.ratio(item.title.lower(), e.title.lower()) >= 80:
-            delta = abs((item.start_dt - e.start_dt).total_seconds())
-            if delta <= 1800:  # 30 minutes
-                return True
-    return False
-
-
-def _analyze_gemini_batch(
-    pages: list[tuple[bytes, str, str]],
-    accompanying_text: str,
-    model: str,
-    batch_label: str | None,
-) -> FileAnalysisResult | None:
-    """Send one batch of pages to a specific Gemini model. Returns result or None."""
-    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    system_prompt = _GEMINI_SYSTEM_PROMPT.format(
-        categories=_build_categories_text(),
-        today=today,
-    )
-    if batch_label:
-        system_prompt += f"\n\nNote: This is {batch_label} of a larger document. Analyze these pages only."
-
-    user_parts: list[dict] = []
-    for i, (file_bytes, filename, mimetype) in enumerate(pages, 1):
-        user_parts.append({"text": f"Page {i} of {len(pages)}: {filename}"})
-        b64_data = base64.standard_b64encode(file_bytes).decode("ascii")
-        user_parts.append({"inlineData": {"mimeType": mimetype, "data": b64_data}})
-
-    if accompanying_text:
-        user_parts.append({"text": f"The user included this message: {accompanying_text}"})
-    user_parts.append({
-        "text": (
-            f"Analyze this {len(pages)}-page document and return the JSON "
-            "classification, extraction (combining all pages), and calendar items."
-        )
-    })
-
-    endpoint = (
-        "https://generativelanguage.googleapis.com/v1beta/models/"
-        f"{model}:generateContent"
-    )
-    label = batch_label or f"{len(pages)}-page document"
-
-    for attempt in range(3):
-        try:
-            resp = requests.post(
-                endpoint,
-                params={"key": config.GEMINI_API_KEY},
-                json={
-                    "contents": [
-                        {"role": "user", "parts": [{"text": system_prompt}]},
-                        {"role": "model", "parts": [{"text": "Understood. Send the document pages and I will analyze them."}]},
-                        {"role": "user", "parts": user_parts},
-                    ],
-                },
-                timeout=120,
-            )
-
-            if resp.status_code == 429:
-                retry_delay = _parse_retry_delay(resp)
-                logger.warning("Gemini %s: rate limited (429), waiting %ds...", model, retry_delay)
-                time.sleep(retry_delay)
-                continue
-
-            if resp.status_code == 503:
-                wait = [5, 15, 30][attempt] if attempt < 3 else 0
-                logger.warning("Gemini %s: 503 for %s — waiting %ds...", model, label, wait)
-                if attempt < 2:
-                    time.sleep(wait)
-                    continue
-                return None
-
-            if resp.status_code != 200:
-                logger.warning("Gemini %s: HTTP %d for %s: %s", model, resp.status_code, label, resp.text[:200])
-                if attempt < 2:
-                    time.sleep(2 ** attempt)
-                    continue
-                return None
-
-            body = resp.json()
-            text = body["candidates"][0]["content"]["parts"][0]["text"]
-            parsed = _extract_json_from_text(text)
-            if parsed is None:
-                logger.warning("Gemini %s: could not parse JSON for %s", model, label)
-                if attempt < 2:
-                    time.sleep(2 ** attempt)
-                    continue
-                return None
-
-            primary_filename = pages[0][1] if pages else "document"
-            return _parse_gemini_response(parsed, primary_filename)
-
-        except requests.RequestException as exc:
-            logger.warning("Gemini %s: request error (attempt %d): %s", model, attempt + 1, exc)
-            if attempt < 2:
-                time.sleep(2 ** attempt)
-            continue
-        except (KeyError, IndexError) as exc:
-            logger.warning("Gemini %s: response structure error for %s: %s", model, label, exc)
-            return None
-
-    logger.warning("Gemini %s: failed after 3 attempts for %s", model, label)
-    return None
-
-
-def _parse_gemini_response(data: dict, filename: str) -> FileAnalysisResult | None:
-    """Convert Gemini JSON response dict into a FileAnalysisResult."""
-    try:
-        classification = data.get("classification", {})
-        extraction = data.get("extraction", {})
-        raw_calendar = data.get("calendar_items", [])
-
-        primary_category = classification.get("primary_category", "Documents")
-        parts = primary_category.split("/", 1)
-        category = parts[0]
-        subcategory = parts[1] if len(parts) > 1 else None
-
-        return FileAnalysisResult(
-            file_id="",  # set by caller
-            primary_category=category,
-            subcategory=subcategory,
-            confidence=float(classification.get("confidence", 0.5)),
-            title=extraction.get("title", filename)[:200],
-            date=extraction.get("date"),
-            structured_text=extraction.get("structured_text", ""),
-            summary=extraction.get("summary", "Document analyzed")[:120],
-            calendar_items=_parse_calendar_items(raw_calendar),
-            document_type=extraction.get("document_type", ""),
-            original_filename=filename,
-        )
-    except Exception as exc:
-        logger.warning("Failed to parse Gemini response for %s: %s", filename, exc)
-        return None
-
-
-def _analyze_cloud_fallback(
-    pages: list[tuple[bytes, str, str]],
-    accompanying_text: str,
-) -> FileAnalysisResult | None:
-    """Try each configured Gemini fallback model in order."""
-    if not config.GEMINI_API_KEY:
-        logger.warning("GEMINI_API_KEY not set — no cloud fallback available")
-        return None
-
-    models = [m.strip() for m in config.GEMINI_FALLBACK_MODELS.split(",") if m.strip()]
-    for model in models:
-        logger.info("Cloud fallback: trying %s for %d page(s)", model, len(pages))
-        result = _analyze_gemini(pages, accompanying_text, model)
-        if result is not None:
-            logger.info("Cloud fallback: succeeded with %s", model)
-            return result
-        logger.warning("Cloud fallback: %s failed — trying next", model)
-
-    logger.warning("Cloud fallback: all models exhausted — document unprocessed")
-    return None
-
-
-# ── Image size compression ────────────────────────────────────────────────────
-
-def _prepare_pages(
-    pages: list[tuple[bytes, str, str]],
-    max_total_mb: float = 18.0,
+def rasterize_to_pages(
+    file_bytes: bytes, filename: str, mimetype: str, dpi: int = 200,
 ) -> list[tuple[bytes, str, str]]:
-    """Compress images to fit within Gemini's size limit.
+    """Return a list of (bytes, page_filename, image_mimetype) ready for local vision.
 
-    Only compresses when total size exceeds max_total_mb. PDFs are never
-    compressed. Compression floor: quality 50 / 1024px longest side.
+    For images: returns [(bytes, filename, mimetype)] unchanged.
+    For PDFs: rasterizes each page to PNG via pypdfium2.
+    Raises RuntimeError on unreadable PDFs so the caller can surface the error.
     """
-    total_bytes = sum(len(b) for b, _, _ in pages)
-    max_bytes = max_total_mb * 1024 * 1024
-
-    if total_bytes <= max_bytes:
-        return pages
-
-    logger.info(
-        "Total page size %.1f MB exceeds %.1f MB limit — compressing images",
-        total_bytes / (1024 * 1024), max_total_mb,
-    )
+    if mimetype != "application/pdf":
+        return [(file_bytes, filename, mimetype)]
 
     try:
-        from PIL import Image
         import io
-    except ImportError:
-        logger.warning("Pillow not available — cannot compress images, sending as-is")
-        return pages
+        import pypdfium2 as pdfium
+    except ImportError as exc:
+        raise RuntimeError(
+            "pypdfium2 is required to process PDFs with local vision "
+            "(pip install pypdfium2)"
+        ) from exc
 
-    pdf_bytes = sum(len(b) for b, _, mime in pages if mime == "application/pdf")
-    image_budget = max_bytes - pdf_bytes
-    image_count = sum(1 for _, _, mime in pages if mime != "application/pdf")
+    pdf = pdfium.PdfDocument(file_bytes)
+    scale = dpi / 72.0
+    stem = filename.rsplit(".", 1)[0]
+    pages: list[tuple[bytes, str, str]] = []
+    for i in range(len(pdf)):
+        page = pdf[i]
+        pil = page.render(scale=scale).to_pil()
+        buf = io.BytesIO()
+        pil.save(buf, format="PNG")
+        pages.append((buf.getvalue(), f"{stem}-p{i+1}.png", "image/png"))
+    return pages
 
-    if image_count == 0:
-        logger.warning("All pages are PDFs and total size exceeds limit — sending anyway")
-        return pages
 
-    per_image_budget = image_budget / image_count
+def _analyze_local_no_calendar(
+    pages: list[tuple[bytes, str, str]],
+) -> FileAnalysisResult | None:
+    """Same as _analyze_local but skips the calendar-detection step.
 
-    result = []
-    for file_bytes, filename, mimetype in pages:
-        if mimetype == "application/pdf":
-            result.append((file_bytes, filename, mimetype))
-            continue
-
-        if len(file_bytes) <= per_image_budget:
-            result.append((file_bytes, filename, mimetype))
-            continue
-
-        try:
-            import io
-            from PIL import Image
-            img = Image.open(io.BytesIO(file_bytes))
-            if img.mode in ("RGBA", "P"):
-                img = img.convert("RGB")
-
-            max_side = max(img.width, img.height)
-            if max_side > 2048:
-                scale = 2048 / max_side
-                img = img.resize(
-                    (max(1, int(img.width * scale)), max(1, int(img.height * scale))),
-                    Image.LANCZOS,
-                )
-
-            for quality in (70, 50):
-                buf = io.BytesIO()
-                img.save(buf, format="JPEG", quality=quality, optimize=True)
-                compressed = buf.getvalue()
-                if len(compressed) <= per_image_budget or quality == 50:
-                    if quality == 50 and len(compressed) > per_image_budget:
-                        logger.warning(
-                            "Could not compress %s to fit budget — sending anyway", filename
-                        )
-                    stem = filename.rsplit(".", 1)[0]
-                    logger.info(
-                        "Compressed %s: %.1f MB → %.1f MB (q%d)",
-                        filename, len(file_bytes) / (1024 * 1024),
-                        len(compressed) / (1024 * 1024), quality,
-                    )
-                    result.append((compressed, f"{stem}.jpg", "image/jpeg"))
-                    break
-
-        except Exception as exc:
-            logger.warning("Failed to compress %s: %s — using original", filename, exc)
-            result.append((file_bytes, filename, mimetype))
-
-    return result
+    Used by the classify CLI which only needs category/confidence, not events.
+    """
+    page_dicts: list[dict] = []
+    filenames: list[str] = []
+    for i, (file_bytes, fname, mt) in enumerate(pages):
+        logger.debug("Local vision (classify): page %d/%d (%s)", i + 1, len(pages), fname)
+        result = _analyze_page_local(file_bytes, fname, mt)
+        if result is not None:
+            page_dicts.append(result)
+            filenames.append(fname)
+    if not page_dicts:
+        return None
+    return _merge_page_results(page_dicts, filenames)
 
 
 # ── Public API ────────────────────────────────────────────────────────────────
@@ -722,14 +376,16 @@ def analyze_document(
     accompanying_text: str = "",
     mock: bool = False,
 ) -> FileAnalysisResult | None:
-    """Analyze a multi-page document. Local-first, cloud fallback.
+    """Analyze a multi-page document. Local-only.
 
     Args:
-        pages: list of (file_bytes, filename, mimetype) in page order
-        accompanying_text: any text the user included with the upload
-        mock: if True, return synthetic result without calling any API
+        pages: list of (file_bytes, filename, mimetype) in page order.
+               Callers should rasterize PDFs via rasterize_to_pages() first.
+        accompanying_text: any text the user included with the upload (unused by
+            local pipeline, kept for signature compatibility).
+        mock: if True, return synthetic result without calling any model.
 
-    Returns FileAnalysisResult or None on complete failure. Never raises.
+    Returns FileAnalysisResult or None on failure. Never raises.
     """
     if not pages:
         return None
@@ -738,21 +394,10 @@ def analyze_document(
         filenames = ", ".join(name for _, name, _ in pages)
         return _mock_result(f"{len(pages)}-page document ({filenames})")
 
-    # Compress for cloud fallback (local doesn't need this, but cheap to do once)
-    pages = _prepare_pages(pages)
-
     total_mb = sum(len(b) for b, _, _ in pages) / (1024 * 1024)
-    logger.info("Analyzing %d-page document (%.1f MB total)", len(pages), total_mb)
+    logger.info("Analyzing %d-page document (%.1f MB total) locally", len(pages), total_mb)
 
-    # 1. Try local
-    result = _analyze_local(pages, accompanying_text)
-    if result is not None:
-        logger.info("Local analysis succeeded for %d-page document", len(pages))
-        return result
-
-    # 2. Cloud fallback
-    logger.info("Local analysis failed — trying cloud fallback for %d-page document", len(pages))
-    return _analyze_cloud_fallback(pages, accompanying_text)
+    return _analyze_local(pages, accompanying_text)
 
 
 def analyze_file(
@@ -762,9 +407,9 @@ def analyze_file(
     accompanying_text: str = "",
     mock: bool = False,
 ) -> FileAnalysisResult | None:
-    """Analyze a single image or PDF. Local-first, cloud fallback.
+    """Analyze a single image or PDF. Local-only.
 
-    Returns None on unrecoverable failure. Never raises.
+    Rasterizes PDFs before sending to vision. Returns None on failure; never raises.
     """
     if mock:
         return _mock_result(filename)
@@ -774,20 +419,15 @@ def analyze_file(
         logger.warning("File %s too large (%.1f MB > %d MB limit)", filename, size_mb, MAX_FILE_SIZE_MB)
         return None
 
-    logger.info("Analyzing file %s (%.1f MB)", filename, size_mb)
+    logger.info("Analyzing file %s (%.1f MB) locally", filename, size_mb)
 
-    # 1. Try local vision for classification + OCR
-    page_dict = _analyze_page_local(file_bytes, filename, mimetype)
-    if page_dict is not None:
-        merged = _merge_page_results([page_dict], [filename])
-        if merged is not None:
-            merged.calendar_items = _detect_calendar_items_local(merged.structured_text)
-            logger.info("Local analysis succeeded for %s", filename)
-            return merged
+    try:
+        pages = rasterize_to_pages(file_bytes, filename, mimetype)
+    except RuntimeError as exc:
+        logger.warning("Rasterize failed for %s: %s", filename, exc)
+        return None
 
-    # 2. Cloud fallback
-    logger.info("Local analysis failed for %s — trying cloud fallback", filename)
-    return _analyze_cloud_fallback([(file_bytes, filename, mimetype)], accompanying_text)
+    return _analyze_local(pages, accompanying_text)
 
 
 def check_local_vision_available() -> bool:

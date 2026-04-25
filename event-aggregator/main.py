@@ -41,7 +41,6 @@ from notifiers import digest as digest_module
 from notifiers import slack_notifier
 from writers import google_calendar as gcal_writer
 from writers import todoist_writer
-import image_pipeline
 
 logging.basicConfig(
     level=logging.INFO,
@@ -616,8 +615,8 @@ def main() -> int:
         if not image_analyzer.check_local_vision_available():
             logger.warning(
                 "Local vision model '%s' not found in Ollama — "
-                "image analysis will fall back to cloud (gemini). "
-                "To enable local analysis: ollama pull %s",
+                "image/PDF intake via the dispatcher will fail until you run "
+                "`ollama pull %s`. This project no longer has a cloud fallback.",
                 config.LOCAL_VISION_MODEL,
                 config.LOCAL_VISION_MODEL,
             )
@@ -821,27 +820,20 @@ def main() -> int:
     elif all_todos and not config.TODOIST_API_TOKEN:
         logger.debug("todoist: %d todo(s) extracted but TODOIST_API_TOKEN not set — skipping", len(all_todos))
 
-    # ── Phase 7: Process file uploads from Slack (image/PDF intake) ──────────
+    # ── Phase 7: file intake retired — dispatcher handles #ian-image-intake ─
+    # The launchd loop no longer scans Slack for uploads. Files arriving in
+    # #ian-image-intake are processed by the dispatcher (long-running Socket
+    # Mode) which invokes `main.py ingest-image --file <path>` for events.
+    # Legacy staging is still flushed to NAS opportunistically here.
     files_processed = 0
-    if not heavy_phases_allowed:
-        logger.debug("Skipping file intake — outside Ollama active window")
-    elif "slack" in sources and (config.GEMINI_API_KEY or config.LOCAL_VISION_MODEL or args.mock):
-        file_result = image_pipeline.process_slack_files(
-            state=state,
-            dry_run=args.dry_run,
-            mock=args.mock,
-        )
-        files_processed = file_result["processed"]
-        if files_processed or file_result["flushed"]:
-            logger.info(
-                "File intake: %d processed, %d calendar events, %d NAS-written, %d staged, %d flushed, %d errors",
-                file_result["processed"], file_result["calendar_created"],
-                file_result["nas_written"], file_result["staged_pending"],
-                file_result["flushed"], file_result["errors"],
-            )
-        state.set_last_run("slack_file", run_start)
-    elif "slack" in sources and not config.GEMINI_API_KEY and not config.LOCAL_VISION_MODEL and not args.mock:
-        logger.debug("No vision model configured — file intake pipeline disabled")
+    if heavy_phases_allowed and not args.dry_run and not args.mock:
+        try:
+            from writers import file_writer
+            flushed = file_writer.flush_pending_staged(dry_run=False)
+            if flushed:
+                logger.info("Flushed %d previously staged file(s) to NAS", len(flushed))
+        except Exception as exc:
+            logger.warning("Error flushing staged files: %s", exc)
 
     # ── Unload models after heavy phases ───────────────────────────────────
     if heavy_phases_allowed and not args.mock:
@@ -1013,5 +1005,17 @@ def _diff_calendar(
     return new_events, updated_events, removed_events
 
 
+_SUBCOMMANDS = {
+    "classify", "ingest-image", "approve", "reject",
+    "add-event", "status", "query",
+}
+
+
 if __name__ == "__main__":
+    # Route to the CLI module when the first argv is a known subcommand.
+    # Everything else (flags, or no args) falls through to the existing
+    # full-run pipeline — preserves backward compat with the LaunchAgent.
+    if len(sys.argv) > 1 and sys.argv[1] in _SUBCOMMANDS:
+        import cli
+        sys.exit(cli.main())
     sys.exit(main())
