@@ -51,6 +51,11 @@ OLLAMA_KEEP_ALIVE_VISION: str = _get("OLLAMA_KEEP_ALIVE_VISION", "30s")
 PRE_CLASSIFIER_ENABLED: bool = _get("PRE_CLASSIFIER_ENABLED", "1") not in {"0", "false", "False"}
 PRE_CLASSIFIER_NUM_CTX: int = int(_get("PRE_CLASSIFIER_NUM_CTX", "2048"))
 
+# Tier 3.2: when the dashboard message has been buried by this many top-
+# level messages in the interactive channel, delete + repost as a fresh
+# message so the action surface is always near the top of the channel.
+DASHBOARD_REPOST_AFTER_N: int = int(_get("DASHBOARD_REPOST_AFTER_N", "20"))
+
 # ── Google (Gmail + GCal) ───────────────────────────────────────────────────
 GMAIL_CREDENTIALS_JSON: str = _get(
     "GMAIL_CREDENTIALS_JSON", "credentials/gmail_oauth.json"

@@ -783,10 +783,13 @@ def post_or_update_dashboard(items: list[dict], state: "state_module.State") -> 
     fallback_text = f"Event proposals: {pending_count} pending"
 
     dashboard_ts = state.get_proposal_dashboard_ts(today)
+    repost_threshold = getattr(config, "DASHBOARD_REPOST_AFTER_N", 20)
+    buried = state.dashboard_buried_count(today)
+    should_repost = dashboard_ts is not None and buried >= repost_threshold
 
     try:
         client = _client()
-        if dashboard_ts:
+        if dashboard_ts and not should_repost:
             result = client.chat_update(
                 channel=config.SLACK_NOTIFY_CHANNEL,
                 ts=dashboard_ts,
@@ -798,18 +801,31 @@ def post_or_update_dashboard(items: list[dict], state: "state_module.State") -> 
             logger.warning("slack notifier: dashboard update failed: %s", result.get("error"))
             return None
         else:
+            # Either no dashboard yet today, or it's been buried beyond the
+            # threshold — post fresh and (if we had one) delete the old.
+            old_ts = dashboard_ts if should_repost else None
             result = client.chat_postMessage(
                 channel=config.SLACK_NOTIFY_CHANNEL,
                 blocks=blocks,
                 text=fallback_text,
             )
-            if result.get("ok"):
-                ts = result["ts"]
-                state.set_proposal_dashboard_ts(today, ts)
-                _state_mod.save(state)
-                return ts
-            logger.warning("slack notifier: dashboard post failed: %s", result.get("error"))
-            return None
+            if not result.get("ok"):
+                logger.warning("slack notifier: dashboard post failed: %s", result.get("error"))
+                return None
+            new_ts = result["ts"]
+            state.set_proposal_dashboard_ts(today, new_ts)
+            state.reset_dashboard_buried(today)
+            if old_ts:
+                try:
+                    client.chat_delete(channel=config.SLACK_NOTIFY_CHANNEL, ts=old_ts)
+                    logger.info(
+                        "dashboard: reposted (was buried by %d msgs); old ts %s deleted",
+                        buried, old_ts,
+                    )
+                except Exception as exc:
+                    logger.debug("dashboard: failed to delete old ts %s: %s", old_ts, exc)
+            _state_mod.save(state)
+            return new_ts
     except Exception as exc:
         logger.warning("slack notifier: post_or_update_dashboard failed: %s", exc)
         return None

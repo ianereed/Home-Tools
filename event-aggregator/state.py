@@ -172,6 +172,22 @@ class State:
     def get_swap_decision(self, decision_id: str) -> dict | None:
         return self._data.get("swap_decisions", {}).get(decision_id)
 
+    # ── Dashboard burial tracking (Tier 3.2: repost when buried) ────────────
+
+    def bump_dashboard_buried(self, date_str: str) -> int:
+        """Increment burial counter for the given date. Returns new count."""
+        bucket = self._data.setdefault("dashboard_buried", {})
+        bucket[date_str] = int(bucket.get(date_str, 0)) + 1
+        return bucket[date_str]
+
+    def dashboard_buried_count(self, date_str: str) -> int:
+        return int(self._data.get("dashboard_buried", {}).get(date_str, 0))
+
+    def reset_dashboard_buried(self, date_str: str) -> None:
+        bucket = self._data.get("dashboard_buried", {})
+        if date_str in bucket:
+            bucket[date_str] = 0
+
     # ── Recurring-event notices (surfaced to the dashboard for 24h) ─────────
 
     def add_recurring_notice(

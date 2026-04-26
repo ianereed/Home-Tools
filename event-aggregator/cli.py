@@ -73,6 +73,8 @@ def main() -> int:
     p.add_argument("--decision-id", required=True)
     p.add_argument("--decision", choices=["wait", "interrupt"], required=True)
 
+    p = sub.add_parser("bump-dashboard", help="Increment the dashboard-burial counter (called by the dispatcher when a non-bot message arrives in the interactive channel)")
+
     args = parser.parse_args()
 
     # Quiet default logging when emitting JSON on stdout; the dispatcher parses it.
@@ -111,6 +113,8 @@ def main() -> int:
         return _cmd_forget(fp=args.fp, title=args.title)
     if args.cmd == "swap":
         return _cmd_swap(decision_id=args.decision_id, decision=args.decision)
+    if args.cmd == "bump-dashboard":
+        return _cmd_bump_dashboard()
     return 1
 
 
@@ -767,6 +771,18 @@ def _cmd_changes(since: str) -> int:
             lines.append(f"  …and {len(cancelled) - 20} more")
 
     print("\n".join(lines))
+    return 0
+
+
+def _cmd_bump_dashboard() -> int:
+    """Increment the burial counter for today (called by dispatcher per
+    non-bot top-level message in the interactive channel)."""
+    import state as state_module
+    state = state_module.load()
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    new_count = state.bump_dashboard_buried(today)
+    state_module.save(state)
+    print(f":bookmark_tabs: dashboard burial count → {new_count}")
     return 0
 
 

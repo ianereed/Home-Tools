@@ -978,6 +978,7 @@ _SUBCOMMANDS = {
     "approve", "reject",
     "add-event", "status", "query",
     "config", "undo-last", "changes", "forget", "swap",
+    "bump-dashboard",
 }
 
 

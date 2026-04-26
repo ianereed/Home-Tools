@@ -139,9 +139,18 @@ def run() -> None:
             logger.warning("dispatcher: rejected from unauthorized user %s in %s", user, channel)
             return
 
-        if channel == interactive_id and not files:
-            _handle_interactive(text, say, event.get("ts"), client, channel)
-            return
+        if channel == interactive_id:
+            # Tier 3.2: any non-bot top-level message in the interactive
+            # channel buries the dashboard. Bump the burial counter so
+            # event-aggregator's next render decides whether to repost.
+            if not thread_ts:
+                try:
+                    commands.handle("bump-dashboard")
+                except Exception as exc:
+                    logger.debug("dispatcher: bump-dashboard failed: %s", exc)
+            if not files:
+                _handle_interactive(text, say, event.get("ts"), client, channel)
+                return
 
         if channel == intake_id:
             if files:
