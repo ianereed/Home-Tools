@@ -1037,9 +1037,13 @@ def fetch_only() -> int:
 
     enqueued = 0
     run_start = datetime.now(timezone.utc)
+    seen_connectors: set = set()
     for source in sources:
-        cls = _CONNECTOR_REGISTRY[source]
-        connector = cls() if source not in {"messenger", "instagram"} else cls(source_name=source)
+        cls = _CONNECTOR_REGISTRY.get(source)
+        if cls is None or cls in seen_connectors:
+            continue
+        seen_connectors.add(cls)
+        connector = cls()
         since = state.last_run(source)
         try:
             msgs = connector.fetch(since=since, mock=False)
@@ -1047,6 +1051,9 @@ def fetch_only() -> int:
             logger.warning("fetch-only: %s connector failed: %s", source, exc)
             continue
         for msg in msgs:
+            # NotificationCenterConnector returns msg.source ∈ {"messenger",
+            # "instagram"} — use msg.source for last_run / dedup, not the
+            # registry key.
             if state.is_seen(msg.source, msg.id):
                 continue
             state.enqueue_text_job(
