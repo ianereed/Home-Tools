@@ -264,6 +264,34 @@ def _consume_interrupt(state) -> None:
             info["decision"] = "consumed"
 
 
+def _ensure_swap_decision_posted(state) -> None:
+    """Create at most one pending swap decision per peeked OCR job. The
+    dashboard renders it with [Wait]/[Interrupt] buttons. Default behavior
+    on no-click is "wait" (decision auto-resolves after 5 min)."""
+    job = state.peek_ocr_job()
+    if job is None:
+        return
+    ocr_path = job.get("file_path", "")
+    bucket = state._data.get("swap_decisions", {})
+    for info in bucket.values():
+        if info.get("ocr_path") == ocr_path and info.get("decision") == "pending":
+            return  # already posted; don't spam
+    decision_id = state.add_swap_decision(ocr_path, state.text_queue_depth())
+    logger.info(
+        "worker: posted swap decision %s for OCR %s (text queue: %d)",
+        decision_id, ocr_path, state.text_queue_depth(),
+    )
+    # Trigger a dashboard render so the buttons show up.
+    try:
+        from notifiers import slack_notifier
+        from datetime import timezone
+        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        all_items = state.get_all_proposal_items_for_dashboard(today)
+        slack_notifier.post_or_update_dashboard(all_items, state)
+    except Exception as exc:
+        logger.debug("worker: swap-decision dashboard refresh failed: %s", exc)
+
+
 # ── Main loop ─────────────────────────────────────────────────────────────────
 
 def run_worker() -> int:
@@ -309,6 +337,11 @@ def run_worker() -> int:
             state_module.save(state)
         elif text_depth > 0:
             run_text = True
+            # If there's also OCR pending, post a swap decision (once per OCR
+            # job) so the user can flip the default of "wait" to "interrupt".
+            if ocr_depth > 0:
+                _ensure_swap_decision_posted(state)
+                state_module.save(state)
         elif ocr_depth > 0:
             # Shouldn't reach here (covered above) but be safe.
             run_ocr = True

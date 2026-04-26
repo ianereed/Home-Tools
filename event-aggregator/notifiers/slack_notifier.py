@@ -404,12 +404,58 @@ def post_run_summary(
         return False
 
 
+def _build_swap_decision_blocks(decisions: dict) -> list[dict]:
+    """Render pending swap decisions (OCR job waiting on text queue) with
+    [Wait]/[Interrupt] buttons. Decisions is a dict {decision_id: info}."""
+    out: list[dict] = []
+    for decision_id, info in decisions.items():
+        if info.get("decision") != "pending":
+            continue
+        ocr_path = info.get("ocr_path", "(unknown)")
+        depth = info.get("text_queue_depth_at_request", 0)
+        # Approximate ETA: 45s/job is a reasonable guess for qwen3:14b @ 16k.
+        eta_min = max(1, round(depth * 45 / 60))
+        from pathlib import Path
+        name = Path(ocr_path).name or ocr_path
+        out.append({
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": (
+                    f":arrows_counterclockwise: *OCR job ready: `{name}`*\n"
+                    f"Text queue: {depth} message(s), ~{eta_min} min."
+                ),
+            },
+        })
+        out.append({
+            "type": "actions",
+            "elements": [
+                {
+                    "type": "button",
+                    "text": {"type": "plain_text", "text": "Wait", "emoji": False},
+                    "action_id": "ea_swap_wait",
+                    "value": decision_id,
+                },
+                {
+                    "type": "button",
+                    "text": {"type": "plain_text", "text": "Interrupt", "emoji": False},
+                    "style": "primary",
+                    "action_id": "ea_swap_interrupt",
+                    "value": decision_id,
+                },
+            ],
+        })
+        out.append({"type": "divider"})
+    return out
+
+
 def build_dashboard_blocks(
     items: list[dict],
     today_str: str,
     ollama_health: dict | None = None,
     recurring_notices: list[dict] | None = None,
     worker_status: dict | None = None,
+    swap_decisions: dict | None = None,
 ) -> list[dict]:
     """
     Build Slack Block Kit blocks for the live proposal dashboard.
@@ -435,7 +481,79 @@ def build_dashboard_blocks(
         "text": {"type": "plain_text", "text": f"Event proposals · {day_display}", "emoji": True},
     })
 
-    # Errors block (shown above proposals when something is wrong)
+    pending = [i for i in items if i["status"] == "pending"]
+    actioned = [i for i in items if i["status"] in ("approved", "rejected", "expired")]
+
+    # ── Swap decisions (rendered above proposals — they're time-sensitive) ──
+    if swap_decisions:
+        blocks.extend(_build_swap_decision_blocks(swap_decisions))
+
+    if not pending and not actioned and not (swap_decisions and any(
+        d.get("decision") == "pending" for d in swap_decisions.values()
+    )):
+        blocks.append({
+            "type": "section",
+            "text": {"type": "mrkdwn", "text": "_No proposals yet today._"},
+        })
+
+    # ── Decisions (pending) — top priority ───────────────────────────────────
+    # Cap visible items to keep the message under Slack's block limits and
+    # surface the "what needs attention" content first. If too many pending,
+    # show oldest-first up to MAX_PENDING_DISPLAY and append a count line.
+    MAX_PENDING_DISPLAY = 25
+    sorted_pending = sorted(pending, key=lambda x: x.get("num", 0))
+    for item in sorted_pending[:MAX_PENDING_DISPLAY]:
+        blocks.extend(_build_pending_blocks(item))
+    if len(sorted_pending) > MAX_PENDING_DISPLAY:
+        blocks.append({
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": f"_…and {len(sorted_pending) - MAX_PENDING_DISPLAY} more pending — use `cli status --pending` for the full list._",
+            },
+        })
+        blocks.append({"type": "divider"})
+
+    # ── Notices (low-key recurring-event hints) ──────────────────────────────
+    if recurring_notices:
+        notice_lines = [":arrows_counterclockwise: *Possibly recurring (handle manually if needed):*"]
+        for n in recurring_notices[:5]:
+            hint = f" — _{n['recurrence_hint']}_" if n.get("recurrence_hint") else ""
+            notice_lines.append(f"  • {n.get('title', '(untitled)')} _(via {n.get('source', '')})_{hint}")
+        if len(recurring_notices) > 5:
+            notice_lines.append(f"  …and {len(recurring_notices) - 5} more")
+        blocks.append({
+            "type": "section",
+            "text": {"type": "mrkdwn", "text": "\n".join(notice_lines)},
+        })
+        blocks.append({"type": "divider"})
+
+    # ── Today's actions (collapsed) ──────────────────────────────────────────
+    # Roll up by status to a single summary line when more than 3, else show
+    # them individually. Keeps the dashboard from growing unbounded as the
+    # day fills up with approves/rejects.
+    if actioned:
+        sorted_actioned = sorted(actioned, key=lambda x: x.get("num", 0))
+        if len(sorted_actioned) <= 3:
+            for item in sorted_actioned:
+                blocks.append(_build_actioned_block(item))
+        else:
+            counts: dict = {"approved": 0, "rejected": 0, "expired": 0}
+            for it in sorted_actioned:
+                counts[it.get("status", "")] = counts.get(it.get("status", ""), 0) + 1
+            parts = []
+            if counts["approved"]:
+                parts.append(f":white_check_mark: {counts['approved']} added")
+            if counts["rejected"]:
+                parts.append(f":x: {counts['rejected']} skipped")
+            if counts["expired"]:
+                parts.append(f":hourglass_flowing_sand: {counts['expired']} expired")
+            blocks.append({
+                "type": "context",
+                "elements": [{"type": "mrkdwn", "text": "_Today: " + " · ".join(parts) + "_"}],
+            })
+
+    # ── Errors (Ollama down) — surfaced near the bottom but still prominent ─
     if ollama_health and ollama_health.get("down_since"):
         down_since_local = ollama_health["down_since"]
         try:
@@ -447,6 +565,7 @@ def build_dashboard_blocks(
             pass
         skipped = ollama_health.get("skipped_count", 0)
         skip_part = f" · {skipped} message(s) skipped" if skipped else ""
+        blocks.append({"type": "divider"})
         blocks.append({
             "type": "section",
             "text": {
@@ -457,38 +576,6 @@ def build_dashboard_blocks(
                 ),
             },
         })
-        blocks.append({"type": "divider"})
-
-    # Notices (low-key — recurring events the tool saw but won't auto-create)
-    if recurring_notices:
-        notice_lines = [":arrows_counterclockwise: *Possibly recurring (handle manually if needed):*"]
-        for n in recurring_notices[:5]:  # cap to keep dashboard tight
-            hint = f" — _{n['recurrence_hint']}_" if n.get("recurrence_hint") else ""
-            notice_lines.append(f"  • {n.get('title', '(untitled)')} _(via {n.get('source', '')})_{hint}")
-        if len(recurring_notices) > 5:
-            notice_lines.append(f"  …and {len(recurring_notices) - 5} more")
-        blocks.append({
-            "type": "section",
-            "text": {"type": "mrkdwn", "text": "\n".join(notice_lines)},
-        })
-        blocks.append({"type": "divider"})
-
-    pending = [i for i in items if i["status"] == "pending"]
-    actioned = [i for i in items if i["status"] in ("approved", "rejected", "expired")]
-
-    if not pending and not actioned:
-        blocks.append({
-            "type": "section",
-            "text": {"type": "mrkdwn", "text": "_No proposals yet today._"},
-        })
-
-    # Pending items each get a section + optional context + actions + divider
-    for item in sorted(pending, key=lambda x: x.get("num", 0)):
-        blocks.extend(_build_pending_blocks(item))
-
-    # Actioned items each get a compact context block
-    for item in sorted(actioned, key=lambda x: x.get("num", 0)):
-        blocks.append(_build_actioned_block(item))
 
     # Footer
     try:
@@ -690,6 +777,7 @@ def post_or_update_dashboard(items: list[dict], state: "state_module.State") -> 
         ollama_health=state.ollama_health(),
         recurring_notices=state.recurring_notices(),
         worker_status=state.worker_status(),
+        swap_decisions=state._data.get("swap_decisions") or {},
     )
     pending_count = sum(1 for i in items if i["status"] == "pending")
     fallback_text = f"Event proposals: {pending_count} pending"

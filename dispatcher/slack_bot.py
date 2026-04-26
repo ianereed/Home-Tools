@@ -183,6 +183,28 @@ def run() -> None:
         except Exception as exc:
             logger.warning("ea_reject handler error: %s", exc)
 
+    @app.action("ea_swap_wait")
+    def handle_ea_swap_wait(ack, body, logger):
+        ack()
+        try:
+            decision_id = body["actions"][0]["value"]
+            result = commands.handle(f"swap --decision-id {decision_id} --decision wait")
+            if result and not result.ok:
+                logger.warning("ea_swap_wait failed for %s: %s", decision_id, result.text)
+        except Exception as exc:
+            logger.warning("ea_swap_wait handler error: %s", exc)
+
+    @app.action("ea_swap_interrupt")
+    def handle_ea_swap_interrupt(ack, body, logger):
+        ack()
+        try:
+            decision_id = body["actions"][0]["value"]
+            result = commands.handle(f"swap --decision-id {decision_id} --decision interrupt")
+            if result and not result.ok:
+                logger.warning("ea_swap_interrupt failed for %s: %s", decision_id, result.text)
+        except Exception as exc:
+            logger.warning("ea_swap_interrupt handler error: %s", exc)
+
     @app.event("file_shared")
     def handle_file_shared(event, client, logger):
         # We handle the full message event above (which includes files[]),

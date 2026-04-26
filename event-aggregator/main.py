@@ -826,48 +826,26 @@ def main() -> int:
         except Exception as exc:
             logger.warning("Error flushing staged files: %s", exc)
 
-    # ── Phase 8: Post run summary ────────────────────────────────────────────
-    if not args.dry_run and not args.mock:
-        # In propose mode, thread under the dashboard; in auto mode, use the day thread
-        if config.EVENT_APPROVAL_MODE == "propose":
-            t = state.get_proposal_dashboard_ts(today_str)
-        else:
-            t = _get_thread()
-        pending_proposal_count = len(state.get_pending_proposals())
-        if config.EVENT_APPROVAL_MODE == "propose":
-            proposed = propose_counts.get("proposed", 0)
-            skipped_recurring = propose_counts.get("skipped_recurring", 0)
-            skipped_duplicate = propose_counts.get("skipped_duplicate", 0)
-            if t and (proposed or skipped_recurring or skipped_duplicate or todos_created or files_processed):
-                slack_notifier.post_run_summary(
-                    thread_ts=t,
-                    created=0,
-                    updated=0,
-                    cancelled=0,
-                    skipped_low_confidence=0,
-                    skipped_recurring=skipped_recurring,
-                    skipped_duplicate=skipped_duplicate,
-                    todos_created=todos_created,
-                    files_processed=files_processed,
-                    proposed=proposed,
-                    pending_proposals=pending_proposal_count,
-                )
-        else:
-            total_actions = auto_counts.get("created", 0) + auto_counts.get("updated", 0) + auto_counts.get("cancelled", 0)
-            if t and (total_actions > 0 or auto_counts.get("skipped_recurring", 0) > 0
-                      or auto_counts.get("skipped_low_confidence", 0) > 0 or todos_created > 0
-                      or files_processed > 0):
-                slack_notifier.post_run_summary(
-                    thread_ts=t,
-                    created=auto_counts.get("created", 0),
-                    updated=auto_counts.get("updated", 0),
-                    cancelled=auto_counts.get("cancelled", 0),
-                    skipped_low_confidence=auto_counts.get("skipped_low_confidence", 0),
-                    skipped_recurring=auto_counts.get("skipped_recurring", 0),
-                    skipped_duplicate=auto_counts.get("skipped_duplicate", 0),
-                    todos_created=todos_created,
-                    files_processed=files_processed,
-                )
+    # ── Phase 8: Post run summary (auto mode only — propose mode uses the
+    # dashboard footer as the summary; Tier 3.1 dropped the per-run thread
+    # post in propose mode to keep the channel quiet). ────────────────────────
+    if not args.dry_run and not args.mock and config.EVENT_APPROVAL_MODE != "propose":
+        t = _get_thread()
+        total_actions = auto_counts.get("created", 0) + auto_counts.get("updated", 0) + auto_counts.get("cancelled", 0)
+        if t and (total_actions > 0 or auto_counts.get("skipped_recurring", 0) > 0
+                  or auto_counts.get("skipped_low_confidence", 0) > 0 or todos_created > 0
+                  or files_processed > 0):
+            slack_notifier.post_run_summary(
+                thread_ts=t,
+                created=auto_counts.get("created", 0),
+                updated=auto_counts.get("updated", 0),
+                cancelled=auto_counts.get("cancelled", 0),
+                skipped_low_confidence=auto_counts.get("skipped_low_confidence", 0),
+                skipped_recurring=auto_counts.get("skipped_recurring", 0),
+                skipped_duplicate=auto_counts.get("skipped_duplicate", 0),
+                todos_created=todos_created,
+                files_processed=files_processed,
+            )
 
     # ── Update last_run timestamps (only if extraction actually ran) ──────────
     if extraction_ran:
