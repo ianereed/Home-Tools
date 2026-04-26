@@ -116,3 +116,72 @@ class TestWorkerStatus:
         assert st["text_queue"] == 3
         assert st["ocr_queue"] == 1
         assert "updated_at" in st
+
+
+class TestPreClassifier:
+    def test_disabled_returns_maybe(self, monkeypatch):
+        # When disabled, pre_classify shouldn't even hit Ollama — it returns
+        # "maybe" so the caller falls through to full extraction.
+        import extractor
+        import config
+        from models import RawMessage
+        from datetime import datetime, timezone
+        monkeypatch.setattr(config, "PRE_CLASSIFIER_ENABLED", False)
+        msg = RawMessage(
+            id="x", source="gmail",
+            timestamp=datetime.now(timezone.utc),
+            body_text="anything",
+        )
+        verdict, reason = extractor.pre_classify(msg)
+        assert verdict == "maybe"
+        assert "disabled" in reason
+
+    def test_classifier_error_falls_open(self, monkeypatch):
+        # Ollama unreachable → "maybe", never "no" — never drop a real event.
+        import extractor
+        import config
+        from models import RawMessage
+        from datetime import datetime, timezone
+        import requests as _requests
+
+        monkeypatch.setattr(config, "PRE_CLASSIFIER_ENABLED", True)
+
+        def boom(*a, **kw):
+            raise _requests.ConnectionError("no ollama")
+        monkeypatch.setattr(extractor.requests, "post", boom)
+
+        msg = RawMessage(
+            id="x", source="gmail",
+            timestamp=datetime.now(timezone.utc),
+            body_text="meet me at 3pm tomorrow",
+        )
+        verdict, _reason = extractor.pre_classify(msg)
+        assert verdict == "maybe"
+
+    def test_classifier_yes_no_maybe(self, monkeypatch):
+        import extractor
+        import config
+        from models import RawMessage
+        from datetime import datetime, timezone
+
+        monkeypatch.setattr(config, "PRE_CLASSIFIER_ENABLED", True)
+
+        class FakeResp:
+            def __init__(self, payload):
+                self._payload = payload
+            def raise_for_status(self): pass
+            def json(self): return {"response": self._payload}
+
+        for verdict in ("yes", "no", "maybe"):
+            payload = '{"verdict": "' + verdict + '", "reason": "test"}'
+            monkeypatch.setattr(
+                extractor.requests, "post",
+                lambda *a, _p=payload, **kw: FakeResp(_p),
+            )
+            msg = RawMessage(
+                id="x", source="gmail",
+                timestamp=datetime.now(timezone.utc),
+                body_text="x",
+            )
+            v, _r = extractor.pre_classify(msg)
+            assert v == verdict

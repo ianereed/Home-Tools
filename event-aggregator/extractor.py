@@ -338,6 +338,60 @@ def _validate_event(raw: dict[str, Any]) -> CandidateEvent | None:
 
 # ── Ollama call ───────────────────────────────────────────────────────────────
 
+_PRE_CLASSIFIER_PROMPT = (
+    "You are a triage assistant. Decide whether the message below contains a "
+    "scheduled event (something happening at a specific time) OR an actionable "
+    "todo (a task or commitment).\n\n"
+    "Reply with ONLY a JSON object: "
+    '{{"verdict": "yes" | "no" | "maybe", "reason": "short justification (<=120 chars)"}}\n'
+    "- \"yes\" if you are confident there is at least one event or todo to extract\n"
+    "- \"no\" if it is clearly nothing actionable (newsletter, autoreply, FYI, banter, etc.)\n"
+    "- \"maybe\" if uncertain — when in doubt, prefer \"maybe\" over \"no\"\n\n"
+    "Message source: {source}\n"
+    "Message body:\n{body}\n"
+)
+
+
+def pre_classify(msg: RawMessage) -> tuple[str, str]:
+    """
+    Cheap pre-classification call. Returns (verdict, reason).
+    verdict ∈ {"yes", "no", "maybe"}. On any error, returns ("maybe", "<error>")
+    so we never silently drop a real event due to a transient classifier glitch.
+    """
+    if not config.PRE_CLASSIFIER_ENABLED:
+        return "maybe", "pre-classifier disabled"
+    body = msg.body_text[:1500]  # tight context for triage
+    prompt = _PRE_CLASSIFIER_PROMPT.format(source=msg.source, body=body)
+    payload = {
+        "model": config.OLLAMA_MODEL,
+        "prompt": prompt,
+        "stream": False,
+        "format": "json",
+        "keep_alive": config.OLLAMA_KEEP_ALIVE_TEXT,
+        "think": False,
+        "options": {"num_ctx": config.PRE_CLASSIFIER_NUM_CTX},
+    }
+    try:
+        resp = requests.post(
+            f"{config.OLLAMA_BASE_URL}/api/generate",
+            json=payload,
+            timeout=60,
+        )
+        resp.raise_for_status()
+        text = resp.json().get("response", "")
+        parsed = json.loads(text)
+        verdict = str(parsed.get("verdict", "maybe")).lower().strip()
+        if verdict not in {"yes", "no", "maybe"}:
+            verdict = "maybe"
+        reason = str(parsed.get("reason", ""))[:200]
+        return verdict, reason
+    except (requests.RequestException, json.JSONDecodeError, KeyError) as exc:
+        # Fail-open: if the classifier glitches, fall through to full extraction
+        # so we never drop a real event due to a transient error.
+        logger.debug("pre-classify failed for %s/%s: %s", msg.source, msg.id, exc)
+        return "maybe", f"classifier_error: {type(exc).__name__}"
+
+
 def _call_ollama(prompt: str) -> dict[str, Any]:
     payload = {
         "model": config.OLLAMA_MODEL,

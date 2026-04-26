@@ -44,6 +44,13 @@ OLLAMA_NUM_CTX_VISION: int = int(_get("OLLAMA_NUM_CTX_VISION", "16384"))
 OLLAMA_KEEP_ALIVE_TEXT: str = _get("OLLAMA_KEEP_ALIVE_TEXT", "-1")
 OLLAMA_KEEP_ALIVE_VISION: str = _get("OLLAMA_KEEP_ALIVE_VISION", "30s")
 
+# Pre-classifier: a cheap qwen3:14b call (small ctx, tight prompt) that
+# decides yes/no/maybe before the full extraction. "no" → skip. Saves
+# the 16k-ctx call on obvious non-event traffic. Defaults on; set to "0"
+# to bypass and always run the full extraction.
+PRE_CLASSIFIER_ENABLED: bool = _get("PRE_CLASSIFIER_ENABLED", "1") not in {"0", "false", "False"}
+PRE_CLASSIFIER_NUM_CTX: int = int(_get("PRE_CLASSIFIER_NUM_CTX", "2048"))
+
 # ── Google (Gmail + GCal) ───────────────────────────────────────────────────
 GMAIL_CREDENTIALS_JSON: str = _get(
     "GMAIL_CREDENTIALS_JSON", "credentials/gmail_oauth.json"

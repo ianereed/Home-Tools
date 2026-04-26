@@ -124,6 +124,17 @@ def _run_text_job(state, job: dict) -> None:
         metadata=job.get("metadata") or {},
     )
 
+    # Pre-classifier: skip the 16k-ctx call on obvious non-event noise.
+    # "maybe" falls through; "no" short-circuits.
+    verdict, reason = extractor.pre_classify(msg)
+    logger.info(
+        "worker: pre-classify %s/%s → %s (%s)",
+        source, msg_id, verdict, reason,
+    )
+    if verdict == "no":
+        state.mark_seen(source, msg_id)
+        return
+
     # Refresh calendar context per-job — the upcoming-events list may have
     # changed between when we enqueued and when we extract.
     calendar_context = ""
