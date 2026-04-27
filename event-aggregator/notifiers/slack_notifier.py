@@ -428,22 +428,8 @@ def _build_swap_decision_blocks(decisions: dict) -> list[dict]:
             },
         })
         out.append({
-            "type": "actions",
-            "elements": [
-                {
-                    "type": "button",
-                    "text": {"type": "plain_text", "text": "Wait", "emoji": False},
-                    "action_id": "ea_swap_wait",
-                    "value": decision_id,
-                },
-                {
-                    "type": "button",
-                    "text": {"type": "plain_text", "text": "Interrupt", "emoji": False},
-                    "style": "primary",
-                    "action_id": "ea_swap_interrupt",
-                    "value": decision_id,
-                },
-            ],
+            "type": "context",
+            "elements": [{"type": "mrkdwn", "text": "Reply `swap wait` · `swap interrupt`"}],
         })
         out.append({"type": "divider"})
     return out
@@ -742,23 +728,8 @@ def _build_pending_blocks(item: dict) -> list[dict]:
     else:
         primary_label = "Add to calendar"
     blocks.append({
-        "type": "actions",
-        "elements": [
-            {
-                "type": "button",
-                "text": {"type": "plain_text", "text": primary_label, "emoji": False},
-                "style": "primary",
-                "action_id": "ea_approve",
-                "value": str(num),
-            },
-            {
-                "type": "button",
-                "text": {"type": "plain_text", "text": "Skip", "emoji": False},
-                "style": "danger",
-                "action_id": "ea_reject",
-                "value": str(num),
-            },
-        ],
+        "type": "context",
+        "elements": [{"type": "mrkdwn", "text": f"Reply `approve {num}` · `reject {num}`"}],
     })
 
     blocks.append({"type": "divider"})

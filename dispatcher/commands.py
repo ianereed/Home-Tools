@@ -20,9 +20,8 @@ logger = logging.getLogger(__name__)
 
 HELP_TEXT = (
     "*Available commands:*\n"
-    "• Use the *Approve ✓* / *Reject ✗* buttons in the dashboard to act on proposals\n"
-    "• `approve` / `approve 1,3` — approve by number (fallback for text-based approval)\n"
-    "• `reject` / `reject 2` — reject by number\n"
+    "• `approve` / `approve 1,3` — approve proposal by number\n"
+    "• `reject` / `reject 2` — reject proposal by number\n"
     "• `add: <description>` — manual event entry, e.g. `add: dinner with Bryan Sat 7pm`\n"
     "• `status` — show last run, pending count, ollama health\n"
     "• `last run` — show summary of the most recent run\n"
@@ -61,6 +60,23 @@ def handle(raw_text: str) -> CommandResult | None:
 
     if first == "reject":
         return _ea_cli(["reject", "--nums", rest] if rest else ["reject"])
+
+    if first == "swap":
+        decision = rest.lower().strip()
+        if decision not in ("wait", "interrupt"):
+            return CommandResult(ok=False, text="Usage: `swap wait` or `swap interrupt`")
+        # Resolve the current pending swap decision from state.json
+        import json as _json
+        state_path = config.EVENT_AGGREGATOR_DIR / "state.json"
+        try:
+            data = _json.loads(state_path.read_text())
+            decisions = data.get("swap_decisions", {})
+            pending_ids = [did for did, info in decisions.items() if info.get("decision") == "pending"]
+            if not pending_ids:
+                return CommandResult(ok=False, text=":x: no pending swap decision found")
+            return _ea_cli(["swap", "--decision-id", pending_ids[0], "--decision", decision])
+        except Exception as exc:
+            return CommandResult(ok=False, text=f":x: swap lookup failed: {exc}")
 
     if first == "status":
         return _ea_cli(["status", "--json"])
