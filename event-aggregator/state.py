@@ -404,16 +404,7 @@ class State:
     # ── proposal counter ─────────────────────────────────────────────────────────
 
     def next_proposal_num(self) -> int:
-        """Return the next globally unique proposal number for today.
-
-        Counter resets daily so numbers stay short (single/double digits).
-        Numbers are unique within a calendar day.
-        """
-        today = datetime.now(tz=timezone.utc).strftime("%Y-%m-%d")
-        counter_date = self._data.get("proposal_counter_date")
-        if counter_date != today:
-            self._data["proposal_counter"] = 0
-            self._data["proposal_counter_date"] = today
+        """Return the next globally unique proposal number (never resets)."""
         n = self._data.get("proposal_counter", 0) + 1
         self._data["proposal_counter"] = n
         return n
