@@ -82,24 +82,31 @@ def get_credentials(
 
     # 1. Try keyring
     stored = keyring.get_password(_KEYRING_SERVICE, keyring_key)
+    logger.info("auth[%s]: keyring returned %s", keyring_key, "<None>" if stored is None else f"<{len(stored)} chars>")
     if stored:
         try:
             creds = Credentials.from_authorized_user_info(json.loads(stored), scopes)
+            logger.info("auth[%s]: keyring creds loaded valid=%s expired=%s", keyring_key, getattr(creds, "valid", "?"), getattr(creds, "expired", "?"))
         except Exception as exc:
-            logger.debug("keyring token invalid for %s, ignoring: %s", keyring_key, exc)
+            logger.warning("auth[%s]: keyring token invalid, ignoring: %s", keyring_key, exc)
             creds = None
 
     # 2. Fall back to JSON token file
     if not creds and token_file.exists():
         try:
             creds = Credentials.from_authorized_user_file(str(token_file), scopes)
+            logger.info("auth[%s]: JSON file loaded valid=%s expired=%s has_refresh=%s expiry=%s",
+                        keyring_key, getattr(creds, "valid", "?"), getattr(creds, "expired", "?"),
+                        bool(getattr(creds, "refresh_token", None)), getattr(creds, "expiry", "?"))
         except Exception as exc:
-            logger.debug("token file invalid for %s, ignoring: %s", keyring_key, exc)
+            logger.warning("auth[%s]: JSON file invalid (%s), ignoring: %s", keyring_key, token_file, exc)
             creds = None
+    elif not creds:
+        logger.warning("auth[%s]: no JSON file at %s", keyring_key, token_file)
 
     # 3. Refresh if expired
     if creds and creds.expired and creds.refresh_token:
-        logger.debug("refreshing OAuth token for %s", keyring_key)
+        logger.info("auth[%s]: refreshing token", keyring_key)
         try:
             creds.refresh(Request())
             _persist(creds, token_file, keyring_key)
@@ -107,11 +114,14 @@ def get_credentials(
         except Exception as exc:
             # invalid_grant (revoked/expired refresh token) or invalid_scope —
             # fall through to the browser OAuth flow to get a fresh token.
-            logger.debug("token refresh failed for %s (%s) — re-authorizing", keyring_key, exc)
+            logger.warning("auth[%s]: refresh failed (%s) — re-authorizing", keyring_key, exc)
             creds = None
 
     if creds and creds.valid:
+        logger.info("auth[%s]: returning valid creds", keyring_key)
         return creds
+    logger.warning("auth[%s]: falling through to OAuth flow (creds=%s, valid=%s)",
+                   keyring_key, creds is not None, getattr(creds, "valid", None) if creds else None)
 
     # 4. Run the OAuth2 browser flow (first-time setup or refresh failure)
     if not creds_file.exists():
