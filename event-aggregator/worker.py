@@ -195,6 +195,12 @@ def _run_text_job(state, job: dict) -> None:
     if todos:
         from dedup import todo_fingerprint
         from writers import todoist_writer
+        # Resolve target project once per job — get_or_create_project caches
+        # the ID in state.json on first hit. None on API failure → todos go
+        # to the user's Todoist inbox per the writer's documented contract.
+        project_id = todoist_writer.get_or_create_project(
+            config.TODOIST_API_TOKEN, config.TODOIST_PROJECT_NAME, state,
+        )
         for todo in todos:
             if todo.confidence < config.TODOIST_TODO_MIN_CONFIDENCE:
                 continue
@@ -202,12 +208,10 @@ def _run_text_job(state, job: dict) -> None:
             if state.has_todo_fingerprint(fp):
                 continue
             ok = todoist_writer.create_task(
-                title=todo.title,
-                context=todo.context,
-                due_date=todo.due_date,
-                priority=todo.priority,
-                project_id=state.get_todoist_project_id(),
-                set_project_id=lambda pid: state.set_todoist_project_id(pid),
+                token=config.TODOIST_API_TOKEN,
+                project_id=project_id,
+                todo=todo,
+                dry_run=False,
             )
             if ok:
                 state.add_todo_fingerprint(fp)
