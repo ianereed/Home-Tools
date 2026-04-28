@@ -88,7 +88,7 @@ st.markdown(
 )
 
 # Data-flow swim lanes
-st.markdown(render_dataflow(status, queues, ollama), unsafe_allow_html=True)
+st.markdown(render_dataflow(status, queues, ollama, hdb, fdb), unsafe_allow_html=True)
 
 st.divider()
 
