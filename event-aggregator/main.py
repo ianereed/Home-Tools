@@ -1026,7 +1026,7 @@ def _diff_calendar(
 
 _SUBCOMMANDS = {
     "classify", "ingest-image", "enqueue-image",
-    "approve", "reject",
+    "approve", "reject", "decide",
     "add-event", "status", "query",
     "config", "undo-last", "changes", "forget", "swap",
     "bump-dashboard",
