@@ -43,6 +43,12 @@ def get_status() -> dict:
             state = "ok"
         elif running:
             state = "warn"
+        elif s.is_periodic and (last_exit == 0 or last_exit is None):
+            # Periodic agents are absent between runs — that's normal.
+            # last_exit==0 means the most recent invocation exited
+            # cleanly. last_exit==None means it hasn't run yet this
+            # boot; surface that as warn instead of err.
+            state = "ok" if last_exit == 0 else "warn"
         else:
             state = "err"
         result[s.id] = {"state": state, "pid": pid, "last_exit": last_exit}
