@@ -799,48 +799,74 @@ def post_or_update_dashboard(
     should_repost = force_repost or (dashboard_ts is not None and buried >= repost_threshold)
 
     try:
+        from slack_sdk.errors import SlackApiError
         client = _client()
+        # Try chat.update first if we have a stored ts and aren't force-reposting.
+        # On `channel_not_found` / `message_not_found` (user deleted the dashboard
+        # message manually, or workspace state changed), fall through to a fresh
+        # chat.postMessage instead of failing the whole call.
         if dashboard_ts and not should_repost:
-            # Use stored channel ID for updates — chat.update requires ID, not name.
-            result = client.chat_update(
-                channel=dashboard_channel,
-                ts=dashboard_ts,
-                blocks=blocks,
-                text=fallback_text,
-            )
-            if result.get("ok"):
-                return dashboard_ts
-            logger.warning("slack notifier: dashboard update failed: %s", result.get("error"))
-            return None
-        else:
-            # Either no dashboard yet today, or it's been buried beyond the
-            # threshold — post fresh and (if we had one) delete the old.
-            old_ts = dashboard_ts if should_repost else None
-            result = client.chat_postMessage(
-                channel=config.SLACK_NOTIFY_CHANNEL,
-                blocks=blocks,
-                text=fallback_text,
-            )
-            if not result.get("ok"):
-                logger.warning("slack notifier: dashboard post failed: %s", result.get("error"))
+            try:
+                result = client.chat_update(
+                    channel=dashboard_channel,
+                    ts=dashboard_ts,
+                    blocks=blocks,
+                    text=fallback_text,
+                )
+                if result.get("ok"):
+                    return dashboard_ts
+                logger.warning(
+                    "slack notifier: dashboard update failed (channel=%s, ts=%s): %s",
+                    dashboard_channel, dashboard_ts, result.get("error"),
+                )
                 return None
-            new_ts = result["ts"]
-            new_channel = result.get("channel")
-            state.set_proposal_dashboard_ts(today, new_ts, channel=new_channel)
-            state.reset_dashboard_buried(today)
-            if old_ts:
-                try:
-                    client.chat_delete(channel=dashboard_channel, ts=old_ts)
+            except SlackApiError as exc:
+                err_code = (exc.response or {}).get("error", "")
+                if err_code in {"channel_not_found", "message_not_found"}:
                     logger.info(
-                        "dashboard: reposted (was buried by %d msgs); old ts %s deleted",
-                        buried, old_ts,
+                        "dashboard: stored ts %s in %s is stale (%s) — posting fresh",
+                        dashboard_ts, dashboard_channel, err_code,
                     )
-                except Exception as exc:
-                    logger.debug("dashboard: failed to delete old ts %s: %s", old_ts, exc)
-            _state_mod.save(state)
-            return new_ts
+                    # Fall through to the post-fresh branch by clearing the ts.
+                    dashboard_ts = None
+                else:
+                    raise
+
+        # Either no dashboard yet today, it's been buried beyond the threshold,
+        # or the stored ts was stale — post fresh (and if we had one, try to
+        # delete the old).
+        old_ts = dashboard_ts if should_repost and dashboard_ts else None
+        result = client.chat_postMessage(
+            channel=config.SLACK_NOTIFY_CHANNEL,
+            blocks=blocks,
+            text=fallback_text,
+        )
+        if not result.get("ok"):
+            logger.warning(
+                "slack notifier: dashboard post failed (channel=%s): %s",
+                config.SLACK_NOTIFY_CHANNEL, result.get("error"),
+            )
+            return None
+        new_ts = result["ts"]
+        new_channel = result.get("channel")
+        state.set_proposal_dashboard_ts(today, new_ts, channel=new_channel)
+        state.reset_dashboard_buried(today)
+        if old_ts:
+            try:
+                client.chat_delete(channel=dashboard_channel, ts=old_ts)
+                logger.info(
+                    "dashboard: reposted (was buried by %d msgs); old ts %s deleted",
+                    buried, old_ts,
+                )
+            except Exception as exc:
+                logger.debug("dashboard: failed to delete old ts %s: %s", old_ts, exc)
+        _state_mod.save(state)
+        return new_ts
     except Exception as exc:
-        logger.warning("slack notifier: post_or_update_dashboard failed: %s", exc)
+        logger.warning(
+            "slack notifier: post_or_update_dashboard failed (channel=%s, ts=%s): %s",
+            dashboard_channel, dashboard_ts, exc,
+        )
         return None
 
 
