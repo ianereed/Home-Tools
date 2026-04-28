@@ -43,6 +43,10 @@ def main() -> int:
     p = sub.add_parser("reject", help="Reject pending proposals")
     p.add_argument("--nums", default="")
 
+    p = sub.add_parser("decide", help="Apply a mixed batch of approves and rejects in one transaction")
+    p.add_argument("--approve", default="", help="Comma-separated proposal numbers, or 'all'")
+    p.add_argument("--reject", default="", help="Comma-separated proposal numbers, or 'all'")
+
     p = sub.add_parser("add-event", help="Manual event via extractor")
     p.add_argument("--text", required=True)
 
@@ -97,6 +101,8 @@ def main() -> int:
         return _cmd_approve_or_reject(args.nums, approve=True)
     if args.cmd == "reject":
         return _cmd_approve_or_reject(args.nums, approve=False)
+    if args.cmd == "decide":
+        return _cmd_decide(args.approve, args.reject)
     if args.cmd == "add-event":
         return _cmd_add_event(args.text)
     if args.cmd == "status":
@@ -227,14 +233,15 @@ def _cmd_approve_or_reject(nums_raw: str, approve: bool) -> int:
     return _do_reject(state, targets)
 
 
-def _do_approve(state, nums: list[int]) -> int:
+def _apply_approve(state, nums: list[int]) -> tuple[int, list[str]]:
+    """Mutate state by approving each num. Returns (approved_count, errors).
+    Saves state. Does NOT refresh the dashboard or print."""
     from datetime import timezone as tz
     from googleapiclient.discovery import build
     import config
     from connectors import google_auth
     from dedup import fingerprint as _fingerprint
     from logs.event_log import record as log_event, record_cancellation, record_decision
-    from notifiers import slack_notifier
     import state as state_module
     from writers import google_calendar as gcal_writer
 
@@ -245,7 +252,6 @@ def _do_approve(state, nums: list[int]) -> int:
     errors: list[str] = []
     now = datetime.now(timezone.utc)
     snapshot = state.calendar_snapshot()
-    today_str = now.strftime("%Y-%m-%d")
 
     for num in nums:
         item = state.approve_proposal(num)
@@ -364,28 +370,28 @@ def _do_approve(state, nums: list[int]) -> int:
             approved += 1
 
     state_module.save(state)
+    return approved, errors
 
-    # Refresh the live dashboard to reflect the new approved status.
-    # force_repost=True keeps the dashboard at the bottom of the channel.
-    all_items = state.get_all_proposal_items_for_dashboard(today_str)
-    slack_notifier.post_or_update_dashboard(all_items, state, force_repost=True)
-    state_module.save(state)  # persist dashboard ts if it was newly created
 
+def _do_approve(state, nums: list[int]) -> int:
+    """CLI entry point: apply, refresh dashboard, print, return exit code 0."""
+    approved, errors = _apply_approve(state, nums)
+    _refresh_proposal_dashboard(state)
     msg = f":white_check_mark: {approved} approved"
     if errors:
-        msg += f"\n" + "\n".join(errors)
+        msg += "\n" + "\n".join(errors)
     print(msg)
     return 0
 
 
-def _do_reject(state, nums: list[int]) -> int:
+def _apply_reject(state, nums: list[int]) -> tuple[int, list[str]]:
+    """Mutate state by rejecting each num. Returns (rejected_count, errors).
+    Saves state. Does NOT refresh the dashboard or print."""
     from logs.event_log import record_decision
-    from notifiers import slack_notifier
     import state as state_module
 
     rejected = 0
     errors: list[str] = []
-    today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
     for num in nums:
         item = state.reject_proposal(num)
@@ -407,17 +413,84 @@ def _do_reject(state, nums: list[int]) -> int:
         rejected += 1
 
     state_module.save(state)
+    return rejected, errors
 
-    # Refresh the live dashboard to reflect the new rejected status.
-    # force_repost=True keeps the dashboard at the bottom of the channel.
-    all_items = state.get_all_proposal_items_for_dashboard(today_str)
-    slack_notifier.post_or_update_dashboard(all_items, state, force_repost=True)
-    state_module.save(state)  # persist dashboard ts if it was newly created
 
+def _do_reject(state, nums: list[int]) -> int:
+    """CLI entry point: apply, refresh dashboard, print, return exit code 0."""
+    rejected, errors = _apply_reject(state, nums)
+    _refresh_proposal_dashboard(state)
     msg = f":x: {rejected} rejected"
     if errors:
         msg += "\n" + "\n".join(errors)
     print(msg)
+    return 0
+
+
+def _refresh_proposal_dashboard(state) -> None:
+    """Force-repost the proposal dashboard so it reflects current state.
+    Saves state again afterward to persist any new dashboard ts."""
+    from notifiers import slack_notifier
+    import state as state_module
+    today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    all_items = state.get_all_proposal_items_for_dashboard(today_str)
+    slack_notifier.post_or_update_dashboard(all_items, state, force_repost=True)
+    state_module.save(state)
+
+
+def _cmd_decide(approve_raw: str, reject_raw: str) -> int:
+    """Apply a mixed batch of approves and rejects in one transaction.
+
+    Exit codes are structured so the dispatcher can pick a reaction emoji:
+       0 — full match (every requested num was actioned)
+       1 — zero match (nothing actioned)
+       2 — partial match (some requested nums skipped)
+    """
+    import re as _re
+    import state as state_module
+
+    state = state_module.load()
+    pending_nums = sorted({item["num"] for item in state.pending_proposals()})
+
+    def _resolve(raw: str) -> list[int]:
+        if not raw:
+            return []
+        if raw.strip().lower() in ("all", "everything"):
+            return list(pending_nums)
+        return [int(m) for m in _re.findall(r"\d+", raw)]
+
+    a_nums = _resolve(approve_raw)
+    r_nums = _resolve(reject_raw)
+
+    if not a_nums and not r_nums:
+        print(":x: nothing to do")
+        return 1
+
+    a_count, a_errors = _apply_approve(state, a_nums) if a_nums else (0, [])
+    r_count, r_errors = _apply_reject(state, r_nums) if r_nums else (0, [])
+    _refresh_proposal_dashboard(state)
+
+    requested = len(a_nums) + len(r_nums)
+    matched = a_count + r_count
+    parts: list[str] = []
+    if a_nums:
+        parts.append(f"{a_count}/{len(a_nums)} approved")
+    if r_nums:
+        parts.append(f"{r_count}/{len(r_nums)} rejected")
+    head = ", ".join(parts)
+    errors = a_errors + r_errors
+
+    if matched == 0:
+        print(f":x: nothing matched — {head}")
+        if errors:
+            print("\n".join(errors))
+        return 1
+    if matched < requested:
+        print(f":warning: {head}")
+        if errors:
+            print("\n".join(errors))
+        return 2
+    print(f":white_check_mark: {head}")
     return 0
 
 

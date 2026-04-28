@@ -515,35 +515,6 @@ def build_dashboard_blocks(
         })
         blocks.append({"type": "divider"})
 
-    # ── Intake health (Tier 2 — surfaces silently-dead sources) ─────────────
-    if connector_health:
-        terminal_codes = {
-            "auth_error", "no_credentials", "unsupported_os",
-            "permission_denied", "schema_error",
-        }
-        bad_sources: list[tuple[str, dict]] = []
-        for source, h in connector_health.items():
-            code = h.get("last_status_code", "ok")
-            consecutive = int(h.get("consecutive_errors", 0))
-            # Terminal states: surface immediately. Transient states only
-            # after sustained failure (~1 hour at 10-min cadence).
-            if code in terminal_codes:
-                bad_sources.append((source, h))
-            elif code != "ok" and consecutive >= 6:
-                bad_sources.append((source, h))
-        if bad_sources:
-            lines = [":warning: *Intake health:*"]
-            for source, h in sorted(bad_sources):
-                code = h.get("last_status_code", "?")
-                msg = h.get("last_status_message", "")
-                tail = f" — _{msg}_" if msg else ""
-                lines.append(f"  • *{source}*: `{code}`{tail}")
-            blocks.append({
-                "type": "section",
-                "text": {"type": "mrkdwn", "text": "\n".join(lines)},
-            })
-            blocks.append({"type": "divider"})
-
     # ── Today's actions (collapsed) ──────────────────────────────────────────
     # Roll up by status to a single summary line when more than 3, else show
     # them individually. Keeps the dashboard from growing unbounded as the
@@ -818,7 +789,6 @@ def post_or_update_dashboard(
         recurring_notices=state.recurring_notices(),
         worker_status=state.worker_status(),
         swap_decisions=state._data.get("swap_decisions") or {},
-        connector_health=state.connector_health(),
     )
     pending_count = sum(1 for i in items if i["status"] == "pending")
     fallback_text = f"Event proposals: {pending_count} pending"

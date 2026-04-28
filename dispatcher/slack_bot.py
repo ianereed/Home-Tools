@@ -187,7 +187,13 @@ def _handle_interactive(text: str, say, msg_ts: str, client, channel: str, user:
     if result is None:
         # Not a command — silently ignore so we don't chatter on every message.
         return
-    client.chat_postEphemeral(channel=channel, user=user, text=result.text)
+    if result.reaction:
+        try:
+            client.reactions_add(channel=channel, timestamp=msg_ts, name=result.reaction)
+        except Exception as exc:
+            logger.warning("dispatcher: reactions_add failed: %s", exc)
+    if result.text and not result.quiet_ephemeral:
+        client.chat_postEphemeral(channel=channel, user=user, text=result.text)
 
 
 def _handle_intake_upload(event, client, channel: str) -> None:
