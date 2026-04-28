@@ -450,7 +450,7 @@ def _cmd_decide(approve_raw: str, reject_raw: str) -> int:
     import state as state_module
 
     state = state_module.load()
-    pending_nums = sorted({item["num"] for item in state.pending_proposals()})
+    pending_nums = sorted({item["num"] for item in state.get_pending_proposals()})
 
     def _resolve(raw: str) -> list[int]:
         if not raw:
