@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.home-tools.service-monitor</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/Users/homeserver/Home-Tools/service-monitor/.venv/bin/streamlit</string>
+    <string>run</string>
+    <string>app.py</string>
+    <string>--server.port=8502</string>
+    <string>--server.address=0.0.0.0</string>
+    <string>--server.headless=true</string>
+    <string>--browser.gatherUsageStats=false</string>
+  </array>
+
+  <key>WorkingDirectory</key>
+  <string>/Users/homeserver/Home-Tools/service-monitor</string>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>KEYCHAIN_PATH</key>
+    <string>/Users/homeserver/Library/Keychains/login.keychain-db</string>
+  </dict>
+
+  <key>RunAtLoad</key>
+  <true/>
+
+  <key>KeepAlive</key>
+  <true/>
+
+  <key>StandardOutPath</key>
+  <string>/Users/homeserver/Library/Logs/home-tools/service-monitor.log</string>
+
+  <key>StandardErrorPath</key>
+  <string>/Users/homeserver/Library/Logs/home-tools/service-monitor-error.log</string>
+</dict>
+</plist>
