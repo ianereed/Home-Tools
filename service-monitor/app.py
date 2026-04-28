@@ -96,7 +96,11 @@ st.divider()
 c1, c2, c3, c4, c5 = st.columns(5)
 c1.metric("text_queue",    queues.get("text_queue_depth", "?") if queues.get("available") else "—")
 c2.metric("ocr_queue",     queues.get("ocr_queue_depth",  "?") if queues.get("available") else "—")
-c3.metric("Ollama models", ollama.get("model_count", "✗") if ollama.get("ok") else "✗")
+c3.metric(
+    "Ollama loaded",
+    len((ollama.get("history") or {}).get("currently_loaded") or [])
+        if ollama.get("ok") else "✗",
+)
 
 hdb_size = f"{hdb.get('size_bytes', 0) // (1024*1024)} MB" if hdb.get("available") else "—"
 fdb_size = f"{fdb.get('size_bytes', 0) // (1024*1024)} MB" if fdb.get("available") else "—"

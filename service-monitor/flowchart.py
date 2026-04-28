@@ -1,5 +1,7 @@
 """Render the data-flow swim lanes as HTML for st.markdown(unsafe_allow_html=True)."""
 
+from datetime import datetime, timezone
+
 STATUS_EMOJI = {"ok": "🟢", "warn": "🟡", "err": "🔴", "unknown": "⚫"}
 STATUS_CLASS = {"ok": "ok", "warn": "warn", "err": "err", "unknown": "ext"}
 
@@ -91,7 +93,6 @@ def render_dataflow(status: dict, queues: dict, ollama: dict,
     ollama_state = "ok" if ollama.get("ok") else "err"
     qd_text = str(queues.get("text_queue_depth", "?")) if queues.get("available") else "?"
     qd_ocr = str(queues.get("ocr_queue_depth", "?")) if queues.get("available") else "?"
-    model_count = ollama.get("model_count", 0)
 
     # Freshness thresholds (seconds)
     FETCH_AGING, FETCH_STALE = 900, 3600       # 15 min, 1h  (fetch every 10 min)
@@ -185,12 +186,49 @@ def render_dataflow(status: dict, queues: dict, ollama: dict,
         _ext("Slack DM"),
     ]))
 
-    # Shared infra
-    ollama_label = f"Ollama :11434  ({model_count} models)"
-    lanes.append(_lane("Shared Infra", [
-        _node(ollama_label, ollama_state),
-        f'<span class="svc-mon-note">&nbsp; ← used by event-agg / dispatcher / finance-mon</span>',
-    ], shared=True))
+    # Shared infra — Ollama with per-model loaded/idle visibility
+    TRACKER_STALE_SEC = 300  # 5 min — tracker polls every 60s
+    history = ollama.get("history") or {}
+    hist_models = history.get("models", {}) if history else {}
+    currently_loaded = set(history.get("currently_loaded") or [])
+
+    tracker_age = None
+    tracker_iso = history.get("updated_at")
+    if tracker_iso:
+        try:
+            td = datetime.fromisoformat(tracker_iso.replace("Z", "+00:00"))
+            tracker_age = int((datetime.now(timezone.utc) - td).total_seconds())
+        except Exception:
+            tracker_age = None
+
+    ollama_node_state = ollama_state
+    if ollama_state == "ok" and (tracker_age is None or tracker_age > TRACKER_STALE_SEC):
+        ollama_node_state = "warn"
+
+    ollama_items: list[str] = [_node("Ollama :11434", ollama_node_state)]
+    for name in sorted(ollama.get("models") or []):
+        info = hist_models.get(name, {})
+        last_iso = info.get("last_loaded_at")
+        last_age_str = "never"
+        if last_iso:
+            try:
+                last_dt = datetime.fromisoformat(last_iso.replace("Z", "+00:00"))
+                last_age_sec = int((datetime.now(timezone.utc) - last_dt).total_seconds())
+                last_age_str = _age_str(last_age_sec)
+            except Exception:
+                last_age_str = "?"
+
+        if name in currently_loaded:
+            size_gb = (info.get("size_bytes") or 0) / (1024**3)
+            size_tag = f" {size_gb:.1f}G" if size_gb else ""
+            ollama_items.append(_node(f"{name}{size_tag} loaded", "ok", last_age_str))
+        else:
+            ollama_items.append(_ext(name, last_age_str))
+
+    ollama_items.append(
+        f'<span class="svc-mon-note">&nbsp; ← used by event-agg / dispatcher / finance-mon</span>'
+    )
+    lanes.append(_lane("Shared Infra", ollama_items, shared=True))
 
     # Self
     lanes.append(_lane("This Dashboard", [
