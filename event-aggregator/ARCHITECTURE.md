@@ -365,3 +365,56 @@ works for backward compat and is what the original
 - `IMAGE_CONFIDENCE_MIN` — confidence floor before image is filed in
   "Documents"
 - `USER_TIMEZONE`, `DIGEST_DAILY_HOUR`, `DIGEST_WEEKLY_DOW`
+
+---
+
+## Future improvements (out of current scope)
+
+### Messenger / Instagram intake (deferred 2026-04-28)
+
+Removed from `_CONNECTOR_REGISTRY` because macOS Sequoia 15+ removed the
+per-app Notification Center DB at
+`~/Library/Application Support/NotificationCenter/*.db`. The
+`NotificationCenterConnector` class (`connectors/notifications.py`),
+mock fixtures (`tests/mock_data.py:notification_messages`), and the
+extractor's `"messenger"`/`"instagram"` source-type entries
+(`extractor.py`) are kept intact for future re-enablement.
+
+To re-enable: add the two registry entries back to `main.py:_CONNECTOR_REGISTRY`
+and stale `connector_health` entries on the mini will get refreshed on
+the next fetch cycle.
+
+Possible paths to restore (any of):
+1. Apple restores per-app NC DB in a future macOS update — re-enable with
+   no code change.
+2. Use `osascript` / Apple Script Bridge to query Messages.app directly
+   via the Messenger / Instagram macOS desktop apps. Heavyweight; bundle
+   identifier sniffing was the lighter path.
+3. Native Messenger/Instagram APIs (Meta Graph API). Requires app
+   review; unsuitable for a personal home tool.
+4. macOS `UNUserNotificationCenter` shim via a small SwiftUI helper
+   that exposes notifications over a local socket. Most promising
+   long-term; meaningful build effort.
+
+Priority: low. The user's traffic on these channels rarely contains
+events worth surfacing. Revisit if Apple restores the DB or a
+zero-build path emerges.
+
+### Other deferred items (recorded by Tier 2 audit on 2026-04-28)
+
+- **`cli intake-ack <source>`** — manual acknowledgement to suppress a
+  steady-state intake-health item from the Slack dashboard for 24h.
+  Reduces dashboard noise once a broken state is known and accepted.
+- **Centralized `ConnectorAuthManager`** — unified credential lifecycle
+  for Slack/Discord/Google. Defer until token rotation becomes a real
+  burden (currently each source manages its own).
+- **Per-connector unit tests with realistic API fixtures** — Tier 3.1's
+  `test_connector_contract.py` covers smoke-level conformance only.
+- **Worker watchdog + claim-timeout** — guard against an Ollama hang
+  leaving a job claimed indefinitely. The 2026-04-28 stuck-job report
+  resolved itself after the worker restart but the underlying race
+  remains.
+- **`connector_health` pruning in `state.prune()`** — stale entries
+  (e.g. for sources removed from the registry) currently linger
+  forever. Manual cleanup works for now; auto-prune by
+  `last_status_at < now - 7d` would tidy.

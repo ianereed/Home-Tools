@@ -31,7 +31,6 @@ from connectors.discord_conn import DiscordConnector
 from connectors.gmail import GmailConnector
 from connectors.google_calendar import GoogleCalendarConnector
 from connectors.imessage import IMessageConnector
-from connectors.notifications import NotificationCenterConnector
 from connectors.slack import SlackConnector
 from connectors.whatsapp import WhatsAppConnector
 from dedup import fingerprint, is_duplicate, persisted_events, todo_fingerprint
@@ -57,12 +56,15 @@ _CONNECTOR_REGISTRY = {
     "imessage": IMessageConnector,
     "whatsapp": WhatsAppConnector,
     "discord": DiscordConnector,
-    "messenger": NotificationCenterConnector,
-    "instagram": NotificationCenterConnector,
+    # messenger / instagram (NotificationCenterConnector) are intentionally
+    # NOT registered — macOS Sequoia 15+ removed the per-app NotificationCenter
+    # DB. The connector class is kept for future re-enablement (see
+    # ARCHITECTURE.md "Future improvements"); registering here would just spam
+    # `unsupported_os` into the dashboard with no actionable fix.
 }
 
 _ALL_SOURCES = [
-    "gmail", "gcal", "slack", "imessage", "whatsapp", "discord", "messenger", "instagram"
+    "gmail", "gcal", "slack", "imessage", "whatsapp", "discord",
 ]
 
 # Minimum confidence for acting on update/cancel signals (higher bar than creation)
