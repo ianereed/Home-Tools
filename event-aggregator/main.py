@@ -1067,6 +1067,11 @@ def fetch_only() -> int:
         if cls is None or cls in seen_connectors:
             continue
         seen_connectors.add(cls)
+        # Sibling sources share the same connector class (e.g. messenger +
+        # instagram both point at NotificationCenterConnector). Record health
+        # and advance watermarks for ALL siblings on each fetch — otherwise
+        # the second sibling appears "missing" on the dashboard.
+        sibling_sources = [s for s, c in _CONNECTOR_REGISTRY.items() if c is cls]
         since = max(state.last_run(source), SINCE_FLOOR)
 
         def _do_fetch(connector_cls=cls, _since=since):
@@ -1080,7 +1085,8 @@ def fetch_only() -> int:
                 "fetch-only: %s timed out after %ds — skipping",
                 source, PER_SOURCE_TIMEOUT_SEC,
             )
-            state.record_connector_status(source, "network_error", "fetch timeout", run_start)
+            for sib in sibling_sources:
+                state.record_connector_status(sib, "network_error", "fetch timeout", run_start)
             continue
         except Exception as exc:
             # Connectors should never raise — but if one slips through, treat as unknown.
@@ -1088,13 +1094,15 @@ def fetch_only() -> int:
                 "fetch-only: %s connector raised (should not happen): %s",
                 source, type(exc).__name__,
             )
-            state.record_connector_status(
-                source, "unknown_error", type(exc).__name__, run_start,
-            )
+            for sib in sibling_sources:
+                state.record_connector_status(
+                    sib, "unknown_error", type(exc).__name__, run_start,
+                )
             continue
 
-        # Record health for every outcome (even OK).
-        state.record_connector_status(source, status.code.value, status.message, run_start)
+        # Record health for every outcome (even OK), for all sibling sources.
+        for sib in sibling_sources:
+            state.record_connector_status(sib, status.code.value, status.message, run_start)
 
         for msg in msgs:
             # NotificationCenterConnector returns msg.source ∈ {"messenger",
@@ -1112,7 +1120,8 @@ def fetch_only() -> int:
             enqueued += 1
 
         if status.code.value in ADVANCE_ON_STATUS:
-            state.set_last_run(source, run_start)
+            for sib in sibling_sources:
+                state.set_last_run(sib, run_start)
 
     state.prune()
     state_module.save(state)
