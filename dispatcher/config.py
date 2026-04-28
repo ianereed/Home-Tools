@@ -113,6 +113,9 @@ def validate() -> list[str]:
         problems.append(
             "ALLOWED_SLACK_USER_IDS is empty — refusing to start. The dispatcher "
             "now ingests user-supplied files into the OCR/DB pipeline; running "
-            "without an allowlist would let any workspace member trigger it."
+            "without an allowlist would let any workspace member trigger it. "
+            "Fix: add a comma-separated list of Slack user IDs (e.g. "
+            "ALLOWED_SLACK_USER_IDS=U01ABCDEF) to ~/Home-Tools/dispatcher/.env "
+            "and `launchctl kickstart -k gui/501/com.home-tools.dispatcher`."
         )
     return problems
