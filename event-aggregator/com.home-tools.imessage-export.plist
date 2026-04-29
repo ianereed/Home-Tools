@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.home-tools.imessage-export</string>
+
+  <!-- Laptop-side LaunchAgent: every 10 min, dumps recent iMessages to a
+       JSONL file and ships it to the mini's event-aggregator cache via
+       Tailscale SSH. The mini's IMessageConnector reads that JSONL when
+       IMESSAGE_EXPORT_FILE is set. -->
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/zsh</string>
+    <string>-c</string>
+    <string>/Users/ianreed/Documents/GitHub/Home-Tools/event-aggregator/tools/imessage_export.sh</string>
+  </array>
+
+  <!-- Match the mini's fetch cadence (com.home-tools.event-aggregator.fetch
+       runs every 600s). Faster shipping wastes work; slower starves the
+       consumer. -->
+  <key>StartInterval</key>
+  <integer>600</integer>
+
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <false/>
+
+  <key>StandardOutPath</key>
+  <string>/Users/ianreed/Library/Logs/home-tools/imessage-export.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/ianreed/Library/Logs/home-tools/imessage-export.err.log</string>
+</dict>
+</plist>

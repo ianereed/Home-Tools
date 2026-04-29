@@ -110,6 +110,12 @@ DISCORD_MONITOR_CHANNELS: list[str] = [
 IMESSAGE_DB_PATH: str = _get(
     "IMESSAGE_DB_PATH", "~/Library/Messages/chat.db"
 )
+# When set, IMessageConnector reads JSONL from this path instead of chat.db.
+# Used on hosts (e.g. the headless mini) that don't have iMessage signed in
+# and receive shipped exports over SSH. See event-aggregator/tools/README.md.
+IMESSAGE_EXPORT_FILE: str = _get("IMESSAGE_EXPORT_FILE")
+IMESSAGE_EXPORT_MAX_AGE_MIN: int = int(_get("IMESSAGE_EXPORT_MAX_AGE_MIN", "120"))
+
 WHATSAPP_DB_PATH: str = _get(
     "WHATSAPP_DB_PATH",
     "~/Library/Group Containers/group.net.whatsapp.WhatsApp.shared/ChatStorage.sqlite",

@@ -17,7 +17,7 @@ Eight connectors registered in `main.py:_CONNECTOR_REGISTRY`:
 | **Gmail** | OAuth2 `users.messages.list` | `GMAIL_CREDENTIALS_JSON`, `GMAIL_TOKEN_JSON` | `after:{since}` query; max 100/fetch; marketing labels dropped unless user replied with confirmation language; plain-text MIME parts only |
 | **GCal invites** | OAuth2 `events.list` | `GCAL_TOKEN_JSON`, `GCAL_PRIMARY_CALENDAR_ID` | `responseStatus == "needsAction"` only; `timeMin = today UTC`; `updatedMin = max(since, now-30d)` so we re-pull only invites whose state changed (Tier 1.2); recurring series collapsed to next instance |
 | **Slack** | Bolt WebClient | `SLACK_BOT_TOKEN`, `SLACK_MONITOR_CHANNELS` | configured channels only; `oldest = since`; bot/empty/subtype-tagged messages skipped |
-| **iMessage** | SQLite read | `IMESSAGE_DB_PATH` | requires Full Disk Access; `WHERE date > ? AND text != '' LIMIT 500` |
+| **iMessage** | SQLite read OR JSONL ship from another host | `IMESSAGE_DB_PATH` (chat.db path) OR `IMESSAGE_EXPORT_FILE` (JSONL produced by `tools/imessage_export.py` running on a host that has iMessage) | chat.db: requires FDA; `WHERE date > ? AND text != '' LIMIT 500`. JSONL: read & filter by `since`; status flips to `permission_denied` when file mtime > `IMESSAGE_EXPORT_MAX_AGE_MIN` (default 120). |
 | **WhatsApp** | SQLite read | `WHATSAPP_DB_PATH` | schema sniff before query; `LIMIT 500` |
 | **Discord** | REST API | `DISCORD_BOT_TOKEN`, `DISCORD_MONITOR_CHANNELS` | snowflake `since` filter; deferred (no token live) |
 | **Messenger / Instagram** | macOS NotificationCenter SQLite | hard-coded bundle filter | notifications truncate to ~80 chars |
@@ -399,6 +399,36 @@ Possible paths to restore (any of):
 Priority: low. The user's traffic on these channels rarely contains
 events worth surfacing. Revisit if Apple restores the DB or a
 zero-build path emerges.
+
+### iMessage ingestion: alternatives evaluated and declined (2026-04-29)
+
+The mini has no Apple ID and no `chat.db`, so iMessages flow in via a
+laptop-side LaunchAgent that ships a JSONL via Tailscale SSH. Two heavier
+alternatives were considered and explicitly rejected; recording here so a
+future maintainer doesn't re-litigate the same trade-offs.
+
+- **Apple ID + iCloud Messages on the mini.** Would let the existing chat.db
+  code path "just work" with zero new code. Disqualifier: silent iCloud
+  Messages sync pauses are confirmed in 2026 by multiple sources (TidBITS,
+  Setapp, Apple Community) with no Apple-side fix. When sync stops, the
+  failure is invisible to the connector — chat.db looks fresh, just
+  outdated. Recovery typically requires a headed display to clear an Apple
+  ID prompt or re-open Messages.app. Combined with the broader cost of
+  putting an iCloud account on a server (Find My, App Store, payment
+  methods, the mini becomes a 2FA-trusted device for the user's primary
+  Apple ID), not worth it. Revisit only if the laptop-export path becomes
+  unmaintainable.
+
+- **BlueBubbles bridge on the laptop.** Self-hosted iMessage REST/WS server.
+  Would replace the laptop-side scripts with a maintained third-party stack.
+  Disqualifier: Electron + Node + Firebase + tunnel is a heavy footprint for
+  receive-only, and macOS Tahoe support was an open issue (#776, no
+  assignee) as of April 2026. Single-maintainer project; long gaps between
+  releases. Auth is a shared password in a query string. The 100 LOC of
+  stdlib Python in `tools/imessage_export.py` does the same job with
+  strictly less surface. Revisit if we ever need send-side, attachments, or
+  group reactions — not surfaces the current event-aggregator scope cares
+  about.
 
 ### Other deferred items (recorded by Tier 2 audit on 2026-04-28)
 

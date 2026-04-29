@@ -1,18 +1,25 @@
 """
 iMessage/SMS connector — Phase 3.
 
-Reads from ~/Library/Messages/chat.db (SQLite).
-Requires Full Disk Access for Terminal/Python process.
+Two ingestion paths:
+  1. Direct chat.db read (default). Requires the host to have iMessage signed
+     in and Full Disk Access granted to the Python invoking this connector.
+  2. Shipped JSONL — when `config.IMESSAGE_EXPORT_FILE` is set, reads a JSONL
+     file produced by `tools/imessage_export.py` running on a host that *does*
+     have iMessage. This is how the headless Mac mini gets messages: a
+     LaunchAgent on the user's laptop ships the JSONL via Tailscale SSH.
 
-Safety: copies DB to a temp file before opening to avoid SQLite lock errors
-while Messages.app is running.
+Direct chat.db path: copies DB to a tempfile before opening to avoid SQLite
+lock errors while Messages.app is running.
 """
 from __future__ import annotations
 
+import json
 import logging
 import shutil
 import sqlite3
 import tempfile
+import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -41,6 +48,9 @@ class IMessageConnector(BaseConnector):
         if mock:
             from tests.mock_data import imessage_messages
             return imessage_messages(since), ConnectorStatus.ok()
+
+        if config.IMESSAGE_EXPORT_FILE:
+            return self._fetch_from_export_file(since)
 
         db_path = Path(config.IMESSAGE_DB_PATH).expanduser()
         if not db_path.exists():
@@ -110,4 +120,86 @@ class IMessageConnector(BaseConnector):
             )
 
         logger.debug("imessage: fetched %d messages since %s", len(messages), since.date())
+        return messages
+
+    def _fetch_from_export_file(self, since: datetime) -> FetchResult:
+        """
+        JSONL ingestion path. Each line is a RawMessage-shaped dict produced by
+        tools/imessage_export.py on a host with iMessage signed in.
+
+        Never raises. When the file is older than `IMESSAGE_EXPORT_MAX_AGE_MIN`,
+        still returns parsed messages (state.is_seen() prevents reprocessing
+        old-but-already-handled rows) but tags the status as PERMISSION_DENIED
+        so the dashboard surfaces the staleness — the laptop's exporter has
+        likely stopped shipping, and that's a human-actionable signal.
+
+        Privacy invariant from connectors/base.py:32-37 applies: status messages
+        contain only file-system state, integer counts, exception class names —
+        never bodies, contacts, or timestamps.
+        """
+        path = Path(config.IMESSAGE_EXPORT_FILE).expanduser()
+        if not path.exists():
+            return [], ConnectorStatus(
+                ConnectorStatusCode.PERMISSION_DENIED,
+                "export file missing — laptop exporter not running",
+            )
+
+        try:
+            mtime = path.stat().st_mtime
+        except OSError as exc:
+            return [], ConnectorStatus(
+                ConnectorStatusCode.UNKNOWN_ERROR, type(exc).__name__,
+            )
+
+        age_min = (time.time() - mtime) / 60.0
+
+        try:
+            messages = self._parse_export_file(path, since)
+        except json.JSONDecodeError:
+            return [], ConnectorStatus(
+                ConnectorStatusCode.SCHEMA_ERROR, "export jsonl parse failed",
+            )
+        except (KeyError, TypeError, ValueError):
+            return [], ConnectorStatus(
+                ConnectorStatusCode.SCHEMA_ERROR, "export schema mismatch",
+            )
+        except OSError as exc:
+            return [], ConnectorStatus(
+                ConnectorStatusCode.UNKNOWN_ERROR, type(exc).__name__,
+            )
+
+        if age_min > config.IMESSAGE_EXPORT_MAX_AGE_MIN:
+            return messages, ConnectorStatus(
+                ConnectorStatusCode.PERMISSION_DENIED,
+                f"export file stale — {int(age_min)} min old; check laptop launchd",
+            )
+
+        logger.debug(
+            "imessage: %d export-file messages since %s (file age %d min)",
+            len(messages), since.date(), int(age_min),
+        )
+        return messages, ConnectorStatus.ok()
+
+    def _parse_export_file(self, path: Path, since: datetime) -> list[RawMessage]:
+        messages: list[RawMessage] = []
+        with open(path, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                obj = json.loads(line)
+                ts = datetime.fromisoformat(obj["timestamp"])
+                if ts.tzinfo is None:
+                    ts = ts.replace(tzinfo=timezone.utc)
+                if ts <= since:
+                    continue
+                messages.append(
+                    RawMessage(
+                        id=obj["id"],
+                        source=obj["source"],
+                        timestamp=ts,
+                        body_text=obj["body_text"],
+                        metadata=obj.get("metadata", {}),
+                    )
+                )
         return messages
