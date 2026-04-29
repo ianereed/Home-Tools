@@ -26,6 +26,7 @@ HELP_TEXT = (
     "  • Typos & \"and\" are fine: `Aprove 1 and 2`\n"
     "  • Bare `approve` / `reject` no longer means all — type `r all` explicitly.\n"
     "  • Reactions on your message:  ✅ done · ⚠️ partial · ❌ nothing matched / parse error\n"
+    "  • Approve/reject also clears `[awaiting]` / `[proposed by you]` tags on calendar events.\n"
     "\n"
     "• `add: <description>` — manual event entry, e.g. `add: dinner with Bryan Sat 7pm`\n"
     "• `status` — show last run, pending count, ollama health\n"

@@ -30,6 +30,10 @@ _MAX_RESULTS = 100
 # Gmail labels that indicate marketing / automated mail
 _MARKETING_LABELS = frozenset({"CATEGORY_PROMOTIONS", "CATEGORY_UPDATES"})
 
+# Thread digest caps — keep last N messages, body snippet K chars each.
+_THREAD_DIGEST_MAX_MESSAGES = 5
+_THREAD_DIGEST_SNIPPET_CHARS = 500
+
 # Patterns in a user reply that indicate positive confirmation
 _CONFIRM_RE = re.compile(
     r"\b("
@@ -86,8 +90,10 @@ class GmailConnector(BaseConnector):
                     .get(userId="me", id=ref["id"], format="full")
                     .execute()
                 )
+                thread = _fetch_thread(service, msg.get("threadId"))
+
                 if _is_marketing(msg):
-                    if not _thread_has_user_confirmation(service, msg, user_email):
+                    if not _thread_contains_user_confirmation(thread, user_email, msg):
                         logger.debug(
                             "gmail: dropping unconfirmed marketing message id=%s", msg["id"]
                         )
@@ -97,7 +103,7 @@ class GmailConnector(BaseConnector):
                         msg["id"],
                     )
 
-                raw = _parse_message(msg)
+                raw = _parse_message(msg, thread, user_email)
                 if raw:
                     messages.append(raw)
             return messages, ConnectorStatus.ok()
@@ -125,19 +131,12 @@ def _is_marketing(msg: dict) -> bool:
     return bool(_MARKETING_LABELS & set(msg.get("labelIds", [])))
 
 
-def _thread_has_user_confirmation(service, msg: dict, user_email: str) -> bool:
-    """
-    Fetch the thread for this message and check whether the user replied with
-    language that confirms they intend to attend or participate.
-    """
-    thread_id = msg.get("threadId")
+def _fetch_thread(service, thread_id: str | None) -> dict | None:
+    """Fetch the full thread for a message. Returns the thread dict, or None on error."""
     if not thread_id:
-        return False
-
-    original_date = int(msg.get("internalDate", 0))
-
+        return None
     try:
-        thread = (
+        return (
             service.users()
             .threads()
             .get(userId="me", id=thread_id, format="full")
@@ -145,29 +144,84 @@ def _thread_has_user_confirmation(service, msg: dict, user_email: str) -> bool:
         )
     except Exception as exc:
         logger.debug("gmail: could not fetch thread %s: %s", thread_id, exc)
-        return False
+        return None
 
-    for thread_msg in thread.get("messages", []):
-        # Only look at messages sent AFTER the original marketing email
-        if int(thread_msg.get("internalDate", 0)) <= original_date:
-            continue
 
-        payload = thread_msg.get("payload", {})
+def _is_from_me(msg: dict, user_email: str) -> bool:
+    """True if this gmail message was sent by the user.
+
+    Primary signal: 'SENT' label. Fallback: From header contains user email.
+    Either alone is sufficient — Gmail tags every message the user sent with
+    SENT, and From-match catches edge cases where the label is missing.
+    """
+    if "SENT" in msg.get("labelIds", []):
+        return True
+    if user_email:
+        payload = msg.get("payload", {})
         headers = {h["name"].lower(): h["value"] for h in payload.get("headers", [])}
         from_header = headers.get("from", "").lower()
-
-        # Only consider messages sent by the user themselves
-        if user_email not in from_header:
-            continue
-
-        reply_text = _extract_plain_text(payload)
-        if reply_text and _CONFIRM_RE.search(reply_text):
+        if user_email in from_header:
             return True
-
     return False
 
 
-def _parse_message(msg: dict) -> RawMessage | None:
+def _thread_contains_user_confirmation(
+    thread: dict | None, user_email: str, original_msg: dict
+) -> bool:
+    """True if a later thread message from the user matches the confirmation regex.
+    Used to keep marketing-labelled emails the user has replied to positively."""
+    if not thread:
+        return False
+    original_date = int(original_msg.get("internalDate", 0))
+    for thread_msg in thread.get("messages", []):
+        if int(thread_msg.get("internalDate", 0)) <= original_date:
+            continue
+        payload = thread_msg.get("payload", {})
+        headers = {h["name"].lower(): h["value"] for h in payload.get("headers", [])}
+        from_header = headers.get("from", "").lower()
+        if user_email not in from_header:
+            continue
+        reply_text = _extract_plain_text(payload)
+        if reply_text and _CONFIRM_RE.search(reply_text):
+            return True
+    return False
+
+
+def _build_thread_digest(thread: dict | None, user_email: str) -> list[dict]:
+    """Compact, ordered (oldest-first) digest of the last N thread messages.
+
+    Each entry: {from_me, ts, subject, snippet}. Bodies are truncated to
+    _THREAD_DIGEST_SNIPPET_CHARS. The full bodies never appear in logs or
+    state — only the snippet is persisted in metadata so the worker can
+    feed it to the LLM.
+    """
+    if not thread:
+        return []
+    msgs = thread.get("messages", []) or []
+    # Take the last N messages so the LLM always sees the most recent context.
+    tail = msgs[-_THREAD_DIGEST_MAX_MESSAGES:]
+    digest: list[dict] = []
+    for tm in tail:
+        payload = tm.get("payload", {})
+        headers = {h["name"].lower(): h["value"] for h in payload.get("headers", [])}
+        from_header = headers.get("from", "").lower()
+        from_me = bool(user_email and user_email in from_header) or (
+            "SENT" in tm.get("labelIds", [])
+        )
+        ts = datetime.fromtimestamp(
+            int(tm.get("internalDate", 0)) / 1000, tz=timezone.utc
+        )
+        body = _extract_plain_text(payload) or ""
+        digest.append({
+            "from_me": from_me,
+            "ts": ts.isoformat(),
+            "subject": headers.get("subject", "")[:200],
+            "snippet": body[:_THREAD_DIGEST_SNIPPET_CHARS],
+        })
+    return digest
+
+
+def _parse_message(msg: dict, thread: dict | None, user_email: str) -> RawMessage | None:
     """Extract a RawMessage from a Gmail API full message object. Returns None if no text body."""
     payload = msg.get("payload", {})
     headers = {h["name"].lower(): h["value"] for h in payload.get("headers", [])}
@@ -178,6 +232,9 @@ def _parse_message(msg: dict) -> RawMessage | None:
 
     # internalDate is milliseconds since epoch
     ts = datetime.fromtimestamp(int(msg.get("internalDate", 0)) / 1000, tz=timezone.utc)
+
+    is_from_me = _is_from_me(msg, user_email)
+    thread_digest = _build_thread_digest(thread, user_email)
 
     return RawMessage(
         id=msg["id"],
@@ -190,6 +247,9 @@ def _parse_message(msg: dict) -> RawMessage | None:
             "to": headers.get("to", ""),
             "cc": headers.get("cc", ""),
             "source_url": f"https://mail.google.com/mail/u/0/#all/{msg['id']}",
+            "thread_id": msg.get("threadId", ""),
+            "is_from_me": is_from_me,
+            "thread_digest": thread_digest,
         },
     )
 

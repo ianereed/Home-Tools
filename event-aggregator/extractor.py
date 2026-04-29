@@ -58,7 +58,8 @@ _SCHEMA = (
     '  "recurrence_hint": "e.g. weekly on Tuesdays, or null",\n'
     '  "attendees": [{"name": "...", "email": "... or null"}],\n'
     '  "category": "work|personal|social|health|travel|other",\n'
-    '  "event_description": "natural-language description of what is being planned (used when date_certainty is unknown)"\n'
+    '  "event_description": "natural-language description of what is being planned (used when date_certainty is unknown)",\n'
+    '  "confirmation_status": "confirmed|awaiting_me|proposed_by_me"\n'
     "}],\n"
     '"todos": [{\n'
     '  "title": "short action item (max 200 chars)",\n'
@@ -84,6 +85,11 @@ _SCHEMA = (
     "- is_recurring: true for events that repeat (weekly, monthly, etc.) — prevents duplicate creation\n"
     "- attendees: list people mentioned as participants; include email if visible in the message\n"
     "- category: best-fit category for GCal color coding\n"
+    "- confirmation_status: classify the agreement state shown by the message + thread context.\n"
+    '    "awaiting_me" — someone proposed this to the user and the user has not yet acknowledged; default for inbound mail without a reply.\n'
+    '    "proposed_by_me" — the user proposed this and the other party has not yet confirmed; default when the message itself is from the user.\n'
+    '    "confirmed" — both sides have acknowledged this happens (e.g. user said "yes/sounds good/see you then" AND the other party also acknowledged, or vice-versa).\n'
+    "    Treat ambiguous threads as awaiting_me / proposed_by_me — only output \"confirmed\" with explicit mutual agreement.\n"
     f"- Today's date is {_TODAY_PLACEHOLDER}. Use this to resolve relative dates like 'next Friday' or 'this Thursday'.\n"
     f"- The user's local timezone is {_TIMEZONE_PLACEHOLDER}. "
     "Interpret all relative times in that timezone and return ISO8601 with UTC offset.\n"
@@ -102,7 +108,7 @@ _SCHEMA = (
 _SOURCE_INTROS: dict[str, str] = {
     "email": (
         "You are an event extraction assistant. Extract scheduled events from the email below.\n"
-        "Context: This is a formal email."
+        "Context: This is a formal email. You may also see a Thread digest summarizing the most recent messages in the same email thread, with [me] marking messages the user sent and [them] marking inbound messages. Use the digest to decide confirmation_status: awaiting_me if someone proposed and the user hasn't agreed, proposed_by_me if the user proposed and the other party hasn't replied, confirmed if both sides have explicitly acknowledged."
     ),
     "calendar": (
         "You are an event extraction assistant. Analyze this calendar invite.\n"
@@ -145,6 +151,19 @@ def _build_context_block(msg: RawMessage) -> str:
             lines.append(f"To: {m['to'][:300]}")
         if m.get("cc"):
             lines.append(f"CC: {m['cc'][:300]}")
+        if m.get("is_from_me"):
+            lines.append("Direction: this message was sent by the user (outbound)")
+        else:
+            lines.append("Direction: this message was sent to the user (inbound)")
+        digest = m.get("thread_digest") or []
+        if digest:
+            lines.append("Thread digest (oldest → newest):")
+            for entry in digest:
+                marker = "[me]" if entry.get("from_me") else "[them]"
+                ts = (entry.get("ts") or "")[:16].replace("T", " ")
+                subject = (entry.get("subject") or "")[:120]
+                snippet = (entry.get("snippet") or "").replace("\n", " ")[:400]
+                lines.append(f"  {marker} {ts} | {subject} | {snippet}")
 
     elif msg.source == "gcal":
         if m.get("summary"):
@@ -214,8 +233,16 @@ def _validate_category(raw_category) -> str:
     return cat if cat in _VALID_CATEGORIES else "other"
 
 
-def _validate_event(raw: dict[str, Any]) -> CandidateEvent | None:
-    """Validate and sanitize a single LLM-extracted event dict. Returns None if invalid."""
+def _validate_event(
+    raw: dict[str, Any],
+    default_confirmation_status: str = "awaiting_me",
+) -> CandidateEvent | None:
+    """Validate and sanitize a single LLM-extracted event dict. Returns None if invalid.
+
+    `default_confirmation_status` is used when the LLM omits the field (legacy
+    responses or sources that don't pass thread context). Caller passes the
+    appropriate default based on metadata.is_from_me for gmail sources.
+    """
     try:
         title = str(raw.get("title", "")).strip()[:_TITLE_MAX_CHARS]
         if not title or _UNSAFE_TITLE_RE.search(title):
@@ -314,6 +341,18 @@ def _validate_event(raw: dict[str, Any]) -> CandidateEvent | None:
         if category not in _VALID_CATEGORIES:
             category = "other"
 
+        # Confirmation status — caller-provided default kicks in when the LLM
+        # omits the field (e.g. older models or sources that don't pass thread
+        # context). Default is awaiting_me; gmail outbound flips it to
+        # proposed_by_me via the caller.
+        raw_status = raw.get("confirmation_status")
+        if raw_status is None:
+            confirmation_status = default_confirmation_status
+        else:
+            confirmation_status = str(raw_status).lower().strip()
+        if confirmation_status not in {"confirmed", "awaiting_me", "proposed_by_me"}:
+            confirmation_status = default_confirmation_status
+
         return CandidateEvent(
             title=title,
             start_dt=start_dt,
@@ -331,6 +370,7 @@ def _validate_event(raw: dict[str, Any]) -> CandidateEvent | None:
             category=category,
             date_certainty=date_certainty,
             event_description=event_description,
+            confirmation_status=confirmation_status,
         )
     except (ValueError, TypeError, KeyError):
         return None
@@ -498,9 +538,15 @@ def extract(message: RawMessage, calendar_context: str = "") -> tuple[list[Candi
                 return [], []
 
     # ── Extract events ────────────────────────────────────────────────────────
+    # For gmail outbound mail, default to proposed_by_me when the LLM doesn't
+    # specify; for everything else, awaiting_me.
+    default_status = "awaiting_me"
+    if message.source == "gmail" and message.metadata.get("is_from_me"):
+        default_status = "proposed_by_me"
+
     candidates: list[CandidateEvent] = []
     for raw in raw_data.get("events", []):
-        event = _validate_event(raw)
+        event = _validate_event(raw, default_confirmation_status=default_status)
         if event is None:
             continue
 
@@ -515,6 +561,8 @@ def extract(message: RawMessage, calendar_context: str = "") -> tuple[list[Candi
         event.source = message.source
         event.source_id = message.id
         event.source_url = message.metadata.get("source_url")
+        if message.source == "gmail":
+            event.thread_id = message.metadata.get("thread_id") or None
 
         if message.source == "gmail":
             _merge_gmail_attendees(event, message.metadata)

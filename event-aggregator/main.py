@@ -86,16 +86,19 @@ def _resolve_gcal_id(
     title_hint: str, state: state_module.State
 ) -> tuple[str, str] | None:
     """
-    Fuzzy-search written_events and calendar_snapshot for an event matching title_hint.
-    Returns (gcal_event_id, target_calendar_id) if found, else None.
+    Fuzzy-search written_events, pending_confirmations, and calendar_snapshot
+    for an event matching title_hint. Returns (gcal_event_id, target_calendar_id)
+    if found, else None. Status prefixes ([awaiting], [proposed by you], [?])
+    are stripped before fuzzy comparison so a hint of "Coffee with Sarah"
+    matches a tagged event "[awaiting] Coffee with Sarah".
     """
     if not title_hint:
         return None
-    hint_lower = title_hint.lower()
+    hint_lower = gcal_writer.strip_status_prefix(title_hint).lower()
 
     # 1. Search events this tool created
     for gcal_id, info in state.get_written_events().items():
-        existing = info.get("title", "")
+        existing = gcal_writer.strip_status_prefix(info.get("title", ""))
         if fuzz.ratio(hint_lower, existing.lower()) > _UPDATE_FUZZY_THRESHOLD:
             logger.debug("update lookup: matched written_event %r for hint %r", existing, title_hint)
             return (
@@ -103,9 +106,23 @@ def _resolve_gcal_id(
                 info.get("calendar_id") or config.GCAL_WEEKEND_CALENDAR_ID,
             )
 
-    # 2. Fall back to calendar snapshot (both calendars)
+    # 2. Pending confirmations — events we just wrote with a status tag.
+    # Searching here lets follow-up messages target the existing tagged event.
+    for entry in state.pending_confirmations():
+        existing = entry.get("original_title", "")
+        if fuzz.ratio(hint_lower, existing.lower()) > _UPDATE_FUZZY_THRESHOLD:
+            logger.debug(
+                "update lookup: matched pending_confirmation %r for hint %r",
+                existing, title_hint,
+            )
+            return (
+                entry["gcal_event_id"],
+                entry.get("calendar_id") or config.GCAL_WEEKEND_CALENDAR_ID,
+            )
+
+    # 3. Fall back to calendar snapshot (both calendars)
     for gcal_id, info in state.calendar_snapshot().items():
-        existing = info.get("title", "")
+        existing = gcal_writer.strip_status_prefix(info.get("title", ""))
         if fuzz.ratio(hint_lower, existing.lower()) > _UPDATE_FUZZY_THRESHOLD:
             logger.debug("update lookup: matched snapshot event %r for hint %r", existing, title_hint)
             return (
@@ -120,6 +137,8 @@ def _format_calendar_context(events: list[CalendarEvent]) -> str:
     """
     Build a compact calendar context string for injection into the Ollama prompt.
     Skips all-day events (no time component). Hard cap applied by extractor.
+    Existing GCal titles already carry status prefixes ([awaiting]/[proposed by you])
+    when applicable since we wrote them that way — no extra processing needed.
     """
     lines = []
     for e in events:
@@ -129,6 +148,29 @@ def _format_calendar_context(events: list[CalendarEvent]) -> str:
         end_str = e.end_dt.strftime("%-I:%M%p").lower() if e.end_dt else ""
         time_range = f"{start_str}-{end_str}" if end_str else start_str
         lines.append(f"- {time_range}: {e.title}")
+    return "\n".join(lines)
+
+
+def format_invite_context_block(state: state_module.State) -> str:
+    """Compact text block listing native GCal invites recorded for context.
+
+    The LLM sees these alongside the calendar so it can recognize when an
+    inbound email is discussing an existing invite (avoids creating a
+    duplicate weekend-cal event for something already on primary).
+    """
+    invites = state.invite_context()
+    if not invites:
+        return ""
+    lines = ["Pending GCal invites (already on primary calendar — context only):"]
+    for info in list(invites.values())[:15]:
+        title = info.get("title", "(untitled)")
+        start = info.get("start", "")
+        try:
+            dt = datetime.fromisoformat(start)
+            when = dt.strftime("%b %-d %-I:%M%p").lower()
+        except Exception:
+            when = start
+        lines.append(f"- {when}: {title}")
     return "\n".join(lines)
 
 
@@ -157,6 +199,8 @@ def _candidate_to_proposal_item(candidate: CandidateEvent, num: int, conflicts: 
         "recurrence_hint": candidate.recurrence_hint,
         "suggested_attendees": candidate.suggested_attendees or [],
         "conflicts": conflicts,
+        "confirmation_status": candidate.confirmation_status,
+        "thread_id": candidate.thread_id,
         "kind": "event",  # vs "merge" — see _candidate_to_merge_proposal_item
     }
 
@@ -263,8 +307,208 @@ def _proposal_item_to_candidate(item: dict) -> CandidateEvent:
         recurrence_hint=item.get("recurrence_hint"),
         suggested_attendees=item.get("suggested_attendees") or [],
         category=item.get("category", "other"),
+        # Items that survived the propose flow are confirmed by the user on
+        # approve — default to confirmed when the field is missing (old state).
+        confirmation_status=item.get("confirmation_status", "confirmed"),
+        thread_id=item.get("thread_id"),
     )
 
+
+
+def _handle_gcal_invite_context(
+    candidate: CandidateEvent, state: state_module.State,
+) -> None:
+    """Record a native GCal invite for context only — never written to weekend cal.
+
+    Google already surfaces these on primary calendar via its own invite UI.
+    Recording the title + start lets future thread messages match against the
+    invite when the user confirms or discusses it via email.
+    """
+    invite_id = candidate.source_id or ""
+    if invite_id.startswith("gcal_"):
+        invite_id = invite_id[len("gcal_"):]
+    if not invite_id:
+        return
+    state.record_invite_context(
+        gcal_event_id=invite_id,
+        title=candidate.title,
+        start_iso=candidate.start_dt.isoformat(),
+        attendees=[
+            a.get("email", "")
+            for a in candidate.suggested_attendees
+            if a.get("email")
+        ],
+        source_url=candidate.source_url,
+    )
+
+
+def _try_resolve_pending_confirmation(
+    candidate: CandidateEvent,
+    state: state_module.State,
+    dry_run: bool,
+    mock: bool,
+) -> str | None:
+    """If this candidate updates or cancels a tagged event, apply the lifecycle
+    transition (strip tag on confirmation, delete on cancellation) immediately.
+
+    Returns the action name ("confirmed" / "cancelled" / "rescheduled") on
+    success so the caller can skip further processing, or None if no
+    pending_confirmation matched.
+    """
+    if not candidate.gcal_event_id_to_update:
+        return None
+    pc = state.find_pending_confirmation_by_gcal_id(candidate.gcal_event_id_to_update)
+    if not pc:
+        return None
+    target_cal = (
+        candidate.gcal_calendar_id_to_update
+        or pc.get("calendar_id")
+        or config.GCAL_WEEKEND_CALENDAR_ID
+    )
+
+    if candidate.is_cancellation:
+        if dry_run or mock:
+            logger.info(
+                "%scancel-via-thread: would delete tagged %r (gcal_id=%s)",
+                "DRY RUN " if dry_run else "MOCK ",
+                pc.get("original_title", ""),
+                candidate.gcal_event_id_to_update,
+            )
+            return "cancelled"
+        if gcal_writer.delete_event(target_cal, candidate.gcal_event_id_to_update):
+            state.remove_pending_confirmation_by_gcal_id(candidate.gcal_event_id_to_update)
+            fp = pc.get("fingerprint") or fingerprint(candidate)
+            state.add_rejected_fingerprint(
+                fp,
+                title=pc.get("original_title", candidate.title),
+                source=candidate.source,
+            )
+            record_cancellation(
+                gcal_id=candidate.gcal_event_id_to_update,
+                title=pc.get("original_title", candidate.title),
+                source=candidate.source,
+            )
+            logger.info(
+                "cancel-via-thread: deleted tagged %r (gcal_id=%s)",
+                pc.get("original_title", ""), candidate.gcal_event_id_to_update,
+            )
+            return "cancelled"
+        return None
+
+    # Update path. If LLM marks it confirmed, strip the tag — write the
+    # candidate with confirmation_status=confirmed so _display_title omits
+    # the prefix. If still awaiting/proposed, just patch the time/details.
+    if candidate.confirmation_status == "confirmed":
+        # Force the title to the original (un-tagged) so _display_title produces
+        # a clean summary. The LLM may have echoed the tagged title back —
+        # strip it defensively.
+        candidate.title = gcal_writer.strip_status_prefix(candidate.title)
+
+    if dry_run or mock:
+        action = "confirmed" if candidate.confirmation_status == "confirmed" else "rescheduled"
+        logger.info(
+            "%s%s-via-thread: would update %r (gcal_id=%s)",
+            "DRY RUN " if dry_run else "MOCK ", action,
+            pc.get("original_title", ""), candidate.gcal_event_id_to_update,
+        )
+        return action
+
+    written, _conflicts = gcal_writer.update_event(
+        target_cal, candidate.gcal_event_id_to_update, candidate, dry_run=False,
+    )
+    if not written:
+        return None
+
+    if candidate.confirmation_status == "confirmed":
+        state.remove_pending_confirmation_by_gcal_id(candidate.gcal_event_id_to_update)
+        log_event(written, action="confirmed_via_thread")
+        logger.info(
+            "confirmed-via-thread: stripped tag from %r (gcal_id=%s)",
+            candidate.title, candidate.gcal_event_id_to_update,
+        )
+        # Update written_events so future lookups see the clean title.
+        state.add_written_event(
+            gcal_id=written.gcal_event_id,
+            title=candidate.title,
+            start_iso=candidate.start_dt.isoformat(),
+            fingerprint=written.fingerprint,
+            is_tentative=False,
+            calendar_id=target_cal,
+        )
+        return "confirmed"
+    # Still tentative: keep pending_confirmation but refresh start_dt.
+    pc["start_dt"] = candidate.start_dt.isoformat()
+    log_event(written, action="updated")
+    logger.info(
+        "rescheduled-via-thread: %r → %s (gcal_id=%s, status=%s)",
+        candidate.title, candidate.start_dt.isoformat(),
+        candidate.gcal_event_id_to_update, candidate.confirmation_status,
+    )
+    return "rescheduled"
+
+
+def _write_tagged_event(
+    candidate: CandidateEvent,
+    state: state_module.State,
+    snapshot: dict,
+    dry_run: bool,
+    mock: bool,
+) -> bool:
+    """Write a status-tagged event directly to weekend calendar and register
+    it in pending_confirmations. Returns True on success."""
+    fp = fingerprint(candidate)
+    if dry_run or mock:
+        logger.info(
+            "%stagged-write: %r [%s] on %s (source=%s)",
+            "DRY RUN " if dry_run else "MOCK ",
+            candidate.title,
+            candidate.confirmation_status,
+            candidate.start_dt.date(),
+            candidate.source,
+        )
+        state.add_fingerprint(fp)
+        return True
+
+    outcome = gcal_writer.write_event(candidate, dry_run=False, snapshot=snapshot)
+    if not isinstance(outcome, gcal_writer.Inserted):
+        # Merged / MergeRequired / Skipped — fall through silently; cross-cal
+        # match handler in the caller already takes those paths.
+        return False
+
+    written = outcome.written
+    state.add_fingerprint(fp)
+    state.add_written_event(
+        gcal_id=written.gcal_event_id,
+        title=candidate.title,
+        start_iso=candidate.start_dt.isoformat(),
+        fingerprint=written.fingerprint,
+        is_tentative=True,  # tagged events are always tentative
+        calendar_id=config.GCAL_WEEKEND_CALENDAR_ID,
+    )
+    log_event(written, action="created_tagged")
+
+    tag = (
+        "[awaiting]" if candidate.confirmation_status == "awaiting_me"
+        else "[proposed by you]"
+    )
+    num = state.next_proposal_num()
+    state.add_pending_confirmation(
+        gcal_event_id=written.gcal_event_id,
+        calendar_id=config.GCAL_WEEKEND_CALENDAR_ID,
+        original_title=candidate.title,
+        current_tag=tag,
+        fingerprint=written.fingerprint,
+        start_iso=candidate.start_dt.isoformat(),
+        num=num,
+        thread_id=candidate.thread_id,
+        source_url=candidate.source_url,
+        source=candidate.source,
+    )
+    logger.info(
+        "tagged-write: %r %s on %s (gcal_id=%s, num=%d)",
+        candidate.title, tag, candidate.start_dt.date(), written.gcal_event_id, num,
+    )
+    return True
 
 
 def _propose_events(
@@ -323,9 +567,33 @@ def _propose_events(
             counts["proposed"] += 1
             continue
 
+        # GCal native invites are visible on primary cal already — never write
+        # them to weekend cal, just record context so future thread messages
+        # can match them. Out before any past-event / dedup checks since invites
+        # for past events are still useful as context.
+        if candidate.source == "gcal":
+            _handle_gcal_invite_context(candidate, state)
+            counts["skipped_duplicate"] += 1  # bookkeeping; not a proposal
+            continue
+
         # Skip past events
         if candidate.start_dt < now and not candidate.is_cancellation:
             logger.info("Skipping past event: %r on %s", candidate.title, candidate.start_dt.date())
+            continue
+
+        # Lifecycle transitions on a tagged event we already wrote: confirmation
+        # via thread reply (LLM returns is_update + confirmed) or cancellation.
+        # Run before fingerprint dedup so a follow-up message can transition
+        # state even when the underlying fingerprint matches.
+        action = _try_resolve_pending_confirmation(candidate, state, dry_run, mock)
+        if action == "confirmed":
+            counts["proposed"] += 0  # transition, not a new item
+            continue
+        if action == "cancelled":
+            counts["proposed"] += 0
+            continue
+        if action == "rescheduled":
+            counts["proposed"] += 0
             continue
 
         fp = fingerprint(candidate)
@@ -388,6 +656,19 @@ def _propose_events(
             batch_items.append(merge_item)
             state.add_fingerprint(fp)
             counts["proposed"] += 1
+            continue
+
+        # Gmail with a non-confirmed status: write tagged immediately to weekend
+        # cal and register pending_confirmation. Slack approve/reject (Phase 5)
+        # and direct GCal edits (Phase 6) drive the lifecycle from here.
+        if (
+            candidate.source == "gmail"
+            and candidate.confirmation_status != "confirmed"
+            and not candidate.is_update
+            and not candidate.is_cancellation
+        ):
+            if _write_tagged_event(candidate, state, snapshot, dry_run, mock):
+                counts["proposed"] += 1
             continue
 
         # Get conflict info upfront so it shows in the proposal
@@ -683,6 +964,12 @@ def main() -> int:
                 gcal_service, weeks=config.CALENDAR_CONTEXT_WEEKS
             )
             calendar_context = _format_calendar_context(upcoming)
+            invite_block = format_invite_context_block(state)
+            if invite_block:
+                calendar_context = (
+                    calendar_context + "\n\n" + invite_block
+                    if calendar_context else invite_block
+                )
             logger.debug("Calendar context: %d upcoming events (%d chars)", len(upcoming), len(calendar_context))
         except Exception as exc:
             logger.debug("Could not fetch calendar context: %s", exc)
@@ -782,11 +1069,19 @@ def main() -> int:
             proposed, skipped_recurring, skipped_duplicate,
             " [DRY RUN]" if args.dry_run else "",
         )
-        # Post/update the live dashboard whenever there's something to show
+        # Post/update the live dashboard whenever there's something to show.
+        # Pending confirmations (tagged events on calendar) also render here,
+        # so render even when there are no proposal items but we have tagged
+        # entries waiting for the user to confirm/reject.
         if not args.mock and not args.dry_run:
             all_dashboard_items = state.get_all_proposal_items_for_dashboard(today_str)
             dashboard_exists = state.get_proposal_dashboard_ts(today_str) is not None
-            if all_dashboard_items or (dashboard_exists and expired_items):
+            has_confirmations = bool(state.pending_confirmations())
+            if (
+                all_dashboard_items
+                or (dashboard_exists and expired_items)
+                or has_confirmations
+            ):
                 slack_notifier.post_or_update_dashboard(all_dashboard_items, state)
     else:
         auto_counts = _auto_create_events(
@@ -985,6 +1280,133 @@ def _send_digests(state: state_module.State, dry_run: bool = False) -> None:
     state.update_calendar_snapshot(current_events)
 
 
+def _has_status_tag(title: str) -> bool:
+    """True if the title still carries one of the lifecycle status prefixes.
+    Distinct from the legacy `[?]` low-confidence prefix on purpose."""
+    return title.startswith("[awaiting] ") or title.startswith("[proposed by you] ")
+
+
+def _process_pending_confirmations(state: state_module.State) -> dict:
+    """Reconcile pending_confirmations with the live GCal calendar.
+
+    For each entry:
+      - 404 / cancelled → user deleted in GCal → silent reject (delete entry,
+        record fingerprint in rejected_fingerprints).
+      - title no longer carries a status prefix → user stripped it in GCal →
+        silent confirm (delete entry, refresh written_events with clean title).
+      - title still tagged → no-op.
+    Then auto-expire past-start entries (delete from GCal too).
+    Returns counts dict for logging.
+    """
+    counts = {"silent_confirmed": 0, "silent_rejected": 0, "expired": 0}
+
+    # Auto-expire entries past start_dt or older than 30d. Removed entries
+    # need to be deleted from GCal too.
+    expired = state.expire_pending_confirmations()
+    for entry in expired:
+        gcal_id = entry.get("gcal_event_id")
+        cal_id = entry.get("calendar_id") or config.GCAL_WEEKEND_CALENDAR_ID
+        if gcal_id and gcal_writer.delete_event(cal_id, gcal_id):
+            fp = entry.get("fingerprint")
+            if fp:
+                state.add_rejected_fingerprint(
+                    fp,
+                    title=entry.get("original_title", ""),
+                    source=entry.get("source", ""),
+                )
+        counts["expired"] += 1
+
+    confirmations = list(state.pending_confirmations())
+    if not confirmations:
+        return counts
+
+    try:
+        creds = google_auth.get_credentials(
+            scopes=["https://www.googleapis.com/auth/calendar.events"],
+            token_path=config.GCAL_TOKEN_JSON,
+            credentials_path=config.GMAIL_CREDENTIALS_JSON,
+            keyring_key="gcal_token",
+        )
+        service = build("calendar", "v3", credentials=creds)
+    except Exception as exc:
+        logger.debug(
+            "_process_pending_confirmations: GCal unavailable, skipping reconcile: %s",
+            exc,
+        )
+        return counts
+
+    from googleapiclient.errors import HttpError
+
+    for entry in confirmations:
+        gcal_id = entry.get("gcal_event_id")
+        cal_id = entry.get("calendar_id") or config.GCAL_WEEKEND_CALENDAR_ID
+        if not gcal_id:
+            continue
+
+        try:
+            current = service.events().get(
+                calendarId=cal_id, eventId=gcal_id,
+            ).execute()
+        except HttpError as exc:
+            status_code = getattr(exc, "status_code", None) or getattr(
+                getattr(exc, "resp", None), "status", None
+            )
+            if status_code in (404, 410):
+                state.remove_pending_confirmation_by_gcal_id(gcal_id)
+                state.remove_written_event(gcal_id)
+                fp = entry.get("fingerprint")
+                if fp:
+                    state.add_rejected_fingerprint(
+                        fp,
+                        title=entry.get("original_title", ""),
+                        source=entry.get("source", ""),
+                    )
+                logger.info(
+                    "gcal-direct: user deleted %r (gcal_id=%s) — silent reject",
+                    entry.get("original_title", ""), gcal_id,
+                )
+                counts["silent_rejected"] += 1
+            else:
+                logger.debug("gcal reconcile %s: HttpError %s", gcal_id, status_code)
+            continue
+        except Exception as exc:
+            logger.debug("gcal reconcile %s: %s", gcal_id, exc)
+            continue
+
+        if current.get("status") == "cancelled":
+            state.remove_pending_confirmation_by_gcal_id(gcal_id)
+            state.remove_written_event(gcal_id)
+            fp = entry.get("fingerprint")
+            if fp:
+                state.add_rejected_fingerprint(
+                    fp,
+                    title=entry.get("original_title", ""),
+                    source=entry.get("source", ""),
+                )
+            counts["silent_rejected"] += 1
+            continue
+
+        current_title = current.get("summary", "")
+        if not _has_status_tag(current_title):
+            # User stripped the tag in GCal — silent confirm.
+            state.remove_pending_confirmation_by_gcal_id(gcal_id)
+            state.add_written_event(
+                gcal_id=gcal_id,
+                title=current_title,
+                start_iso=entry.get("start_dt", ""),
+                fingerprint=entry.get("fingerprint", ""),
+                is_tentative=False,
+                calendar_id=cal_id,
+            )
+            logger.info(
+                "gcal-direct: user stripped tag from %r (gcal_id=%s) — silent confirm",
+                current_title, gcal_id,
+            )
+            counts["silent_confirmed"] += 1
+
+    return counts
+
+
 def _diff_calendar(
     current: list,
     snapshot: dict,
@@ -1124,6 +1546,17 @@ def fetch_only() -> int:
         if status.code.value in ADVANCE_ON_STATUS:
             for sib in sibling_sources:
                 state.set_last_run(sib, run_start)
+
+    # Reconcile pending_confirmations with GCal (detect direct edits + auto-expire).
+    confirm_counts = _process_pending_confirmations(state)
+    if any(confirm_counts.values()):
+        logger.info(
+            "fetch-only: pending_confirmations reconciled — %d silent-confirmed, "
+            "%d silent-rejected, %d expired",
+            confirm_counts["silent_confirmed"],
+            confirm_counts["silent_rejected"],
+            confirm_counts["expired"],
+        )
 
     state.prune()
     state_module.save(state)

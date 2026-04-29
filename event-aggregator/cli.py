@@ -216,15 +216,14 @@ def _cmd_approve_or_reject(nums_raw: str, approve: bool) -> int:
 
     state = state_module.load()
     nums = _parse_nums(nums_raw)
-    pending = _pending_items(state)
+    actionable = _all_actionable_nums(state)
 
-    if not pending:
-        print("No pending proposals.")
+    if not actionable:
+        print("No pending proposals or confirmations.")
         return 0
 
     if not nums:
-        # All pending items
-        targets = [item["num"] for item in pending]
+        targets = sorted(actionable)
     else:
         targets = nums
 
@@ -235,7 +234,13 @@ def _cmd_approve_or_reject(nums_raw: str, approve: bool) -> int:
 
 def _apply_approve(state, nums: list[int]) -> tuple[int, list[str]]:
     """Mutate state by approving each num. Returns (approved_count, errors).
-    Saves state. Does NOT refresh the dashboard or print."""
+    Saves state. Does NOT refresh the dashboard or print.
+
+    A num may refer to either a pending_proposal (legacy flow — write on
+    approve) or a pending_confirmation (tagged event already on calendar —
+    strip the tag on approve). Pending_confirmations are checked first since
+    their flow is destructive of state.
+    """
     from datetime import timezone as tz
     from googleapiclient.discovery import build
     import config
@@ -254,6 +259,38 @@ def _apply_approve(state, nums: list[int]) -> tuple[int, list[str]]:
     snapshot = state.calendar_snapshot()
 
     for num in nums:
+        # Pending confirmation? Strip the tag and remove the entry.
+        pc = state.find_pending_confirmation_by_num(num)
+        if pc is not None:
+            target_cal = pc.get("calendar_id") or config.GCAL_WEEKEND_CALENDAR_ID
+            gcal_id = pc.get("gcal_event_id")
+            if not gcal_id:
+                errors.append(f"#{num}: pending_confirmation missing gcal_event_id")
+                continue
+            if gcal_writer.confirm_event(target_cal, gcal_id, dry_run=False):
+                state.remove_pending_confirmation_by_num(num)
+                # Refresh written_events with the un-tagged title so future
+                # lookups don't fuzzy-match the bracketed prefix.
+                state.add_written_event(
+                    gcal_id=gcal_id,
+                    title=pc.get("original_title", ""),
+                    start_iso=pc.get("start_dt", ""),
+                    fingerprint=pc.get("fingerprint", ""),
+                    is_tentative=False,
+                    calendar_id=target_cal,
+                )
+                record_decision("approved", {
+                    "kind": "pending_confirmation",
+                    "title": pc.get("original_title", ""),
+                    "source": pc.get("source", ""),
+                    "fingerprint": pc.get("fingerprint", ""),
+                    "num": num,
+                })
+                approved += 1
+            else:
+                errors.append(f"#{num}: confirm patch failed")
+            continue
+
         item = state.approve_proposal(num)
         if item is None:
             errors.append(f"#{num}: not pending")
@@ -386,14 +423,57 @@ def _do_approve(state, nums: list[int]) -> int:
 
 def _apply_reject(state, nums: list[int]) -> tuple[int, list[str]]:
     """Mutate state by rejecting each num. Returns (rejected_count, errors).
-    Saves state. Does NOT refresh the dashboard or print."""
-    from logs.event_log import record_decision
+    Saves state. Does NOT refresh the dashboard or print.
+
+    A num may refer to either a pending_proposal (legacy — never written, just
+    add fingerprint to rejected) or a pending_confirmation (tagged event on
+    calendar — delete it).
+    """
+    import config
+    from logs.event_log import record_cancellation, record_decision
     import state as state_module
+    from writers import google_calendar as gcal_writer
 
     rejected = 0
     errors: list[str] = []
 
     for num in nums:
+        # Pending confirmation? Delete the tagged event from GCal.
+        pc = state.find_pending_confirmation_by_num(num)
+        if pc is not None:
+            target_cal = pc.get("calendar_id") or config.GCAL_WEEKEND_CALENDAR_ID
+            gcal_id = pc.get("gcal_event_id")
+            if not gcal_id:
+                errors.append(f"#{num}: pending_confirmation missing gcal_event_id")
+                continue
+            if gcal_writer.delete_event(target_cal, gcal_id, dry_run=False):
+                state.remove_pending_confirmation_by_num(num)
+                state.remove_written_event(gcal_id)
+                fp = pc.get("fingerprint", "")
+                if fp:
+                    state.remove_proposal_fingerprint(fp)
+                    state.add_rejected_fingerprint(
+                        fp,
+                        title=pc.get("original_title", ""),
+                        source=pc.get("source", ""),
+                    )
+                record_cancellation(
+                    gcal_id=gcal_id,
+                    title=pc.get("original_title", ""),
+                    source=pc.get("source", ""),
+                )
+                record_decision("rejected", {
+                    "kind": "pending_confirmation",
+                    "title": pc.get("original_title", ""),
+                    "source": pc.get("source", ""),
+                    "fingerprint": fp,
+                    "num": num,
+                })
+                rejected += 1
+            else:
+                errors.append(f"#{num}: delete failed")
+            continue
+
         item = state.reject_proposal(num)
         if item is None:
             errors.append(f"#{num}: not pending")
@@ -450,7 +530,7 @@ def _cmd_decide(approve_raw: str, reject_raw: str) -> int:
     import state as state_module
 
     state = state_module.load()
-    pending_nums = sorted({item["num"] for item in _pending_items(state)})
+    pending_nums = sorted(_all_actionable_nums(state))
 
     def _resolve(raw: str) -> list[int]:
         if not raw:
@@ -1005,6 +1085,14 @@ def _pending_items(state) -> list[dict]:
             if item.get("status") == "pending":
                 items.append(item)
     return items
+
+
+def _all_actionable_nums(state) -> set[int]:
+    """All nums that approve/reject can target — proposals + tagged events
+    on calendar awaiting confirmation."""
+    nums = {item["num"] for item in _pending_items(state)}
+    nums |= {pc["num"] for pc in state.pending_confirmations() if pc.get("num")}
+    return nums
 
 
 def _parse_nums(raw: str) -> list[int]:

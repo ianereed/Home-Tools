@@ -156,6 +156,15 @@ def _run_text_job(state, job: dict) -> None:
             start = e.start_dt.strftime("%b %-d %-I:%M%p").lower()
             lines.append(f"- {start}: {e.title}")
         calendar_context = "\n".join(lines)
+        # Append invite_context block so the LLM knows about pending native
+        # GCal invites (already on primary, never written to weekend).
+        import main as _main_mod
+        invite_block = _main_mod.format_invite_context_block(state)
+        if invite_block:
+            calendar_context = (
+                calendar_context + "\n\n" + invite_block
+                if calendar_context else invite_block
+            )
     except concurrent.futures.TimeoutError:
         logger.warning("worker: calendar context fetch timed out (15s) — proceeding without context")
     except Exception as exc:

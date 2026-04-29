@@ -129,10 +129,55 @@ def _build_event_body(candidate: CandidateEvent, description: str) -> dict:
     return body
 
 
+_STATUS_PREFIX_AWAITING = "[awaiting]"
+_STATUS_PREFIX_PROPOSED = "[proposed by you]"
+_CONFIDENCE_PREFIX_LOW = "[?]"
+
+# All known leading brackets we may have to strip when comparing or rewriting.
+_KNOWN_PREFIXES = (
+    _STATUS_PREFIX_AWAITING + " ",
+    _STATUS_PREFIX_PROPOSED + " ",
+    _CONFIDENCE_PREFIX_LOW + " ",
+)
+
+
+def _status_prefix(confirmation_status: str) -> str:
+    """Bracketed prefix (with trailing space) for non-confirmed events, or ''."""
+    if confirmation_status == "awaiting_me":
+        return _STATUS_PREFIX_AWAITING + " "
+    if confirmation_status == "proposed_by_me":
+        return _STATUS_PREFIX_PROPOSED + " "
+    return ""
+
+
+def strip_status_prefix(title: str) -> str:
+    """Strip any leading status / confidence bracket. Idempotent."""
+    if not title:
+        return title
+    changed = True
+    out = title
+    while changed:
+        changed = False
+        for prefix in _KNOWN_PREFIXES:
+            if out.startswith(prefix):
+                out = out[len(prefix):]
+                changed = True
+                break
+    return out
+
+
 def _display_title(candidate: CandidateEvent) -> str:
-    """Returns title with [?] prefix for medium-confidence events."""
+    """Compose the final GCal summary with at most one leading prefix.
+
+    Status (awaiting / proposed_by_me) takes precedence over the legacy
+    confidence-band prefix — a tagged event is implicitly tentative. Only
+    confirmed-but-medium-confidence keeps `[?]`.
+    """
+    status_pref = _status_prefix(candidate.confirmation_status)
+    if status_pref:
+        return f"{status_pref}{candidate.title}"
     if candidate.confidence_band == "medium":
-        return f"[?] {candidate.title}"
+        return f"{_CONFIDENCE_PREFIX_LOW} {candidate.title}"
     return candidate.title
 
 
@@ -256,7 +301,7 @@ def _find_cross_calendar_match(
 ) -> tuple[str, dict] | None:
     """Scan the snapshot for a same-date fuzzy match. Returns (gcal_id, info) or None."""
     cand_date = candidate.start_dt.date()
-    cand_lower = candidate.title.lower()
+    cand_lower = strip_status_prefix(candidate.title).lower()
     for gcal_id, info in snapshot.items():
         existing_title = info.get("title", "")
         existing_start = info.get("start", "")
@@ -268,7 +313,7 @@ def _find_cross_calendar_match(
                 continue
         except (ValueError, TypeError):
             continue
-        if fuzz.ratio(cand_lower, existing_title.lower()) > _CROSS_CALENDAR_THRESHOLD:
+        if fuzz.ratio(cand_lower, strip_status_prefix(existing_title).lower()) > _CROSS_CALENDAR_THRESHOLD:
             return gcal_id, info
     return None
 
@@ -374,8 +419,8 @@ def write_event(
         )
         for item in existing.get("items", []):
             existing_title = item.get("summary", "")
-            compare_title = candidate.title.lstrip("[?] ") if candidate.title.startswith("[?]") else candidate.title
-            if fuzz.ratio(compare_title.lower(), existing_title.lstrip("[?] ").lower()) > _FUZZY_DEDUP_THRESHOLD:
+            compare_title = strip_status_prefix(candidate.title)
+            if fuzz.ratio(compare_title.lower(), strip_status_prefix(existing_title).lower()) > _FUZZY_DEDUP_THRESHOLD:
                 existing_start_str = item.get("start", {}).get("dateTime", "")
                 if existing_start_str:
                     try:
@@ -481,6 +526,53 @@ def update_event(
     except Exception as exc:
         logger.warning("gcal update error for %s on %s: %s", gcal_event_id, target_calendar_id, exc)
         return None, []
+
+
+def confirm_event(
+    target_calendar_id: str,
+    gcal_event_id: str,
+    dry_run: bool = False,
+) -> bool:
+    """Strip the leading status prefix from an event's summary.
+
+    Used when a tagged calendar event is confirmed via Slack approve, GCal
+    direct edit, or thread-confirmation reply — preserves all other fields,
+    only patches the title. Idempotent.
+    """
+    if dry_run:
+        logger.info(
+            "DRY RUN — would strip status prefix from gcal_id=%s on %s",
+            gcal_event_id, target_calendar_id,
+        )
+        return True
+    try:
+        service = _get_service()
+        existing = service.events().get(
+            calendarId=target_calendar_id, eventId=gcal_event_id,
+        ).execute()
+        current_title = existing.get("summary", "")
+        stripped = strip_status_prefix(current_title)
+        if stripped == current_title:
+            return True  # nothing to strip
+        service.events().patch(
+            calendarId=target_calendar_id,
+            eventId=gcal_event_id,
+            body={"summary": stripped},
+        ).execute()
+        logger.info(
+            "gcal confirm: stripped tag on %s (%r → %r)",
+            gcal_event_id, current_title, stripped,
+        )
+        return True
+    except FileNotFoundError as exc:
+        logger.warning("gcal writer: credentials not set up — %s", exc)
+        return False
+    except Exception as exc:
+        logger.warning(
+            "gcal confirm error for %s on %s: %s",
+            gcal_event_id, target_calendar_id, exc,
+        )
+        return False
 
 
 def delete_event(

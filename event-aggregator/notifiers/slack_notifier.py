@@ -443,6 +443,7 @@ def build_dashboard_blocks(
     worker_status: dict | None = None,
     swap_decisions: dict | None = None,
     connector_health: dict | None = None,
+    pending_confirmations: list[dict] | None = None,
 ) -> list[dict]:
     """
     Build Slack Block Kit blocks for the live proposal dashboard.
@@ -470,12 +471,40 @@ def build_dashboard_blocks(
 
     pending = [i for i in items if i["status"] == "pending"]
     actioned = [i for i in items if i["status"] in ("approved", "rejected", "expired")]
+    confirmations = pending_confirmations or []
 
     # ── Swap decisions (rendered above proposals — they're time-sensitive) ──
     if swap_decisions:
         blocks.extend(_build_swap_decision_blocks(swap_decisions))
 
-    if not pending and not actioned and not (swap_decisions and any(
+    # ── Tagged-on-calendar items awaiting confirmation ───────────────────────
+    # Rendered between swap decisions and proposal decisions because the
+    # event is already on the calendar — these are mostly informational and
+    # require less attention than fresh proposals (you can also confirm by
+    # editing the title in GCal directly).
+    if confirmations:
+        blocks.append({
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": ":hourglass: *On calendar — awaiting confirmation*",
+            },
+        })
+        sorted_conf = sorted(confirmations, key=lambda x: x.get("num", 0))
+        MAX_CONFIRMATIONS_DISPLAY = 15
+        for entry in sorted_conf[:MAX_CONFIRMATIONS_DISPLAY]:
+            blocks.extend(_build_pending_confirmation_blocks(entry))
+        if len(sorted_conf) > MAX_CONFIRMATIONS_DISPLAY:
+            blocks.append({
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": f"_…and {len(sorted_conf) - MAX_CONFIRMATIONS_DISPLAY} more on calendar._",
+                },
+            })
+            blocks.append({"type": "divider"})
+
+    if not pending and not actioned and not confirmations and not (swap_decisions and any(
         d.get("decision") == "pending" for d in swap_decisions.values()
     )):
         blocks.append({
@@ -572,7 +601,10 @@ def build_dashboard_blocks(
         now_local = datetime.now()
     updated_str = now_local.strftime("%-I:%M%p").lower()
 
-    footer_parts = [f"{len(pending)} pending", f"last run {updated_str}"]
+    footer_parts = [f"{len(pending)} pending"]
+    if confirmations:
+        footer_parts.append(f"{len(confirmations)} awaiting")
+    footer_parts.append(f"last run {updated_str}")
     if worker_status:
         text_q = worker_status.get("text_queue", 0)
         ocr_q = worker_status.get("ocr_queue", 0)
@@ -763,6 +795,40 @@ def _build_actioned_block(item: dict) -> dict:
         ]}
 
 
+def _build_pending_confirmation_blocks(entry: dict) -> list[dict]:
+    """Block Kit blocks for a tagged-on-calendar event awaiting confirmation."""
+    num = entry.get("num", 0)
+    title = entry.get("original_title", "(untitled)")
+    tag = entry.get("current_tag", "[awaiting]")
+    source = entry.get("source", "")
+    source_url = entry.get("source_url")
+
+    start_str = ""
+    try:
+        start_dt = datetime.fromisoformat(entry["start_dt"])
+        start_str = start_dt.strftime("%a %b %-d · %-I:%M%p").lower()
+    except Exception:
+        pass
+
+    source_display = (
+        f"<{source_url}|{source}>" if source_url and source else source or ""
+    )
+    when_part = f"\n{start_str}" if start_str else ""
+    src_part = f" · from {source_display}" if source_display else ""
+    main_text = f":calendar: {tag} *{title}*{when_part}{src_part}"
+
+    return [
+        {"type": "section", "text": {"type": "mrkdwn", "text": main_text}},
+        {
+            "type": "context",
+            "elements": [
+                {"type": "mrkdwn", "text": f"Reply `approve {num}` to clear the tag · `reject {num}` to delete"},
+            ],
+        },
+        {"type": "divider"},
+    ]
+
+
 def post_or_update_dashboard(
     items: list[dict],
     state: "state_module.State",
@@ -789,9 +855,14 @@ def post_or_update_dashboard(
         recurring_notices=state.recurring_notices(),
         worker_status=state.worker_status(),
         swap_decisions=state._data.get("swap_decisions") or {},
+        pending_confirmations=state.pending_confirmations(),
     )
     pending_count = sum(1 for i in items if i["status"] == "pending")
-    fallback_text = f"Event proposals: {pending_count} pending"
+    confirmations_count = len(state.pending_confirmations())
+    fallback_text = (
+        f"Event proposals: {pending_count} pending"
+        + (f" · {confirmations_count} awaiting confirmation" if confirmations_count else "")
+    )
 
     dashboard_ts = state.get_proposal_dashboard_ts(today)
     dashboard_channel = state.get_proposal_dashboard_channel(today) or config.SLACK_NOTIFY_CHANNEL

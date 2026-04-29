@@ -61,6 +61,18 @@ class CandidateEvent:
     date_certainty: str = "specific"
     event_description: str | None = None  # required when date_certainty == "unknown"
 
+    # Confirmation status — "confirmed" (both parties acknowledged), "awaiting_me"
+    # (someone proposed; user hasn't acted), "proposed_by_me" (user proposed;
+    # other party hasn't replied). Drives the bracketed prefix on calendar
+    # titles and the pending_confirmations lifecycle. Inbound default is
+    # awaiting_me; outbound default is proposed_by_me; LLM upgrades to
+    # confirmed when a thread digest shows mutual agreement.
+    confirmation_status: str = "awaiting_me"
+
+    # Gmail thread id, copied from RawMessage.metadata so cross-message
+    # confirmation can match by thread.
+    thread_id: str | None = None
+
     def __post_init__(self) -> None:
         # Clamp confidence to valid range
         self.confidence = max(0.0, min(1.0, self.confidence))

@@ -515,6 +515,122 @@ class State:
                     result.append(item)
         return sorted(result, key=lambda x: x.get("num", 0))
 
+    # ── pending confirmations (tagged-on-calendar awaiting strip/delete) ─────
+
+    def pending_confirmations(self) -> list[dict]:
+        """Return all entries currently tagged on the calendar awaiting confirmation."""
+        return self._data.get("pending_confirmations", [])
+
+    def add_pending_confirmation(
+        self,
+        gcal_event_id: str,
+        calendar_id: str,
+        original_title: str,
+        current_tag: str,
+        fingerprint: str,
+        start_iso: str,
+        num: int,
+        thread_id: str | None = None,
+        source_url: str | None = None,
+        source: str = "",
+    ) -> None:
+        bucket = self._data.setdefault("pending_confirmations", [])
+        bucket.append({
+            "gcal_event_id": gcal_event_id,
+            "calendar_id": calendar_id,
+            "original_title": original_title,
+            "current_tag": current_tag,
+            "fingerprint": fingerprint,
+            "start_dt": start_iso,
+            "thread_id": thread_id,
+            "source_url": source_url,
+            "source": source,
+            "created_at": _utcnow().isoformat(),
+            "num": num,
+        })
+
+    def remove_pending_confirmation_by_gcal_id(self, gcal_event_id: str) -> dict | None:
+        bucket = self._data.get("pending_confirmations", [])
+        for i, entry in enumerate(bucket):
+            if entry.get("gcal_event_id") == gcal_event_id:
+                return bucket.pop(i)
+        return None
+
+    def remove_pending_confirmation_by_num(self, num: int) -> dict | None:
+        bucket = self._data.get("pending_confirmations", [])
+        for i, entry in enumerate(bucket):
+            if entry.get("num") == num:
+                return bucket.pop(i)
+        return None
+
+    def find_pending_confirmation_by_gcal_id(self, gcal_event_id: str) -> dict | None:
+        for entry in self._data.get("pending_confirmations", []):
+            if entry.get("gcal_event_id") == gcal_event_id:
+                return entry
+        return None
+
+    def find_pending_confirmation_by_thread_id(self, thread_id: str) -> dict | None:
+        if not thread_id:
+            return None
+        for entry in self._data.get("pending_confirmations", []):
+            if entry.get("thread_id") == thread_id:
+                return entry
+        return None
+
+    def find_pending_confirmation_by_num(self, num: int) -> dict | None:
+        for entry in self._data.get("pending_confirmations", []):
+            if entry.get("num") == num:
+                return entry
+        return None
+
+    def expire_pending_confirmations(self) -> list[dict]:
+        """Remove entries whose start_dt has passed OR whose created_at is
+        older than 30 days. Returns the removed entries so the caller can
+        delete them from GCal and add their fingerprints to rejected.
+        """
+        now = _utcnow()
+        cutoff_30d = now - timedelta(days=30)
+        bucket = self._data.get("pending_confirmations", [])
+        kept = []
+        expired = []
+        for entry in bucket:
+            start_dt = _parse_dt(entry.get("start_dt"))
+            created_at = _parse_dt(entry.get("created_at"))
+            past_start = start_dt is not None and start_dt < now
+            stale = created_at is not None and created_at < cutoff_30d
+            if past_start or stale:
+                expired.append(entry)
+            else:
+                kept.append(entry)
+        self._data["pending_confirmations"] = kept
+        return expired
+
+    # ── invite context (native GCal invites — context-only, not written) ─────
+
+    def record_invite_context(
+        self,
+        gcal_event_id: str,
+        title: str,
+        start_iso: str,
+        attendees: list | None = None,
+        source_url: str | None = None,
+    ) -> None:
+        bucket = self._data.setdefault("invite_context", {})
+        bucket[gcal_event_id] = {
+            "title": title,
+            "start": start_iso,
+            "attendees": attendees or [],
+            "source_url": source_url,
+            "recorded_at": _utcnow().isoformat(),
+        }
+
+    def invite_context(self) -> dict[str, dict]:
+        return self._data.get("invite_context", {})
+
+    def remove_invite_context(self, gcal_event_id: str) -> dict | None:
+        bucket = self._data.get("invite_context", {})
+        return bucket.pop(gcal_event_id, None)
+
     # ── processed Slack files (image/PDF intake) ────────────────────────────────
 
     def is_file_processed(self, file_id: str) -> bool:
@@ -647,6 +763,30 @@ class State:
             k: v for k, v in self._data.get("proposal_dashboard", {}).items()
             if k >= cutoff_dash
         }
+
+        # Prune invite_context: drop entries past start_dt or older than 30 d.
+        invites = self._data.get("invite_context", {})
+        cutoff_invite_recorded = (_utcnow() - timedelta(days=30)).isoformat()
+        kept_invites: dict[str, dict] = {}
+        for gcal_id, info in invites.items():
+            recorded = info.get("recorded_at", "")
+            start = _parse_dt(info.get("start"))
+            if start is not None and start < _utcnow():
+                continue
+            if recorded < cutoff_invite_recorded:
+                continue
+            kept_invites[gcal_id] = info
+        self._data["invite_context"] = kept_invites
+
+        # pending_confirmations is pruned actively via expire_pending_confirmations()
+        # (which the worker calls so it can delete from GCal). Belt-and-suspenders
+        # safety net here: drop entries older than 90 d that somehow lingered.
+        cutoff_90d = (_utcnow() - timedelta(days=90)).isoformat()
+        confirmations = self._data.get("pending_confirmations", [])
+        self._data["pending_confirmations"] = [
+            e for e in confirmations
+            if e.get("created_at", "") >= cutoff_90d
+        ]
 
         # Prune pending_proposals: remove batches where all items are non-pending
         # AND the batch is older than 72 hours (3x the default expiry window).
