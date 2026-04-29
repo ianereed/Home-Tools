@@ -355,9 +355,19 @@ def _try_resolve_pending_confirmation(
     success so the caller can skip further processing, or None if no
     pending_confirmation matched.
     """
-    if not candidate.gcal_event_id_to_update:
-        return None
-    pc = state.find_pending_confirmation_by_gcal_id(candidate.gcal_event_id_to_update)
+    pc: dict | None = None
+    if candidate.gcal_event_id_to_update:
+        pc = state.find_pending_confirmation_by_gcal_id(candidate.gcal_event_id_to_update)
+    # Fallback: thread_id match when LLM emits confirmed without is_update.
+    # The reply arrives with the same threadId as the original email, so we
+    # can correlate it back to the pending_confirmation even if gcal_id wasn't
+    # resolved (e.g. LLM said confirmed but didn't set is_update=true).
+    if pc is None and candidate.thread_id and candidate.confirmation_status == "confirmed":
+        pc = state.find_pending_confirmation_by_thread_id(candidate.thread_id)
+        if pc:
+            # Populate the gcal_id so the rest of the function works unchanged.
+            candidate.gcal_event_id_to_update = pc.get("gcal_event_id")
+            candidate.gcal_calendar_id_to_update = pc.get("calendar_id")
     if not pc:
         return None
     target_cal = (
