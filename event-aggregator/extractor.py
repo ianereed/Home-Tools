@@ -80,7 +80,7 @@ _SCHEMA = (
     "date_certainty is \"unknown\"; optional otherwise (used as a hint to the user).\n"
     "- confidence: 0.0–1.0. How certain are you this is a real scheduled event (with or without a specific date)?\n"
     "- is_update: true if this message reschedules or changes details of a previously-mentioned event\n"
-    "- original_title_hint: your best guess at the existing event title, only when is_update is true\n"
+    "- original_title_hint: your best guess at the existing event title, REQUIRED when is_update or is_cancellation is true so the tool can find the matching calendar event\n"
     "- is_cancellation: true if this message explicitly cancels a scheduled event\n"
     "- is_recurring: true for events that repeat (weekly, monthly, etc.) — prevents duplicate creation\n"
     "- attendees: list people mentioned as participants; include email if visible in the message\n"

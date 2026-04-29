@@ -586,19 +586,26 @@ def _propose_events(
         # point calls _propose_events directly — without this, follow-up
         # messages can't find the tagged event they reference and the
         # lifecycle paths silently no-op.
+        #
+        # Cancellations: the LLM often omits original_title_hint and just
+        # echoes the event name into `title`. Fall back to candidate.title
+        # so a cancel reply still resolves.
         if (
             (candidate.is_update or candidate.is_cancellation)
-            and candidate.original_title_hint
             and not candidate.gcal_event_id_to_update
             and candidate.confidence >= _UPDATE_CANCEL_MIN_CONFIDENCE
         ):
-            resolved = _resolve_gcal_id(candidate.original_title_hint, state)
-            if resolved:
-                candidate.gcal_event_id_to_update, candidate.gcal_calendar_id_to_update = resolved
-                logger.debug(
-                    "propose: resolved %r → gcal_id=%s on %s",
-                    candidate.original_title_hint, *resolved,
-                )
+            hint = candidate.original_title_hint or (
+                candidate.title if candidate.is_cancellation else None
+            )
+            if hint:
+                resolved = _resolve_gcal_id(hint, state)
+                if resolved:
+                    candidate.gcal_event_id_to_update, candidate.gcal_calendar_id_to_update = resolved
+                    logger.debug(
+                        "propose: resolved %r → gcal_id=%s on %s",
+                        hint, *resolved,
+                    )
 
         # Lifecycle transitions on a tagged event we already wrote: confirmation
         # via thread reply (LLM returns is_update + confirmed) or cancellation.
