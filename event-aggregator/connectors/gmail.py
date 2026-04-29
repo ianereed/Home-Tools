@@ -4,15 +4,17 @@ Gmail connector — Phase 2.
 Fetches emails since `since` via Gmail API (OAuth2).
 Returns RawMessage with body_text = plain-text email body.
 
-Marketing filter: emails labelled CATEGORY_PROMOTIONS or CATEGORY_UPDATES are
-silently dropped UNLESS the user has replied to that thread with language that
-confirms they intend to attend or participate (e.g. "sounds good", "we'll be there").
+Triage policy: every gmail message is forwarded to the worker. The
+pre-classifier (qwen3, 2k ctx) decides yes/no/maybe — that's the right
+tool to distinguish event-bearing mail from newsletters and noise.
+Gmail's CATEGORY_PROMOTIONS / CATEGORY_UPDATES labels are unreliable
+(genuine event mail routinely lands in UPDATES), so we no longer drop
+on them.
 """
 from __future__ import annotations
 
 import base64
 import logging
-import re
 from datetime import datetime, timezone
 
 from googleapiclient.discovery import build
@@ -27,24 +29,9 @@ logger = logging.getLogger(__name__)
 _GMAIL_SCOPES = ["https://www.googleapis.com/auth/gmail.readonly"]
 _MAX_RESULTS = 100
 
-# Gmail labels that indicate marketing / automated mail
-_MARKETING_LABELS = frozenset({"CATEGORY_PROMOTIONS", "CATEGORY_UPDATES"})
-
 # Thread digest caps — keep last N messages, body snippet K chars each.
 _THREAD_DIGEST_MAX_MESSAGES = 5
 _THREAD_DIGEST_SNIPPET_CHARS = 500
-
-# Patterns in a user reply that indicate positive confirmation
-_CONFIRM_RE = re.compile(
-    r"\b("
-    r"yes|sure|sounds good|count me in|i['']?ll be there|we['']?ll be there"
-    r"|we will|i will|definitely|absolutely|confirmed|looking forward"
-    r"|see you there|i['']?m in|we['']?re in|attending|i['']?ll attend"
-    r"|we['']?ll attend|let['']?s do it|i['']?m coming|we['']?re coming"
-    r"|perfect|great|works for me|works for us"
-    r")\b",
-    re.IGNORECASE,
-)
 
 
 class GmailConnector(BaseConnector):
@@ -91,18 +78,6 @@ class GmailConnector(BaseConnector):
                     .execute()
                 )
                 thread = _fetch_thread(service, msg.get("threadId"))
-
-                if _is_marketing(msg):
-                    if not _thread_contains_user_confirmation(thread, user_email, msg):
-                        logger.debug(
-                            "gmail: dropping unconfirmed marketing message id=%s", msg["id"]
-                        )
-                        continue
-                    logger.debug(
-                        "gmail: keeping marketing message id=%s — user replied with confirmation",
-                        msg["id"],
-                    )
-
                 raw = _parse_message(msg, thread, user_email)
                 if raw:
                     messages.append(raw)
@@ -124,11 +99,6 @@ class GmailConnector(BaseConnector):
                 return [], ConnectorStatus(ConnectorStatusCode.NETWORK_ERROR, err_name)
             logger.warning("gmail connector error: %s", exc)
             return [], ConnectorStatus(ConnectorStatusCode.UNKNOWN_ERROR, err_name)
-
-
-def _is_marketing(msg: dict) -> bool:
-    """Return True if Gmail has categorised this message as promotional/automated."""
-    return bool(_MARKETING_LABELS & set(msg.get("labelIds", [])))
 
 
 def _fetch_thread(service, thread_id: str | None) -> dict | None:
@@ -161,28 +131,6 @@ def _is_from_me(msg: dict, user_email: str) -> bool:
         headers = {h["name"].lower(): h["value"] for h in payload.get("headers", [])}
         from_header = headers.get("from", "").lower()
         if user_email in from_header:
-            return True
-    return False
-
-
-def _thread_contains_user_confirmation(
-    thread: dict | None, user_email: str, original_msg: dict
-) -> bool:
-    """True if a later thread message from the user matches the confirmation regex.
-    Used to keep marketing-labelled emails the user has replied to positively."""
-    if not thread:
-        return False
-    original_date = int(original_msg.get("internalDate", 0))
-    for thread_msg in thread.get("messages", []):
-        if int(thread_msg.get("internalDate", 0)) <= original_date:
-            continue
-        payload = thread_msg.get("payload", {})
-        headers = {h["name"].lower(): h["value"] for h in payload.get("headers", [])}
-        from_header = headers.get("from", "").lower()
-        if user_email not in from_header:
-            continue
-        reply_text = _extract_plain_text(payload)
-        if reply_text and _CONFIRM_RE.search(reply_text):
             return True
     return False
 
