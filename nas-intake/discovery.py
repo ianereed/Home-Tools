@@ -52,7 +52,7 @@ def find_intakes(root: Path | None = None, max_depth: int = config.INTAKE_DEPTH_
                 continue
             if _skip(entry.name):
                 continue
-            if entry.name == "intake":
+            if entry.name.lower() == "intake":
                 found.append(entry)
                 # don't recurse INTO an intake/ — its subdirs are processing buckets
                 continue
