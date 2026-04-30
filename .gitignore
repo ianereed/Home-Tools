@@ -16,9 +16,15 @@ update_sheets.py
 # Transient runtime locks — never commit
 *.lock
 
+# Session journals — may contain raw command output / secrets
+journal-*.md
+
 # Finance monitor — sensitive data never committed
 finance-monitor/.env
 finance-monitor/data/
 finance-monitor/intake/
 finance-monitor/imported/
 finance-monitor/state.json
+
+# Event-aggregator runtime data — JSONL of iMessages, ships from laptop
+event-aggregator/cache/*.jsonl
