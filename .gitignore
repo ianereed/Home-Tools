@@ -28,3 +28,11 @@ finance-monitor/state.json
 
 # Event-aggregator runtime data — JSONL of iMessages, ships from laptop
 event-aggregator/cache/*.jsonl
+
+# nas-intake runtime state — local stability gate + dedup history; never commit
+nas-intake/state.json
+nas-intake/state.json.tmp
+nas-intake/locks/
+
+# Pyenv / uv venv dirs anywhere in the tree
+.venv/
