@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from paths import (
     LOG_DIR_HOME_TOOLS, LOG_DIR_HEALTH,
     LOG_PATH_DISPATCHER, LOG_PATH_FINANCE_BOT, LOG_PATH_FINANCE_WATCHER,
+    LOG_PATH_NAS_INTAKE,
 )
 
 
@@ -39,6 +40,8 @@ SERVICES: list[Svc] = [
         str(LOG_DIR_HEALTH / "streamlit.log")),
     Svc("svc_monitor",  "com.home-tools.service-monitor",           "service-monitor",  "KeepAlive (self)",
         str(LOG_DIR_HOME_TOOLS / "service-monitor.log")),
+    Svc("nas_intake",   "com.home-tools.nas-intake",                "nas-intake",       "every 5 min",
+        str(LOG_PATH_NAS_INTAKE), is_periodic=True),
 ]
 
 SERVICES_BY_ID = {s.id: s for s in SERVICES}

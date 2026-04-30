@@ -27,6 +27,12 @@ DEDUP_HISTORY = 5000
 SUBPROCESS_TIMEOUT_S = 600  # qwen2.5vl per-page can be 30-60s; multi-page allowance
 MOUNT_HELPER_TIMEOUT_S = 30
 
+# Large-file pipeline (escalation path — see large_file_pipeline.py)
+LARGE_FILE_TRIGGER_TIMEOUTS = 3      # # of small-file timeouts before escalating
+LARGE_FILE_HEARTBEAT_STALE_S = 300   # heartbeat unchanged this long → assume hung
+LARGE_FILE_HEARTBEAT_POLL_S = 30     # how often the watchdog checks the heartbeat
+LARGE_FILE_LOG_DIR = Path.home() / "Library" / "Logs" / "home-tools-nas-intake-large"
+
 # File types nas-intake hands to event-aggregator
 SUPPORTED_EXTS = frozenset({".pdf", ".png", ".jpg", ".jpeg", ".tiff", ".tif", ".webp", ".gif"})
 # Skip these (v1 doesn't handle HEIC; pillow-heif support lands in v2)

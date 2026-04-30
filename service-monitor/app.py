@@ -14,6 +14,7 @@ from collectors.databases import get_health_db, get_finance_db
 from collectors.logs import tail_all
 from collectors.ollama import get_ollama
 from collectors.memory import get_memory
+from collectors.nas_intake import get_nas_intake
 
 import pandas as pd
 from services import SERVICES
@@ -77,6 +78,11 @@ try:
 except Exception as e:
     memory = {}
 
+try:
+    nas_intake = get_nas_intake()
+except Exception as e:
+    nas_intake = {"available": False, "reason": str(e)}
+
 # Global status indicator
 states = {s.get("state") for s in status.values()} if status else {"unknown"}
 if "err" in states:
@@ -96,7 +102,8 @@ st.markdown(
 )
 
 # Data-flow swim lanes
-st.markdown(render_dataflow(status, queues, ollama, hdb, fdb, memory), unsafe_allow_html=True)
+st.markdown(render_dataflow(status, queues, ollama, hdb, fdb, memory, nas_intake),
+            unsafe_allow_html=True)
 
 st.divider()
 
@@ -214,6 +221,31 @@ with tab_data:
         })
     else:
         st.error(f"Ollama unreachable: {ollama.get('error')}")
+
+    st.subheader("nas-intake")
+    if nas_intake.get("available"):
+        wedged_entries = nas_intake.get("wedged_entries", {}) or {}
+        in_flight_entries = nas_intake.get("in_flight_entries", {}) or {}
+        st.json({
+            "files_seen": nas_intake.get("files_seen"),
+            "files_processed_total": nas_intake.get("files_processed_total"),
+            "files_in_flight_large": nas_intake.get("files_in_flight_large"),
+            "files_wedged": nas_intake.get("files_wedged"),
+            "files_with_timeouts": nas_intake.get("files_with_timeouts"),
+            "timeout_counts": nas_intake.get("timeout_counts") or {},
+        })
+        if in_flight_entries:
+            st.caption("In-flight large-file jobs:")
+            st.json(in_flight_entries)
+        if wedged_entries:
+            st.error(
+                "Wedged files need attention — renamed `_WEDGED_<orig>` in their "
+                "intake folder. See sibling `.diagnostic.log` and per-file traces "
+                "at `~/Library/Logs/home-tools-nas-intake-large/<sha12>.log` on the mini."
+            )
+            st.json(wedged_entries)
+    else:
+        st.warning(f"nas-intake state unavailable: {nas_intake.get('reason')}")
 
 with tab_memory:
     LOCAL_TZ = "America/Los_Angeles"  # render times in user's local zone

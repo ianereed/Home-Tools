@@ -79,7 +79,8 @@ def _lane(header: str, items: list[str], shared: bool = False) -> str:
 
 def render_dataflow(status: dict, queues: dict, ollama: dict,
                     hdb: dict | None = None, fdb: dict | None = None,
-                    memory: dict | None = None) -> str:
+                    memory: dict | None = None,
+                    nas_intake: dict | None = None) -> str:
     """Build HTML swim-lane diagram with freshness timestamps.
 
     status: {service_id: {state, pid, last_exit}} from launchd collector
@@ -161,6 +162,40 @@ def render_dataflow(status: dict, queues: dict, ollama: dict,
         _node("dispatcher", st_("disp")), _arrow(),
         _ext("→ event-agg  or  finance-mon/intake/"),
     ]))
+
+    # NAS Intake — files dropped into Share1/**/Intake/ folders. Pipeline
+    # delegates OCR to event-aggregator (subprocess, with NAS_WRITE_DISABLED=1)
+    # and does its own parent-rooted filing + per-parent JOURNAL.md.
+    if nas_intake and nas_intake.get("available"):
+        in_flight = nas_intake.get("files_in_flight_large", 0)
+        wedged = nas_intake.get("files_wedged", 0)
+        timeouts = nas_intake.get("files_with_timeouts", 0)
+        ni_status = nas_intake.get("status", "ok")
+        ni_mtime_age = nas_intake.get("mtime_age_sec")
+        # State.json should refresh every 5 min when the watcher ticks. >15 min
+        # without an update means the watcher is silent — possibly stuck or unloaded.
+        NI_AGING, NI_STALE = 900, 1800
+        counts_label = f"intake  large={in_flight}"
+        if timeouts:
+            counts_label += f"  retry={timeouts}"
+        if wedged:
+            counts_label += f"  ⚠wedged={wedged}"
+        lanes.append(_lane("NAS Intake", [
+            _ext("Share1/**/Intake/"), _arrow(),
+            _node("nas-intake 5m", st_("nas_intake"),
+                  _age_str(ni_mtime_age), _ts_cls(ni_mtime_age, NI_AGING, NI_STALE)),
+            _arrow(),
+            _node(counts_label, ni_status),
+            _arrow(),
+            _ext("→ event-agg  +  parent/JOURNAL.md"),
+        ]))
+    else:
+        lanes.append(_lane("NAS Intake", [
+            _ext("Share1/**/Intake/"), _arrow(),
+            _node("nas-intake 5m", st_("nas_intake")),
+            _arrow(),
+            _ext("(state.json unavailable)"),
+        ]))
 
     # Health dashboard — health.db shows mtime freshness
     lanes.append(_lane("Health Dashboard", [

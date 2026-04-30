@@ -34,6 +34,15 @@ def main() -> int:
     p = sub.add_parser("ingest-image", help="Full event-extraction pipeline on a local file (inline; used by worker)")
     p.add_argument("--file", required=True)
 
+    p = sub.add_parser(
+        "ingest-image-large",
+        help="Escalation path for files too big for the small-file timeout. "
+             "Resumable per-page processing, no internal timeout. Same staged "
+             "output shape as ingest-image. Watchdog-managed by the caller "
+             "(nas-intake).",
+    )
+    p.add_argument("--file", required=True)
+
     p = sub.add_parser("enqueue-image", help="Enqueue a file path into the OCR queue for the worker to process")
     p.add_argument("--file", required=True)
 
@@ -95,6 +104,8 @@ def main() -> int:
         return _cmd_classify(Path(args.file))
     if args.cmd == "ingest-image":
         return _cmd_ingest_image(Path(args.file))
+    if args.cmd == "ingest-image-large":
+        return _cmd_ingest_image_large(Path(args.file))
     if args.cmd == "enqueue-image":
         return _cmd_enqueue_image(Path(args.file))
     if args.cmd == "approve":
@@ -191,6 +202,23 @@ def _cmd_ingest_image(file: Path) -> int:
     state_module.save(state)
     print(summary)
     return 0
+
+
+def _cmd_ingest_image_large(file: Path) -> int:
+    """Escalation path: page-resumable processing with windowed text consolidation
+    and a heartbeat the parent watchdog reads. Used by nas-intake's processor
+    after the small-file path has timed out N times on the same source."""
+    if not file.exists():
+        print(f"file not found: {file}", file=sys.stderr)
+        return 2
+
+    from large_file_pipeline import process_large_file
+    try:
+        return process_large_file(file)
+    except Exception as exc:
+        logger.warning("ingest-image-large: failed: %s: %s", type(exc).__name__, exc)
+        print(f"ingest-image-large failed: {exc}", file=sys.stderr)
+        return 2
 
 
 def _cmd_enqueue_image(file: Path) -> int:

@@ -23,5 +23,11 @@ else:
     LOG_PATH_FINANCE_WATCHER = HOME / "Library/Logs/home-tools-finance-monitor-watcher.log"
 
 EVT_STATE_PATH = REPO / "event-aggregator/state.json"
+NAS_INTAKE_STATE_PATH = REPO / "nas-intake/state.json"
 HEALTH_DB_PATH = REPO / "health-dashboard/data/health.db"
 FINANCE_DB_PATH = REPO / "finance-monitor/data/finance.db"
+
+if ON_MINI:
+    LOG_PATH_NAS_INTAKE = HOME / "Library/Logs/home-tools-nas-intake.log"
+else:
+    LOG_PATH_NAS_INTAKE = HOME / "Library/Logs/home-tools-nas-intake.log"

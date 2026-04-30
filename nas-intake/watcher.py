@@ -12,6 +12,7 @@ from __future__ import annotations
 import fcntl
 import logging
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 import config
@@ -132,9 +133,51 @@ def run_tick() -> int:
 
             # Process!
             try:
-                result = processor.process_one(entry, parent, intake, sha)
+                result = processor.process_one(entry, parent, intake, sha, state=state)
             except Exception as exc:
                 logger.exception("watcher: unhandled error on %s: %s", entry.name, exc)
+                failed_count += 1
+                continue
+
+            if result.timed_out:
+                n = state.record_timeout(sha)
+                logger.warning(
+                    "watcher: %s — small-file timeout #%d/%d (%s)",
+                    entry.name, n, config.LARGE_FILE_TRIGGER_TIMEOUTS, result.reason,
+                )
+                state.save()
+                failed_count += 1
+                continue
+
+            if result.wedged:
+                logger.error(
+                    "watcher: %s — WEDGED in large-file path: %s",
+                    entry.name, result.reason,
+                )
+                wedged_path = processor._wedge_in_place(
+                    entry, result.last_heartbeat, result.reason,
+                )
+                state.mark_wedged(sha, wedged_path, result.reason,
+                                  staging_id=f"local_{sha[:12]}")
+                state.forget(entry)  # source moved (renamed)
+                state.save()
+                # Append a wedged entry to the parent journal so the user sees
+                # the abandonment in JOURNAL.md alongside successes.
+                try:
+                    journal_mod.append(parent, {
+                        "ts": (result.last_heartbeat or {}).get("ts")
+                              or datetime.now(timezone.utc).isoformat(),
+                        "source_name": entry.name,
+                        "failure_kind": "wedged",
+                        "reason": result.reason,
+                        "sha256": sha,
+                        "last_heartbeat": result.last_heartbeat,
+                    })
+                except Exception as exc:
+                    logger.exception(
+                        "watcher: wedged journal append failed for %s: %s",
+                        entry.name, exc,
+                    )
                 failed_count += 1
                 continue
 
@@ -151,6 +194,8 @@ def run_tick() -> int:
                 # Mark processed anyway so we don't reprocess
             state.remember(sha)
             state.forget(entry)  # source has moved; no longer in intake/
+            state.clear_timeout(sha)
+            state.clear_in_flight_large(sha)
             state.save()
             processed_count += 1
             logger.info("watcher: filed %s → %s", entry.name, result.filed_path)

@@ -32,7 +32,14 @@ def _parent_lock_path(parent: Path) -> Path:
 
 
 def _md_entry(entry: dict) -> str:
-    """Render a journal entry as a Markdown H2 block."""
+    """Render a journal entry as a Markdown H2 block. Branches on
+    `failure_kind`: success entries render filing details; failure entries
+    (currently only "wedged") render the abandonment reason instead.
+    """
+    failure_kind = entry.get("failure_kind") or ""
+    if failure_kind == "wedged":
+        return _md_wedged_entry(entry)
+
     title = entry.get("title") or entry.get("source_name") or "Untitled"
     doc_date = entry.get("doc_date") or "unknown"
     doc_type = entry.get("doc_type") or "general"
@@ -50,6 +57,30 @@ def _md_entry(entry: dict) -> str:
         f"- **Source**: dropped in `intake/{source_name}` at {ts}",
         f"- **Confidence**: {confidence:.2f}" if isinstance(confidence, (int, float)) else f"- **Confidence**: {confidence}",
         f"- **Summary**: {summary}",
+        "",
+    ]
+    return "\n".join(lines)
+
+
+def _md_wedged_entry(entry: dict) -> str:
+    """Render a 'wedged' (large-file pipeline gave up after hangup) entry."""
+    source_name = entry.get("source_name") or "(unknown)"
+    reason = entry.get("reason") or "no progress signal — see diagnostic log"
+    ts = entry.get("ts") or datetime.utcnow().isoformat() + "Z"
+    last_hb = entry.get("last_heartbeat") or {}
+    phase = last_hb.get("phase", "(unknown)") if isinstance(last_hb, dict) else "(unknown)"
+    page_done = last_hb.get("page_done", "?") if isinstance(last_hb, dict) else "?"
+    page_total = last_hb.get("page_total", "?") if isinstance(last_hb, dict) else "?"
+
+    lines = [
+        f"## ⚠️ WEDGED — {source_name}",
+        "",
+        f"- **At**: {ts}",
+        f"- **Reason**: {reason}",
+        f"- **Last phase**: {phase} (page {page_done}/{page_total})",
+        f"- **Source**: renamed in place to `_WEDGED_{source_name}`. "
+        f"See sibling `_WEDGED_{source_name}.diagnostic.log` and the per-file "
+        f"trace at `~/Library/Logs/home-tools-nas-intake-large/<sha12>.log` on the mini.",
         "",
     ]
     return "\n".join(lines)
