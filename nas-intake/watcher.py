@@ -196,6 +196,7 @@ def run_tick() -> int:
             state.forget(entry)  # source has moved; no longer in intake/
             state.clear_timeout(sha)
             state.clear_in_flight_large(sha)
+            state.clear_wedged(sha)  # if this was a retry of a previously-wedged file
             state.save()
             processed_count += 1
             logger.info("watcher: filed %s → %s", entry.name, result.filed_path)
