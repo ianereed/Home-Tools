@@ -468,7 +468,8 @@ def _post_proposals(merged: FileAnalysisResult, diag: logging.Logger) -> int:
         state.add_fingerprint(fp)
 
     if not batch_items:
-        state_module.save(state)
+        with state_module.locked():
+            state_module.save(state)
         return 0
 
     batch_id = datetime.now(timezone.utc).strftime("%Y-%m-%d_%H:%M:%S_nas")
@@ -484,7 +485,8 @@ def _post_proposals(merged: FileAnalysisResult, diag: logging.Logger) -> int:
     posted_ts = slack_notifier.post_or_update_dashboard(all_items, state)
     if posted_ts:
         state.set_proposal_slack_ts(batch_id, posted_ts)
-    state_module.save(state)
+    with state_module.locked():
+        state_module.save(state)
     diag.info("proposals: posted %d new calendar item(s) (batch %s)",
               len(batch_items), batch_id)
     return len(batch_items)

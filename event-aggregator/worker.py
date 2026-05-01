@@ -329,41 +329,45 @@ def run_worker() -> int:
     )
 
     while not _shutdown_requested:
-        state = state_module.load()
-        _expire_stale_swap_decisions(state)
-        state_module.save(state)
-
-        text_depth = state.text_queue_depth()
-        ocr_depth = state.ocr_queue_depth()
-
-        state.update_worker_status(
-            text_queue=text_depth,
-            ocr_queue=ocr_depth,
-            current_model=config.OLLAMA_MODEL,
-        )
-        state_module.save(state)
-
-        # Decide what to run.
-        run_ocr = False
-        run_text = False
-        if ocr_depth > 0 and text_depth == 0:
-            run_ocr = True
-        elif ocr_depth > 0 and _has_pending_interrupt(state):
-            run_ocr = True
-            _consume_interrupt(state)
+        with state_module.locked():
+            state = state_module.load()
+            _expire_stale_swap_decisions(state)
             state_module.save(state)
-        elif text_depth > 0:
-            run_text = True
-            # If there's also OCR pending, post a swap decision (once per OCR
-            # job) so the user can flip the default of "wait" to "interrupt".
-            if ocr_depth > 0:
-                _ensure_swap_decision_posted(state)
+
+            text_depth = state.text_queue_depth()
+            ocr_depth = state.ocr_queue_depth()
+
+            state.update_worker_status(
+                text_queue=text_depth,
+                ocr_queue=ocr_depth,
+                current_model=config.OLLAMA_MODEL,
+            )
+            state_module.save(state)
+
+            # Decide what to run.
+            run_ocr = False
+            run_text = False
+            if ocr_depth > 0 and text_depth == 0:
+                run_ocr = True
+            elif ocr_depth > 0 and _has_pending_interrupt(state):
+                run_ocr = True
+                _consume_interrupt(state)
                 state_module.save(state)
-        elif ocr_depth > 0:
-            # Shouldn't reach here (covered above) but be safe.
-            run_ocr = True
-        else:
-            # Both queues empty.
+            elif text_depth > 0:
+                run_text = True
+                # If there's also OCR pending, post a swap decision (once per OCR
+                # job) so the user can flip the default of "wait" to "interrupt".
+                if ocr_depth > 0:
+                    _ensure_swap_decision_posted(state)
+                    state_module.save(state)
+            elif ocr_depth > 0:
+                # Shouldn't reach here (covered above) but be safe.
+                run_ocr = True
+            else:
+                # Both queues empty.
+                pass
+
+        if not (run_ocr or run_text):
             time.sleep(_IDLE_SLEEP_SECONDS)
             continue
 
@@ -371,22 +375,22 @@ def run_worker() -> int:
             if run_ocr:
                 # Swap: unload text model, run vision, reload text.
                 _ollama_unload(config.OLLAMA_MODEL)
-                state.update_worker_status(current_model=config.LOCAL_VISION_MODEL)
-                state_module.save(state)
                 with state_module.locked():
                     state = state_module.load()
+                    state.update_worker_status(current_model=config.LOCAL_VISION_MODEL)
                     job = state.pop_ocr_job()
+                    if job:
+                        state.update_worker_status(job_in_flight={
+                            "kind": "ocr",
+                            "file": job.get("file_path", ""),
+                            "started_at": datetime.now(timezone.utc).isoformat(),
+                        })
                     state_module.save(state)
                 if job:
-                    state.update_worker_status(job_in_flight={
-                        "kind": "ocr",
-                        "file": job.get("file_path", ""),
-                        "started_at": datetime.now(timezone.utc).isoformat(),
-                    })
-                    state_module.save(state)
                     _run_ocr_job(state, job)
-                    state.update_worker_status(job_in_flight=None)
-                    state_module.save(state)
+                    with state_module.locked():
+                        state.update_worker_status(job_in_flight=None)
+                        state_module.save(state)
                 # Reload primary so next text job is hot.
                 _ollama_unload(config.LOCAL_VISION_MODEL)
                 _ollama_warmup(
@@ -394,29 +398,32 @@ def run_worker() -> int:
                     config.OLLAMA_NUM_CTX_TEXT,
                     keep_alive=config.OLLAMA_KEEP_ALIVE_TEXT,
                 )
-                state.update_worker_status(current_model=config.OLLAMA_MODEL)
-                state_module.save(state)
+                with state_module.locked():
+                    state.update_worker_status(current_model=config.OLLAMA_MODEL)
+                    state_module.save(state)
             elif run_text:
                 with state_module.locked():
                     state = state_module.load()
                     job = state.pop_text_job()
+                    if job:
+                        state.update_worker_status(job_in_flight={
+                            "kind": "text",
+                            "source": job.get("source", ""),
+                            "id": job.get("id", ""),
+                            "started_at": datetime.now(timezone.utc).isoformat(),
+                        })
                     state_module.save(state)
                 if job:
-                    state.update_worker_status(job_in_flight={
-                        "kind": "text",
-                        "source": job.get("source", ""),
-                        "id": job.get("id", ""),
-                        "started_at": datetime.now(timezone.utc).isoformat(),
-                    })
-                    state_module.save(state)
                     _run_text_job(state, job)
-                    state.update_worker_status(job_in_flight=None)
-                    state_module.save(state)
+                    with state_module.locked():
+                        state.update_worker_status(job_in_flight=None)
+                        state_module.save(state)
         except Exception as exc:
-            state.update_worker_status(job_in_flight=None)
+            with state_module.locked():
+                state.update_worker_status(job_in_flight=None)
+                state_module.save(state)
             logger.warning("worker: job failed: %s: %s", type(exc).__name__, exc)
 
-        state_module.save(state)
         time.sleep(_TICK_SLEEP_SECONDS)
 
     logger.info("worker: clean shutdown")

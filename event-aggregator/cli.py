@@ -199,7 +199,8 @@ def _cmd_ingest_image(file: Path) -> int:
         print(f"ingest failed: {exc}", file=sys.stderr)
         return 2
 
-    state_module.save(state)
+    with state_module.locked():
+        state_module.save(state)
     print(summary)
     return 0
 
@@ -434,7 +435,8 @@ def _apply_approve(state, nums: list[int]) -> tuple[int, list[str]]:
             record_decision("approved", item)
             approved += 1
 
-    state_module.save(state)
+    with state_module.locked():
+        state_module.save(state)
     return approved, errors
 
 
@@ -520,7 +522,8 @@ def _apply_reject(state, nums: list[int]) -> tuple[int, list[str]]:
         record_decision("rejected", item)
         rejected += 1
 
-    state_module.save(state)
+    with state_module.locked():
+        state_module.save(state)
     return rejected, errors
 
 
@@ -544,7 +547,8 @@ def _refresh_proposal_dashboard(state) -> None:
     today_str = tz_utils.today_user_str()
     all_items = state.get_all_proposal_items_for_dashboard(today_str)
     slack_notifier.post_or_update_dashboard(all_items, state, force_repost=True)
-    state_module.save(state)
+    with state_module.locked():
+        state_module.save(state)
 
 
 def _cmd_decide(approve_raw: str, reject_raw: str) -> int:
@@ -642,7 +646,8 @@ def _cmd_add_event(text: str) -> int:
 
     if not batch_items:
         print("_Found events, but all look like duplicates of existing ones._")
-        state_module.save(state)
+        with state_module.locked():
+            state_module.save(state)
         return 0
 
     batch_id = datetime.now(timezone.utc).strftime("%Y-%m-%d_%H:%M:%S_manual")
@@ -658,7 +663,8 @@ def _cmd_add_event(text: str) -> int:
     all_items = state.get_all_proposal_items_for_dashboard(today_str)
     slack_notifier.post_or_update_dashboard(all_items, state)
 
-    state_module.save(state)
+    with state_module.locked():
+        state_module.save(state)
     lines = [f":memo: proposed {len(batch_items)} event(s):"]
     for item in batch_items:
         start = item.get("start_dt", "")[:16].replace("T", " ")
@@ -893,8 +899,9 @@ def _cmd_undo_last() -> int:
         print(f":x: Could not delete `{gcal_id}` — `{title}` (may already be gone in GCal). State NOT modified.")
         return 1
 
-    state.remove_written_event(gcal_id)
-    state_module.save(state)
+    with state_module.locked():
+        state.remove_written_event(gcal_id)
+        state_module.save(state)
 
     when = ""
     try:
@@ -999,10 +1006,11 @@ def _cmd_bump_dashboard() -> int:
     non-bot top-level message in the interactive channel)."""
     import state as state_module
     import tz_utils
-    state = state_module.load()
-    today = tz_utils.today_user_str()
-    new_count = state.bump_dashboard_buried(today)
-    state_module.save(state)
+    with state_module.locked():
+        state = state_module.load()
+        today = tz_utils.today_user_str()
+        new_count = state.bump_dashboard_buried(today)
+        state_module.save(state)
     print(f":bookmark_tabs: dashboard burial count → {new_count}")
     return 0
 
@@ -1010,11 +1018,12 @@ def _cmd_bump_dashboard() -> int:
 def _cmd_swap(decision_id: str, decision: str) -> int:
     """Resolve a pending OCR swap-decision."""
     import state as state_module
-    state = state_module.load()
-    if state.resolve_swap_decision(decision_id, decision):
-        state_module.save(state)
-        print(f":white_check_mark: swap decision `{decision_id[:8]}…` → {decision}")
-        return 0
+    with state_module.locked():
+        state = state_module.load()
+        if state.resolve_swap_decision(decision_id, decision):
+            state_module.save(state)
+            print(f":white_check_mark: swap decision `{decision_id[:8]}…` → {decision}")
+            return 0
     print(f":x: swap decision `{decision_id[:8]}…` not found")
     return 1
 
@@ -1044,7 +1053,8 @@ def _cmd_forget(fp: str, title: str) -> int:
 
     if fp:
         if state.forget_rejected_fingerprint(fp):
-            state_module.save(state)
+            with state_module.locked():
+                state_module.save(state)
             print(f":white_check_mark: forgot `{fp[:12]}…` — can be re-proposed if re-detected.")
             return 0
         print(f":x: fingerprint `{fp[:12]}…` not found in rejected list.")
@@ -1064,7 +1074,8 @@ def _cmd_forget(fp: str, title: str) -> int:
         return 1
     f, info = matches[0]
     state.forget_rejected_fingerprint(f)
-    state_module.save(state)
+    with state_module.locked():
+        state_module.save(state)
     print(f":white_check_mark: forgot `{f[:12]}…` — {info.get('title', '(untitled)')}")
     return 0
 

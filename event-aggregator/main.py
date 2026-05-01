@@ -1000,7 +1000,8 @@ def main() -> int:
 
     if args.digest_only:
         _send_digests(state, args.dry_run)
-        state_module.save(state)
+        with state_module.locked():
+            state_module.save(state)
         return 0
 
     run_start = datetime.now(timezone.utc)
@@ -1278,12 +1279,14 @@ def main() -> int:
     else:
         logger.debug("Skipping last_run update — Ollama was unavailable")
 
-    state_module.save(state)
+    with state_module.locked():
+        state_module.save(state)
 
     # ── Send digests ──────────────────────────────────────────────────────────
     if not args.dry_run and not args.mock:
         _send_digests(state, dry_run=False)
-        state_module.save(state)
+        with state_module.locked():
+            state_module.save(state)
 
     return 0
 
@@ -1639,8 +1642,9 @@ def fetch_only() -> int:
             confirm_counts["expired"],
         )
 
-    state.prune()
-    state_module.save(state)
+    with state_module.locked():
+        state.prune()
+        state_module.save(state)
     logger.info("fetch-only: enqueued %d new message(s); text_queue depth=%d",
                 enqueued, state.text_queue_depth())
     return 0

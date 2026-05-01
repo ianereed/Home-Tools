@@ -66,7 +66,8 @@ def get_or_create_day_thread(state: "state_module.State") -> str | None:
             if result.get("ok"):
                 ts = result["ts"]
                 state.set_day_thread(ts, today_str)
-                _state.save(state)  # flush to disk inside the lock before releasing
+                with _state.locked():
+                    _state.save(state)  # flush to disk inside the lock before releasing
                 return ts
             logger.warning("slack notifier: failed to create day thread: %s", result.get("error"))
             return None
@@ -933,7 +934,8 @@ def post_or_update_dashboard(
                 )
             except Exception as exc:
                 logger.debug("dashboard: failed to delete old ts %s: %s", old_ts, exc)
-        _state_mod.save(state)
+        with _state_mod.locked():
+            _state_mod.save(state)
         return new_ts
     except Exception as exc:
         logger.warning(

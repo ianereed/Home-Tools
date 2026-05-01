@@ -22,6 +22,13 @@ STATE_PATH = Path(__file__).parent / "state.json"
 _LOCK_PATH = STATE_PATH.parent / ".state.lock"
 
 
+_lock_depth = 0  # >0 means we hold the flock; save() asserts this.
+
+
+def _holding_lock() -> bool:
+    return _lock_depth > 0
+
+
 @contextlib.contextmanager
 def locked():
     """Acquire an exclusive write lock on state.json for the block's duration.
@@ -29,13 +36,43 @@ def locked():
     Use this to wrap any load() + mutate + save() sequence that must not
     interleave with another process (e.g. the worker popping a job while
     the dispatcher CLI is approving a proposal).
+
+    Reentrant within a single process: nesting `with locked():` blocks is a
+    no-op for the inner block (it sees the flock already held). save() checks
+    the depth counter to enforce that callers wrapped their mutations.
     """
-    with _LOCK_PATH.open("a") as _lf:
-        fcntl.flock(_lf.fileno(), fcntl.LOCK_EX)
+    global _lock_depth
+    if _lock_depth > 0:
+        # Already holding the flock in this process. Reentrant no-op.
+        _lock_depth += 1
         try:
             yield
         finally:
-            pass  # flock released when _lf closes
+            _lock_depth -= 1
+        return
+    with _LOCK_PATH.open("a") as _lf:
+        fcntl.flock(_lf.fileno(), fcntl.LOCK_EX)
+        _lock_depth += 1
+        try:
+            yield
+        finally:
+            _lock_depth -= 1
+            # flock released when _lf closes
+
+
+@contextlib.contextmanager
+def _allow_unlocked_save():
+    """Test-only escape hatch: temporarily allow save() without locked().
+
+    Used by tests that exercise save()/load() without spinning up the full
+    flock machinery. Production code must never call this.
+    """
+    global _lock_depth
+    _lock_depth += 1
+    try:
+        yield
+    finally:
+        _lock_depth -= 1
 
 _DEFAULT_LOOKBACK_DAYS = 7  # first-run default when no last_run is recorded
 
@@ -842,6 +879,12 @@ def load() -> State:
 
 
 def save(state: State) -> None:
+    if not _holding_lock():
+        raise RuntimeError(
+            "state.save() called without an active locked() block. "
+            "Wrap the load+mutate+save sequence in `with state.locked():` "
+            "to prevent torn writes across processes."
+        )
     state.prune()
     import tempfile
     fd, tmp_path = tempfile.mkstemp(dir=STATE_PATH.parent, prefix=".state_", suffix=".tmp")
