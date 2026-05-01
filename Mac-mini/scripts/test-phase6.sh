@@ -123,7 +123,7 @@ gate4() {
     fail "gate4: no plist for $target — skipped"
     return
   fi
-  if ! launchctl list 2>/dev/null | grep -q " $target$"; then
+  if ! launchctl list 2>/dev/null | grep -qE "[[:space:]]${target}$"; then
     fail "gate4: $target not currently loaded — skipped"
     return
   fi
