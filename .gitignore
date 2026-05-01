@@ -43,3 +43,7 @@ nas-intake/locks/
 
 # Pyenv / uv venv dirs anywhere in the tree
 .venv/
+
+# gstack local artifacts: review logs, security reports, learnings, plan files.
+# Stay local — never commit security findings to a public repo.
+.gstack/
