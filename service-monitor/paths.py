@@ -31,3 +31,10 @@ if ON_MINI:
     LOG_PATH_NAS_INTAKE = HOME / "Library/Logs/home-tools-nas-intake.log"
 else:
     LOG_PATH_NAS_INTAKE = HOME / "Library/Logs/home-tools-nas-intake.log"
+
+# Phase 6 (Mac mini monitoring) — see Mac-mini/PHASE6.md
+PHASE6_HEARTBEAT_LOG = LOG_DIR_HOME_TOOLS / "heartbeat.log"
+PHASE6_DAILY_DIGEST_LOG = LOG_DIR_HOME_TOOLS / "daily-digest.log"
+PHASE6_WEEKLY_SSH_LOG = LOG_DIR_HOME_TOOLS / "weekly-ssh-digest.log"
+PHASE6_INCIDENTS_PATH = REPO / "logs/incidents.jsonl"
+PHASE6_DIGEST_FAILED_FLAG = REPO / "run/digest-failed.flag"

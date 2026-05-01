@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.home-tools.weekly-ssh-digest</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>/Users/homeserver/Home-Tools/Mac-mini/scripts/weekly-ssh-digest.sh</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/homeserver/Home-Tools/Mac-mini/scripts</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>HOME</key>
+        <string>/Users/homeserver</string>
+    </dict>
+
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Weekday</key>
+        <integer>1</integer>
+        <key>Hour</key>
+        <integer>9</integer>
+        <key>Minute</key>
+        <integer>0</integer>
+    </dict>
+
+    <key>RunAtLoad</key>
+    <false/>
+
+    <key>StandardOutPath</key>
+    <string>/Users/homeserver/Library/Logs/home-tools/weekly-ssh-digest.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/Users/homeserver/Library/Logs/home-tools/weekly-ssh-digest.log</string>
+</dict>
+</plist>

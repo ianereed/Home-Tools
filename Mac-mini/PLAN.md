@@ -265,11 +265,24 @@ Script updates.
 
 ---
 
-## Phase 6 — Minimal monitoring
+## Phase 6 — Minimal monitoring (DESCOPED 2026-04-30 — daily Slack digest)
 
-Goal: get a phone ping when any LaunchAgent fails, without building
-dashboards. With 6 agents now running (ollama, event-aggregator, and the
-5 health-dashboard agents), silent failures have a higher cost.
+> **Status (2026-04-30):** **DESCOPED + IMPLEMENTED.** The original
+> eng-review-locked Pushover design (kept verbatim below for history) was
+> superseded after user declined to pay for Pushover. Replaced with a daily
+> Slack digest at 07:00 (uses the existing dispatcher Slack bot token; no
+> new accounts, no plist edits to existing services). Implementation lives
+> in `Mac-mini/scripts/{slack-post.sh, heartbeat.py, daily-digest.py,
+> weekly-ssh-digest.sh}` + 3 plists in `Mac-mini/LaunchAgents/`. Operator
+> runbook: **`Mac-mini/PHASE6.md`**. Plan record:
+> `~/.claude/plans/based-on-what-you-valiant-turing.md`.
+
+> The descoped scope removes: run-agent.sh wrapper, per-agent lockfile
+> suppression, phased pilot rollout, modifications to existing plists,
+> Pushover account. Trade-off: failures surface at 07:00 next morning
+> instead of immediately. Accepted for hobby home server.
+
+### Original eng-review-locked design (preserved for history; superseded by descope above)
 
 ### Scope
 
@@ -277,7 +290,7 @@ dashboards. With 6 agents now running (ollama, event-aggregator, and the
    POST with curl) or self-hosted ntfy (free, needs a public endpoint —
    can ride on Tailscale HTTPS funnel for free). Pushover is faster to set
    up for a single user; ntfy is the path if we ever add multi-user or
-   want Slack-like channels. **Recommend: Pushover, defer ntfy.**
+   want Slack-like channels. **Decision: Pushover, defer ntfy.**
 
 2. **Store the Pushover creds in the login keychain** using the same
    pattern we set up for health-dashboard:
@@ -285,36 +298,104 @@ dashboards. With 6 agents now running (ollama, event-aggregator, and the
    - Write via `security add-generic-password -U ... ~/Library/Keychains/login.keychain-db`
      (see `reference_mac_mini_porting_checklist.md`)
 
-3. **Write `~/Home-Tools/bin/notify.sh`** — one shared script, reads creds
-   via `security find-generic-password -w`, POSTs to
-   `https://api.pushover.net/1/messages.json`. Takes args: title, message,
-   priority (default 0, 1=high for failures).
+3. **Write `~/Home-Tools/bin/notify.sh`** — one shared script.
+   - **Self-unlocks the login keychain on every invocation**:
+     `security unlock-keychain -p '' ~/Library/Keychains/login.keychain-db`
+     at top of script. Required because `launchctl`-spawned shells don't
+     inherit the audit-session unlock from SSH (memory:
+     `feedback_keychain_audit_session_unlock_scope.md`).
+   - **Two modes** (DRY for callers — eng review issue 2.1):
+     - Generic: `notify.sh "Title" "Message" [priority]`
+     - Specialized: `notify.sh --from-failed-agent <name> <log-path> <exit-code>`
+       (handles tail extraction, truncation to 1000 chars, format internally)
+   - **Audit log**: every send appends one JSONL line to
+     `~/Home-Tools/logs/notifications.jsonl` (Pushover deletes old messages
+     after a few weeks; you want post-mortem evidence).
+   - Reads creds via `security find-generic-password -w`, POSTs to
+     `https://api.pushover.net/1/messages.json`. Pushover monthly limit
+     is 10,000 messages per app token — non-issue with the suppression
+     logic in step 4, but note in the script header.
+   - Shell hygiene: `set -euo pipefail`, quote every variable, `mktemp`
+     for any tempfiles.
 
-4. **Wrap each LaunchAgent** with a `trap`-ing shell script so non-zero
-   Python exits trigger `notify.sh`. Rather than edit each plist's
-   `ProgramArguments`, introduce a single wrapper: `~/Home-Tools/bin/run-agent.sh`
-   that runs `"$@"` and on failure sends the tail of the log via notify.
-   Update the 6 plists to invoke the wrapper.
+4. **Wrap each LaunchAgent** with `~/Home-Tools/bin/run-agent.sh`.
+   - Runs `"$@"` (NOT `exec "$@"` — needs to capture `$?`). On failure,
+     calls `notify.sh --from-failed-agent`.
+   - **Per-agent lockfile + 1h time decay** to prevent alert storms (eng
+     review issue 1.1):
+     - Lockfile path: `/tmp/run-agent-<agent-name>.lock`
+     - First failure → fire alert, touch lockfile
+     - Subsequent failures within 1h → silent (touch lockfile to refresh)
+     - After 1h → re-fire
+     - Without this, a 5-min flapping agent = 12 alerts/hour.
+   - Update plists' `ProgramArguments` from `[python, script.py, ...]` to
+     `[run-agent.sh, python, script.py, ...]`. WorkingDirectory,
+     EnvironmentVariables, StandardOutPath remain on the plist (apply to
+     the wrapper, which inherits them to its child).
+   - **Phased rollout (mandatory)**: pilot run-agent.sh on
+     `com.home-tools.dispatcher` for 24h first. No alerts = expand to the
+     other 5 agents. One unexpected alert = investigate before expanding.
 
 5. **Heartbeat / liveness check** — a new LaunchAgent that runs every
    30 min and checks:
    - `launchctl list | grep health-dashboard` — all 5 present
-   - `curl -sf http://127.0.0.1:8095/` — receiver responding
-   - `curl -sf http://127.0.0.1:8501/` — streamlit responding
+   - `curl -sf http://127.0.0.1:8095/` — health-dashboard receiver responding
+   - `curl -sf http://127.0.0.1:8501/` — health-dashboard Streamlit UI responding
+   - `curl -sf http://127.0.0.1:8502/` — service-monitor Streamlit responding
    - `curl -sf http://127.0.0.1:11434/api/tags` — ollama responding
-   - health.db `mtime` is <25h old (detects stuck receiver even when the
+   - `health.db` mtime is <25h old (detects stuck receiver even when the
      process is "running")
-   Any failure → one Pushover alert. Suppress repeats with a lockfile so
-   a stuck receiver doesn't page every 30 min.
+   Any failure → one Pushover alert via
+   `notify.sh "Heartbeat fail" "<which check>"`. Suppress repeats with a
+   lockfile so a stuck receiver doesn't page every 30 min.
+
+   **Known SPOF (accepted, eng review issue 1.3)**: if the heartbeat
+   agent itself fails to load or crashes silently, no alerts fire. Phase 6
+   is explicitly "minimal monitoring"; full uptime SLA is out of scope.
+   Mitigation: weekly manual check of `launchctl list | grep heartbeat`
+   while glancing at service-monitor. Revisit if this bites.
+
+   **Future improvement (deferred)**: heartbeat could consume
+   service-monitor's state via its HTTP endpoint instead of re-querying
+   primitives, so alert and dashboard agree on what's healthy.
 
 6. **Weekly SSH-failure digest** as a LaunchAgent, once per week:
    `log show --predicate 'process == "sshd"' --last 7d | grep -i "failed\|invalid"`
-   → pipe to notify.sh (low priority).
+   → pipe to notify.sh (low priority). Runs offline (off the hot path);
+   `log show --last 7d` can take 30-60s, doesn't matter.
 
 7. **Port-audit reminder** — not automated; calendar reminder to run
    `sudo lsof -iTCP -sTCP:LISTEN -n -P` and diff against the expected
-   baseline (sshd, screensharing, ollama, 8095, 8501, utun*). Anything
-   unexpected → investigate.
+   baseline (sshd, screensharing, ollama, 8095, 8501, 8502, utun*).
+   Anything unexpected → investigate.
+
+### Deploy verification (mandatory — don't skip)
+
+Operational tests required before Phase 6 is considered DONE. Plain shell,
+no test framework needed.
+
+1. **notify.sh smoke from SSH**: `notify.sh "test" "hello"` → phone
+   receives. Confirms creds + Pushover account.
+2. **notify.sh from launchd context** (E2E, separate from #1): a one-shot
+   throwaway LaunchAgent runs notify.sh on a 1-min schedule, then unloads
+   after first fire. Proves the keychain self-unlock works in the
+   *actual* launchd-spawned shell — SSH success doesn't imply launchd
+   success (memory: `feedback_keychain_audit_session_unlock_scope.md`).
+3. **run-agent.sh wrapping**: wrap `false` (always-fails command). Verify
+   alert fires once. Run again within 5 min. Verify suppression. Touch
+   lockfile to past, verify re-fire.
+4. **Heartbeat positive**: run heartbeat manually with all services up.
+   No alert sent; success line logged.
+5. **Heartbeat negative**: `launchctl unload` one health-dashboard agent.
+   Run heartbeat manually. Verify alert. Reload the agent.
+6. **Heartbeat stale-DB**: `touch -t 202401010000 health.db`. Run
+   heartbeat. Verify alert. Restore mtime with a real receiver POST.
+7. **Phased rollout test**: dispatcher wrapped for 24h. No alerts = green.
+8. **REGRESSION GATE (IRON RULE)**: each of the 6 wrapped agents must
+   exit-0 with unchanged log content after wrapping. Per agent:
+   `launchctl kickstart -k gui/$UID/com.home-tools.<name>`, confirm
+   exit 0 and that the log tail matches pre-wrap behavior. Wrapping must
+   be transparent on the success path.
 
 ### What to skip unless actually needed
 
@@ -322,6 +403,8 @@ dashboards. With 6 agents now running (ollama, event-aggregator, and the
 - Uptime Kuma / Netdata dashboards (the streamlit page already gives us
   eyes-on-glass when we want it)
 - Structured log shipping (Elastic/Loki etc. — overkill for 6 agents)
+- External dead-man's-switch (Healthchecks.io / Pushover Glances) —
+  considered, declined as out of scope for "minimal monitoring"
 
 ---
 

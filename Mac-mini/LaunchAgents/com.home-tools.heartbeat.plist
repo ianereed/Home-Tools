@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.home-tools.heartbeat</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/bin/python3</string>
+        <string>/Users/homeserver/Home-Tools/Mac-mini/scripts/heartbeat.py</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/homeserver/Home-Tools/Mac-mini/scripts</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>HOME</key>
+        <string>/Users/homeserver</string>
+    </dict>
+
+    <key>StartInterval</key>
+    <integer>1800</integer>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>StandardOutPath</key>
+    <string>/Users/homeserver/Library/Logs/home-tools/heartbeat.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/Users/homeserver/Library/Logs/home-tools/heartbeat.log</string>
+</dict>
+</plist>

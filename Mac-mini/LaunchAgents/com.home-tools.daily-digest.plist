@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.home-tools.daily-digest</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/bin/python3</string>
+        <string>/Users/homeserver/Home-Tools/Mac-mini/scripts/daily-digest.py</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/homeserver/Home-Tools/Mac-mini/scripts</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>HOME</key>
+        <string>/Users/homeserver</string>
+    </dict>
+
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>7</integer>
+        <key>Minute</key>
+        <integer>0</integer>
+    </dict>
+
+    <key>RunAtLoad</key>
+    <false/>
+
+    <key>StandardOutPath</key>
+    <string>/Users/homeserver/Library/Logs/home-tools/daily-digest.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/Users/homeserver/Library/Logs/home-tools/daily-digest.log</string>
+</dict>
+</plist>
