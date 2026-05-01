@@ -63,7 +63,7 @@ troubleshooting, and rollback at **`Mac-mini/PHASE6.md`**.
 
 ---
 
-## Phase 7 — Backup (NEXT)
+## Phase 7 — Backup (NEXT — NAS-only locked 2026-05-01)
 
 Goal: 3-2-1 backup so we can recover from disk failure or ransomware. Now
 that `health.db` is the authoritative copy (laptop's DB is frozen at the
@@ -79,20 +79,20 @@ APIs, which only cover recent data. Protect it.
 5. `~/Library/Keychains/login.keychain-db` (7+ secrets, painful to re-migrate)
 6. `~/Home-Tools/logs/incidents.jsonl` (Phase 6 audit trail)
 
-### Decision: target = NAS (decided 2026-04-30, journal-29)
+### Decision: NAS-only for v1 (locked 2026-05-01)
 
 Backup target is the iananny NAS (192.168.4.39) Share1 already mounted at
-`~/Share1`. Not an external SSD. Not B2/Wasabi initially. Rationale:
+`~/Share1`. Not an external SSD. Not B2/Wasabi. Rationale:
 
 - It already exists, already credentialed, already mounted.
 - 3-2-1 isn't fully met with NAS-only (still on the same LAN as the mini),
   but it's a strong first leg — protects against mini SSD failure, OS
-  reinstall, accidental `rm -rf`. Off-site (B2/restic) can be added later
-  as a second leg without redoing the first.
+  reinstall, accidental `rm -rf`. **Open to off-site (B2/restic) as a second
+  leg in the future**, not in scope for this Phase.
 - Phase 5d already proved NAS reachability + TCC + autofs-style remount
   patterns work; Phase 7 doesn't have to re-solve that.
 
-### Scope
+### Scope (v1)
 
 1. **Time Machine to NAS (SMB target)** — system-native, encrypted, hourly.
 2. **`restic` to NAS** for the priority-list files at higher cadence — hourly
@@ -102,8 +102,9 @@ Backup target is the iananny NAS (192.168.4.39) Share1 already mounted at
    Untested backups aren't backups.
 4. **Exclude:** `.venv/` directories, `__pycache__/`, `.git/`,
    `~/.ollama/models/**` (re-pullable).
-5. **Off-site (Phase 7.5, deferred):** add B2/Wasabi as second leg if/when
-   desired.
+
+Off-site leg (B2/Wasabi/restic) is consciously deferred — revisit when
+something concrete makes it feel necessary, not as a pre-built option.
 
 ---
 
@@ -148,18 +149,62 @@ Tier-2 commands (mute/watch, force scan, undo last, changes since) shipped
 
 ---
 
-## Phases 10–11 — Deferred
+## Phase 12 — Pick 1: Mini Jobs queue + console (next major work after Phase 7)
 
+Architectural foundation — typed `Job` queue, single long-running worker,
+new Streamlit GUI at `homeserver:8503` with Decisions / Ask / Intake /
+Settings / Jobs tabs. Closes the `state.json` file-lock race in the same
+PR. Every future feature becomes a `Job` subclass + a registry line, not a
+new LaunchAgent + plist + log + monitoring entry.
+
+Sketch and rationale in
+`~/.claude/plans/come-up-with-more-encapsulated-spring.md` §5 Pick 1.
+Implementation plan to be authored when Phase 7 lands; will use the gstack
+`/plan-eng-review` skill.
+
+## Phase 13 — Meal-planner expansion (joint priority — first feature after backend)
+
+**Decided 2026-05-01.** Anny + Ian agreed this is the most valuable next
+feature. Two stated capabilities:
+
+- **Real iPhone actions** — tap a tile, get a result. Adds to weekly meal
+  plan, captures a recipe photo, queries the pantry, etc. Likely uses the
+  Apple Shortcuts → mini HTTP endpoint pattern (Pick 7's groundwork).
+- **Windows-laptop weekly planning collaboration with Claude** — sit down,
+  talk through the week's meals with Claude in the loop, end up with a
+  populated Sheet + grocery list + Todoist. Not a static UI; a real
+  conversation surface.
+
+Architecture is **not yet designed.** When this Phase starts, run the full
+gstack review pipeline (`/office-hours` → `/plan-ceo-review` →
+`/plan-eng-review`) to lock the design before any code. Existing scaffolding
+to lean on: `meal-planner/` (Apps Script frontend + Gemini batch sidecar),
+the model-swap pattern from `event-aggregator/worker.py`, and Pick 1's Job
+framework.
+
+This Phase subsumes Pick 5 (replace meal-planner Gemini with local mini)
+and partially overlaps Pick 7 (Apple Shortcuts → mini). Reference memory
+`project_meal_planner_expansion_priority.md` carries the verbatim user ask.
+
+## Long-term future scope (re-evaluate later)
+
+- **Tier-2 LLM orchestrator** — design at `future-architecture-upgrade.md`.
+  CEO-approved 2026-04-30 but **demoted to long-term scope on 2026-05-01.**
+  Pick 1's `Job` framework is likely to absorb most of its plumbing (typed
+  queue, single worker, audit log, console surface, recipe registry).
+  Re-evaluate after Pick 1 + meal-planner ship — an orchestrator on top of
+  the Jobs framework may still make sense, or the Jobs framework alone may
+  be sufficient. Don't pre-build.
 - **BlueBubbles iMessage bridge** — requires iCloud sign-in on the mini.
   Defer until we actually want iMessage-based control.
 - **Hermes Agent / OpenClaw evaluation** — couldn't verify OpenClaw in 2026
-  web searches; treat both as needing real-world provenance audit before
-  installing. Finance/dispatcher work fine without an agent framework.
-
-The CEO-approved Tier-2 LLM orchestrator (P0+P1, strangler-fig) is the
-medium-term direction past Phase 7 and the Mini Jobs queue + console (Pick 1,
-agreed-next per `reference_macmini_brainstorm.md`). Full design at
-`future-architecture-upgrade.md`.
+  web searches; both need real-world provenance audit before installing.
+  Finance / dispatcher / event-aggregator work fine without an agent framework.
+- **Picks 2–10 from the brainstorm** — receipt → YNAB matcher (Pick 2),
+  morning brief (Pick 3), document Q&A (Pick 4), trip detector (Pick 6),
+  anomaly digest (Pick 10), relationship radar (Pick 9), Recall search
+  (Pick 8). All re-rankable in the context of what the meal-planner work
+  teaches us; revisit ordering when meal-planner ships.
 
 ---
 

@@ -1,8 +1,30 @@
 # Future Architecture Upgrade: Orchestration Layer with Opus-Reviewed Auto-Debugging
 
-> **Status:** design document. CEO-reviewed 2026-04-30 — **strangler-fig path approved (P0+P1 only)**, Tier 2 (P2) gated behind real-data evaluation at the 4-8 week mark. See `~/.gstack/projects/ianereed-Home-Tools/ceo-plans/2026-04-30-orchestrator-strangler-fig.md` for the locked scope, accepted cherry-picks (regression tests from Day 1, drift detection from Day 1, daily Pushover summary), and P2 graduation criteria.
+> **Status (2026-05-01):** **LONG-TERM FUTURE SCOPE.** Demoted from
+> medium-term after the user decided to ship Pick 1 (Mini Jobs queue +
+> console) first and revisit whether a separate orchestrator is still
+> warranted afterward. Pick 1's `Job` framework is expected to absorb
+> most of the plumbing this document describes — typed job queue, single
+> worker, audit JSONL, console surface, recipe registry, adapter pattern.
+> An orchestrator built *on top of* Pick 1 may still make sense (the
+> tier-separated trust model and Opus-review workflow are the parts least
+> served by Pick 1 alone), but pre-building it before Pick 1 ships would
+> be wasted work. **Do not start implementation. Re-evaluate the design
+> after Pick 1 + the meal-planner expansion (Phase 13) ship.**
+>
+> Original status (preserved for history): CEO-reviewed 2026-04-30 —
+> strangler-fig path approved (P0+P1 only), Tier 2 (P2) gated behind
+> real-data evaluation. See
+> `~/.gstack/projects/ianereed-Home-Tools/ceo-plans/2026-04-30-orchestrator-strangler-fig.md`
+> for the locked scope, accepted cherry-picks (regression tests from Day 1,
+> drift detection from Day 1, daily Pushover summary), and P2 graduation
+> criteria.
 
-> Prereq: `Mac-mini/PLAN.md` Phase 6 (Pushover heartbeat + weekly SSH audit) must be complete first.
+> Prereq: `Mac-mini/PLAN.md` Phase 6 (heartbeat + weekly SSH audit, now
+> shipped as the daily Slack digest layer 2026-04-30) and Phase 7 (NAS
+> backup) must be complete first. Then Phase 12 (Pick 1, Mini Jobs queue
+> + console) and Phase 13 (meal-planner expansion). Only after all four
+> have shipped should this design be re-opened for evaluation.
 
 > **Companion doc:** `~/.claude/plans/i-am-considering-restructuring-virtual-dream.md` contains the evaluation that led to this design (benefits/cons of an agent layer, framework-verification caveat). This document is the architecture plan for *if and when* you proceed.
 

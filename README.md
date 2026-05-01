@@ -31,15 +31,27 @@ agent registry.
 
 The agreed forward sequence (see `Mac-mini/PLAN.md` for detail):
 
-1. **Phase 7 — NAS backup.** Restic + Time Machine to `~/Share1` (mini) for
-   `health.db`, event-aggregator state, `finance.db`, login keychain, Phase 6
-   incidents log. Off-site (B2/Wasabi) deferred.
-2. **Pick 1 — Mini Jobs queue + console** at `homeserver:8503`. Lift the
-   interactive surface out of Slack onto a GUI on the mini; Slack stays for
-   mobile.
-3. **Tier-2 orchestrator P0+P1.** Audit log skeleton + deterministic supervisor
-   recipes. Strangler-fig path; CEO-approved 2026-04-30. See
-   `future-architecture-upgrade.md` for the full design.
+1. **Phase 7 — NAS backup (NAS-only).** Restic + Time Machine to `~/Share1`
+   (the iananny SMB share already mounted on the mini) for `health.db`,
+   event-aggregator state, `finance.db`, login keychain, Phase 6 incidents
+   log. Off-site (B2/Wasabi) explicitly deferred — open to adding it later
+   as a second leg, not now.
+2. **Pick 1 — Mini Jobs queue + console** at `homeserver:8503`. Architectural
+   foundation. Lifts the interactive surface out of Slack onto a GUI on the
+   mini; Slack stays for mobile. Closes `state.json` file-lock race in the
+   same PR.
+3. **Meal-planner expansion (joint priority — Anny + Ian).** First feature
+   work after the backend foundation lands. Targets: real actions from
+   iPhone (Apple Shortcuts → mini); meaningful weekly meal planning
+   collaboration on the Windows laptop with Claude. Architecture will be
+   designed when the time comes via the gstack review skills
+   (`/office-hours` → `/plan-ceo-review` → `/plan-eng-review`). See the
+   `project_meal_planner_expansion_priority.md` memory for the full ask.
+
+**Long-term future scope** (re-evaluate after the meal-planner work ships):
+the Tier-2 LLM orchestrator design at `future-architecture-upgrade.md`. Pick
+1's `Job` framework is likely to absorb much of its plumbing; revisit
+whether a separate orchestrator service is still warranted at that point.
 
 ## External docs / memory
 
