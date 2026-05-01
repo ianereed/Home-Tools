@@ -166,6 +166,30 @@ Tailscale.
   kickstart the LaunchAgent so it re-links. Ollama is unaffected because it
   binds only to `127.0.0.1`.
 
+## LaunchAgent layout (intentional, not arbitrary)
+
+Plist source files live in three places, by ownership:
+
+- **`<project>/com.home-tools.<name>.plist`** — projects that ship 1–2 agents
+  alongside their code: `dispatcher/`, `event-aggregator/` (`.fetch` and
+  `.worker`), `finance-monitor/` (bot + watcher), `nas-intake/`. The plist
+  travels with the code that runs it.
+- **`<project>/config/com.<name>.plist`** — projects with 3+ agents grouped
+  in a `config/` subdir: `health-dashboard/config/` (5 plists),
+  `service-monitor/config/`. Same rationale — co-located with the project.
+- **`Mac-mini/LaunchAgents/com.home-tools.<name>.plist`** — cross-cutting
+  agents not owned by any one project: `heartbeat`, `daily-digest`,
+  `weekly-ssh-digest`, `dispatcher-3day-check`, `memory-tracker`,
+  `ollama-tracker`. Their helper scripts live under `Mac-mini/scripts/`.
+
+The split tracks ownership, not arbitrariness — don't fight it. When adding
+a new project agent, the plist goes alongside the project. When adding a
+cross-cutting probe/digest, it goes under `Mac-mini/LaunchAgents/`.
+
+`Mac-mini/scripts/` is for the **code** (Python / shell) that those
+cross-cutting agents invoke; the plists themselves live next door under
+`LaunchAgents/`.
+
 ## Critical file paths
 
 | Path | Purpose |
@@ -173,9 +197,10 @@ Tailscale.
 | `~/Home-Tools` | The main repo on the mini (outside TCC-protected folders) |
 | `~/Home-Tools/event-aggregator/.venv` | Per-project Python venv |
 | `~/Library/LaunchAgents/homebrew.mxcl.ollama.plist` | Ollama service definition |
-| `~/Library/LaunchAgents/com.home-tools.*.plist` | Home-tools LaunchAgents |
+| `~/Library/LaunchAgents/com.home-tools.*.plist` | Home-tools LaunchAgents (installed; sources per layout above) |
 | `/opt/homebrew/var/log/ollama.log` | Ollama stdout+stderr |
 | `/tmp/home-tools-<project>.log` | Per-project LaunchAgent stdout+stderr |
+| `~/Library/Logs/home-tools/` | Phase 6 + tracker stdout/stderr |
 
 ## Verification commands
 

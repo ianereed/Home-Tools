@@ -48,7 +48,7 @@ echo "  curl -s --max-time 10 http://127.0.0.1:8502/_stcore/health"
 echo "  open http://homeserver:8502/"
 
 # ── Ollama load-history tracker (Tier 2) ─────────────────────────────
-TRACKER_PLIST_SRC="$HERE/../Mac-mini/scripts/com.home-tools.ollama-tracker.plist"
+TRACKER_PLIST_SRC="$HERE/../Mac-mini/LaunchAgents/com.home-tools.ollama-tracker.plist"
 TRACKER_PLIST_DST="$HOME/Library/LaunchAgents/com.home-tools.ollama-tracker.plist"
 
 if [[ -f "$TRACKER_PLIST_SRC" ]]; then
@@ -72,7 +72,7 @@ if [[ -f "$TRACKER_PLIST_SRC" ]]; then
 fi
 
 # ── Memory/RAM tracker ───────────────────────────────────────────────
-MEM_PLIST_SRC="$HERE/../Mac-mini/scripts/com.home-tools.memory-tracker.plist"
+MEM_PLIST_SRC="$HERE/../Mac-mini/LaunchAgents/com.home-tools.memory-tracker.plist"
 MEM_PLIST_DST="$HOME/Library/LaunchAgents/com.home-tools.memory-tracker.plist"
 
 if [[ -f "$MEM_PLIST_SRC" ]]; then
