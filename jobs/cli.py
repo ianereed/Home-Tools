@@ -78,6 +78,7 @@ def _registered_kinds() -> dict[str, Any]:
 
 
 def _print_kinds() -> int:
+    from jobs.lib import get_baseline, get_requires
     kinds = _registered_kinds()
     if not kinds:
         print("no kinds registered.", file=sys.stderr)
@@ -85,9 +86,9 @@ def _print_kinds() -> int:
     print(f"{len(kinds)} job kind(s):")
     for name in sorted(kinds):
         fn = kinds[name]
-        bl = getattr(fn, "_baseline", None)
+        bl = get_baseline(fn)
         bl_summary = f" baseline={bl.metric!r} window={bl.divergence_window}" if bl else ""
-        req = getattr(fn, "_requires", None)
+        req = get_requires(fn)
         req_summary = f" requires={req.items}" if req and req.items else ""
         print(f"  - {name}{bl_summary}{req_summary}")
     return 0
@@ -170,12 +171,13 @@ def _new(name: str) -> int:
 
 def _migrate(kind: str) -> int:
     """Begin a migration: rename old plist to .plist.disabled, record baseline."""
+    from jobs.lib import get_baseline
     kinds = _registered_kinds()
     fn = kinds.get(kind)
     if fn is None:
         print(f"unknown kind: {kind!r}", file=sys.stderr)
         return 2
-    bl = getattr(fn, "_baseline", None)
+    bl = get_baseline(fn)
     if bl is None:
         print(f"kind {kind!r} has no @baseline declared — cannot migrate safely", file=sys.stderr)
         return 2

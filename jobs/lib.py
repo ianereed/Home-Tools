@@ -36,6 +36,23 @@ class Baseline:
         return _parse_duration(self.divergence_window)
 
 
+def get_baseline(fn) -> Baseline | None:
+    """Look up the @baseline metadata on a Job, transparently unwrapping
+    huey's TaskWrapper if needed (huey 3.x stores the original function on
+    `.func`, so our decorator's attribute lives there)."""
+    bl = getattr(fn, "_baseline", None)
+    if bl is None and hasattr(fn, "func"):
+        bl = getattr(fn.func, "_baseline", None)
+    return bl
+
+
+def get_requires(fn) -> "RequiresSpec | None":
+    req = getattr(fn, "_requires", None)
+    if req is None and hasattr(fn, "func"):
+        req = getattr(fn.func, "_requires", None)
+    return req
+
+
 @dataclass
 class RequiresSpec:
     items: list[str] = field(default_factory=list)

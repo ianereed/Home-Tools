@@ -72,11 +72,12 @@ class JobsHandler(BaseHTTPRequestHandler):
             return
         if parsed.path == "/kinds":
             from jobs.cli import _registered_kinds
+            from jobs.lib import get_baseline, get_requires
             kinds = _registered_kinds()
             out = []
             for name, fn in sorted(kinds.items()):
-                bl = getattr(fn, "_baseline", None)
-                req = getattr(fn, "_requires", None)
+                bl = get_baseline(fn)
+                req = get_requires(fn)
                 out.append({
                     "name": name,
                     "baseline": (
