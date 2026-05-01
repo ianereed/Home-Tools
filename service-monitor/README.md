@@ -1,6 +1,6 @@
 # service-monitor
 
-Mac mini service status dashboard. Shows live status of all 11 LaunchAgents, queue depths, DB health, Ollama availability, and per-service log tails.
+Mac mini service status dashboard. Shows live status of every loaded `com.home-tools.*` and `com.health-dashboard.*` agent, queue depths, DB health, Ollama availability, and per-service log tails. The agent registry is `services.py:SERVICES` (source of truth).
 
 **URL**: `http://homeserver:8502/` (Tailscale)  
 **Auto-refresh**: 30 seconds  
