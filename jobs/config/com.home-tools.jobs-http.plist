@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.home-tools.jobs-http</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/homeserver/Home-Tools/jobs/run-http.sh</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/homeserver/Home-Tools</string>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>KeepAlive</key>
+    <true/>
+
+    <key>ThrottleInterval</key>
+    <integer>30</integer>
+
+    <key>StandardOutPath</key>
+    <string>/Users/homeserver/Home-Tools/logs/jobs-http.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/Users/homeserver/Home-Tools/logs/jobs-http.err.log</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+        <key>HOME</key>
+        <string>/Users/homeserver</string>
+        <key>KEYCHAIN_PATH</key>
+        <string>/Users/homeserver/Library/Keychains/login.keychain-db</string>
+        <key>JOBS_HTTP_PORT</key>
+        <string>8504</string>
+    </dict>
+</dict>
+</plist>
