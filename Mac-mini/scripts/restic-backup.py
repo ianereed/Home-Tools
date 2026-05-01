@@ -96,21 +96,19 @@ def get_password(service: str, account: str = "password") -> str:
 
 
 def ensure_nas_mounted() -> bool:
-    """Returns True if ~/Share1 is mounted (or could be re-mounted)."""
+    """Returns True if ~/Share1 is mounted (or could be re-mounted).
+
+    Uses os.path.ismount() rather than iterdir() so the check works even
+    without Full Disk Access — TCC silently filters iterdir() output on
+    SMB mounts when the launchd-spawned python lacks FDA. ismount() reads
+    only filesystem metadata (st_dev), which doesn't trigger TCC.
+    """
     share = HOME / "Share1"
-    # If the mount looks live (has any entries), we're good.
-    try:
-        if share.exists() and any(share.iterdir()):
-            return True
-    except (OSError, PermissionError):
-        pass
-    # Try the mount-nas helper.
+    if os.path.ismount(share):
+        return True
     if MOUNT_NAS_SH.exists():
         subprocess.run(["bash", str(MOUNT_NAS_SH)], capture_output=True, check=False)
-    try:
-        return share.exists() and any(share.iterdir())
-    except (OSError, PermissionError):
-        return False
+    return os.path.ismount(share)
 
 
 def repo_health(repo_dir: Path) -> str:

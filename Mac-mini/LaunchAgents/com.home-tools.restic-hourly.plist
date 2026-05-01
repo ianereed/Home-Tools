@@ -8,7 +8,7 @@
 
     <key>ProgramArguments</key>
     <array>
-        <string>/usr/bin/python3</string>
+        <string>/opt/homebrew/opt/python@3.12/bin/python3.12</string>
         <string>/Users/homeserver/Home-Tools/Mac-mini/scripts/restic-backup.py</string>
         <string>--profile</string>
         <string>hourly</string>
