@@ -1,0 +1,5 @@
+# Phase 12 — Mini Jobs framework
+huey>=3.0
+
+# Slack adapter (lazy-imported)
+slack-sdk>=3.0
