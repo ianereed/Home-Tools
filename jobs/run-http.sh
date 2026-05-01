@@ -26,7 +26,7 @@ export HOME_TOOLS_HTTP_TOKEN="$(security find-generic-password -a 'home-tools' -
 # tailscale0 IP (the address that is reachable from iPhone over Tailscale).
 # Don't let a missing ifconfig kill the script — fall back to localhost.
 set +e
-TAILSCALE_IP="$(ifconfig 2>/dev/null | awk '/utun.*100\./ {print $2; exit}')"
+TAILSCALE_IP="$(ifconfig 2>/dev/null | awk '/inet 100\./ {print $2; exit}')"
 set -e
 if [ -z "$TAILSCALE_IP" ]; then
     TAILSCALE_IP="127.0.0.1"

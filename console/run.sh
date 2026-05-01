@@ -20,7 +20,7 @@ source "$VENV/bin/activate"
 # Tailscale IP (so we don't expose console on en0/lo0). Don't let a missing
 # ifconfig kill the script — fall back to localhost.
 set +e
-TAILSCALE_IP="$(ifconfig 2>/dev/null | awk '/utun.*100\./ {print $2; exit}')"
+TAILSCALE_IP="$(ifconfig 2>/dev/null | awk '/inet 100\./ {print $2; exit}')"
 set -e
 TAILSCALE_IP="${TAILSCALE_IP:-127.0.0.1}"
 
