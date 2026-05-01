@@ -61,7 +61,7 @@ if mount | grep -q " on $SHARE "; then
   echo "[1/5] NAS already mounted at $SHARE"
 elif [ "${INTERACTIVE:-0}" = "0" ] && [ -n "$LIVE_SHARE" ] && mount | grep -q " on $LIVE_SHARE "; then
   echo "[1/5] reusing live SMB mount at $LIVE_SHARE (symlink for sandboxed test)"
-  rm -f "$SHARE" 2>/dev/null
+  rm -rf "$SHARE"  # was mkdir'd above; replace with symlink
   ln -s "$LIVE_SHARE" "$SHARE"
 else
   echo "[1/5] mounting NAS at $SHARE"
