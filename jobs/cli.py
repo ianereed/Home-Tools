@@ -198,16 +198,22 @@ def _migrate(kind: str) -> int:
         )
         return 1
 
+    # Unload by label BEFORE rename — once the file is renamed off .plist,
+    # `launchctl unload <path>` won't drop the in-memory definition.
+    try:
+        subprocess.run(
+            ["launchctl", "bootout", f"gui/{os.getuid()}/{plist_label}"],
+            check=False, capture_output=True,
+        )
+    except FileNotFoundError:
+        pass
+
     # Rename → .disabled (rollback-ready).
     disabled = plist.with_suffix(plist.suffix + ".disabled")
     if disabled.exists():
         print(f"already migrating? {disabled} already exists.", file=sys.stderr)
         return 1
     plist.rename(disabled)
-    try:
-        subprocess.run(["launchctl", "unload", str(disabled)], check=False, capture_output=True)
-    except FileNotFoundError:
-        pass
 
     # Determine cadence from huey's task wrapper.
     cadence_seconds = getattr(fn, "_cadence_seconds", 0) or _guess_cadence(fn)
