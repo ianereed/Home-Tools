@@ -52,7 +52,9 @@ Tailscale.
 - **Application Firewall**: on + Stealth Mode
 - **Automatic OS security updates**: on
 - **SSH**: Remote Login enabled; access via Tailscale SSH (identity-based,
-  auth managed by Tailscale, not password)
+  auth managed by Tailscale, not password). Tailnet ACL self-to-self SSH set
+  to `action: "accept"` (not the default `"check"`) — see Key decisions
+  2026-05-02 below.
 - **Tailscale**: standalone Homebrew install running as a system daemon;
   `tailscale up --ssh` brings it online on boot
 - **Ollama**: `brew services`, LaunchAgent at
@@ -165,6 +167,21 @@ Tailscale.
   to the allowlist via `sudo socketfilterfw --add` + `--unblockapp`, then
   kickstart the LaunchAgent so it re-links. Ollama is unaffected because it
   binds only to `127.0.0.1`.
+- **Tailnet ACL self-to-self SSH set to `accept`, key expiry disabled per
+  device** (2026-05-02). Default tailnet policy uses `action: "check"` for
+  same-user SSH, which forces an interactive `login.tailscale.com/a/...`
+  re-auth every ~12 hours. Launchd-driven jobs that scp from the laptop to
+  the mini (`com.home-tools.imessage-export` is the canonical example) have
+  no browser to satisfy that prompt and silently fail between checks. Fixed
+  by editing the tailnet ACL at admin.tailscale.com → Access Controls,
+  changing the `ssh` rule from `"check"` to `"accept"`. Per-device key
+  expiry also disabled in admin.tailscale.com → Machines on
+  `ians-macbook-pro` and `homeserver`, so the only other periodic re-auth
+  source (Tailscale device key rotation, default 180 days) is also gone.
+  Tradeoff: a stolen device's tailnet token stays valid until manually
+  removed in admin. For a solo personal tailnet on owner-controlled
+  devices that's an acceptable cost; revisit if more identities or shared
+  devices ever join the tailnet.
 
 ## LaunchAgent layout (intentional, not arbitrary)
 
