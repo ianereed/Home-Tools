@@ -306,3 +306,91 @@ def test_restic_repo_path_uses_mac_mini_backups():
     """Hotfix Cluster D — verifier looks under ~/Share1/mac-mini-backups/."""
     p = mv._restic_repo_path("restic-hourly")
     assert p == Path.home() / "Share1" / "mac-mini-backups" / "restic-hourly"
+
+
+def test_rollback_bootstraps_launchagent_after_rename(monkeypatch, tmp_path):
+    """Regression (2026-05-03): rollback() must bootout-then-bootstrap, not
+    `kickstart -k`. The pre-fix call was a silent no-op because migrate() had
+    already bootout'd the agent — leaving rolled-back kinds unloaded.
+
+    LAUNCHAGENTS_DIR monkeypatch is REQUIRED — the existing rollback tests
+    don't override it, so their `user_plist.exists()` check returns False on
+    the pinned-HOME conftest and the launchctl block is silently skipped.
+    That false-pass is exactly why this bug went undetected.
+    """
+    import json
+    import os
+    import subprocess
+    monkeypatch.setattr(mv, "MIGRATIONS_STATE_PATH", tmp_path / "m.json")
+    monkeypatch.setattr(mv, "INCIDENTS_PATH", tmp_path / "incidents.jsonl")
+    monkeypatch.setattr(mv, "LAUNCHAGENTS_DIR", tmp_path)
+
+    plist = tmp_path / "com.home-tools.heartbeat.plist"
+    disabled = tmp_path / "com.home-tools.heartbeat.plist.disabled"
+    disabled.write_text("<plist></plist>")  # rename precondition
+
+    calls: list[list[str]] = []
+
+    def fake_run(cmd, **kwargs):
+        calls.append(list(cmd))
+        return subprocess.CompletedProcess(cmd, 0, stdout="", stderr="")
+
+    monkeypatch.setattr(mv.subprocess, "run", fake_run)
+
+    migration = {
+        "kind": "heartbeat",
+        "plist_label": "com.home-tools.heartbeat",
+        "plist_source_path": str(plist),
+    }
+    mv.rollback(migration, reason="test_reason", evidence={"k": "v"})
+
+    uid = os.getuid()
+    assert calls == [
+        ["launchctl", "bootout", f"gui/{uid}/com.home-tools.heartbeat"],
+        ["launchctl", "bootstrap", f"gui/{uid}", str(plist)],
+    ]
+    assert plist.exists()
+    assert not disabled.exists()
+    # Successful bootstrap → no bootstrap_stderr in evidence
+    incidents = (tmp_path / "incidents.jsonl").read_text().strip().splitlines()
+    rec = json.loads(incidents[0])
+    assert rec["event"] == "migration_rollback"
+    assert rec["evidence"] == {"k": "v"}
+
+
+def test_rollback_logs_bootstrap_stderr_on_failure(monkeypatch, tmp_path):
+    """If bootstrap returns non-zero, stderr lands in incident evidence
+    (truncated to 200 chars). Without this signal, a silent re-load failure
+    looks identical to a successful rollback in the daily-digest."""
+    import json
+    import subprocess
+    monkeypatch.setattr(mv, "MIGRATIONS_STATE_PATH", tmp_path / "m.json")
+    monkeypatch.setattr(mv, "INCIDENTS_PATH", tmp_path / "incidents.jsonl")
+    monkeypatch.setattr(mv, "LAUNCHAGENTS_DIR", tmp_path)
+
+    plist = tmp_path / "com.home-tools.heartbeat.plist"
+    disabled = tmp_path / "com.home-tools.heartbeat.plist.disabled"
+    disabled.write_text("<plist></plist>")
+
+    def fake_run(cmd, **kwargs):
+        if len(cmd) >= 2 and cmd[1] == "bootstrap":
+            return subprocess.CompletedProcess(
+                cmd, 1, stdout="", stderr="Boot-out failed: 5: Input/output error\n",
+            )
+        return subprocess.CompletedProcess(cmd, 0, stdout="", stderr="")
+
+    monkeypatch.setattr(mv.subprocess, "run", fake_run)
+
+    migration = {
+        "kind": "heartbeat",
+        "plist_label": "com.home-tools.heartbeat",
+        "plist_source_path": str(plist),
+    }
+    mv.rollback(migration, reason="test_reason", evidence={"k": "v"})
+
+    incidents = (tmp_path / "incidents.jsonl").read_text().strip().splitlines()
+    rec = json.loads(incidents[0])
+    assert rec["event"] == "migration_rollback"
+    assert rec["evidence"]["k"] == "v"
+    assert "Boot-out failed" in rec["evidence"]["bootstrap_stderr"]
+    assert len(rec["evidence"]["bootstrap_stderr"]) <= 200

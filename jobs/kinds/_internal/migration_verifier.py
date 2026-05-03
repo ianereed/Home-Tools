@@ -8,8 +8,9 @@ Hourly @periodic_task that walks the in-flight migration list and:
   3. Increments the soaked-hours counter. At 72 → auto-promote (delete the
      `.plist.disabled` and the original script).
 
-Rollback renames `<plist>.disabled` → `<plist>` and kickstarts launchctl,
-then logs an incident readable by Phase 6's daily-digest.
+Rollback renames `<plist>.disabled` → `<plist>`, bootout-then-bootstrap
+launchctl (since `migrate()` bootout'd the agent — kickstart was a silent
+no-op), then logs an incident readable by Phase 6's daily-digest.
 
 ## Baseline check semantics (hotfix)
 
@@ -326,19 +327,35 @@ def check_baseline(
 
 
 def rollback(migration: dict, reason: str, evidence: dict) -> None:
-    """Re-enable old plist; log incident; kickstart launchctl."""
+    """Re-enable old plist; bootout-then-bootstrap launchctl; log incident."""
     plist_path = Path(migration["plist_source_path"])
     disabled = plist_path.with_suffix(plist_path.suffix + ".disabled")
     if disabled.exists():
         disabled.rename(plist_path)
     label = migration["plist_label"]
     user_plist = LAUNCHAGENTS_DIR / plist_path.name
+    bootstrap_stderr = None
     if user_plist.exists():
         try:
-            subprocess.run(["launchctl", "kickstart", "-k", f"gui/{os.getuid()}/{label}"], check=False)
+            # `migrate()` (jobs/cli.py:204) uses `bootout` to remove the agent,
+            # so at rollback time it is unloaded. `kickstart -k` only restarts
+            # an already-loaded service — bootstrap is what actually re-loads
+            # from the (renamed-back) plist. Run bootout first as an idempotent
+            # guard against the rare case where it is loaded.
+            subprocess.run(
+                ["launchctl", "bootout", f"gui/{os.getuid()}/{label}"],
+                check=False, capture_output=True,
+            )
+            bs = subprocess.run(
+                ["launchctl", "bootstrap", f"gui/{os.getuid()}", str(plist_path)],
+                check=False, capture_output=True, text=True,
+            )
+            if bs.returncode != 0:
+                bootstrap_stderr = (bs.stderr or "").strip()[:200]
         except FileNotFoundError:
             pass
-    log_incident("migration_rollback", kind=migration["kind"], reason=reason, evidence=evidence)
+    incident_evidence = {**evidence, "bootstrap_stderr": bootstrap_stderr} if bootstrap_stderr else evidence
+    log_incident("migration_rollback", kind=migration["kind"], reason=reason, evidence=incident_evidence)
 
 
 def promote(migration: dict) -> None:
