@@ -14,6 +14,7 @@ from jobs.kinds._internal.migration_verifier import record_fire
 logger = logging.getLogger(__name__)
 
 SCRIPT = Path(__file__).resolve().parents[2] / "Mac-mini" / "scripts" / "restic-backup.py"
+_HEARTBEAT_LOG = Path.home() / "Library" / "Logs" / "home-tools" / "restic-daily.log"
 
 
 @huey.periodic_task(crontab(minute="30", hour="3"))
@@ -25,4 +26,5 @@ def restic_daily() -> dict:
     record_fire("restic_daily")
     if proc.returncode != 0:
         logger.warning("restic-daily rc=%d stderr=%s", proc.returncode, proc.stderr[:200])
+    _HEARTBEAT_LOG.write_text(f"rc={proc.returncode}\n")
     return {"rc": proc.returncode}

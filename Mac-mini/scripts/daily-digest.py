@@ -33,7 +33,7 @@ LOOKBACK_HOURS = 24
 
 DBS_TO_REPORT = [
     ("health.db", HOME / "Home-Tools" / "health-dashboard" / "data" / "health.db"),
-    ("finance.db", HOME / "Home-Tools" / "finance-monitor" / "db" / "finance.db"),
+    ("finance.db", HOME / "Home-Tools" / "finance-monitor" / "data" / "finance.db"),
     (
         "event-aggregator state",
         HOME / "Home-Tools" / "event-aggregator" / "state.json",
@@ -109,7 +109,7 @@ def build_message(
     now: datetime,
 ) -> tuple[str, bool]:
     """Return (slack-text, attention_flag)."""
-    bad_now = {k: v for k, v in current.items() if v not in ("up", "fresh")}
+    bad_now = {k: v for k, v in current.items() if v not in ("up", "fresh", "ok")}
     state_changes = [i for i in incidents if i.get("kind") == "state_change"]
     first_seen_bad = [i for i in incidents if i.get("kind") == "first_seen_bad"]
 
