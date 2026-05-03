@@ -145,11 +145,12 @@ class State:
         self, source: str, msg_id: str, body_text: str,
         metadata: dict, timestamp_iso: str,
     ) -> None:
+        """Enqueue a RawMessage for text extraction.
+
+        Phase 12.7 deprecation: fetch_only() still writes here; event_aggregator_fetch
+        kind drains this queue into huey tasks after each subprocess call. Deleted in 12.8.
         """
-        Enqueue a RawMessage for text extraction. Persists body_text + metadata
-        so the worker can run independently of the fetch loop. Privacy: state.json
-        is gitignored and chmod 600 — body_text never leaves disk.
-        """
+        logger.debug("state.enqueue_text_job: deprecated in 12.7 (will be removed in 12.8)")
         # Dedup against in-flight queue: don't add if same source+id already queued.
         queue = self._data.setdefault("text_queue", [])
         for existing in queue:

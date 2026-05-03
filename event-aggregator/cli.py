@@ -88,6 +88,12 @@ def main() -> int:
 
     p = sub.add_parser("bump-dashboard", help="Increment the dashboard-burial counter (called by the dispatcher when a non-bot message arrives in the interactive channel)")
 
+    p = sub.add_parser("run-text-job", help="(Phase 12.7) Run one queued text-extraction job (called by the jobs consumer)")
+    p.add_argument("--job-json", required=True, help="JSON-encoded job dict {source, id, body_text, metadata, timestamp}")
+
+    p = sub.add_parser("run-ocr-job", help="(Phase 12.7) Run one queued OCR job (called by the jobs consumer)")
+    p.add_argument("--file", required=True, help="Absolute path to the image/PDF file to process")
+
     args = parser.parse_args()
 
     # Quiet default logging when emitting JSON on stdout; the dispatcher parses it.
@@ -132,6 +138,10 @@ def main() -> int:
         return _cmd_swap(decision_id=args.decision_id, decision=args.decision)
     if args.cmd == "bump-dashboard":
         return _cmd_bump_dashboard()
+    if args.cmd == "run-text-job":
+        return _cmd_run_text_job(args.job_json)
+    if args.cmd == "run-ocr-job":
+        return _cmd_run_ocr_job(Path(args.file))
     return 1
 
 
@@ -235,6 +245,58 @@ def _cmd_enqueue_image(file: Path) -> int:
         state.enqueue_ocr_job(str(file.resolve()))
         state_module.save(state)
     print(f":inbox_tray: enqueued {file.name} (ocr_queue depth: {state.ocr_queue_depth()})")
+    return 0
+
+
+# ── run-text-job / run-ocr-job (Phase 12.7 — called by jobs consumer) ─────────
+
+_BASELINE_TOUCH_FILE = Path(__file__).parent / "run" / "event-aggregator-text-or-vision.last"
+
+
+def _touch_baseline() -> None:
+    _BASELINE_TOUCH_FILE.parent.mkdir(exist_ok=True)
+    _BASELINE_TOUCH_FILE.touch()
+
+
+def _cmd_run_text_job(job_json: str) -> int:
+    """Run one text-extraction job. Called by the jobs consumer subprocess.
+
+    Loads state.json, runs _run_text_job, saves state, then touches the
+    baseline liveness file so the migration verifier sees activity.
+    """
+    import state as state_module
+    import worker
+    try:
+        job = json.loads(job_json)
+    except json.JSONDecodeError as exc:
+        print(f"run-text-job: bad --job-json: {exc}", file=sys.stderr)
+        return 2
+    with state_module.locked():
+        state = state_module.load()
+    try:
+        worker._run_text_job(state, job)
+    finally:
+        with state_module.locked():
+            state_module.save(state)
+    _touch_baseline()
+    return 0
+
+
+def _cmd_run_ocr_job(file: Path) -> int:
+    """Run one OCR job. Called by the jobs consumer subprocess."""
+    import state as state_module
+    import worker
+    if not file.exists():
+        print(f"run-ocr-job: file not found: {file}", file=sys.stderr)
+        return 2
+    with state_module.locked():
+        state = state_module.load()
+    try:
+        worker._run_ocr_job(state, {"file_path": str(file)})
+    finally:
+        with state_module.locked():
+            state_module.save(state)
+    _touch_baseline()
     return 0
 
 

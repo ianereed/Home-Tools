@@ -1536,6 +1536,7 @@ _SUBCOMMANDS = {
     "add-event", "status", "query",
     "config", "undo-last", "changes", "forget", "swap",
     "bump-dashboard",
+    "run-text-job", "run-ocr-job",
 }
 
 

@@ -29,7 +29,9 @@ class Svc:
 SERVICES: list[Svc] = [
     # KeepAlive listeners that didn't migrate (no jobs-style cadence).
     # evt_fetch migrated to jobs framework in Phase 12.5 (kind: event_aggregator_fetch).
-    Svc("evt_worker",   "com.home-tools.event-aggregator.worker",  "event-aggregator", "KeepAlive",
+    # evt_worker migrating to jobs framework in Phase 12.7 (kinds: event_aggregator_text,
+    # event_aggregator_vision, event_aggregator_decision_poller). Plist disabled at cutover.
+    Svc("evt_worker",   "com.home-tools.event-aggregator.worker",  "event-aggregator", "KeepAlive (→ jobs 12.7)",
         str(LOG_DIR_HOME_TOOLS / "event-aggregator-worker.log"),
         plist_source_path="event-aggregator/com.home-tools.event-aggregator.worker.plist"),
     Svc("disp",         "com.home-tools.dispatcher",                "dispatcher",       "KeepAlive",
