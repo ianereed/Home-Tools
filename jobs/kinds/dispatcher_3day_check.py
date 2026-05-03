@@ -13,6 +13,7 @@ from jobs.kinds._internal.migration_verifier import record_fire
 logger = logging.getLogger(__name__)
 
 SCRIPT = Path(__file__).resolve().parents[2] / "Mac-mini" / "scripts" / "dispatcher-3day-check.sh"
+_LOG = Path(__file__).resolve().parents[2] / "logs" / "dispatcher-3day.txt"
 
 
 # Every 3 days at 09:30. crontab doesn't support "every 3 days" directly, so
@@ -25,4 +26,5 @@ def dispatcher_3day_check() -> dict:
     record_fire("dispatcher_3day_check")
     if proc.returncode != 0:
         logger.warning("dispatcher-3day-check rc=%d stderr=%s", proc.returncode, proc.stderr[:200])
+    _LOG.write_text(f"rc={proc.returncode}\n")
     return {"rc": proc.returncode}

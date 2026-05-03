@@ -13,6 +13,7 @@ from jobs.kinds._internal.migration_verifier import record_fire
 logger = logging.getLogger(__name__)
 
 SCRIPT = Path(__file__).resolve().parents[2] / "Mac-mini" / "scripts" / "weekly-ssh-digest.sh"
+_LOG = Path(__file__).resolve().parents[2] / "logs" / "weekly-ssh-digest.log"
 
 
 @huey.periodic_task(crontab(minute="0", hour="9", day_of_week="1"))
@@ -23,4 +24,5 @@ def weekly_ssh_digest() -> dict:
     record_fire("weekly_ssh_digest")
     if proc.returncode != 0:
         logger.warning("weekly-ssh-digest rc=%d stderr=%s", proc.returncode, proc.stderr[:200])
+    _LOG.write_text(f"rc={proc.returncode}\n")
     return {"rc": proc.returncode}

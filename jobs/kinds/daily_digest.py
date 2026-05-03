@@ -19,6 +19,7 @@ from jobs.kinds._internal.migration_verifier import record_fire
 logger = logging.getLogger(__name__)
 
 SCRIPT = Path(__file__).resolve().parents[2] / "Mac-mini" / "scripts" / "daily-digest.py"
+_LOG = Path(__file__).resolve().parents[2] / "logs" / "daily-digest.log"
 
 
 @huey.periodic_task(crontab(minute="0", hour="7"))
@@ -29,4 +30,5 @@ def daily_digest() -> dict:
     record_fire("daily_digest")
     if proc.returncode != 0:
         logger.warning("daily-digest rc=%d stderr=%s", proc.returncode, proc.stderr[:200])
+    _LOG.write_text(f"rc={proc.returncode}\n")
     return {"rc": proc.returncode}
