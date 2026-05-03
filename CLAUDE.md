@@ -1,3 +1,23 @@
+# gstack tools by default
+
+Use the `gstack` skills/tools by default for any task they cover —
+browsing, QA, design review, ship/land/deploy, codex, scrape,
+investigate, etc. Reach for the gstack equivalent before a
+generic Bash/MCP path. Specifically:
+
+- Web browsing → `/browse` (never `mcp__claude-in-chrome__*`).
+- QA / dogfooding a site → `/qa` or `/qa-only`.
+- Visual / design polish on a live site → `/design-review`.
+- Plan reviews → `/plan-eng-review`, `/plan-design-review`,
+  `/plan-ceo-review`, `/plan-devex-review`, or `/autoplan`.
+- Shipping → `/ship`, then `/land-and-deploy`.
+- Second opinion on code → `/codex`.
+- Debugging reported errors → `/investigate` (don't debug directly).
+- Pulling data from a page → `/scrape`.
+
+If unsure whether a gstack skill covers the task, check the
+available-skills list before falling back to a generic tool.
+
 # Journal
 
 At the start of a session, create a new journal file at the root of
