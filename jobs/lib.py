@@ -254,8 +254,21 @@ class _ModelState:
     so the primitive works in the jobs consumer (which sets them in its plist)
     without a hard import from event-aggregator/config.py.
 
-    Thread-safety: all mutations go through self._lock (RLock). Huey 3
-    thread-mode workers may call concurrently.
+    Concurrency model — IMPORTANT for any future @requires_model kind:
+
+      The RLock (self._lock) protects only the *swap mechanism* (load/unload
+      bookkeeping in swap_to/ensure and the _batch_kinds set). It is RELEASED
+      before the decorated function body runs (see requires_model wrapper).
+
+      The actual concurrency guard for "no other kind swaps the model while
+      I'm using it" is the consumer running with `-w 1 -k thread` in
+      jobs/run-consumer.sh: a single huey worker thread serializes all model
+      kinds. Two text/vision kinds cannot run simultaneously by construction.
+
+      If you ever raise the worker count (-w >1) for a kind that uses
+      @requires_model, you MUST add per-kind locking that's held across the
+      function body — otherwise thread B can swap models out from under
+      thread A's in-flight subprocess. This is why -w 1 is intentional.
 
     Lazy teardown: swap_to() is called only when the requested kind differs
     from the currently loaded model. No unload happens on return from the
@@ -403,6 +416,12 @@ def requires_model(kind: str, batch_hint: str = "") -> Callable:
 
     Lazy teardown: no unload on return. The next call to requires_model with the
     opposite kind triggers the swap.
+
+    NOTE: _model_state._lock is acquired ONLY around ensure()/_batch_kinds
+    bookkeeping, not across fn(). The single-threaded huey consumer
+    (`-w 1 -k thread` in jobs/run-consumer.sh) is what prevents concurrent
+    model swaps during fn(). See _ModelState docstring for the full
+    concurrency model and what changes if you raise the worker count.
     """
     def deco(fn: Callable) -> Callable:
         @functools.wraps(fn)

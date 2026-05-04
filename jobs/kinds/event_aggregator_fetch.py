@@ -55,10 +55,16 @@ def _load_ea_state():
 )
 @migrates_from("com.home-tools.event-aggregator.fetch")
 def event_aggregator_fetch() -> dict:
-    proc = subprocess.run(
-        [str(VENV_PYTHON), "main.py", "fetch-only"],
-        cwd=str(PROJECT), capture_output=True, text=True, timeout=540,
-    )
+    try:
+        proc = subprocess.run(
+            [str(VENV_PYTHON), "main.py", "fetch-only"],
+            cwd=str(PROJECT), capture_output=True, text=True, timeout=540,
+        )
+    except subprocess.TimeoutExpired as exc:
+        logger.warning("event-aggregator-fetch: subprocess timed out (540s)")
+        if exc.process is not None:
+            exc.process.kill()
+        raise  # let huey log the failure; next 10-min tick retries
     record_fire("event_aggregator_fetch")
     if proc.returncode != 0:
         logger.warning(
@@ -73,21 +79,23 @@ def event_aggregator_fetch() -> dict:
     # The honest liveness signal is the file-mtime baseline (TOUCH_FILE touched
     # by event_aggregator_text only on successful subprocess). Forging a fire
     # every 10 min regardless of whether any text task ran breaks the verifier.
+    #
+    # Schedule huey tasks INSIDE the lock BEFORE saving the cleared state.
+    # If any schedule raises, the with-block exits without calling save() —
+    # state.json is left untouched, so re-running fetch picks the messages
+    # back up. Mirrors decision_poller.py:79-88 + migrate_event_aggregator_queues.py.
     scheduled = 0
     try:
         ea_state = _load_ea_state()
         with ea_state.locked():
             state = ea_state.load()
-            pending: list[dict] = []
             while True:
                 job = state.pop_text_job()
                 if job is None:
                     break
-                pending.append(job)
+                event_aggregator_text(job)
+                scheduled += 1
             ea_state.save(state)
-        for job in pending:
-            event_aggregator_text(job)
-            scheduled += 1
     except Exception as exc:
         logger.warning("event-aggregator-fetch: failed to drain text_queue: %s", exc)
 

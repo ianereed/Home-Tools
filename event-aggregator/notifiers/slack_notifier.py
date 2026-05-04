@@ -864,7 +864,7 @@ def post_or_update_dashboard(
         ollama_health=state.ollama_health(),
         recurring_notices=state.recurring_notices(),
         worker_status=live_queue_status,
-        swap_decisions=state._data.get("swap_decisions") or {},
+        swap_decisions=dict(state.iter_swap_decisions()),
         pending_confirmations=state.pending_confirmations(),
     )
     pending_count = sum(1 for i in items if i["status"] == "pending")
