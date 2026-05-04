@@ -240,6 +240,20 @@ Plan source (v3): `~/.claude/plans/phase-12-mini-jobs-queue.md`
 Deferred to Phase 12.5: `event-aggregator.fetch` + worker (the queue +
 model-swap state machine doesn't decouple cleanly from fetch).
 
+## Phase 12.5 — Event-aggregator on the Jobs framework (IN PROGRESS — 12.8b is next)
+
+**Status as of 2026-05-03 evening:**
+- ✅ **12.5** — fetch migrated to `@huey.periodic_task` (commit `028dd0d`, soak ran)
+- ✅ **12.6** — `@requires_model("text"|"vision", batch_hint=...)` primitive in `jobs/lib.py`; worker.py shimmed (commit `95e3d0a`)
+- ✅ **12.7** — worker decomposed into `event_aggregator_text` / `event_aggregator_vision` / `event_aggregator_decision_poller` huey kinds; `state.text_queue` / `state.ocr_queue` are now transient staging buffers (commits `0cf1b7b` + `df12304`)
+- ✅ **12.8a** — 18 pre-promote bug fixes (commit `4873d8f`)
+- ✅ **12.8a follow-up** — 4 additional fixes from independent review: fetch.py crash-loss (schedule-before-save), fetch.py TimeoutExpired handler, `jobs/lib.py` concurrency invariant doc, `slack_notifier.py` direct-`_data`-access cleanup (commit `7927bf0`)
+- ⏭️ **12.8b — manual promote + cleanup** — next session. Plan file: `~/.claude/plans/lets-scope-phase-12-5-groovy-whale.md`. Verbatim kickoff prompt is in `project_next_steps.md`.
+
+**Why no 72h soak before promote:** the verifier signal between 12.7 and 12.8a was forged — `event_aggregator_fetch` was calling `record_fire("event_aggregator_text")` unconditionally every 10 min, satisfying the verifier's no-fire check regardless of whether any text task ran. Fix 7 removed the proxy; the file-mtime baseline (`run/event-aggregator-text-or-vision.last`) is now the honest signal. Manual promote in 12.8b is the right call.
+
+**Deferred until after 12.8b** (logged in `project_next_steps.md`): F (importlib leak), G (decision_poller cross-lock), H (3 pre-existing `test_proposals.py` failures).
+
 ## Phase 13 — Meal-planner overhaul: architecting (one sitting via gstack review pipeline)
 
 **Decided 2026-05-01.** Anny + Ian agreed the meal-planner overhaul is the
