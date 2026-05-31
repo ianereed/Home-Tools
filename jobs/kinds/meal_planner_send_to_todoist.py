@@ -31,19 +31,12 @@ logger = logging.getLogger(__name__)
 MEALS_SECTION_NAME = "Meals"
 
 
-@huey.task()
-def meal_planner_send_to_todoist(recipe_scales: list[list]) -> dict:
-    """Send raw scaled grocery lines to Todoist.
+def send_recipes_to_todoist_sync(recipe_scales: list[list]) -> dict:
+    """Synchronous core of the Todoist push. Used by the @huey.task wrapper below
+    AND by other jobs (Phase 21 iPhone intake's `shop_only` intent) that need to
+    invoke the push within the same worker without re-enqueueing.
 
-    recipe_scales: list of [recipe_id, target_servings] pairs
-    (JSON-serialised as lists, not tuples).
-
-    Required env vars:
-        TODOIST_SECTIONS   — JSON object mapping section name → section_id.
-                             MUST include a "Meals" section (recipe-header tasks land there).
-
-    Optional:
-        TODOIST_PROJECT_ID — target Todoist project; defaults to inbox
+    Same contract as meal_planner_send_to_todoist (see module docstring).
     """
     sections: dict[str, str] = json.loads(os.environ["TODOIST_SECTIONS"])
     fallback_name: str = next(iter(sections))
@@ -130,3 +123,20 @@ def meal_planner_send_to_todoist(recipe_scales: list[list]) -> dict:
         "consolidate_dropped": 0,
         "error": None,
     }
+
+
+@huey.task()
+def meal_planner_send_to_todoist(recipe_scales: list[list]) -> dict:
+    """Send raw scaled grocery lines to Todoist.
+
+    recipe_scales: list of [recipe_id, target_servings] pairs
+    (JSON-serialised as lists, not tuples).
+
+    Required env vars:
+        TODOIST_SECTIONS   — JSON object mapping section name → section_id.
+                             MUST include a "Meals" section (recipe-header tasks land there).
+
+    Optional:
+        TODOIST_PROJECT_ID — target Todoist project; defaults to inbox
+    """
+    return send_recipes_to_todoist_sync(recipe_scales)
