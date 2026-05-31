@@ -1,0 +1,8 @@
+# Native dark theme so every component (sidebar, widgets, metric text) matches
+# the dashboard's dark palette instead of only the CSS-forced main background.
+[theme]
+base = "dark"
+primaryColor = "#6ea8fe"
+backgroundColor = "#0e1117"
+secondaryBackgroundColor = "#161a23"
+textColor = "#e6e9ef"
