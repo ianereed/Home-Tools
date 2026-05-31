@@ -23,8 +23,11 @@ canonical copy the watcher uses.
 """
 from __future__ import annotations
 
+import json
 import os
 import re
+import threading
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import NamedTuple
@@ -142,13 +145,90 @@ def _slug(intake: Path, root: Path) -> str:
     return re.sub(r"[^A-Za-z0-9]+", "_", rel).strip("_").lower()
 
 
-@st.cache_data(ttl=300, show_spinner=False)
-def _discover(root_str: str) -> list[str]:
-    """Cached discovery (SMB walks are slow). Returns sorted breadcrumb-order
-    string paths; caller maps back to Path."""
-    root = Path(root_str)
-    intakes = find_intakes(root)
-    return sorted((str(p) for p in intakes), key=lambda s: breadcrumb(Path(s), root))
+# ── Persistent folder cache + background discovery ───────────────────────────
+#
+# The SMB walk is slow (~25s, ~600 dir stats, for ~3 folders) and the folder set
+# is near-static. So we never walk on the render path. Instead:
+#
+#   • `intake_cache.json` (local disk, gitignored) holds the last-known folder
+#     list. render() paints from it instantly.
+#   • A daemon thread re-walks in the background when the cache is stale, writes
+#     the JSON, and flips a process-level flag. New folders appear on the next
+#     rerun; vanished folders are pruned (verified by a direct per-folder stat,
+#     so a transient/partial walk never blanks the known list).
+#   • A `st.fragment` polls that flag and shows a prominent "scanning" bar.
+_CACHE_FILE = Path(__file__).resolve().parents[1] / "intake_cache.json"
+_REFRESH_AFTER_S = 600  # re-scan in the background if the cache is older than this
+
+# Process-global scan state (single-user dashboard; survives reruns, not restart).
+_SCAN_LOCK = threading.Lock()
+_SCAN_STATE: dict = {"running": False, "finished_at": None, "count": None, "error": None}
+
+
+def _load_cache() -> dict | None:
+    """Last-known folder list, or None if missing/corrupt."""
+    try:
+        return json.loads(_CACHE_FILE.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+
+
+def _write_cache(root_str: str, folders: list[str], recipe_dir: str | None) -> None:
+    """Atomically persist the discovered destinations."""
+    payload = {
+        "root": root_str,
+        "folders": folders,
+        "recipe_dir": recipe_dir,
+        "scanned_at": datetime.now(timezone.utc).isoformat(),
+    }
+    tmp = _CACHE_FILE.with_suffix(".json.tmp")
+    tmp.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    tmp.replace(_CACHE_FILE)
+
+
+def _cache_age_seconds(cache: dict) -> float:
+    """Seconds since the cache was written; +inf if unparseable."""
+    try:
+        scanned = datetime.fromisoformat(cache["scanned_at"])
+        return (datetime.now(timezone.utc) - scanned).total_seconds()
+    except (KeyError, ValueError):
+        return float("inf")
+
+
+def _scan(root_str: str) -> None:
+    """Background thread: walk the NAS, merge+prune, persist, flag completion.
+
+    Does NOT call any `st.*` (runs without a ScriptRunContext). Merge rule: the
+    new walk's results are unioned with the previously-known list, then every
+    entry is verified with a direct `.is_dir()` stat. So a fresh folder is added,
+    a genuinely-removed folder is pruned, but a partial walk that misses an
+    existing folder can't delete it.
+    """
+    try:
+        root = Path(root_str)
+        if not root.exists() or not root.is_dir():
+            raise OSError(f"NAS root not accessible: {root}")
+        walked = {str(p) for p in find_intakes(root)}
+        cache = _load_cache() or {}
+        known = set(cache.get("folders", [])) if cache.get("root") == root_str else set()
+        alive = sorted(p for p in (walked | known) if Path(p).is_dir())
+        recipe = _recipe_photo_dir(root)
+        recipe_dir = str(recipe) if recipe.exists() and recipe.is_dir() else None
+        _write_cache(root_str, alive, recipe_dir)
+        with _SCAN_LOCK:
+            _SCAN_STATE.update(running=False, finished_at=time.time(), count=len(alive), error=None)
+    except Exception as exc:  # noqa: BLE001 — surface any failure on the bar
+        with _SCAN_LOCK:
+            _SCAN_STATE.update(running=False, finished_at=time.time(), error=str(exc))
+
+
+def _start_scan(root_str: str) -> None:
+    """Kick a background walk unless one is already in flight."""
+    with _SCAN_LOCK:
+        if _SCAN_STATE["running"]:
+            return
+        _SCAN_STATE.update(running=True, finished_at=None, count=None, error=None)
+    threading.Thread(target=_scan, args=(root_str,), daemon=True).start()
 
 
 def _render_recent(intake: Path) -> None:
@@ -199,9 +279,52 @@ def _render_destination(dest: _Dest, root: Path) -> None:
                     f"Uploaded {len(written)} file(s) ({total:,} bytes) to {crumb}. "
                     f"{dest.pickup}"
                 )
-                _discover.clear()
         with st.expander("Recent files in this folder"):
             _render_recent(dest.path)
+
+
+def _fmt_age(scanned_at: str) -> str:
+    """Human age for a cache `scanned_at` ISO timestamp."""
+    try:
+        secs = (datetime.now(timezone.utc) - datetime.fromisoformat(scanned_at)).total_seconds()
+    except ValueError:
+        return "unknown"
+    if secs < 90:
+        return "just now"
+    if secs < 3600:
+        return f"{int(secs // 60)} min ago"
+    return f"{int(secs // 3600)} h ago"
+
+
+@st.fragment(run_every="2s")
+def _scan_status() -> None:
+    """Prominent scanning bar. Polls the background-scan flag every 2s; shows a
+    running spinner while a walk is in flight, then a brief result banner. On a
+    successful completion it reruns the whole tab once so new folders render."""
+    with _SCAN_LOCK:
+        running = _SCAN_STATE["running"]
+        finished_at = _SCAN_STATE["finished_at"]
+        count = _SCAN_STATE["count"]
+        error = _SCAN_STATE["error"]
+
+    if running:
+        st.status("Scanning the NAS for intake folders…", state="running")
+        return
+    if finished_at is None:
+        return  # no scan has run in this process yet
+
+    # Surface a brand-new completion to the whole app exactly once, so the
+    # main body re-renders against the freshly-written cache.
+    if st.session_state.get("_intake_scan_seen") != finished_at:
+        st.session_state["_intake_scan_seen"] = finished_at
+        if not error:
+            st.rerun(scope="app")
+
+    if time.time() - finished_at <= 8:  # let the banner linger briefly, then idle
+        if error:
+            st.warning(f"NAS scan failed: {error}", icon="⚠️")
+        else:
+            st.success(f"Found {count} intake folder(s).", icon="✅")
 
 
 def render() -> None:
@@ -213,24 +336,37 @@ def render() -> None:
         )
         return
 
+    cache = _load_cache()
+    fresh = cache is not None and cache.get("root") == str(nas_root)
+
+    # Kick a background re-walk when we have nothing cached or it's gone stale.
+    if not fresh or _cache_age_seconds(cache) > _REFRESH_AFTER_S:
+        _start_scan(str(nas_root))
+
+    _scan_status()
+
     top = st.columns([1, 4])
     with top[0]:
         if st.button("↻ Refresh folders", use_container_width=True):
-            _discover.clear()
+            _start_scan(str(nas_root))
             st.rerun()
     with top[1]:
-        st.caption(
+        cap = (
             f"`intake/` folders under `{nas_root}` (depth ≤ {INTAKE_DEPTH_MAX}) "
             "plus the recipe photo-intake drop zone."
         )
+        if fresh and cache.get("scanned_at"):
+            cap += f"  ·  last scan {_fmt_age(cache['scanned_at'])}"
+        st.caption(cap)
 
-    dests = [
-        _Dest(Path(s), _ACCEPT_EXTS, None, _NAS_PICKUP)
-        for s in _discover(str(nas_root))
-    ]
-    recipe_dir = _recipe_photo_dir(nas_root)
-    if recipe_dir.exists() and recipe_dir.is_dir():
-        dests.append(_Dest(recipe_dir, _PHOTO_EXTS, _RECIPE_NOTE, _RECIPE_PICKUP))
+    if not fresh:
+        st.info("First scan of the NAS in progress — folders will appear in a moment…")
+        return
+
+    dests = [_Dest(Path(s), _ACCEPT_EXTS, None, _NAS_PICKUP) for s in cache.get("folders", [])]
+    recipe_dir = cache.get("recipe_dir")
+    if recipe_dir:
+        dests.append(_Dest(Path(recipe_dir), _PHOTO_EXTS, _RECIPE_NOTE, _RECIPE_PICKUP))
 
     if not dests:
         st.info("No intake folders found on the NAS yet.")

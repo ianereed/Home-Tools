@@ -55,3 +55,7 @@ meal_planner/eval/recipe_photos/*.jpg
 meal_planner/eval/recipe_photos/*.jpeg
 meal_planner/eval/recipe_photos/*.golden.json
 meal_planner/eval/results/*/raw/
+
+# Console intake tab — persistent NAS folder cache (rebuilt by a background scan)
+console/intake_cache.json
+console/intake_cache.json.tmp

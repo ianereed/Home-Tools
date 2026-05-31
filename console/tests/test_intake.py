@@ -7,9 +7,14 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import console.tabs.intake as intake_mod
 from console.tabs.intake import (
+    _cache_age_seconds,
+    _load_cache,
     _recipe_photo_dir,
+    _scan,
     _slug,
+    _write_cache,
     breadcrumb,
     find_intakes,
 )
@@ -100,3 +105,70 @@ def test_recipe_photo_dir_is_not_matched_by_find_intakes(tmp_path: Path) -> None
     # it's added separately as a special destination.
     _mkdirs(tmp_path / "Documents" / "Recipes" / "photo-intake")
     assert find_intakes(tmp_path) == []
+
+
+# ── persistent cache + background scan ───────────────────────────────────────
+
+
+def test_cache_round_trip(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setattr(intake_mod, "_CACHE_FILE", tmp_path / "intake_cache.json")
+    assert _load_cache() is None  # nothing written yet
+    _write_cache("/nas", ["/nas/a/intake"], "/nas/Documents/Recipes/photo-intake")
+    cache = _load_cache()
+    assert cache["root"] == "/nas"
+    assert cache["folders"] == ["/nas/a/intake"]
+    assert cache["recipe_dir"] == "/nas/Documents/Recipes/photo-intake"
+    assert "scanned_at" in cache
+
+
+def test_load_cache_tolerates_corrupt_file(tmp_path: Path, monkeypatch) -> None:
+    cache_file = tmp_path / "intake_cache.json"
+    cache_file.write_text("{not json", encoding="utf-8")
+    monkeypatch.setattr(intake_mod, "_CACHE_FILE", cache_file)
+    assert _load_cache() is None
+
+
+def test_cache_age_seconds_unparseable_is_inf() -> None:
+    assert _cache_age_seconds({}) == float("inf")
+    assert _cache_age_seconds({"scanned_at": "nonsense"}) == float("inf")
+
+
+def test_scan_writes_discovered_folders(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setattr(intake_mod, "_CACHE_FILE", tmp_path / "intake_cache.json")
+    monkeypatch.delenv("MEAL_PLANNER_NAS_INTAKE_DIR", raising=False)
+    _mkdirs(
+        tmp_path / "Financial" / "intake",
+        tmp_path / "Documents" / "Recipes" / "photo-intake",
+    )
+    _scan(str(tmp_path))
+    cache = _load_cache()
+    assert cache["folders"] == [str(tmp_path / "Financial" / "intake")]
+    assert cache["recipe_dir"] == str(tmp_path / "Documents" / "Recipes" / "photo-intake")
+    assert intake_mod._SCAN_STATE["error"] is None
+    assert intake_mod._SCAN_STATE["count"] == 1
+
+
+def test_scan_unions_new_with_known_and_prunes_vanished(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setattr(intake_mod, "_CACHE_FILE", tmp_path / "intake_cache.json")
+    # Prior cache lists two folders; only one still exists on disk, plus a brand
+    # new one the walk will discover.
+    real_old = tmp_path / "Real" / "intake"
+    brand_new = tmp_path / "Fresh" / "intake"
+    _mkdirs(real_old, brand_new)
+    _write_cache(
+        str(tmp_path),
+        [str(real_old), str(tmp_path / "Gone" / "intake")],  # second no longer exists
+        None,
+    )
+    _scan(str(tmp_path))
+    folders = set(_load_cache()["folders"])
+    assert str(real_old) in folders       # survived (still on disk)
+    assert str(brand_new) in folders      # added by the walk
+    assert str(tmp_path / "Gone" / "intake") not in folders  # pruned (vanished)
+
+
+def test_scan_records_error_when_root_missing(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setattr(intake_mod, "_CACHE_FILE", tmp_path / "intake_cache.json")
+    _scan(str(tmp_path / "does-not-exist"))
+    assert intake_mod._SCAN_STATE["error"] is not None
+    assert _load_cache() is None  # failure must not write/blank the cache
