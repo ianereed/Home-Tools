@@ -13,6 +13,7 @@ def _make_recipe(
     cook_time_min: int | None = 30,
     source: str | None = "nas-intake",
     base_servings: int = 4,
+    recipe_book: str | None = None,
 ) -> Recipe:
     return Recipe(
         id=1,
@@ -22,6 +23,7 @@ def _make_recipe(
         cook_time_min=cook_time_min,
         source=source,
         photo_path=None,
+        recipe_book=recipe_book,
         created_at="2026-05-30",
         updated_at="2026-05-30",
     )

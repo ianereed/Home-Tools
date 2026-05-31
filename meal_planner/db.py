@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS recipes (
     cook_time_min INTEGER,
     source TEXT,
     photo_path TEXT,
+    recipe_book TEXT,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
 );
@@ -92,6 +93,7 @@ def init_db(path: Path | str | None = None) -> None:
         conn.executescript(_SCHEMA)
         _add_column_if_missing(conn, "ingredients", "qty_raw", "TEXT")
         _add_column_if_missing(conn, "photos_intake", "extraction_warnings", "TEXT")
+        _add_column_if_missing(conn, "recipes", "recipe_book", "TEXT")
 
 
 def insert_recipe(
@@ -102,6 +104,7 @@ def insert_recipe(
     cook_time_min: int | None = None,
     source: str | None = None,
     photo_path: str | None = None,
+    recipe_book: str | None = None,
     path: Path | None = None,
     conn: sqlite3.Connection | None = None,
 ) -> int:
@@ -114,11 +117,11 @@ def insert_recipe(
     sql = """
         INSERT INTO recipes
           (title, base_servings, instructions, cook_time_min,
-           source, photo_path, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+           source, photo_path, recipe_book, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         """
     params = (title, base_servings, instructions, cook_time_min,
-              source, photo_path, now, now)
+              source, photo_path, recipe_book, now, now)
     if conn is not None:
         cur = conn.execute(sql, params)
         return cur.lastrowid  # type: ignore[return-value]

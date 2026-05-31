@@ -264,6 +264,107 @@ def test_update_recipe_clears_cook_time_min_to_zero(db_path: Path) -> None:
     assert get_recipe(rid, path=db_path).cook_time_min == 0
 
 
+# ---------------------------------------------------------------------------
+# Phase 19.5: recipe_book column
+# ---------------------------------------------------------------------------
+
+
+def test_insert_recipe_stores_recipe_book(db_path: Path) -> None:
+    rid = insert_recipe(title="Pie", recipe_book="Pioneer Woman", path=db_path)
+    r = get_recipe(rid, path=db_path)
+    assert r.recipe_book == "Pioneer Woman"
+
+
+def test_insert_recipe_recipe_book_defaults_to_none(db_path: Path) -> None:
+    rid = insert_recipe(title="No book", path=db_path)
+    r = get_recipe(rid, path=db_path)
+    assert r.recipe_book is None
+
+
+def test_create_recipe_passes_recipe_book_through(db_path: Path) -> None:
+    rid = create_recipe(title="Tart", recipe_book="Serious Eats", path=db_path)
+    assert get_recipe(rid, path=db_path).recipe_book == "Serious Eats"
+
+
+def test_update_recipe_sets_recipe_book(db_path: Path) -> None:
+    rid = insert_recipe(title="Stew", path=db_path)
+    assert get_recipe(rid, path=db_path).recipe_book is None
+    update_recipe(rid, recipe_book="NYT Cooking", path=db_path)
+    assert get_recipe(rid, path=db_path).recipe_book == "NYT Cooking"
+
+
+def test_update_recipe_clears_recipe_book_with_none(db_path: Path) -> None:
+    rid = insert_recipe(title="Stew", recipe_book="Old Book", path=db_path)
+    update_recipe(rid, recipe_book=None, path=db_path)
+    assert get_recipe(rid, path=db_path).recipe_book is None
+
+
+def test_update_recipe_recipe_book_unset_preserves_existing(db_path: Path) -> None:
+    """Omitting recipe_book kwarg leaves the existing value untouched (sentinel-driven)."""
+    rid = insert_recipe(title="Stew", recipe_book="Existing", path=db_path)
+    update_recipe(rid, title="New Title", path=db_path)  # no recipe_book kwarg
+    r = get_recipe(rid, path=db_path)
+    assert r.title == "New Title"
+    assert r.recipe_book == "Existing"
+
+
+def test_list_all_recipe_books_returns_distinct_sorted(db_path: Path) -> None:
+    insert_recipe(title="r1", recipe_book="Serious Eats", path=db_path)
+    insert_recipe(title="r2", recipe_book="NYT Cooking", path=db_path)
+    insert_recipe(title="r3", recipe_book="Serious Eats", path=db_path)  # dup
+    insert_recipe(title="r4", recipe_book=None, path=db_path)  # excluded
+    insert_recipe(title="r5", recipe_book="", path=db_path)  # excluded (empty)
+    from meal_planner.queries import list_all_recipe_books
+    books = list_all_recipe_books(path=db_path)
+    assert books == ["NYT Cooking", "Serious Eats"]
+
+
+def test_search_recipes_filters_by_recipe_book(db_path: Path) -> None:
+    from meal_planner.queries import search_recipes
+    insert_recipe(title="a", recipe_book="NYT Cooking", path=db_path)
+    insert_recipe(title="b", recipe_book="Serious Eats", path=db_path)
+    insert_recipe(title="c", recipe_book="NYT Cooking", path=db_path)
+    insert_recipe(title="d", recipe_book=None, path=db_path)
+
+    nyt = search_recipes(recipe_books=("NYT Cooking",), path=db_path)
+    assert [r.title for r in nyt] == ["a", "c"]
+
+    multi = search_recipes(recipe_books=("NYT Cooking", "Serious Eats"), path=db_path)
+    assert sorted(r.title for r in multi) == ["a", "b", "c"]
+
+
+def test_search_recipes_recipe_book_filter_is_case_insensitive(db_path: Path) -> None:
+    from meal_planner.queries import search_recipes
+    insert_recipe(title="a", recipe_book="NYT Cooking", path=db_path)
+    # Both upper- and lower-case filter values should match the canonical-cased DB value
+    out = search_recipes(recipe_books=("nyt cooking",), path=db_path)
+    assert [r.title for r in out] == ["a"]
+
+
+def test_search_recipes_combines_tag_and_book_filters(db_path: Path) -> None:
+    from meal_planner.queries import search_recipes
+    a = insert_recipe(title="a", recipe_book="NYT Cooking", path=db_path)
+    add_recipe_tag(a, "soup", path=db_path)
+    b = insert_recipe(title="b", recipe_book="Serious Eats", path=db_path)
+    add_recipe_tag(b, "soup", path=db_path)
+    c = insert_recipe(title="c", recipe_book="NYT Cooking", path=db_path)
+    add_recipe_tag(c, "dessert", path=db_path)
+
+    # Tag=soup AND book=NYT → only "a"
+    out = search_recipes(
+        tags=("soup",), tag_logic="and",
+        recipe_books=("NYT Cooking",), path=db_path,
+    )
+    assert [r.title for r in out] == ["a"]
+
+
+def test_get_recipe_roundtrip_includes_recipe_book(db_path: Path) -> None:
+    rid = insert_recipe(
+        title="Full", recipe_book="Cook's Illustrated", path=db_path,
+    )
+    assert get_recipe(rid, path=db_path).recipe_book == "Cook's Illustrated"
+
+
 def test_delete_recipe_removes_row_and_cascades(db_path: Path) -> None:
     rid = insert_recipe(title="To Delete", path=db_path)
     insert_ingredient(recipe_id=rid, name="Flour", sort_order=0, path=db_path)

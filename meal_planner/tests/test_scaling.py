@@ -82,7 +82,7 @@ def test_scale_unknown_recipe_id(db_path: Path) -> None:
     phantom = Recipe(
         id=99999, title="Ghost", base_servings=4,
         instructions=None, cook_time_min=None, source=None, photo_path=None,
-        created_at="", updated_at="",
+        recipe_book=None, created_at="", updated_at="",
     )
     assert scale_ingredients(phantom, 2, path=db_path) == []
 

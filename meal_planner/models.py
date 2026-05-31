@@ -12,6 +12,7 @@ class Recipe:
     cook_time_min: int | None
     source: str | None
     photo_path: str | None
+    recipe_book: str | None
     created_at: str
     updated_at: str
 

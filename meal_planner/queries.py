@@ -27,6 +27,12 @@ def _now_utc() -> str:
 
 
 def _row_to_recipe(row) -> Recipe:
+    # recipe_book defaults to None for rows pre-dating the column add
+    # (legacy DBs that bootstrap before init_db's _add_column_if_missing runs).
+    try:
+        rb = row["recipe_book"]
+    except (IndexError, KeyError):
+        rb = None
     return Recipe(
         id=row["id"],
         title=row["title"],
@@ -35,6 +41,7 @@ def _row_to_recipe(row) -> Recipe:
         cook_time_min=row["cook_time_min"],
         source=row["source"],
         photo_path=row["photo_path"],
+        recipe_book=rb,
         created_at=row["created_at"],
         updated_at=row["updated_at"],
     )
@@ -98,6 +105,25 @@ def list_all_tags(*, path: Path | None = None) -> list[str]:
     return [r["name"] for r in rows]
 
 
+def list_all_recipe_books(*, path: Path | None = None) -> list[str]:
+    """Return distinct recipe_book values from the recipes table.
+
+    NULL/empty rows are excluded — the filter UI shouldn't expose a
+    "no book" pill (use the absence of selection instead).
+    """
+    p = path or _db.DB_PATH
+    with _db._get_conn(p) as conn:
+        rows = conn.execute(
+            """
+            SELECT DISTINCT recipe_book
+            FROM recipes
+            WHERE recipe_book IS NOT NULL AND TRIM(recipe_book) <> ''
+            ORDER BY recipe_book COLLATE NOCASE
+            """
+        ).fetchall()
+    return [r["recipe_book"] for r in rows]
+
+
 def list_ingredients(recipe_id: int, *, path: Path | None = None) -> list[Ingredient]:
     """Return all ingredients for a recipe ordered by sort_order, name."""
     p = path or _db.DB_PATH
@@ -142,19 +168,22 @@ def search_recipes(
     name_substring: str = "",
     tags: tuple[str, ...] = (),
     tag_logic: str = "and",
+    recipe_books: tuple[str, ...] = (),
     sort: str = "alpha",
     path: Path | None = None,
 ) -> list[Recipe]:
-    """Return recipes matching name_substring and the given tag filter.
+    """Return recipes matching name_substring, the tag filter, and recipe_books.
 
     name_substring is a case-insensitive LIKE match on the title.
     tags filters to recipes based on tag_logic:
       "and" — recipes that have ALL listed tags (default).
       "or"  — recipes that have ANY listed tag.
+    recipe_books is OR semantics: a recipe matches if its recipe_book is in
+    the given set (case-insensitive). Empty tuple = no recipe_book filter.
+    The recipe_books filter is AND-combined with the tag filter.
     sort controls result ordering:
       "alpha"   — alphabetical by title (default; case-insensitive).
       "recent"  — most-recently-added first (id DESC).
-    Both tag filters are AND-combined; empty tags means no tag filter.
     Raises ValueError for unrecognized tag_logic or sort.
     """
     if tag_logic not in ("and", "or"):
@@ -164,6 +193,17 @@ def search_recipes(
         raise ValueError(f"sort must be 'alpha' or 'recent', got {sort!r}")
     order_by = "r.title COLLATE NOCASE" if sort == "alpha" else "r.id DESC"
     tags = tuple(dict.fromkeys(tags))  # dedupe while preserving order
+    recipe_books = tuple(dict.fromkeys(recipe_books))
+
+    # Compose the recipe_book WHERE clause + params separately so we can AND it
+    # into both the tag-filtered and unfiltered queries below.
+    book_clause = ""
+    book_params: tuple = ()
+    if recipe_books:
+        book_placeholders = ",".join("?" * len(recipe_books))
+        book_clause = f" AND lower(r.recipe_book) IN ({book_placeholders})"
+        book_params = tuple(rb.lower() for rb in recipe_books)
+
     p = path or _db.DB_PATH
     with _db._get_conn(p) as conn:
         if tags:
@@ -179,9 +219,10 @@ def search_recipes(
                         JOIN tags t ON t.id = rt.tag_id
                         WHERE rt.recipe_id = r.id AND t.name IN ({placeholders})
                       ) = ?
+                      {book_clause}
                     ORDER BY {order_by}
                     """,
-                    (f"%{name_substring}%", *tags, len(tags)),
+                    (f"%{name_substring}%", *tags, len(tags), *book_params),
                 ).fetchall()
             else:  # or
                 rows = conn.execute(
@@ -193,14 +234,20 @@ def search_recipes(
                         JOIN tags t ON t.id = rt.tag_id
                         WHERE rt.recipe_id = r.id AND t.name IN ({placeholders})
                       )
+                      {book_clause}
                     ORDER BY {order_by}
                     """,
-                    (f"%{name_substring}%", *tags),
+                    (f"%{name_substring}%", *tags, *book_params),
                 ).fetchall()
         else:
             rows = conn.execute(
-                f"SELECT r.* FROM recipes r WHERE lower(r.title) LIKE lower(?) ORDER BY {order_by}",
-                (f"%{name_substring}%",),
+                f"""
+                SELECT r.* FROM recipes r
+                WHERE lower(r.title) LIKE lower(?)
+                  {book_clause}
+                ORDER BY {order_by}
+                """,
+                (f"%{name_substring}%", *book_params),
             ).fetchall()
     return [_row_to_recipe(r) for r in rows]
 
@@ -216,6 +263,7 @@ def create_recipe(
     instructions: str | None = None,
     cook_time_min: int | None = None,
     source: str | None = None,
+    recipe_book: str | None = None,
     path: Path | None = None,
 ) -> int:
     """Create a new recipe. Returns the new recipe id."""
@@ -225,6 +273,7 @@ def create_recipe(
         instructions=instructions,
         cook_time_min=cook_time_min,
         source=source,
+        recipe_book=recipe_book,
         path=path,
     )
 
@@ -237,6 +286,7 @@ def update_recipe(
     instructions: str | None | _Unset = _UNSET,
     cook_time_min: int | None | _Unset = _UNSET,
     source: str | None | _Unset = _UNSET,
+    recipe_book: str | None | _Unset = _UNSET,
     path: Path | None = None,
     conn: sqlite3.Connection | None = None,
 ) -> None:
@@ -260,6 +310,8 @@ def update_recipe(
         fields["cook_time_min"] = cook_time_min
     if source is not _UNSET:
         fields["source"] = source
+    if recipe_book is not _UNSET:
+        fields["recipe_book"] = recipe_book
     fields["updated_at"] = _now_utc()
     set_clause = ", ".join(f"{k} = ?" for k in fields)
 
