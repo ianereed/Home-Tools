@@ -16,8 +16,11 @@ if os.environ.get("KEYCHAIN_PATH"):
     subprocess.run(["security", "unlock-keychain", "-p", "", _kc], capture_output=True)
 
     def _get(service, username):
+        # Pass the explicit keychain path: SSH audit sessions have a search list
+        # of only System.keychain, so an unqualified lookup misses items stored
+        # in login.keychain-db. _kc is the keychain we were told to use.
         p = subprocess.run(
-            ["security", "find-generic-password", "-s", service, "-a", username, "-w"],
+            ["security", "find-generic-password", "-s", service, "-a", username, "-w", _kc],
             capture_output=True, text=True,
         )
         if p.returncode != 0:
