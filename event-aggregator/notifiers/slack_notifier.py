@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import fcntl
 import logging
+import os
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
@@ -20,6 +21,13 @@ import config
 import tz_utils
 
 logger = logging.getLogger(__name__)
+
+
+def _slack_enabled() -> bool:
+    """Posting gate. SLACK_DISABLED=1 retires Slack as the notify/decision channel
+    (decisions move to the console at :8503) while leaving the Slack *source*
+    connector untouched. Mirrors the NAS_WRITE_DISABLED env-gate pattern."""
+    return os.environ.get("SLACK_DISABLED", "").strip() not in ("1", "true", "True")
 
 
 def _client():
@@ -33,7 +41,7 @@ def get_or_create_day_thread(state: "state_module.State") -> str | None:
     Creates a new top-level post if today has no thread yet.
     Returns None if Slack is not configured or the post fails.
     """
-    if not config.SLACK_BOT_TOKEN:
+    if not _slack_enabled() or not config.SLACK_BOT_TOKEN:
         return None
 
     today_str = tz_utils.today_user_str()
@@ -94,7 +102,7 @@ def post_event_action(
     action: "created", "updated", "cancelled", "skipped_recurring"
     Returns True on success.
     """
-    if not config.SLACK_BOT_TOKEN or not thread_ts:
+    if not _slack_enabled() or not config.SLACK_BOT_TOKEN or not thread_ts:
         return False
 
     action_icon = {
@@ -164,7 +172,7 @@ def post_event_batch(
       action, title, start_dt, source, category (opt), confidence_band (opt),
       suggested_attendees (opt), conflicts (opt), original_title (opt)
     """
-    if not config.SLACK_BOT_TOKEN or not thread_ts or not actions:
+    if not _slack_enabled() or not config.SLACK_BOT_TOKEN or not thread_ts or not actions:
         return False
 
     lines: list[str] = []
@@ -253,7 +261,7 @@ def post_todo_action(
     priority: str = "normal",
 ) -> bool:
     """Post a todo item creation notification as a reply to the day thread."""
-    if not config.SLACK_BOT_TOKEN or not thread_ts:
+    if not _slack_enabled() or not config.SLACK_BOT_TOKEN or not thread_ts:
         return False
 
     priority_icon = {
@@ -297,7 +305,7 @@ def post_file_result(
     Replies in the file upload's own thread (not the day thread).
     PHI-safe: uses summary only, not full extracted text.
     """
-    if not config.SLACK_BOT_TOKEN or not thread_ts:
+    if not _slack_enabled() or not config.SLACK_BOT_TOKEN or not thread_ts:
         return False
 
     from models import FileAnalysisResult
@@ -357,7 +365,7 @@ def post_run_summary(
     Post a run summary as a reply to the day thread.
     Only posts if at least one action occurred — no noise from empty runs.
     """
-    if not config.SLACK_BOT_TOKEN or not thread_ts:
+    if not _slack_enabled() or not config.SLACK_BOT_TOKEN or not thread_ts:
         return False
 
     total_actions = created + updated + cancelled
@@ -845,7 +853,7 @@ def post_or_update_dashboard(
     approve/reject so the dashboard stays at the bottom of the channel).
     Returns the dashboard message ts, or None on failure.
     """
-    if not config.SLACK_BOT_TOKEN:
+    if not _slack_enabled() or not config.SLACK_BOT_TOKEN:
         return None
 
     import state as _state_mod
@@ -955,7 +963,7 @@ def post_or_update_dashboard(
 
 def post_to_thread(thread_ts: str, text: str) -> bool:
     """Generic helper: post any text as a reply to the day thread."""
-    if not config.SLACK_BOT_TOKEN or not thread_ts:
+    if not _slack_enabled() or not config.SLACK_BOT_TOKEN or not thread_ts:
         return False
     try:
         client = _client()
