@@ -1,6 +1,14 @@
 # health-dashboard
 
-Personal health metrics dashboard for HRV, sleep, recovery, and training load. Streamlit UI + a collector pipeline that pulls from Apple Health (iPhone Auto Export), Strava, and Garmin into a single SQLite database.
+Personal health metrics dashboard for HRV, sleep, heart rate, and training load.
+A Streamlit UI + a collector pipeline that pulls from Apple Health (iPhone Auto
+Export), Strava, and Garmin into a single SQLite database.
+
+**Information-only, historical view.** Garmin owns day-to-day training guidance;
+this dashboard is for the long view — holistic, historical tracking you check in
+on periodically rather than every morning. The home screen ("Overview") answers
+"what changed since I last looked?"; every data page favours long-range trends.
+There are deliberately no "train hard / rest today" prescriptions.
 
 ## What it is
 
@@ -29,6 +37,27 @@ Receiver is on `:8095`. Streamlit UI is on `:8501`. Both reachable over Tailscal
 sleep score / steps), Apple Health (sleep, HRV, resting HR via the iPhone receiver).
 Suunto/Intervals.icu was retired 2026-05-30 (device gone); Garmin now owns wellness.
 
+## Dashboard pages
+
+`dashboard/app.py` (UI) + `dashboard/lib.py` (one shared Plotly theme + the
+"since you last looked" store). Six pages, all historical-first with a
+30d/90d/6mo/1y/All range selector (default 90d):
+
+- **Overview** — periodic-check home: "since you last looked" change strip, five
+  headline trend tiles (HRV · resting HR · sleep · fitness · steps) with
+  sparklines, a data-freshness panel, and 30-day highlights.
+- **Sleep** — duration trend + 7-day average, monthly and weekday patterns,
+  stages over time, Garmin sleep score, sleeping HR, single-night drill-down.
+- **Heart & HRV** — HRV trend vs baseline, resting-HR trend, daily HR range, HR
+  distribution by zone.
+- **Fitness** — CTL/ATL/TSB "fitness & form" curve (informational only) + weekly
+  training load. The recovery math lives in `recovery/engine.py`.
+- **Activity** — activity log, type mix, per-activity HR stream.
+- **Wellness** — daily steps, SpO₂ (weight/body-comp planned).
+
+The "since you last looked" comparison is stored in `data/dashboard_state.json`
+(your previous visit timestamp); first visit falls back to a 30-day comparison.
+
 Authoritative database is `data/health.db`. Laptop's copy is frozen at the cutover; do not write to it.
 
 ## Garmin auth
@@ -56,7 +85,8 @@ Single-user (you). Hosted on the Mac mini and reachable over Tailscale. Not desi
 - **Keychain shim**: `collectors/__init__.py` monkey-patches `keyring.get_password` to shell out to `security` with `KEYCHAIN_PATH`. This is the canonical pattern reused by other Mac-mini projects — see `~/.claude/projects/.../memory/project_mac_mini_keychain_shim.md`.
 - **Apple Health automation**: see [`APPLE_HEALTH_AUTOMATION.md`](APPLE_HEALTH_AUTOMATION.md) in this directory.
 - **Keychain entries**: `health-dashboard-strava`, `health-dashboard-garmin` (`email`/`password`) × `{client_id, client_secret, tokens, ...}`
-- **Staleness**: `health_staleness` flags sleep/HRV/resting-HR stale after 24h and sends an ntfy.sh push with a diagnosis (receiver up? iPhone online on Tailscale? → app-side steps).
+- **Staleness**: `health_staleness` flags sleep/HRV/resting-HR stale after 24h and sends an ntfy.sh push (topic `ian-health-dashboard`) with a diagnosis (receiver up? iPhone online on Tailscale? → app-side steps). Every run also appends to `logs/health-staleness.log` — that file's mtime is the kind's migration baseline, so it must always be written. Diagnosis subprocess calls (`tailscale`, `lsof`) degrade gracefully if the binary isn't on `PATH`.
+- **Collection alerting**: `health_collect` persists each run to `logs/collect.log` and, on a non-zero exit, pushes an ntfy alert and raises (so huey records the failure). This is the primary "something broke" signal now the dashboard isn't watched daily. Collectors use a 30s socket timeout + one bounded retry each.
 - **Streamlit on `:8501`** runs as `com.health-dashboard.streamlit`.
 
 ## Future
