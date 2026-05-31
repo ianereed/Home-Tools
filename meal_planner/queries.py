@@ -132,8 +132,15 @@ def list_ingredients(recipe_id: int, *, path: Path | None = None) -> list[Ingred
             "SELECT * FROM ingredients WHERE recipe_id = ? ORDER BY sort_order, name COLLATE NOCASE",
             (recipe_id,),
         ).fetchall()
-    return [
-        Ingredient(
+    out: list[Ingredient] = []
+    for r in rows:
+        # qty_raw is a Phase-15 addition; older DBs that haven't run
+        # init_db's _add_column_if_missing may not have the column.
+        try:
+            qty_raw = r["qty_raw"]
+        except (IndexError, KeyError):
+            qty_raw = None
+        out.append(Ingredient(
             id=r["id"],
             recipe_id=r["recipe_id"],
             name=r["name"],
@@ -142,9 +149,9 @@ def list_ingredients(recipe_id: int, *, path: Path | None = None) -> list[Ingred
             notes=r["notes"],
             todoist_section=r["todoist_section"],
             sort_order=r["sort_order"],
-        )
-        for r in rows
-    ]
+            qty_raw=qty_raw,
+        ))
+    return out
 
 
 def get_recipe_tags(recipe_id: int, *, path: Path | None = None) -> list[str]:

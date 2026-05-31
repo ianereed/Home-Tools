@@ -27,6 +27,10 @@ class Ingredient:
     notes: str | None
     todoist_section: str | None
     sort_order: int
+    # qty_raw preserves the original string when qty_per_serving couldn't parse
+    # (e.g. ranges "2-3", "8-10"). Default allows existing constructors that
+    # don't pass it to keep working. Read path populates from the DB column.
+    qty_raw: str | None = None
 
 
 @dataclass

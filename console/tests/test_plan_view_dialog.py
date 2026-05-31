@@ -31,10 +31,11 @@ def _make_recipe(
 
 def _make_ingredient(
     *, name: str, qty_per_serving: float | None = 0.25, unit: str | None = "cup",
+    qty_raw: str | None = None,
 ) -> Ingredient:
     return Ingredient(
         id=1, recipe_id=1, name=name, qty_per_serving=qty_per_serving, unit=unit,
-        notes=None, todoist_section=None, sort_order=0,
+        notes=None, todoist_section=None, sort_order=0, qty_raw=qty_raw,
     )
 
 
@@ -123,6 +124,35 @@ def test_format_view_block_drops_qty_when_none() -> None:
     ings = [_make_ingredient(name="salt", qty_per_serving=None, unit=None)]
     out = format_view_block(_make_recipe(), [], ings)
     assert "- salt" in out
+
+
+def test_format_view_block_falls_back_to_qty_raw_for_ranges() -> None:
+    """Range qtys ('2-3', '8-10') store qty_per_serving=None + qty_raw=string.
+
+    The fallback shows the raw range so the user sees the recipe as written.
+    """
+    ings = [_make_ingredient(
+        name="chicken thighs", qty_per_serving=None, unit="lb", qty_raw="2-3",
+    )]
+    out = format_view_block(_make_recipe(), [], ings)
+    assert "- 2-3 lb chicken thighs" in out
+
+
+def test_format_view_block_qty_raw_fallback_with_no_unit() -> None:
+    ings = [_make_ingredient(
+        name="tortillas", qty_per_serving=None, unit=None, qty_raw="8-10",
+    )]
+    out = format_view_block(_make_recipe(), [], ings)
+    assert "- 8-10 tortillas" in out
+
+
+def test_format_view_block_no_qty_raw_no_qty_renders_name_only() -> None:
+    """When neither qty_per_serving nor qty_raw is set, just the name (and unit if any)."""
+    ings = [_make_ingredient(
+        name="black pepper", qty_per_serving=None, unit=None, qty_raw=None,
+    )]
+    out = format_view_block(_make_recipe(), [], ings)
+    assert "- black pepper" in out
 
 
 def test_format_view_block_handles_decimal_qty_cleanly() -> None:

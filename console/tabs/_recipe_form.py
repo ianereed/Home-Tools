@@ -206,6 +206,12 @@ def format_view_block(recipe, tags: list[str], ingredients: list) -> str:
             if ing.qty_per_serving is not None:
                 total = ing.qty_per_serving * recipe.base_servings
                 line_parts.append(_fmt_qty(total))
+            elif getattr(ing, "qty_raw", None):
+                # Fallback for non-numeric qtys (ranges like "2-3", verbatim
+                # strings stored when parse_qty couldn't extract a number).
+                # We show the raw string as-is — it represents the recipe at
+                # base_servings, not per-serving (matches insert convention).
+                line_parts.append(ing.qty_raw)
             if ing.unit:
                 line_parts.append(ing.unit)
             line_parts.append(ing.name)
