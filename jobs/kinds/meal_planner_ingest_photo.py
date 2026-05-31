@@ -79,11 +79,17 @@ def meal_planner_ingest_photo(sha: str) -> dict:
                     instructions = _raw_instr.strip() or None
                 else:
                     instructions = None
+                _raw_book = result.parsed.get("recipe_book")
+                if isinstance(_raw_book, str):
+                    recipe_book = _raw_book.strip() or None
+                else:
+                    recipe_book = None
                 recipe_id = insert_recipe(
                     title=title,
                     source="nas-intake",
                     photo_path=str(done_path),
                     instructions=instructions,
+                    recipe_book=recipe_book,
                     conn=conn,
                 )
                 add_recipe_tag(recipe_id, "photo-intake", conn=conn)

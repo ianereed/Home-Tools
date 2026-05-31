@@ -275,6 +275,54 @@ def test_recipe_extraction_prompt_includes_instructions_schema():
     assert '"instructions": "1.' in text
 
 
+def test_validate_schema_accepts_string_recipe_book():
+    ok, errs = validate_schema({
+        "title": "Pie",
+        "ingredients": [{"qty": "1", "unit": "cup", "name": "flour"}],
+        "tags": [],
+        "recipe_book": "NYT Cooking",
+    })
+    assert ok is True
+    assert errs == []
+
+
+def test_validate_schema_accepts_null_recipe_book():
+    ok, errs = validate_schema({
+        "title": "Pie",
+        "ingredients": [{"qty": "1", "unit": "cup", "name": "flour"}],
+        "tags": [],
+        "recipe_book": None,
+    })
+    assert ok is True
+
+
+def test_validate_schema_accepts_missing_recipe_book_key():
+    ok, errs = validate_schema({
+        "title": "Pie",
+        "ingredients": [{"qty": "1", "unit": "cup", "name": "flour"}],
+        "tags": [],
+    })
+    assert ok is True
+
+
+def test_validate_schema_rejects_non_string_recipe_book():
+    ok, errs = validate_schema({
+        "title": "Pie",
+        "ingredients": [{"qty": "1", "unit": "cup", "name": "flour"}],
+        "tags": [],
+        "recipe_book": ["NYT", "Cooking"],
+    })
+    assert ok is False
+    assert "recipe_book_not_str_or_null" in errs
+
+
+def test_recipe_extraction_prompt_includes_recipe_book_schema():
+    from meal_planner.vision._ollama import load_prompt
+    text = load_prompt()
+    assert '"recipe_book": string|null' in text
+    assert '"recipe_book":' in text  # also in the example
+
+
 # ---------------------------------------------------------------------------
 # intake_db — CRUD round-trips on an in-memory schema
 # ---------------------------------------------------------------------------

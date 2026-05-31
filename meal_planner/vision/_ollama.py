@@ -77,6 +77,11 @@ def validate_schema(d: dict | None) -> tuple[bool, list[str]]:
         if instr is not None and not isinstance(instr, str):
             errors.append("instructions_not_str_or_null")
             return False, errors
+    if "recipe_book" in d:
+        book = d["recipe_book"]
+        if book is not None and not isinstance(book, str):
+            errors.append("recipe_book_not_str_or_null")
+            return False, errors
     for item in d["ingredients"]:
         if not isinstance(item, dict):
             errors.append("ingredient_item_not_dict")

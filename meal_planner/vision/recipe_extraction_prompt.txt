@@ -12,7 +12,8 @@ The JSON MUST match this schema exactly:
     ...
   ],
   "tags": [string, ...],
-  "instructions": string|null
+  "instructions": string|null,
+  "recipe_book": string|null
 }
 
 CRITICAL — every ingredient object MUST contain all three keys: "qty", "unit", "name".
@@ -49,12 +50,22 @@ Rules for instructions:
 - Do not summarize or rewrite — fidelity to the source image is the goal.
 - If the image shows no preparation steps (ingredient-only card), use null.
 
+Rules for recipe_book:
+- Identify the publisher, cookbook, author, or website the recipe came from.
+- Look for author bylines (e.g. "By Ree Drummond", "Author: Urvashi Pitre"),
+  publication headers ("Serious Eats", "NYT Cooking", "Bon Appétit"), or
+  cookbook titles visible on the page.
+- If the recipe is handwritten, has heavy handwritten edits, or carries no
+  attribution, use "Family" as the book name.
+- If the image has no recipe content at all, use null.
+- Return a single string (no list, no JSON).
+
 If the image does not contain a recognizable recipe, return:
-{"title": null, "ingredients": [], "tags": [], "instructions": null}
+{"title": null, "ingredients": [], "tags": [], "instructions": null, "recipe_book": null}
 
 Example of a CORRECT response (note every ingredient has qty, unit, AND name):
 
-{"title": "One-Pan Lemon Orzo", "ingredients": [{"qty": "1", "unit": "cup", "name": "orzo"}, {"qty": "2", "unit": "tbsp", "name": "olive oil"}, {"qty": "1/2", "unit": null, "name": "lemon, juiced"}, {"qty": null, "unit": null, "name": "salt"}, {"qty": null, "unit": null, "name": "black pepper"}], "tags": ["pasta", "quick", "vegetarian"], "instructions": "1. Heat olive oil in a large pan over medium heat.\n2. Add orzo and toast for 2 minutes, stirring.\n3. Add 2 cups water; simmer 10 minutes until tender.\n4. Stir in lemon juice; season with salt and pepper."}
+{"title": "One-Pan Lemon Orzo", "ingredients": [{"qty": "1", "unit": "cup", "name": "orzo"}, {"qty": "2", "unit": "tbsp", "name": "olive oil"}, {"qty": "1/2", "unit": null, "name": "lemon, juiced"}, {"qty": null, "unit": null, "name": "salt"}, {"qty": null, "unit": null, "name": "black pepper"}], "tags": ["pasta", "quick", "vegetarian"], "instructions": "1. Heat olive oil in a large pan over medium heat.\n2. Add orzo and toast for 2 minutes, stirring.\n3. Add 2 cups water; simmer 10 minutes until tender.\n4. Stir in lemon juice; season with salt and pepper.", "recipe_book": "NYT Cooking"}
 
 Example of an INCORRECT response (missing "name" key — DO NOT do this):
 

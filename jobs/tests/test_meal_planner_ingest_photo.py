@@ -565,6 +565,76 @@ def test_ingest_sidecar_includes_instructions(tmp_path, monkeypatch):
     assert parsed["instructions"] == "1. step\n2. step"
 
 
+def test_ingest_persists_recipe_book(tmp_path, monkeypatch):
+    """Phase 19.5: recipe_book from result.parsed flows to recipes.recipe_book."""
+    db_p = _setup_db(tmp_path)
+    intake_dir = tmp_path / "photo-intake"
+    _setup_intake(intake_dir, db_p)
+
+    parsed = {**_GOOD_PARSED, "recipe_book": "Serious Eats"}
+    result = ExtractResult(
+        status="ok", parsed=parsed, latency_s=10.0, error=None, n_retries=0,
+    )
+    _wire(monkeypatch, intake_dir, db_p, result)
+    ret = ingest_mod.meal_planner_ingest_photo.func(_TEST_SHA)
+    assert ret["status"] == "ok"
+
+    import sqlite3
+    conn = sqlite3.connect(str(db_p))
+    conn.row_factory = sqlite3.Row
+    row = conn.execute(
+        "SELECT recipe_book FROM recipes WHERE id=?", (ret["recipe_id"],),
+    ).fetchone()
+    conn.close()
+    assert row["recipe_book"] == "Serious Eats"
+
+
+def test_ingest_no_recipe_book_key_stays_null(tmp_path, monkeypatch):
+    """Missing recipe_book key → recipes.recipe_book IS NULL."""
+    db_p = _setup_db(tmp_path)
+    intake_dir = tmp_path / "photo-intake"
+    _setup_intake(intake_dir, db_p)
+
+    # _GOOD_PARSED has no recipe_book key
+    result = ExtractResult(
+        status="ok", parsed=_GOOD_PARSED, latency_s=10.0, error=None, n_retries=0,
+    )
+    _wire(monkeypatch, intake_dir, db_p, result)
+    ret = ingest_mod.meal_planner_ingest_photo.func(_TEST_SHA)
+
+    import sqlite3
+    conn = sqlite3.connect(str(db_p))
+    conn.row_factory = sqlite3.Row
+    row = conn.execute(
+        "SELECT recipe_book FROM recipes WHERE id=?", (ret["recipe_id"],),
+    ).fetchone()
+    conn.close()
+    assert row["recipe_book"] is None
+
+
+def test_ingest_empty_recipe_book_normalized_to_null(tmp_path, monkeypatch):
+    """Whitespace-only recipe_book → NULL in DB."""
+    db_p = _setup_db(tmp_path)
+    intake_dir = tmp_path / "photo-intake"
+    _setup_intake(intake_dir, db_p)
+
+    parsed = {**_GOOD_PARSED, "recipe_book": "   "}
+    result = ExtractResult(
+        status="ok", parsed=parsed, latency_s=10.0, error=None, n_retries=0,
+    )
+    _wire(monkeypatch, intake_dir, db_p, result)
+    ret = ingest_mod.meal_planner_ingest_photo.func(_TEST_SHA)
+
+    import sqlite3
+    conn = sqlite3.connect(str(db_p))
+    conn.row_factory = sqlite3.Row
+    row = conn.execute(
+        "SELECT recipe_book FROM recipes WHERE id=?", (ret["recipe_id"],),
+    ).fetchone()
+    conn.close()
+    assert row["recipe_book"] is None
+
+
 # ---------------------------------------------------------------------------
 # Misc edge cases
 # ---------------------------------------------------------------------------
