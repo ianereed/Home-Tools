@@ -49,6 +49,21 @@ class HealthDataHandler(BaseHTTPRequestHandler):
         try:
             metrics = data.get("data", {}).get("metrics", [])
 
+            # Diagnostic: if the expected nesting yields nothing, surface what we
+            # actually received so misconfigured exports are debuggable.
+            if not metrics:
+                logger.warning(
+                    "No metrics under data.data.metrics. Top-level keys=%s; "
+                    "data keys=%s",
+                    list(data.keys()),
+                    list((data.get("data") or {}).keys()) if isinstance(data.get("data"), dict) else type(data.get("data")).__name__,
+                )
+            else:
+                logger.info(
+                    "Payload metric names: %s",
+                    [m.get("name") for m in metrics],
+                )
+
             for metric in metrics:
                 name = metric.get("name", "")
                 samples = metric.get("data", [])
