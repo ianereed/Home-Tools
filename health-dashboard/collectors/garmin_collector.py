@@ -1,32 +1,41 @@
-"""Collect sleep, heart rate, and activity data from Garmin Connect."""
+"""Collect sleep, heart rate, wellness, and activity data from Garmin Connect."""
 
 import logging
+import os
 from datetime import date, timedelta
-
-import keyring
 
 from .db import get_connection
 
 logger = logging.getLogger(__name__)
 
 KEYRING_SERVICE = "health-dashboard-garmin"
-TOKEN_DIR = "~/.garminconnect"
+TOKEN_DIR = os.path.expanduser("~/.garminconnect")
 
 
 def _get_garmin_client():
-    """Create and authenticate a Garmin Connect client."""
+    """Authenticate to Garmin by resuming from the saved OAuth token store.
+
+    Garmin enforces MFA + IP rate-limits on fresh email/password logins, which a
+    headless launchd/jobs context cannot satisfy. We therefore resume from the
+    token store seeded by a one-time interactive login
+    (``python -m collectors.seed_garmin_token``). Tokens last ~1 year and
+    refresh silently. If the store is missing/expired we raise a clear error
+    telling the operator to re-seed rather than triggering an MFA prompt that
+    can never be answered headlessly.
+    """
     from garminconnect import Garmin
 
-    email = keyring.get_password(KEYRING_SERVICE, "email")
-    password = keyring.get_password(KEYRING_SERVICE, "password")
-
-    if not email or not password:
+    client = Garmin()
+    try:
+        client.login(tokenstore=TOKEN_DIR)
+    except Exception as e:
         raise RuntimeError(
-            "Garmin credentials not found in keychain. Run setup.sh first."
-        )
-
-    client = Garmin(email=email, password=password)
-    client.login(tokenstore=TOKEN_DIR)
+            f"Garmin token login failed ({e}). The OAuth token store at "
+            f"{TOKEN_DIR} is missing or expired. Re-seed it interactively:\n"
+            "  ssh -t homeserver@homeserver "
+            "'cd ~/Home-Tools/health-dashboard && "
+            ".venv/bin/python3 -m collectors.seed_garmin_token'"
+        ) from e
     return client
 
 

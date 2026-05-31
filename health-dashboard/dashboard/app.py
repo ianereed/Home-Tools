@@ -226,7 +226,7 @@ if page_name == "Today":
                 )
 
             if sl.get("sleep_score"):
-                st.metric("Sleep Score (Suunto)", f"{sl['sleep_score']:.0f}/100")
+                st.metric("Sleep Score (Garmin)", f"{sl['sleep_score']:.0f}/100")
                 st.markdown(freshness_badge("sleep score", ts.get("sleep_score")), unsafe_allow_html=True)
         else:
             st.info("No sleep data for last night.")
@@ -543,7 +543,7 @@ if page_name == "Sleep":
         # Sleep score trend (from wellness)
         score_df = load_data("SELECT date, sleep_score FROM wellness WHERE sleep_score IS NOT NULL ORDER BY date")
         if not score_df.empty:
-            st.subheader("Sleep Score Trend (Suunto)")
+            st.subheader("Sleep Score Trend (Garmin)")
             fig = px.line(score_df, x="date", y="sleep_score", markers=True,
                           labels={"sleep_score": "Score (0-100)", "date": "Date"})
             fig.update_layout(height=200)
@@ -773,7 +773,7 @@ if page_name == "Wellness":
     """)
 
     if wellness_df.empty:
-        st.info("No wellness data yet. Wellness data comes from Suunto via Intervals.icu.")
+        st.info("No wellness data yet. Wellness data comes from Garmin (HRV, sleep score, readiness).")
     else:
         # Summary cards at top
         latest = wellness_df.iloc[-1]
@@ -826,7 +826,7 @@ if page_name == "Wellness":
         # Sleep score trend
         score_df = wellness_df[wellness_df["sleep_score"].notna()].copy()
         if not score_df.empty:
-            st.subheader("Sleep Score Trend (Suunto)")
+            st.subheader("Sleep Score Trend (Garmin)")
             fig = px.line(score_df, x="date", y="sleep_score", markers=True,
                           labels={"sleep_score": "Score (0-100)", "date": "Date"})
             fig.update_layout(height=200)

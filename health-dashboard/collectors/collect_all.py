@@ -38,12 +38,8 @@ def main(days_back: int = 7):
     except Exception as e:
         logger.error(f"Apple Health collection failed: {e}")
 
-    # Suunto (via Intervals.icu)
-    try:
-        from . import intervals_collector
-        intervals_collector.collect_all(days_back)
-    except Exception as e:
-        logger.error(f"Intervals.icu (Suunto) collection failed: {e}")
+    # NOTE: Suunto (via Intervals.icu) was retired 2026-05-30 — device gone.
+    # Wellness/HRV/sleep-score data now comes from Garmin.
 
     logger.info("All collection complete.")
 

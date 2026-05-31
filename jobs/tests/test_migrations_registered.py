@@ -1,5 +1,5 @@
 """
-All 12 migration kinds + the verifier + nop are registered, each migration
+All migration kinds + the verifier + nop are registered, each migration
 declares @baseline, and crontab declarations parse without error.
 """
 from __future__ import annotations
@@ -14,7 +14,6 @@ EXPECTED_MIGRATIONS = {
     "finance_monitor_watch",
     "nas_intake_scan",
     "health_collect",
-    "health_intervals_poll",
     "health_staleness",
     "restic_hourly",
     "restic_daily",
@@ -30,7 +29,7 @@ def kinds():
     return _registered_kinds()
 
 
-def test_all_12_migrations_registered(kinds):
+def test_all_migrations_registered(kinds):
     missing = EXPECTED_MIGRATIONS - set(kinds)
     assert not missing, f"missing migrations: {missing}"
 
