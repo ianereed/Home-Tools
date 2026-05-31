@@ -1141,10 +1141,116 @@ Next: Phase 20 (MCP + Claude Code planning sessions) per locked sequence.
 
 ---
 
+## Phase 19 polish — \n-split inline-numbered instructions (DONE 2026-05-30 ✅)
+
+The vision model sometimes returned `"1. step. 2. step. 3. step."` as a
+single line instead of `\n`-separated, so the View dialog rendered step 1
+as an ordered-list item with steps 2-3 as continuation prose.
+
+Commit 82b2679: added `normalize_instructions(text)` in
+`meal_planner/vision/_normalize.py` using regex
+`(?<=\.)\s+(?=\d+\.\s+[A-Z])` (lookbehind on the period, lookahead on
+the next-step marker so only inter-step whitespace is consumed). Wired
+into `normalize_extraction()` so the consumer worker gets it
+automatically. Idempotent on already-newline-separated input. No false
+positive on fractional measurements (`1.5 cups`) or compound numerics
+(`35-40 minutes at 425F`). +9 tests.
+
+Verified end-to-end: reset recipe id=22 (Mom's Marinated Chicken
+Drumsticks), moved photo back to intake, re-ingested. Stored
+instructions now contain literal `\n` between steps; View dialog
+renders as proper ordered list.
+
+---
+
+## Phase 19.5 — recipe_book column + bulk corpus import (DONE 2026-05-30 ✅)
+
+User-requested extension: add a "recipe book / publisher" field
+distinct from the existing `source` (intake mechanism). Auto-populated
+from photo intake, editable in the form, filterable in its own pill
+section. Plus: bulk-insert the 11 remaining Phase 15 corpus recipes
+directly into the DB.
+
+- **Chunk 1** (98ea2b0): schema + CRUD.
+  - `recipes.recipe_book TEXT NULL` via `_add_column_if_missing`
+  - `Recipe.recipe_book` dataclass field with defensive `_row_to_recipe`
+    fallback for pre-migration row factories
+  - `insert_recipe`, `create_recipe`, `update_recipe(_UNSET sentinel)`,
+    new `list_all_recipe_books()`, `search_recipes(recipe_books=...)`
+    with OR-within-selection, AND-with-tag-filter, case-insensitive
+  - +11 query tests
+- **Chunk 2** (no commit; one-shot script): bulk-insert 11 corpus
+  recipes via `meal_planner.eval.recipe_photos_processed/*.golden.json`
+  + `_insert_ingredients_batch`. Recipe-book attribution determined
+  by Claude inspecting each photo: 6 Family, 1 Urvashi Pitre, 1 Mark
+  Bittman, 1 NYT Cooking, 1 Serious Eats, 1 The Pioneer Woman.
+  Retroactively backfilled id=22 (Mom's Marinated Chicken Drumsticks)
+  with recipe_book="Family". Deleted 2 stub dupes (id=17, 18) per user
+  confirmation; kept ids 19-21 (3 PDFs handled in follow-up).
+- **Chunk 3** (4d00239): UI surface.
+  - `format_view_block` renders "From: <recipe_book>" first in meta line
+  - Edit form gains `Recipe book` text input with placeholder
+  - "Recipe book" pill section below tag pills
+  - +2 view-dialog tests
+- **Chunk 4** (d79d9f3): vision pipeline auto-populates recipe_book.
+  - Prompt schema gains `recipe_book: string|null` with rules paragraph
+    instructing the model to identify bylines/headers/cookbook titles
+    or default to "Family" for handwritten/personal
+  - Validator + worker mirror the instructions-field plumbing from
+    Phase 19 Chunk 2/3
+  - +4 validator tests, +3 ingest persistence tests
+- **Chunk 5** (deploy): mini `git pull` + `bootout`/`bootstrap`
+  jobs-consumer + `kickstart -kp` console. `/browse` verification:
+  6 Recipe-book pills render; filtering to "Urvashi Pitre" narrows the
+  grid to the single matching recipe; View dialog meta line shows
+  "From: Urvashi Pitre · Source: claude-corpus-import · …".
+
+Total +29 tests in Phase 19.5; 750 passing locally after Chunk 4.
+
+---
+
+## Phase 19 followups (DONE 2026-05-30 ✅)
+
+Polish surfaced during/after the Phase 19.5 verification:
+
+- **3263ba1 — qty_raw fallback in View dialog.** Range qtys ("2-3",
+  "8-10", "1/3-1/2") stored `qty_per_serving=NULL` + `qty_raw=<str>`
+  but the View dialog only read `qty_per_serving` and silently dropped
+  the qty entirely. Added `Ingredient.qty_raw: str | None = None`
+  dataclass field, populated in `list_ingredients`, used as fallback
+  in `format_view_block`. +3 tests.
+- **No commit — bulk-replace 3 orphan PDFs via Claude.** Ids 19-21
+  (Pot Pie, Orzo Risotto, Nanaimo Bars) had stub data from earlier
+  photo-pipeline runs. scp'd the source PDFs from the mini's NAS,
+  Claude read each PDF, deleted the stubs and re-inserted with full
+  data (`source="claude-pdf-import"`, `recipe_book="Serious Eats"`,
+  proper `cook_time_min`/`base_servings`, complete ingredients +
+  numbered instructions). New ids: 34, 35, 36.
+- **0947ee6 — fix test_bake_off_cli pre-existing failure.** Subprocess
+  used `sys.executable` without setting PYTHONPATH, so when run by
+  Python interpreters without the repo on sys.path (system Python
+  3.14 on the laptop) the subprocess failed with
+  `ModuleNotFoundError: No module named 'meal_planner'`. Fixed by
+  prepending repo root to PYTHONPATH for the subprocess env. **Suite
+  now fully green: 754 passed, 0 failed, 5 skipped, 3 xfailed** —
+  first 0-failure run since the bake-off CLI tests landed.
+
+---
+
 ## Phase 20+ — Future chunks (numbered as each chunk is claimed)
 
 Each chunk gets the next sequential Phase number when claimed.
 Numbers are not pre-allocated.
+
+**Deferred polish ideas surfaced during Phase 19 work** (not committed
+scope — pick up when ready):
+- Render `0.25 tsp` as `1/4 tsp` (and similar fraction-friendly values)
+  in the View dialog. Currently `_fmt_qty` uses Python `:g` which
+  emits decimals. Common ratios (1/4, 1/3, 1/2, 2/3, 3/4) could round-
+  trip back to fraction strings.
+- Re-ingest the 3 Serious Eats PDFs via the live photo pipeline once
+  Phase 20 lands so they have `photo_path` populated (right now
+  source=`claude-pdf-import` means they were inserted directly).
 
 ## Long-term future scope (re-evaluate later)
 
