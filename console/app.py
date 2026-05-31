@@ -25,7 +25,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import streamlit as st  # noqa: E402
 
 from console.sidebar import settings  # noqa: E402
-from console.tabs import ask, decisions, intake, jobs, plan  # noqa: E402
+from console.tabs import ask, capture, decisions, intake, jobs, plan  # noqa: E402
 
 st.set_page_config(
     page_title="Mini Ops",
@@ -34,9 +34,10 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-_TAB_ORDER = ["jobs", "decisions", "ask", "intake", "recipes"]
+_TAB_ORDER = ["jobs", "capture", "decisions", "ask", "intake", "recipes"]
 _TAB_LABELS = {
     "jobs":      ":racing_car: Jobs",
+    "capture":   ":camera: Capture",
     "decisions": ":card_index: Decisions",
     "ask":       ":speech_balloon: Ask",
     "intake":    ":inbox_tray: Intake",
@@ -44,6 +45,7 @@ _TAB_LABELS = {
 }
 _TAB_RENDERERS = {
     "jobs":      jobs.render,
+    "capture":   capture.render,
     "decisions": decisions.render,
     "ask":       ask.render,
     "intake":    intake.render,
