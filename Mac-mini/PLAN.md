@@ -1285,8 +1285,27 @@ real grocery trips to identify the friction Instacart needs to remove.
 
 ## Phase 21 — iPhone-driven recipe intake via Gemini
 
-**Status:** scoped 2026-05-30, next up after Phase 20 hold. **This is
-the active next phase.**
+**Status:** DONE (code + tests) 2026-05-30; pending deploy + iPhone dogfood
+on the mini. See `Mac-mini/shortcuts/iphone-recipe-intake.md` for the
+Apple Shortcut build steps. 506+ tests green on the touched surface.
+
+**Locked answers used (recorded for posterity):**
+- Photo destination: `~/Home-Tools/jobs/data/iphone-intake/` (env override
+  `MEAL_PLANNER_IPHONE_INTAKE_DIR`), outside the NAS share.
+- shop_only: insert with `source='iphone-shop-only'`, push to Todoist
+  synchronously via `send_recipes_to_todoist_sync` (single-worker huey
+  can't block on a self-enqueued task), hard-delete on success; recipe
+  kept if Todoist fails so the user can retry.
+- Gemini key: `GEMINI_API_KEY` in `meal_planner/.env`.
+- Shortcut auth: reuses `HOME_TOOLS_HTTP_TOKEN`.
+
+**Deploy when ready:**
+1. `git pull` on mini, then
+   `launchctl kickstart -kp gui/$UID/com.home-tools.jobs-consumer`
+   (the `-k` is load-bearing per `feedback_launchctl_kickstart_k_flag.md`).
+2. Verify: `curl -sH "Authorization: Bearer $HOME_TOOLS_HTTP_TOKEN"
+   http://homeserver:8504/kinds | jq '.kinds[] | select(.name=="meal_planner_iphone_intake")'`.
+3. Recreate the Shortcut per `Mac-mini/shortcuts/iphone-recipe-intake.md`.
 
 **Goal:** Anny (or Ian) takes a photo of a recipe with her iPhone,
 picks one of three actions on the phone, and the system handles the
