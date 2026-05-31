@@ -97,7 +97,10 @@ else:
 st.markdown(
     f"## Mac mini Services &nbsp;"
     f'<span style="font-size:0.9rem;font-weight:normal;color:#8b95a5;">'
-    f"{global_emoji} {global_label} · auto-refresh 30s</span>",
+    f"{global_emoji} {global_label} · auto-refresh 30s</span>"
+    f'&nbsp;&nbsp;<a href="http://homeserver:8501" target="_blank" '
+    f'style="font-size:0.85rem;font-weight:normal;color:#4da3ff;text-decoration:none;">'
+    f"❤️ Health Dashboard ↗</a>",
     unsafe_allow_html=True,
 )
 
