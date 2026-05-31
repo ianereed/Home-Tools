@@ -1098,7 +1098,50 @@ Status: DONE 2026-05-08 @a82db46 + Opus-review fixup @7b5ab77 (wrap Gemini call 
 
 ---
 
-## Phase 19+ — Future chunks (numbered as each chunk is claimed)
+## Phase 19 — Recipe instructions (DONE 2026-05-30 ✅)
+
+Photo intake now captures preparation instructions; Recipes tab gained
+a read-only View dialog. Five chunks merged to main:
+
+- **Chunk 1** (d5b09d5): Claude-extracted golden instructions for the
+  12-photo Phase 15 bake-off corpus. `.golden.json` files extended with
+  `instructions` field (gitignored per privacy rule); README schema +
+  `_PHASE19_NOTES.md` document transcription provenance.
+- **Chunk 2** (ef6802d): vision prompt + validator extension.
+  `recipe_extraction_prompt.txt` adds `instructions: string|null` to
+  the schema spec; `validate_schema()` accepts optional instructions
+  (str or None) with backward-compat for missing key. Bake-off quality
+  gate passed: 11/12 non-empty, 10/12 step-correct vs goldens.
+- **Chunk 3** (5a42c33): `jobs/kinds/meal_planner_ingest_photo.py`
+  reads `result.parsed["instructions"]`, normalizes empty/whitespace
+  to None, passes to `insert_recipe(..., instructions=...)`.
+- **Chunk 4** (1f78bd4): Recipes tab View dialog. New `format_view_block`
+  pure helper in `_recipe_form.py`; `@st.dialog`-decorated
+  `_render_view_dialog` in `plan.py`; View button next to Edit gated on
+  exactly-one-row-checked. `_No instructions saved._` placeholder when
+  null.
+- **Chunk 5**: deployed via `bootout`/`bootstrap jobs-consumer` +
+  `kickstart -kp console`. Doctor smoke-test green. `/browse`
+  verification on `homeserver:8503/?tab=recipes` confirmed: View button
+  renders, dialog opens with title/meta/scaled ingredients/numbered
+  instructions, Close button works, placeholder shows for recipes
+  without instructions.
+
+Test count: 720 passing locally (697 baseline + 23 new), 1 pre-existing
+failed (test_bake_off_cli.py subprocess-import; not Phase 19), 5
+skipped, 3 xfailed.
+
+Known model limits surfaced by the bake-off (not Phase 19 regressions):
+- IMG_9962 Chicken Juk: truncated to 19 chars (4-section recipe).
+- IMG_9964 Cookies: parse_fail (malformed JSON, dense multi-section).
+- Two photos returned prose-format instructions instead of "1.\n2.\n"
+  numbered; content correct.
+
+Next: Phase 20 (MCP + Claude Code planning sessions) per locked sequence.
+
+---
+
+## Phase 20+ — Future chunks (numbered as each chunk is claimed)
 
 Each chunk gets the next sequential Phase number when claimed.
 Numbers are not pre-allocated.
