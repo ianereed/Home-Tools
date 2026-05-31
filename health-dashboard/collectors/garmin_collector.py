@@ -53,6 +53,13 @@ def collect_sleep(client, target_date: str):
             logger.info(f"No dailySleepDTO for {target_date}")
             return
 
+        # Garmin returns an empty dailySleepDTO shell for days the watch wasn't
+        # worn (the user has a separate Apple Watch). Skip those — writing a
+        # 0-minute row would mask the real Apple Health data for that night.
+        if not daily.get("sleepTimeSeconds"):
+            logger.info(f"No tracked Garmin sleep for {target_date} (watch not worn)")
+            return
+
         # Sleep durations are in seconds from Garmin
         def secs_to_mins(val):
             return round(val / 60, 1) if val else 0
