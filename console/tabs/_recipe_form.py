@@ -46,6 +46,7 @@ def validate_recipe_form(payload: dict) -> tuple[bool, list[str]]:
       instructions: str
       cook_time_min: int | float | None
       source: str
+      recipe_book: str
 
     Returns (ok, errs). When ok is True, errs is empty.
     """
@@ -185,6 +186,8 @@ def format_view_block(recipe, tags: list[str], ingredients: list) -> str:
     parts: list[str] = [f"## {recipe.title}"]
 
     meta: list[str] = []
+    if getattr(recipe, "recipe_book", None):
+        meta.append(f"From: {recipe.recipe_book}")
     if recipe.source:
         meta.append(f"Source: {recipe.source}")
     if recipe.cook_time_min:

@@ -59,6 +59,7 @@ _EDIT_WIDGET_KEY_PREFIXES = (
     "edit_instructions",
     "edit_cook_time",
     "edit_source",
+    "edit_recipe_book",
     "edit_tags",
     "edit_new_tag",
     "edit_ingr",
@@ -149,6 +150,19 @@ def _render_inner() -> None:
         selected_tags = []
         tag_logic = "AND"
 
+    # -----------------------------------------------------------------------
+    # Recipe book filter pills (Phase 19.5) — own section; OR semantics within
+    # selection, AND-combined with the tag filter above
+    # -----------------------------------------------------------------------
+    all_books = queries.list_all_recipe_books()
+    if all_books:
+        selected_books: list[str] = st.pills(
+            "Recipe book", options=all_books, selection_mode="multi",
+            key="book_pills",
+        ) or []
+    else:
+        selected_books = []
+
     sort_alpha = st.toggle(
         "Alphabetical", value=True, key="recipes_sort_alpha",
         help="When off, recipes are listed most-recently-added first.",
@@ -156,6 +170,7 @@ def _render_inner() -> None:
     recipes = queries.search_recipes(
         tags=tuple(selected_tags),
         tag_logic=tag_logic.lower(),
+        recipe_books=tuple(selected_books),
         sort="alpha" if sort_alpha else "recent",
     )
 
@@ -362,6 +377,12 @@ def _render_edit_panel(recipe_id: int) -> None:
         new_source = st.text_input(
             "Source", value=recipe.source or "", key=f"edit_source_{recipe_id}",
         )
+    new_recipe_book = st.text_input(
+        "Recipe book", value=recipe.recipe_book or "",
+        key=f"edit_recipe_book_{recipe_id}",
+        placeholder="e.g. Serious Eats, NYT Cooking, Family",
+        help="Where this recipe came from — cookbook, website, family member, etc.",
+    )
 
     # -----------------------------------------------------------------------
     # Tag selector — uses _edit_tags_ key prefix, NOT tag_pills_* (filter pills)
@@ -419,6 +440,7 @@ def _render_edit_panel(recipe_id: int) -> None:
                 "instructions": new_instructions,
                 "cook_time_min": int(new_cook_time),
                 "source": new_source,
+                "recipe_book": new_recipe_book,
             }
             ok, errs = validate_recipe_form(payload)
             if not ok:
@@ -467,6 +489,7 @@ def _save_recipe(
                 instructions=payload["instructions"] or None,  # "" → NULL
                 cook_time_min=payload["cook_time_min"],
                 source=payload["source"] or None,              # "" → NULL
+                recipe_book=(payload.get("recipe_book") or "").strip() or None,
                 conn=conn,
             )
             queries.set_recipe_tags(recipe_id, tags, conn=conn)

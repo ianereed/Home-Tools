@@ -94,6 +94,17 @@ def test_format_view_block_omits_tags_line_when_no_tags() -> None:
     assert "Tags:" not in out
 
 
+def test_format_view_block_includes_recipe_book_when_set() -> None:
+    """Phase 19.5: recipe_book renders in the meta line as 'From: <book>'."""
+    out = format_view_block(_make_recipe(recipe_book="Serious Eats"), [], [])
+    assert "From: Serious Eats" in out
+
+
+def test_format_view_block_omits_recipe_book_line_when_none() -> None:
+    out = format_view_block(_make_recipe(recipe_book=None), [], [])
+    assert "From:" not in out
+
+
 # ---------------------------------------------------------------------------
 # format_view_block — ingredient scaling
 # ---------------------------------------------------------------------------
