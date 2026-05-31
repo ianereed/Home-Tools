@@ -428,21 +428,49 @@ def _render_edit_panel(recipe_id: int) -> None:
     )
 
     # -----------------------------------------------------------------------
-    # Save / Cancel / Delete
+    # Autosave — persist edits to the live recipe row on every rerun (i.e.
+    # whenever a field commits: text on blur/Enter, numbers/grid/pills on
+    # change). Each commit triggers a rerun, and we save here BEFORE the
+    # buttons render, so a dropped tailnet connection can't lose work. The
+    # dirty-gate skips the write when nothing changed; field normalization in
+    # _edit_is_dirty mirrors _persist_recipe so a just-saved form reads clean.
     # -----------------------------------------------------------------------
-    col_save, col_cancel, col_delete = st.columns([2, 1, 1])
+    payload = {
+        "title": new_title,
+        "base_servings": new_servings,
+        "instructions": new_instructions,
+        "cook_time_min": int(new_cook_time),
+        "source": new_source,
+        "recipe_book": new_recipe_book,
+    }
+    ok, errs = validate_recipe_form(payload)
+    after_rows = _rows_from_editor(edited_ingr)
+    saved_now = False
+    if ok and _edit_is_dirty(recipe, current_tags, payload, merged, before_rows, after_rows):
+        pok, perr = _persist_recipe(recipe_id, payload, merged, before_rows, edited_ingr)
+        if pok:
+            saved_now = True
+        elif perr and "deleted" in perr.lower():
+            st.error("Recipe was deleted by another session — closing editor.")
+            _close_edit_panel(recipe_id)
+            st.rerun()
+        else:
+            st.warning(f"Autosave failed: {perr}")
 
-    with col_save:
-        if st.button("Save changes", type="primary", use_container_width=True, key=f"save_{recipe_id}"):
-            payload = {
-                "title": new_title,
-                "base_servings": new_servings,
-                "instructions": new_instructions,
-                "cook_time_min": int(new_cook_time),
-                "source": new_source,
-                "recipe_book": new_recipe_book,
-            }
-            ok, errs = validate_recipe_form(payload)
+    if saved_now:
+        st.success("Saved ✓", icon="✅")
+    elif not ok:
+        st.caption("⚠️ Not saved yet — " + "; ".join(errs))
+    else:
+        st.caption("✓ Changes save automatically as you edit")
+
+    # -----------------------------------------------------------------------
+    # Done / Cancel / Delete
+    # -----------------------------------------------------------------------
+    col_done, col_cancel, col_delete = st.columns([2, 1, 1])
+
+    with col_done:
+        if st.button("Done", type="primary", use_container_width=True, key=f"save_{recipe_id}"):
             if not ok:
                 for e in errs:
                     st.error(e)
@@ -450,8 +478,14 @@ def _render_edit_panel(recipe_id: int) -> None:
                 _save_recipe(recipe_id, payload, merged, before_rows, edited_ingr)
 
     with col_cancel:
-        if st.button("Cancel", use_container_width=True, key=f"cancel_{recipe_id}"):
-            if recipe_id in _pending_ids():
+        is_pending = recipe_id in _pending_ids()
+        # New recipe: Cancel discards the unsaved stub. Existing recipe: edits
+        # are already autosaved, so this just closes the panel (no revert).
+        if st.button(
+            "Cancel" if is_pending else "Close",
+            use_container_width=True, key=f"cancel_{recipe_id}",
+        ):
+            if is_pending:
                 try:
                     queries.delete_recipe(recipe_id)
                 except Exception:
@@ -464,20 +498,70 @@ def _render_edit_panel(recipe_id: int) -> None:
         _render_delete_button(recipe_id)
 
 
-def _save_recipe(
+def _rows_from_editor(edited_ingr) -> list[dict]:
+    """Turn the data_editor frame into plain row dicts with normalized ids.
+
+    NaN/None ids become 0 so diff_ingredients treats those rows as adds.
+    """
+    after_rows = edited_ingr.to_dict("records") if hasattr(edited_ingr, "to_dict") else []
+    for row in after_rows:
+        if nan_to_none(row.get("id")) is None:
+            row["id"] = 0
+    return after_rows
+
+
+def _edit_is_dirty(
+    recipe,
+    current_tags: list[str],
+    payload: dict,
+    tags: list[str],
+    before_rows: list[dict],
+    after_rows: list[dict],
+) -> bool:
+    """True if the form differs from the recipe as loaded from the DB.
+
+    Gates autosave so a rerun that changed nothing (e.g. clicking around the
+    panel) doesn't issue a redundant write or churn ``updated_at``. Field
+    normalization mirrors ``_persist_recipe`` exactly so a just-saved form
+    reads back as clean.
+    """
+    if payload["title"].strip() != recipe.title:
+        return True
+    if int(payload["base_servings"]) != recipe.base_servings:
+        return True
+    if (payload["instructions"] or None) != recipe.instructions:
+        return True
+    if int(payload["cook_time_min"]) != (recipe.cook_time_min or 0):
+        return True
+    if (payload["source"] or None) != recipe.source:
+        return True
+    if ((payload.get("recipe_book") or "").strip() or None) != recipe.recipe_book:
+        return True
+    if set(tags) != set(current_tags):
+        return True
+    diff = diff_ingredients(before_rows, after_rows)
+    if diff["updates"] or diff["deletes"]:
+        return True
+    if any(row.get("name", "").strip() for row in diff["adds"]):
+        return True
+    return False
+
+
+def _persist_recipe(
     recipe_id: int,
     payload: dict,
     tags: list[str],
     before_rows: list[dict],
     edited_ingr,
-) -> None:
-    """Write recipe + tags + ingredient diff in a single transaction."""
-    after_rows = edited_ingr.to_dict("records") if hasattr(edited_ingr, "to_dict") else []
-    # Normalize NaN/None ids to 0 so diff_ingredients treats those rows as adds.
-    for row in after_rows:
-        if nan_to_none(row.get("id")) is None:
-            row["id"] = 0
+) -> tuple[bool, str | None]:
+    """Write recipe + tags + ingredient diff in a single transaction.
 
+    Pure persistence — no Streamlit success/close/rerun side effects — so it
+    can be shared by the autosave path (every rerun) and the explicit Done
+    button. Returns ``(ok, err)``; ``err`` contains "deleted" when the recipe
+    vanished out from under us.
+    """
+    after_rows = _rows_from_editor(edited_ingr)
     diff = diff_ingredients(before_rows, after_rows)
 
     try:
@@ -518,16 +602,33 @@ def _save_recipe(
                         sort_order=int(nan_to_none(row.get("sort_order")) or 0),
                         conn=conn,
                     )
+        return True, None
+    except KeyError:
+        return False, "Recipe was deleted by another session."
+    except Exception as exc:
+        return False, str(exc)
+
+
+def _save_recipe(
+    recipe_id: int,
+    payload: dict,
+    tags: list[str],
+    before_rows: list[dict],
+    edited_ingr,
+) -> None:
+    """Explicit finalize from the Done button: persist, then close the panel."""
+    ok, err = _persist_recipe(recipe_id, payload, tags, before_rows, edited_ingr)
+    if ok:
         _pending_ids().discard(recipe_id)
         st.success("Recipe saved.")
         _close_edit_panel(recipe_id)
         st.rerun()
-    except KeyError:
+    elif err and "deleted" in err.lower():
         st.error("Recipe was deleted by another session — closing editor.")
         _close_edit_panel(recipe_id)
         st.rerun()
-    except Exception as exc:
-        st.error(f"Save failed: {exc}")
+    else:
+        st.error(f"Save failed: {err}")
 
 
 def _render_delete_button(recipe_id: int) -> None:

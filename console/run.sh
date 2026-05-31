@@ -50,8 +50,15 @@ TAILSCALE_IP="${TAILSCALE_IP:-127.0.0.1}"
 # on macOS, so point the jobs client directly at the detected IP.
 export HOME_TOOLS_HTTP_URL="http://${TAILSCALE_IP}:8504"
 
+# Session resilience over a flaky tailnet link: keep a disconnected session's
+# widget state alive for 15 min (default 120s) so a reconnect resumes the SAME
+# session instead of dropping in-progress edits, and ping the client every 20s
+# to keep the websocket alive / detect drops faster. Streamlit's own docs name
+# the "Connection error" symptom as the case for tuning websocketPingInterval.
 exec "$VENV/bin/streamlit" run console/app.py \
     --server.port 8503 \
     --server.address "$TAILSCALE_IP" \
     --server.headless true \
+    --server.disconnectedSessionTTL 900 \
+    --server.websocketPingInterval 20 \
     --browser.gatherUsageStats false
