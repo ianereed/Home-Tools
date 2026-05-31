@@ -177,9 +177,10 @@ def render_dataflow(status: dict, queues: dict, ollama: dict,
         repo_root = _Path(__file__).resolve().parents[1]
         if str(repo_root) not in _sys.path:
             _sys.path.insert(0, str(repo_root))
-        from jobs import huey as _huey
+        from jobs import huey as _huey, huey_fast as _huey_fast
         queue_size = _huey.storage.queue_size()
-        jobs_summary = f"queue:{queue_size}"
+        queue_size_fast = _huey_fast.storage.queue_size()
+        jobs_summary = f"queue:{queue_size} fast:{queue_size_fast}"
     except Exception as exc:
         jobs_summary = f"unavailable ({type(exc).__name__})"
 
