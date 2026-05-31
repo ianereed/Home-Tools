@@ -72,11 +72,15 @@ def diagnose() -> str:
             import json
             try:
                 ts = json.loads(result.stdout)
-                # Check if any peer is the iPhone
+                # Check if any peer is the iPhone. NOTE: iOS reports HostName as
+                # "localhost", so we match on DNSName / OS instead — matching on
+                # HostName="iphone" silently never fires and mis-reports offline.
                 peers = ts.get("Peer", {})
                 iphone_online = False
                 for peer_id, peer in peers.items():
-                    if "iphone" in (peer.get("HostName", "") or "").lower():
+                    dns = (peer.get("DNSName", "") or "").lower()
+                    os_name = (peer.get("OS", "") or "").lower()
+                    if os_name == "ios" or "iphone" in dns:
                         iphone_online = peer.get("Online", False)
                         break
 
