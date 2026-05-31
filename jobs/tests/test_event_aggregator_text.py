@@ -35,7 +35,11 @@ def test_project_path():
 
 
 def test_subprocess_invocation(monkeypatch, tmp_path):
-    """Body must call `cli.py run-text-job --job-json <json>` in the project dir."""
+    """Body must call `main.py run-text-job --job-json <json>` in the project dir.
+
+    Must be main.py, not cli.py — cli.py has no __main__ block, so `python cli.py
+    run-text-job` is a silent no-op (this regressed extraction once; see
+    feedback_event_aggregator_main_py_entrypoint)."""
     import json
     captured: dict = {}
 
@@ -64,7 +68,7 @@ def test_subprocess_invocation(monkeypatch, tmp_path):
     assert result["rc"] == 0
     assert result["source"] == "gmail"
     assert result["id"] == "m1"
-    assert "cli.py" in captured["argv"][1]
+    assert "main.py" in captured["argv"][1]
     assert "run-text-job" in captured["argv"]
     assert "--job-json" in captured["argv"]
     assert json.loads(captured["argv"][captured["argv"].index("--job-json") + 1])["id"] == "m1"

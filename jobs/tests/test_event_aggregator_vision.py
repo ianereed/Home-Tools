@@ -19,7 +19,10 @@ def test_project_path():
 
 
 def test_subprocess_invocation(monkeypatch, tmp_path):
-    """Body must call `cli.py run-ocr-job --file <path>` in the project dir."""
+    """Body must call `main.py run-ocr-job --file <path>` in the project dir.
+
+    Must be main.py, not cli.py — cli.py has no __main__ block (silent no-op).
+    See feedback_event_aggregator_main_py_entrypoint."""
     captured: dict = {}
 
     class _Result:
@@ -43,7 +46,7 @@ def test_subprocess_invocation(monkeypatch, tmp_path):
     result = mod.event_aggregator_vision.func(job)
     assert result["rc"] == 0
     assert result["file_path"] == "/tmp/test_phase127.png"
-    assert "cli.py" in captured["argv"][1]
+    assert "main.py" in captured["argv"][1]
     assert "run-ocr-job" in captured["argv"]
     assert "--file" in captured["argv"]
     assert captured["argv"][captured["argv"].index("--file") + 1] == "/tmp/test_phase127.png"

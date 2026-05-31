@@ -43,7 +43,7 @@ def event_aggregator_text(job: dict) -> dict:
     """
     try:
         proc = subprocess.run(
-            [str(VENV_PYTHON), "cli.py", "run-text-job", "--job-json", json.dumps(job)],
+            [str(VENV_PYTHON), "main.py", "run-text-job", "--job-json", json.dumps(job)],
             cwd=str(PROJECT),
             capture_output=True,
             text=True,

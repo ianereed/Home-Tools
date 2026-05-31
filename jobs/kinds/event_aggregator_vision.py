@@ -29,13 +29,14 @@ def event_aggregator_vision(job: dict) -> dict:
     """Run one OCR job via event-aggregator subprocess.
 
     @requires_model("vision") ensures the vision model is loaded before the
-    subprocess runs. The subprocess calls cli.py run-ocr-job which runs
-    _run_ocr_job → cli._cmd_ingest_image (full OCR pipeline).
+    subprocess runs. The subprocess calls `main.py run-ocr-job` (main.py is the
+    runnable entrypoint — it delegates to cli.main(); cli.py has no __main__),
+    which runs _run_ocr_job → cli._cmd_ingest_image (full OCR pipeline).
     """
     file_path = job.get("file_path", "")
     try:
         proc = subprocess.run(
-            [str(VENV_PYTHON), "cli.py", "run-ocr-job", "--file", file_path],
+            [str(VENV_PYTHON), "main.py", "run-ocr-job", "--file", file_path],
             cwd=str(PROJECT),
             capture_output=True,
             text=True,
