@@ -18,10 +18,12 @@ Bound to tailscale0 only — `--host 100.x.y.z` from the install script.
 """
 from __future__ import annotations
 
+import hashlib
 import hmac
 import json
 import logging
 import os
+import re
 import sys
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
@@ -35,6 +37,81 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_PORT = 8504
 DEFAULT_HOST = "127.0.0.1"  # install.sh overrides to tailscale0 IP
+
+_IPHONE_INTENTS = frozenset({"save", "save_and_shop", "shop_only"})
+
+
+def _parse_multipart(body: bytes, boundary: bytes) -> dict[str, dict]:
+    """Tiny multipart/form-data parser. Returns {name: {"value": bytes, "filename": str|None}}.
+
+    Stdlib's `cgi.FieldStorage` is deprecated and removed in 3.13; we only need
+    to support the two field shapes the iPhone Shortcut sends (a file part +
+    short text parts), so a hand-rolled parser is the lowest-dependency path.
+    """
+    delim = b"--" + boundary
+    end = b"--" + boundary + b"--"
+
+    # Strip any preamble before the first delimiter; treat \r\n and \n as line
+    # separators since Shortcuts can be sloppy.
+    parts: dict[str, dict] = {}
+    idx = body.find(delim)
+    if idx < 0:
+        return parts
+
+    body = body[idx + len(delim):]
+    while True:
+        # Skip the CRLF (or LF) immediately after the delimiter.
+        if body.startswith(b"\r\n"):
+            body = body[2:]
+        elif body.startswith(b"\n"):
+            body = body[1:]
+        if body.startswith(b"--"):
+            break
+
+        # Split headers / payload at the first blank line.
+        header_end = body.find(b"\r\n\r\n")
+        sep_len = 4
+        if header_end < 0:
+            header_end = body.find(b"\n\n")
+            sep_len = 2
+            if header_end < 0:
+                break
+        raw_headers = body[:header_end].decode("utf-8", errors="replace")
+        body = body[header_end + sep_len:]
+
+        # Find next delimiter — payload ends at the byte before its CRLF.
+        next_delim = body.find(delim)
+        if next_delim < 0:
+            break
+        payload = body[:next_delim]
+        # Trim the trailing CRLF (or LF) that separates payload from the delimiter line.
+        if payload.endswith(b"\r\n"):
+            payload = payload[:-2]
+        elif payload.endswith(b"\n"):
+            payload = payload[:-1]
+
+        # Parse Content-Disposition for the field name + optional filename.
+        name = None
+        filename = None
+        for line in raw_headers.split("\n"):
+            line = line.strip()
+            if line.lower().startswith("content-disposition"):
+                m_name = re.search(r'name="([^"]*)"', line)
+                m_file = re.search(r'filename="([^"]*)"', line)
+                if m_name:
+                    name = m_name.group(1)
+                if m_file:
+                    filename = m_file.group(1)
+                break
+        if name is not None:
+            parts[name] = {"value": payload, "filename": filename}
+
+        # Step past the delimiter we just hit.
+        body = body[next_delim + len(delim):]
+        if body.startswith(b"--"):
+            break
+
+    return parts
 
 
 class JobsHandler(BaseHTTPRequestHandler):
@@ -124,6 +201,9 @@ class JobsHandler(BaseHTTPRequestHandler):
     def do_POST(self) -> None:
         if not self._check_auth():
             return
+        if self.path == "/iphone-intake":
+            self._handle_iphone_intake()
+            return
         if self.path != "/jobs":
             self._send_json(404, {"error": f"unknown path {self.path!r}"})
             return
@@ -169,6 +249,99 @@ class JobsHandler(BaseHTTPRequestHandler):
             self._send_json(500, {"error": f"enqueue failed: {type(exc).__name__}: {exc}"})
             return
         self._send_json(202, {"id": getattr(result, "id", None), "kind": kind})
+
+    def _handle_iphone_intake(self) -> None:
+        """Phase 21: accept a multipart photo upload from the iPhone Shortcut.
+
+        Form fields:
+          photo   — file part (image/jpeg or image/png)
+          intent  — "save" | "save_and_shop" | "shop_only"
+          servings — optional, defaults to "4"
+
+        Side effects: writes the photo to IPHONE_INTAKE_DIR/_processing/<sha>.jpg,
+        records an intake row, enqueues meal_planner_iphone_intake.
+        Returns 202 {"id", "sha", "status"} or {"status": "duplicate", "sha"} on 200.
+        """
+        ctype = self.headers.get("Content-Type", "")
+        m = re.match(r"multipart/form-data\s*;\s*boundary=(.+)", ctype, re.IGNORECASE)
+        if not m:
+            self._send_json(400, {"error": "expected multipart/form-data"})
+            return
+        boundary = m.group(1).strip().strip('"').encode()
+
+        length = int(self.headers.get("Content-Length", "0") or "0")
+        if length <= 0:
+            self._send_json(400, {"error": "empty body"})
+            return
+        body = self.rfile.read(length)
+
+        parts = _parse_multipart(body, boundary)
+        if "photo" not in parts or not parts["photo"]["value"]:
+            self._send_json(400, {"error": "missing 'photo' part"})
+            return
+        photo_bytes = parts["photo"]["value"]
+
+        intent_part = parts.get("intent")
+        if intent_part is None or not intent_part["value"]:
+            self._send_json(400, {"error": "missing 'intent' part"})
+            return
+        intent = intent_part["value"].decode("utf-8", errors="replace").strip()
+        if intent not in _IPHONE_INTENTS:
+            self._send_json(
+                400,
+                {"error": f"bad intent {intent!r}; expected one of {sorted(_IPHONE_INTENTS)}"},
+            )
+            return
+
+        servings = 4
+        servings_part = parts.get("servings")
+        if servings_part and servings_part["value"]:
+            try:
+                servings = int(servings_part["value"].decode("utf-8").strip())
+                if servings <= 0:
+                    raise ValueError("non-positive")
+            except (ValueError, UnicodeDecodeError):
+                self._send_json(400, {"error": "'servings' must be a positive integer"})
+                return
+
+        sha = hashlib.sha256(photo_bytes).hexdigest()[:16]
+
+        from jobs.kinds.meal_planner_iphone_intake import iphone_intake_dir
+        intake_dir = iphone_intake_dir()
+        processing_dir = intake_dir / "_processing"
+        processing_dir.mkdir(parents=True, exist_ok=True)
+        photo_path = processing_dir / f"{sha}.jpg"
+
+        from meal_planner.vision import intake_db
+        first_time = intake_db.record_intake(
+            sha,
+            source_path=parts["photo"].get("filename") or "iphone-shortcut",
+            nas_path=str(photo_path),
+            source="iphone",
+        )
+        if not first_time:
+            self._send_json(200, {"status": "duplicate", "sha": sha, "id": None})
+            return
+
+        try:
+            photo_path.write_bytes(photo_bytes)
+        except OSError as exc:
+            self._send_json(500, {"error": f"could not write photo: {exc}"})
+            return
+
+        from jobs.kinds.meal_planner_iphone_intake import meal_planner_iphone_intake
+        try:
+            result = meal_planner_iphone_intake(sha, intent, servings)
+        except Exception as exc:
+            self._send_json(
+                500,
+                {"error": f"enqueue failed: {type(exc).__name__}: {exc}"},
+            )
+            return
+        self._send_json(
+            202,
+            {"id": getattr(result, "id", None), "sha": sha, "status": "enqueued"},
+        )
 
     def log_message(self, format: str, *args: Any) -> None:
         # Route http.server's stdout chatter through logging.
