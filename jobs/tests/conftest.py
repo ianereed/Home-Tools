@@ -22,26 +22,29 @@ os.environ["HOME"] = str(_TMP)
 # Pin huey's SQLite file under tmp regardless of how Path.home() resolved at
 # the time jobs/__init__.py imported.
 os.environ["JOBS_DB_OVERRIDE"] = str(_TMP / "Home-Tools" / "jobs" / "jobs.db")
+os.environ["JOBS_FAST_DB_OVERRIDE"] = str(_TMP / "Home-Tools" / "jobs" / "jobs-fast.db")
 (_TMP / "Home-Tools" / "jobs").mkdir(parents=True, exist_ok=True)
 (_TMP / "Home-Tools" / "run").mkdir(parents=True, exist_ok=True)
 (_TMP / "Home-Tools" / "logs").mkdir(parents=True, exist_ok=True)
 
 import pytest
 
-from jobs import huey  # noqa: E402
+from jobs import huey, huey_fast  # noqa: E402
 
 # Synchronous mode: every enqueue executes inline.
 huey.immediate = True
+huey_fast.immediate = True
 
 
 @pytest.fixture(autouse=True)
 def _reset_huey_storage():
-    """Each test starts with an empty huey storage."""
+    """Each test starts with an empty huey storage (both lanes)."""
     yield
-    try:
-        huey.flush()
-    except Exception:
-        pass
+    for _instance in (huey, huey_fast):
+        try:
+            _instance.flush()
+        except Exception:
+            pass
 
 
 @pytest.fixture(autouse=True)
