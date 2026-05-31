@@ -262,3 +262,22 @@ class TestChangesCommand:
         assert rc == 0
         assert "Good" in out
         assert "BadTs" not in out
+
+
+# ── cli.py is directly runnable (regression guard) ────────────────────────────
+
+
+def test_cli_py_has_main_guard_and_runs():
+    """`python cli.py <cmd>` must NOT be a silent no-op. cli.py previously lacked a
+    __main__ block, which silently broke the text/vision/decide job kinds (they
+    shelled cli.py and got rc 0 / no output). --help proves the entrypoint runs."""
+    import subprocess
+    import sys
+    ea_dir = Path(__file__).resolve().parents[1]  # event-aggregator/
+    proc = subprocess.run(
+        [sys.executable, "cli.py", "--help"],
+        cwd=ea_dir, capture_output=True, text=True, timeout=30,
+    )
+    assert proc.returncode == 0
+    assert "usage" in (proc.stdout + proc.stderr).lower()
+    assert "decide" in proc.stdout  # subcommands registered

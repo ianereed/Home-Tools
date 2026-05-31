@@ -1298,3 +1298,11 @@ def _json_err(msg: str) -> None:
         "suggested_filename": "",
         "error": msg,
     }))
+
+
+if __name__ == "__main__":
+    # Make `python cli.py <subcommand>` runnable directly, not just via
+    # `python main.py <subcommand>`. Without this, running cli.py is a silent
+    # no-op (rc 0, no output) — a footgun that silently broke the text/vision/
+    # decide job kinds twice. main.py's _SUBCOMMANDS routing still works too.
+    sys.exit(main())
