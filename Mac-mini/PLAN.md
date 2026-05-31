@@ -1237,7 +1237,122 @@ Polish surfaced during/after the Phase 19.5 verification:
 
 ---
 
-## Phase 20+ — Future chunks (numbered as each chunk is claimed)
+## Phase 20 — Instacart deeplinks (ON HOLD — DO LATER)
+
+**Status:** scoped 2026-05-30, held pending real-world user testing to
+nail down the output format. The original "MCP + Claude Code planning
+sessions" Phase 20 was put on hold indefinitely; this Instacart work
+inherits the Phase 20 slot.
+
+**Goal:** parallel "Send to Instacart" button alongside the existing
+"Send to Todoist" on the Recipes tab. Generates per-ingredient
+deeplinks of the form
+`https://www.instacart.com/store/s?k=<urlencoded ingredient>` so the
+user (on iPhone, with the Instacart app installed) can tap each link
+to add items to their Instacart cart.
+
+**Locked decisions (from 2026-05-30 scoping):**
+- Single-item search deeplinks. NOT the Shoppable Recipe API
+  (requires Instacart developer signup + likely business verification)
+  and NOT headless-browser automation (ToS risk, 2FA fragility).
+- Keep both Send-to-Todoist and Send-to-Instacart in parallel. Todoist
+  is not deprecated.
+- **Deeplinks must be permanently stored in the database and editable
+  by the user.** Added 2026-05-30: a user-supplied override per
+  ingredient (e.g. search for "Kikkoman low-sodium soy sauce" instead
+  of just "soy sauce") means the deeplink isn't computed fresh every
+  time from the ingredient name — it's a stored field.
+
+**Why on hold:** the right output UX needs hands-on testing. Open
+questions that can't be answered without real-world shopping trips:
+- Per-ingredient column on `ingredients` (one override per recipe-
+  ingredient junction) vs. a global `ingredient_deeplinks` table
+  keyed on canonical ingredient name vs. both layers (per-recipe
+  override falling back to global)?
+- Output surface — modal dialog with tappable list? Todoist task
+  with embedded URLs (since Anny already has Todoist on her phone)?
+  A new bookmark-friendly Instacart-cart page at
+  `homeserver:8503/instacart`?
+- Mobile-first or desktop-with-mobile-followup? Deeplinks only work
+  on phones where Instacart is installed.
+- Dedup semantics when 3 recipes have "olive oil" — collapse to one
+  link, or keep one per recipe (so per-recipe overrides survive)?
+
+**Reactivate after** using the current Todoist-only flow for a few
+real grocery trips to identify the friction Instacart needs to remove.
+
+---
+
+## Phase 21 — iPhone-driven recipe intake via Gemini
+
+**Status:** scoped 2026-05-30, next up after Phase 20 hold. **This is
+the active next phase.**
+
+**Goal:** Anny (or Ian) takes a photo of a recipe with her iPhone,
+picks one of three actions on the phone, and the system handles the
+rest. New entry path that complements (does not replace) the existing
+NAS-drop-zone photo intake.
+
+**Locked decisions (from 2026-05-30 scoping):**
+- iPhone-initiated and iPhone-controlled. Apple Shortcut → HTTP POST
+  to a new endpoint on the mini (likely a new route on jobs-http:8504
+  reusing the existing token auth, or a sibling service if the photo
+  upload pattern doesn't fit).
+- **Gemini's free API** for extraction on this entry path. Faster +
+  more accurate than the local llama3.2-vision:11b on the mini per
+  the user's observation. The existing NAS-drop-zone pipeline keeps
+  using the local model (no regression).
+- Three action paths, picked by the user at intake time via the
+  Shortcut's menu:
+  1. **Save to DB** — extract, insert into recipes table. Same
+     outcome as the existing photo pipeline.
+  2. **Save to DB + send to Todoist** — same as 1, plus enqueue
+     `meal_planner_send_to_todoist` for the new recipe with default
+     servings.
+  3. **Send only to Todoist (don't save the recipe)** — extract,
+     skip DB insert, synthesize a transient grocery list and call
+     the Todoist push path with the extracted ingredients. For
+     one-off shopping where the user doesn't want the recipe in
+     their library (magazine handout, friend's recipe card, etc.).
+
+**Sketched chunks (not locked; refine when started):**
+- **C1 — Gemini vision client.** New `meal_planner/vision/gemini.py`
+  mirroring the `_ollama.py` interface (`extract_recipe_from_photo`,
+  `validate_schema`). Reuses the existing prompt + validator +
+  `normalize_extraction`. API key in keychain + meal_planner/.env.
+  Tests.
+- **C2 — New job kind: `meal_planner_iphone_intake`.** Accepts photo
+  bytes (or path) + intent (`"save"` | `"save_and_shop"` |
+  `"shop_only"`). Routes through gemini.py for extraction, then
+  branches on intent. For `shop_only`, builds a transient grocery
+  list without writing a recipes row. Tests cover all 3 intent paths
+  plus the Gemini-failure branch.
+- **C3 — New HTTP endpoint.** `POST /iphone-intake` on jobs-http:8504
+  accepting multipart (photo + intent + optional servings). Auth via
+  the existing `HOME_TOOLS_HTTP_TOKEN`. Returns task_id for the
+  Shortcut to poll.
+- **C4 — Apple Shortcut definition.** Documented in
+  `Mac-mini/shortcuts/iphone-recipe-intake.md` with screenshots; user
+  recreates on her iPhone. Shortcut: Take photo → "Choose from menu"
+  (Save / Save+Shop / Shop only) → POST to mini → poll for result →
+  show notification.
+- **C5 — Deploy + dogfood.** Anny shoots a recipe magazine photo
+  with the Shortcut, picks "save + shop", confirms recipe appears at
+  `homeserver:8503/?tab=recipes` AND ingredients show in Todoist.
+
+**Open questions to resolve when started:**
+- Photo destination — same NAS intake dir (for dedup + audit) or a
+  separate `iphone-intake/` subdir? Dedup matters: same photo
+  shouldn't trigger duplicate work.
+- For `shop_only`, should the extraction sidecar JSON still be
+  written to disk for audit/dedup? Probably yes — same dedup logic,
+  no DB cost.
+- Shortcut auth — reuse `HOME_TOOLS_HTTP_TOKEN` stored as a Shortcut
+  variable on iPhone, or generate a per-device Shortcut token?
+
+---
+
+## Phase 22+ — Future chunks (numbered as each chunk is claimed)
 
 Each chunk gets the next sequential Phase number when claimed.
 Numbers are not pre-allocated.
@@ -1248,9 +1363,10 @@ scope — pick up when ready):
   in the View dialog. Currently `_fmt_qty` uses Python `:g` which
   emits decimals. Common ratios (1/4, 1/3, 1/2, 2/3, 3/4) could round-
   trip back to fraction strings.
-- Re-ingest the 3 Serious Eats PDFs via the live photo pipeline once
-  Phase 20 lands so they have `photo_path` populated (right now
-  source=`claude-pdf-import` means they were inserted directly).
+- Re-ingest the 3 Serious Eats PDFs via the live photo pipeline once a
+  cleaner intake path exists (Phase 21) so they have `photo_path`
+  populated (right now `source=claude-pdf-import` means they were
+  inserted directly).
 
 ## Long-term future scope (re-evaluate later)
 
