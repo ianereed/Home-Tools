@@ -20,6 +20,7 @@ from console import jobs_client as _jobs_client
 from console.tabs._recipe_form import (
     clean_optional_str,
     diff_ingredients,
+    format_view_block,
     ingredients_to_rows,
     nan_to_none,
     normalize_tags,
@@ -203,7 +204,7 @@ def _render_inner() -> None:
         hide_index=True,
     )
 
-    st.caption("Check exactly one recipe row and click **Edit selected** to edit it.")
+    st.caption("Check exactly one recipe row, then click **View** or **Edit selected**.")
 
     # -----------------------------------------------------------------------
     # Row-selection state
@@ -211,7 +212,7 @@ def _render_inner() -> None:
     checked_indices = [i for i, row in edited_df.iterrows() if row["Send"]]
     exactly_one = len(checked_indices) == 1
 
-    col_send, col_edit = st.columns([3, 1])
+    col_send, col_view, col_edit = st.columns([3, 1, 1])
     with col_send:
         if st.button(
             "Send checked recipes to Todoist", type="primary", use_container_width=True
@@ -236,6 +237,19 @@ def _render_inner() -> None:
                 except Exception as exc:
                     st.error(f"Failed to enqueue: {exc}")
 
+    with col_view:
+        view_clicked = st.button(
+            "View",
+            type="secondary",
+            use_container_width=True,
+            disabled=not exactly_one,
+            key="view_button",
+        )
+        if view_clicked and exactly_one:
+            rid = recipe_ids[checked_indices[0]]
+            st.session_state["_view_recipe_id"] = rid
+            st.rerun()
+
     with col_edit:
         edit_clicked = st.button(
             "Edit selected",
@@ -249,6 +263,15 @@ def _render_inner() -> None:
             st.rerun()
 
     _render_job_status("_send_job", "Send to Todoist")
+
+    # -----------------------------------------------------------------------
+    # View dialog (Phase 19) — opens modal with read-only recipe details.
+    # Triggered by the View button above; dialog clears _view_recipe_id on
+    # Close, otherwise it would re-open on every rerun.
+    # -----------------------------------------------------------------------
+    view_id = st.session_state.get("_view_recipe_id")
+    if view_id is not None:
+        _render_view_dialog(view_id)
 
     # -----------------------------------------------------------------------
     # Edit panel
@@ -276,6 +299,30 @@ def _close_edit_panel(recipe_id: int) -> None:
     st.session_state.pop(f"_confirm_delete_at_{recipe_id}", None)
     for prefix in _EDIT_WIDGET_KEY_PREFIXES:
         st.session_state.pop(f"{prefix}_{recipe_id}", None)
+
+
+@st.dialog("Recipe details", width="large")
+def _render_view_dialog(recipe_id: int) -> None:
+    """Render a read-only view of one recipe as a modal dialog.
+
+    Closing the dialog (Close button or the system × control) pops
+    _view_recipe_id from session_state so re-rendering doesn't re-open it.
+    """
+    try:
+        recipe = queries.get_recipe(recipe_id)
+    except KeyError:
+        st.error(f"Recipe id {recipe_id} not found — it may have been deleted.")
+        st.session_state.pop("_view_recipe_id", None)
+        if st.button("Close", key=f"view_close_missing_{recipe_id}"):
+            st.rerun()
+        return
+
+    tags = queries.get_recipe_tags(recipe_id)
+    ingredients = queries.list_ingredients(recipe_id)
+    st.markdown(format_view_block(recipe, tags, ingredients))
+    if st.button("Close", key=f"view_close_{recipe_id}", type="primary"):
+        st.session_state.pop("_view_recipe_id", None)
+        st.rerun()
 
 
 def _render_edit_panel(recipe_id: int) -> None:

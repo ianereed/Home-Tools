@@ -161,3 +161,58 @@ def ingredients_to_rows(ingredients: list) -> list[dict]:
         }
         for ing in ingredients
     ]
+
+
+# ---------------------------------------------------------------------------
+# Phase 19 — View dialog formatting (read-only markdown)
+# ---------------------------------------------------------------------------
+
+def _fmt_qty(qty: float) -> str:
+    """Format a qty number for display: drop trailing zeros / .0."""
+    if qty == int(qty):
+        return str(int(qty))
+    return f"{qty:g}"
+
+
+def format_view_block(recipe, tags: list[str], ingredients: list) -> str:
+    """Render a recipe as read-only markdown for the View dialog.
+
+    Ingredients are displayed at recipe.base_servings (per-serving × base
+    so the user sees the recipe as printed, not as per-serving rows).
+    Falls back to ``_No instructions saved._`` when recipe.instructions is None.
+    Pure function: no Streamlit imports, safe to unit-test without a server.
+    """
+    parts: list[str] = [f"## {recipe.title}"]
+
+    meta: list[str] = []
+    if recipe.source:
+        meta.append(f"Source: {recipe.source}")
+    if recipe.cook_time_min:
+        meta.append(f"Cook time: {recipe.cook_time_min} min")
+    meta.append(f"Base servings: {recipe.base_servings}")
+    if tags:
+        meta.append(f"Tags: {', '.join(tags)}")
+    parts.append("")
+    parts.append("_" + " · ".join(meta) + "_")
+
+    if ingredients:
+        parts.append("")
+        parts.append("**Ingredients**")
+        for ing in ingredients:
+            line_parts: list[str] = []
+            if ing.qty_per_serving is not None:
+                total = ing.qty_per_serving * recipe.base_servings
+                line_parts.append(_fmt_qty(total))
+            if ing.unit:
+                line_parts.append(ing.unit)
+            line_parts.append(ing.name)
+            parts.append(f"- {' '.join(line_parts)}")
+
+    parts.append("")
+    parts.append("### Instructions")
+    if recipe.instructions:
+        parts.append(recipe.instructions)
+    else:
+        parts.append("_No instructions saved._")
+
+    return "\n".join(parts)
