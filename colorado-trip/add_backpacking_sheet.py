@@ -1,3 +1,9 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# LEGACY one-shot builder (historical). The 'Activities — Hikes, Runs & MTB' tab is
+# now maintained by restyle_activities.py (formatting, palette in sheet_style.py) and
+# update_activities_mtb.py (MTB section). Re-running THIS re-imposes old formatting —
+# don't, unless rebuilding the tab from scratch.
+# ─────────────────────────────────────────────────────────────────────────────
 import gspread
 from config import SPREADSHEET_ID, CREDENTIALS_FILE
 from google.oauth2.service_account import Credentials

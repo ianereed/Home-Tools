@@ -1,3 +1,8 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# SUPERSEDED — do not run. The old "Trail Rides" subsection this built was replaced by
+# the consolidated MTB section, now maintained by update_activities_mtb.py (content +
+# style via mtb_tab.py / sheet_style.py). Kept for history only.
+# ─────────────────────────────────────────────────────────────────────────────
 import gspread
 from config import SPREADSHEET_ID, CREDENTIALS_FILE
 from google.oauth2.service_account import Credentials

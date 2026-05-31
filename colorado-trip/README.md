@@ -24,11 +24,30 @@ Trip-specific artifact. Functional but most useful as a reference if you build s
 ## Layout
 
 - `research-context.md` — narrative doc; the only prose. Read this first if you're picking up where things left off.
-- 14+ `add_*.py` scripts — each populates one Sheet section
+- 14+ `add_*.py` scripts — each populated one Sheet section. The Activities-tab builders
+  (`add_activities.py`, `add_backpacking_sheet.py`, `add_tahoe_mammoth_content.py`,
+  `add_trail_rides.py`) are now **legacy/historical** — see the MTB + styling pipeline below.
 - `restructure_itinerary.py` — periodic reorg sweeps
 - `read_itinerary.py` — fetch current state of the Sheet
 - `fix_backpacking_stats.py` — corrections to specific sections
-- Tahoe / Mammoth content also added (`add_tahoe_mammoth_content.py`) — the toolbox got repurposed for adjacent trips
+
+### Activities tab — current pipeline (Hikes / Runs / MTB)
+
+All MTB rides live in the `Activities — Hikes, Runs & MTB` tab. The look + the MTB
+content are maintained by these (idempotent, safe to re-run):
+
+- `sheet_style.py` — shared palette + column widths (single source of truth for the look).
+- `restyle_activities.py` — reads the tab and unifies **formatting only** (section/sub-area/
+  column-header bars, zebra striping, widths). Content-safe; never rewrites trip data.
+  Styles the activity sections above the `🚵 MOUNTAIN BIKING` header.
+- `update_activities_mtb.py` — owns the **MTB section** (Boulder / Steamboat / Crested Butte
+  ride data + per-row Google Maps trailhead pins, Trailforks deep-links, `***` must-do
+  marks, hype badges). Rewrites only that section; preserves everything above it.
+- `mtb_tab.py` — builder used by `update_activities_mtb.py`.
+- `linkutil.py` — turns `=HYPERLINK(...)` cells into native (always-clickable) links.
+
+To change a ride: edit `update_activities_mtb.py` then run it. To re-polish formatting:
+run `restyle_activities.py`. Both pull colors from `sheet_style.py`.
 
 ## Setup
 
