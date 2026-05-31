@@ -1352,7 +1352,81 @@ endpoint and Shortcut doc.
 
 ---
 
-## Phase 22+ — Future chunks (numbered as each chunk is claimed)
+## Phase 22 — Two-lane huey (DONE 2026-05-30 ✅)
+
+**Status:** shipped on one branch, six commits
+(`feat/phase22-two-lane-huey`). Design source:
+`~/.claude/plans/phase-22-huey-fast-lane.md`; auto-mode execution log:
+`~/.claude/plans/we-re-goign-to-fully-distributed-kay.md`.
+
+**Contention test (the proof point):** with `_debug_sleep(120)` holding
+Worker-1 of the slow lane (`com.home-tools.jobs-consumer`), enqueued
+`meal_planner_clear_todoist` on the fast lane via `POST /jobs`.
+Result returned in **7.16 s** (vs. ~120 s if the lanes had been
+contended) — fast-lane consumer was idle and picked it up immediately.
+`_debug_sleep` was deleted from the branch (commit history retains
+the trace but main has no probe file).
+
+**What landed:**
+
+- `jobs/__init__.py` — new `huey_fast = SqliteHuey(name="home-tools-jobs-fast", filename=~/Home-Tools/jobs/jobs-fast.db)`; `JOBS_FAST_DB_OVERRIDE` env var for test isolation.
+- 4 user-initiated kinds swapped to `from jobs import huey_fast as huey`:
+  `meal_planner_send_to_todoist`, `meal_planner_clear_todoist`,
+  `event_aggregator_decide`, `meal_planner_iphone_intake`.
+- `jobs/enqueue_http.py` — `/queue-size` returns both `size` + `size_fast`; `/kinds` adds `lane` field; `/jobs/<id>` tries both lanes.
+- `jobs/run-consumer-fast.sh` + `jobs/config/com.home-tools.jobs-consumer-fast.plist` — second LaunchAgent.
+- `jobs/install.sh` — chmod + plist install loop include the new agent.
+- `service-monitor/services.py` + `flowchart.py` — surface the fast-lane consumer.
+- 162 jobs tests + 430 jobs+meal_planner total pass.
+
+**Problem:** Single huey worker (`-w 1 -k thread`) serves both
+background batch work (nas_intake_scan, restic, periodic pollers) AND
+user-initiated foreground work (Recipes tab Send/Clear, Decisions tab
+approve/reject). One long-running periodic task starves every
+interactive click. 2026-05-07 saw a 25-min wedge behind a healthcare-
+PDF OCR. Phase 18B1's `SUBPROCESS_TIMEOUT_S=90` reduces the worst case
+but doesn't fix the architecture.
+
+**Approach:** Two huey instances on two consumers, no priority
+sort, no preempt.
+
+- New `huey_fast = SqliteHuey(name="home-tools-jobs-fast", filename=...)`
+  in `jobs/__init__.py`, backed by `~/Home-Tools/jobs/jobs-fast.db`.
+- 4 user-initiated kinds opt into `@huey_fast.task()`:
+  `meal_planner_send_to_todoist`, `meal_planner_clear_todoist`,
+  `event_aggregator_decide`, `meal_planner_iphone_intake` (wrapper).
+  Everything else stays on default `huey`.
+- New LaunchAgent `com.home-tools.jobs-consumer-fast` runs a second
+  consumer process. Same env loading + keychain unlock as the
+  existing wrapper.
+- `enqueue_http.py` gains lane awareness on `/jobs/<id>` (tries both
+  instances), `/queue-size` (returns both), `/kinds` (adds `lane`
+  field). `_registered_kinds()` is already lane-agnostic — no change
+  there.
+- iPhone Capture is unchanged (already sync-in-process; bypasses
+  huey).
+
+**Rejected during scoping:**
+- Three-tier priority sort via custom `dequeue` wrapper — huey 3.x
+  has no native priority support, monkey-patching `SqliteStorage` is
+  brittle, and the wedge frequency (~1/month) doesn't justify it.
+- True preempt — would require cooperative-yield hooks in every
+  long-running kind. Too much surface area.
+- A third lane for restic/backups — fits on the existing slow lane.
+
+**Out of scope:** multiple workers per lane (`@requires_model` lock
+assumes `-w 1`); per-kind RAM caps / cgroups.
+
+**Deploy:** restart all four services after merge (jobs-consumer,
+new jobs-consumer-fast, jobs-http, console) per
+`feedback_huey_kind_module_reload.md` +
+`feedback_jobs_http_restart_on_module_change.md`. Then run the
+contention test (long task running on slow lane while clicking Send
+to Todoist).
+
+---
+
+## Phase 23+ — Future chunks (numbered as each chunk is claimed)
 
 Each chunk gets the next sequential Phase number when claimed.
 Numbers are not pre-allocated.
@@ -1379,29 +1453,10 @@ scope — pick up when ready):
   time (prints `Gemini HTTP ?: <empty>` for 4xx/5xx because `if resp` returns
   False for non-2xx; should print `resp.status_code` and `resp.text[:200]`
   unconditionally).
-- **Job priority tiers (huey queue overhaul)** — Surfaced 2026-05-05 when
-  a meal-planner test job sat behind a `nas_intake_scan` (~360s) on a
-  single-worker consumer. User-initiated jobs should not wait minutes
-  behind background scans. Three tiers to introduce:
-  - **Highest / preempt** — interrupts whatever is running and executes
-    the desired job immediately. Reserved for user-initiated foreground
-    actions (e.g. `meal_planner_send_to_todoist`,
-    `meal_planner_clear_todoist`, dispatcher commands). Implementation
-    likely needs a second worker or a cooperative-cancel hook in
-    long-running kinds — huey doesn't preempt natively.
-  - **High / jump-to-front** — does not interrupt the current task but
-    moves to position 0 of pending so it runs the moment Worker-1 frees
-    up. Good fit for chat-triggered jobs that are tolerant of seconds-
-    not-minutes of latency.
-  - **Always-last / starvable** — continuously bumped to the bottom of
-    pending as long as anything else is queued. Fits jobs that should
-    only run when the system is otherwise idle (deep NAS scans, large
-    photo OCR backfills, restic prune). Implies the consumer needs to
-    re-rank pending on each pop, not just FIFO drain.
-  Map every existing kind to a tier as part of the phase. Open question:
-  is this a huey configuration change (priorities + multiple workers),
-  a custom dispatcher in front of huey, or a switch to a different queue
-  backend? Decide during the phase.
+- ~~**Job priority tiers (huey queue overhaul)**~~ — **PROMOTED to Phase 22**
+  on 2026-05-30. Three-tier sort was rejected in favor of a simpler
+  two-lane huey design. See "Phase 22" section above and full plan at
+  `~/.claude/plans/phase-22-huey-fast-lane.md`.
 - **Tier-2 LLM orchestrator** — design at `future-architecture-upgrade.md`.
   CEO-approved 2026-04-30 but **demoted to long-term scope on 2026-05-01.**
   Phase 12's `Job` framework already absorbs most of its plumbing (typed
