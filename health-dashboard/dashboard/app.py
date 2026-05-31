@@ -28,7 +28,10 @@ st.markdown("""
 <meta name="theme-color" content="#0e1117">
 <style>
     html, body, [data-testid="stAppViewContainer"], .stApp { background-color: #0e1117 !important; }
-    .block-container { padding-top: 2.2rem; padding-bottom: 1rem; max-width: 1100px; }
+    /* Drop the default white toolbar/menu so the dark theme is seamless */
+    header[data-testid="stHeader"] { background: transparent !important; height: 0 !important; }
+    [data-testid="stToolbar"], #MainMenu, footer { display: none !important; }
+    .block-container { padding-top: 1.4rem; padding-bottom: 1rem; max-width: 1100px; }
     h1, h2, h3 { font-weight: 650 !important; letter-spacing: -0.01em; }
     h2 { font-size: 1.05rem !important; margin: 1.1rem 0 0.2rem !important; color: #cdd3e0; }
     h3 { font-size: 0.9rem !important; margin: 0.6rem 0 0.1rem !important; color: #aab2c5; }
