@@ -104,6 +104,59 @@ def collect_heart_rate(client, target_date: str):
         conn.close()
 
 
+def collect_wellness(client, target_date: str):
+    """Collect daily wellness metrics (HRV, sleep score, sleeping HR, SpO2, steps).
+
+    Replaces the retired Suunto/Intervals.icu wellness feed. Garmin syncs are
+    intermittent (only when the watch is worn overnight), so a day with no data
+    is skipped rather than written as an all-null row.
+    """
+    conn = get_connection()
+    try:
+        hrv = sleep_score = avg_sleeping_hr = spo2 = steps = None
+
+        try:
+            sd = (client.get_sleep_data(target_date) or {}).get("dailySleepDTO") or {}
+            overall = (sd.get("sleepScores") or {}).get("overall") or {}
+            sleep_score = overall.get("value")
+            avg_sleeping_hr = sd.get("avgHeartRate")
+            spo2 = sd.get("averageSpO2Value")
+        except Exception as e:
+            logger.debug(f"Garmin sleep-score {target_date}: {e}")
+
+        try:
+            summary = (client.get_hrv_data(target_date) or {}).get("hrvSummary") or {}
+            hrv = summary.get("lastNightAvg")
+        except Exception as e:
+            logger.debug(f"Garmin HRV {target_date}: {e}")
+
+        try:
+            daily_steps = client.get_daily_steps(target_date, target_date) or []
+            if daily_steps:
+                steps = daily_steps[0].get("totalSteps")
+        except Exception as e:
+            logger.debug(f"Garmin steps {target_date}: {e}")
+
+        if all(v is None for v in (hrv, sleep_score, avg_sleeping_hr, spo2, steps)):
+            return  # nothing synced for this day
+
+        conn.execute(
+            """INSERT OR REPLACE INTO wellness
+               (date, hrv, hrv_sdnn, sleep_score, sleep_quality, avg_sleeping_hr, readiness, spo2, steps, source)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (target_date, hrv, None, sleep_score, None, avg_sleeping_hr, None, spo2, steps, "garmin"),
+        )
+        conn.commit()
+        logger.info(
+            f"Saved Garmin wellness for {target_date} "
+            f"(hrv={hrv}, sleep_score={sleep_score}, steps={steps})"
+        )
+    except Exception as e:
+        logger.error(f"Error collecting Garmin wellness for {target_date}: {e}")
+    finally:
+        conn.close()
+
+
 def collect_activities(client, start_date: str, end_date: str):
     """Collect activities between two dates."""
     conn = get_connection()
@@ -158,6 +211,7 @@ def collect_all(days_back: int = 7):
         d = (start + timedelta(days=i)).isoformat()
         collect_sleep(client, d)
         collect_heart_rate(client, d)
+        collect_wellness(client, d)
 
     collect_activities(client, start.isoformat(), today.isoformat())
     logger.info("Garmin collection complete.")

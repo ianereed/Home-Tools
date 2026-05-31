@@ -36,8 +36,20 @@ def main() -> None:
         email=email,
         password=password,
         prompt_mfa=lambda: input("Enter the Garmin MFA code: ").strip(),
+        retry_attempts=1,  # fail fast on 429 — don't hammer a rate-limited IP
     )
-    client.login()  # fresh credential login; prompts for MFA if Garmin asks
+    try:
+        client.login()  # fresh credential login; prompts for MFA if Garmin asks
+    except Exception as e:
+        if "429" in str(e):
+            raise SystemExit(
+                "Garmin returned 429 (this IP is temporarily rate-limited from too "
+                "many recent login attempts). Wait a few hours and run this once more "
+                "— do NOT retry repeatedly, as that extends the block. The scheduled "
+                "collector no longer attempts Garmin logins, so nothing else is adding "
+                "to the limit."
+            ) from e
+        raise
 
     os.makedirs(TOKEN_DIR, exist_ok=True)
     client.client.dump(TOKEN_DIR)
