@@ -7,7 +7,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from console.tabs.intake import breadcrumb, find_intakes, _slug
+from console.tabs.intake import (
+    _recipe_photo_dir,
+    _slug,
+    breadcrumb,
+    find_intakes,
+)
 
 
 def _mkdirs(*paths: Path) -> None:
@@ -75,3 +80,23 @@ def test_slug_is_stable_and_filesystem_safe(tmp_path: Path) -> None:
     other = root / "Financial" / "intake"
     _mkdirs(other)
     assert _slug(other, root) != slug
+
+
+def test_recipe_photo_dir_default_is_nas_relative(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.delenv("MEAL_PLANNER_NAS_INTAKE_DIR", raising=False)
+    root = tmp_path / "Share1"
+    assert _recipe_photo_dir(root) == root / "Documents" / "Recipes" / "photo-intake"
+
+
+def test_recipe_photo_dir_honors_env_override(tmp_path: Path, monkeypatch) -> None:
+    override = tmp_path / "elsewhere" / "photo-intake"
+    monkeypatch.setenv("MEAL_PLANNER_NAS_INTAKE_DIR", str(override))
+    # env wins over the NAS-relative default
+    assert _recipe_photo_dir(tmp_path / "Share1") == override
+
+
+def test_recipe_photo_dir_is_not_matched_by_find_intakes(tmp_path: Path) -> None:
+    # photo-intake isn't named `intake`, so generic discovery must ignore it;
+    # it's added separately as a special destination.
+    _mkdirs(tmp_path / "Documents" / "Recipes" / "photo-intake")
+    assert find_intakes(tmp_path) == []
