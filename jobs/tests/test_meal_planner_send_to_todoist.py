@@ -1,6 +1,6 @@
 """Phase 14.10 — tests for meal_planner_send_to_todoist Job kind.
 
-HTTP calls are mocked at jobs.adapters.todoist.create_task (adapter level) so
+HTTP calls are mocked at meal_planner.todoist_client.create_task (relocated for Phase 21 v2) so
 that assertions on payload["source_id"], output_config["labels"], and
 output_config["section_id"] are possible without routing through requests.post.
 The priority-mapping test additionally patches requests.post to verify that
@@ -77,7 +77,7 @@ def _make_env(monkeypatch: Any, *, sections_json: str = _SECTIONS_JSON) -> None:
 
 def _adapter_mock(monkeypatch: Any) -> list[dict]:
     """Patch jobs.adapters.todoist.create_task; return list that captures calls."""
-    import jobs.adapters.todoist as _todoist_adapter
+    import meal_planner.todoist_client as _todoist_adapter
 
     captured: list[dict] = []
 
@@ -403,7 +403,7 @@ def test_send_header_counts_toward_items_sent_and_attempted(monkeypatch, tmp_pat
 def test_send_header_create_failure_does_not_block_ingredients(monkeypatch, tmp_path: Path) -> None:
     """Header create_task returns {'created': False}; ingredients succeed → attempted=6, sent=5."""
     import meal_planner.db as _db_mod
-    import jobs.adapters.todoist as _todoist_adapter
+    import meal_planner.todoist_client as _todoist_adapter
     db_path = tmp_path / "recipes.db"
     monkeypatch.setattr(_db_mod, "DB_PATH", db_path)
     init_db(db_path)
