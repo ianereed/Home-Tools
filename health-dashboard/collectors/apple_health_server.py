@@ -137,6 +137,10 @@ def _process_sleep(samples, conn):
     """
     from collections import defaultdict
 
+    # Per-call accumulator for format-2 (per-segment) data. Local, not a
+    # function attribute — keeps each request self-contained and thread-safe.
+    nights = defaultdict(lambda: {"total": 0, "deep": 0, "rem": 0, "light": 0, "awake": 0})
+
     for sample in samples:
         # Format 1: Aggregated sleep data (hours)
         if "totalSleep" in sample or "core" in sample or "deep" in sample:
@@ -183,12 +187,6 @@ def _process_sleep(samples, conn):
 
         sleep_date = start.strftime("%Y-%m-%d")
 
-        # Accumulate into a dict, then write at end
-        if not hasattr(_process_sleep, "_nights"):
-            _process_sleep._nights = defaultdict(lambda: {"total": 0, "deep": 0, "rem": 0, "light": 0, "awake": 0})
-
-        nights = _process_sleep._nights
-
         if "AsleepDeep" in value:
             nights[sleep_date]["deep"] += duration_mins
             nights[sleep_date]["total"] += duration_mins
@@ -202,25 +200,23 @@ def _process_sleep(samples, conn):
             nights[sleep_date]["awake"] += duration_mins
 
     # Write per-segment data if any
-    if hasattr(_process_sleep, "_nights"):
-        for sleep_date, data in _process_sleep._nights.items():
-            if data["total"] <= 0:
-                continue
-            conn.execute(
-                """INSERT OR REPLACE INTO sleep
-                   (date, total_minutes, deep_minutes, rem_minutes, light_minutes, awake_minutes, source)
-                   VALUES (?, ?, ?, ?, ?, ?, ?)""",
-                (
-                    sleep_date,
-                    round(data["total"], 1),
-                    round(data["deep"], 1),
-                    round(data["rem"], 1),
-                    round(data["light"], 1),
-                    round(data["awake"], 1),
-                    "apple",
-                ),
-            )
-        _process_sleep._nights.clear()
+    for sleep_date, data in nights.items():
+        if data["total"] <= 0:
+            continue
+        conn.execute(
+            """INSERT OR REPLACE INTO sleep
+               (date, total_minutes, deep_minutes, rem_minutes, light_minutes, awake_minutes, source)
+               VALUES (?, ?, ?, ?, ?, ?, ?)""",
+            (
+                sleep_date,
+                round(data["total"], 1),
+                round(data["deep"], 1),
+                round(data["rem"], 1),
+                round(data["light"], 1),
+                round(data["awake"], 1),
+                "apple",
+            ),
+        )
 
 
 def _normalize_timestamp(ts: str) -> str:

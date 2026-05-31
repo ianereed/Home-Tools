@@ -1,5 +1,6 @@
 """Check for stale health data, diagnose the cause, and send a push notification via ntfy.sh."""
 
+import os
 import sqlite3
 import subprocess
 from datetime import datetime, timedelta
@@ -9,6 +10,33 @@ from .db import DB_PATH
 # ntfy.sh topic — subscribe to this in the ntfy app on your phone
 NTFY_TOPIC = "ian-health-dashboard"
 STALE_THRESHOLD_HOURS = 24
+
+# Heartbeat log. The health_staleness huey kind uses this file's mtime as its
+# migration baseline metric (file-mtime:logs/health-staleness.log), so every run
+# must touch it — otherwise the verifier thinks the job stopped firing.
+LOG_FILE = os.path.join(os.path.dirname(os.path.dirname(__file__)), "logs", "health-staleness.log")
+
+
+def _run(cmd: list[str]) -> subprocess.CompletedProcess | None:
+    """Run a subprocess, tolerating a missing binary.
+
+    Under launchd the PATH may lack tools like `tailscale` (/opt/homebrew/bin);
+    a missing binary should degrade the diagnosis, not crash the whole check
+    with a FileNotFoundError (which previously surfaced as rc=1 under the
+    consumer only when data was actually stale).
+    """
+    try:
+        return subprocess.run(cmd, capture_output=True, text=True)
+    except FileNotFoundError:
+        return None
+
+
+def _write_heartbeat(stale_sources: list[str]) -> None:
+    """Append a one-line result to the heartbeat log (creates logs/ if needed)."""
+    os.makedirs(os.path.dirname(LOG_FILE), exist_ok=True)
+    status = "STALE: " + ", ".join(stale_sources) if stale_sources else "OK"
+    with open(LOG_FILE, "a") as fh:
+        fh.write(f"{datetime.now().isoformat(timespec='seconds')} {status}\n")
 
 
 def check_staleness() -> list[str]:
@@ -52,20 +80,22 @@ def diagnose() -> str:
     steps = []
 
     # 1. Is the receiver process running?
-    result = subprocess.run(
-        ["lsof", "-i", ":8095", "-sTCP:LISTEN"],
-        capture_output=True, text=True,
-    )
+    result = _run(["lsof", "-i", ":8095", "-sTCP:LISTEN"])
+    if result is None:
+        # lsof unavailable — can't probe the port; skip to app-side guidance.
+        problems.append("Could not probe receiver (lsof unavailable)")
+        steps.append("On your iPhone: open Health Auto Export and tap Export Now")
+        return problems, steps
     if not result.stdout.strip():
         problems.append("Receiver is DOWN")
         steps.append("On your Mac, run: launchctl kickstart -k gui/$(id -u)/com.health-dashboard.receiver")
     else:
         # 2. Is Tailscale running on the Mac?
-        result = subprocess.run(
-            ["tailscale", "status", "--json"],
-            capture_output=True, text=True,
-        )
-        if result.returncode != 0:
+        result = _run(["tailscale", "status", "--json"])
+        if result is None:
+            problems.append("Could not check Tailscale (tailscale CLI unavailable)")
+            steps.append("Verify Tailscale is connected on both Mac and iPhone")
+        elif result.returncode != 0:
             problems.append("Tailscale is not running on Mac")
             steps.append("Open Tailscale on your Mac and connect")
         else:
@@ -125,6 +155,7 @@ def send_notification(stale_sources: list[str]):
 
 def main():
     stale = check_staleness()
+    _write_heartbeat(stale)
     if stale:
         print(f"Stale sources: {', '.join(stale)}")
         send_notification(stale)

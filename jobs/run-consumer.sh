@@ -9,6 +9,13 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."   # ~/Home-Tools
 
+# launchd hands us a minimal PATH (no /opt/homebrew/bin, sometimes no /sbin).
+# Several kinds shell out to tools that live there: health_staleness ->
+# `tailscale` (/opt/homebrew/bin) + `lsof` (/usr/sbin), restic, etc. Without
+# this, those subprocesses raise FileNotFoundError and the kind exits rc=1.
+# See feedback_launchd_sbin_path.md.
+export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:${PATH:-}"
+
 VENV="$(pwd)/jobs/.venv"
 if [ ! -d "$VENV" ]; then
     echo "creating venv at $VENV" >&2

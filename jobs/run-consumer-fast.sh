@@ -8,6 +8,10 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."   # ~/Home-Tools
 
+# launchd hands us a minimal PATH — see run-consumer.sh for why the fast lane
+# needs the same widening (kinds shell out to /opt/homebrew/bin + /usr/sbin).
+export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:${PATH:-}"
+
 VENV="$(pwd)/jobs/.venv"
 if [ ! -d "$VENV" ]; then
     echo "creating venv at $VENV" >&2
