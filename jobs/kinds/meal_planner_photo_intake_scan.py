@@ -27,6 +27,12 @@ _DEFAULT_INTAKE_DIR = "/Users/homeserver/Share1/Documents/Recipes/photo-intake"
 # Photos, HEIC (iPhone), and PDF (recipe prints). The ingest task converts
 # HEIC/PDF into an image before extraction; see meal_planner/vision/rasterize.py.
 _SUPPORTED_SUFFIXES = frozenset({".jpg", ".jpeg", ".png", ".heic", ".heif", ".pdf"})
+
+# llama3.2-vision occasionally emits malformed JSON for an image that parses
+# fine on a re-run (non-deterministic; see intake_db.RETRYABLE_STATUSES). Each
+# scan tick re-arms failed rows up to this many extra attempts, then wedges them
+# so they stop cycling. Ticks are 5 min apart, so this is the retry spacing too.
+_MAX_RETRIES = 2  # → up to 3 total extraction attempts
 _SUBFOLDERS = ("_processing", "_done", "_skipped", "_wedged")
 
 
@@ -64,6 +70,33 @@ def meal_planner_photo_intake_scan() -> dict:
                 re_enqueued += 1
             except Exception as exc:
                 logger.warning("self-heal enqueue failed sha=%s: %s", row.sha, exc)
+
+    # Retry sweep: re-arm recoverable failures (non-deterministic bad JSON,
+    # transient ollama/transport errors). Wedge first so rows already at the cap
+    # don't get bumped again; then retry the rest. The two sets are disjoint
+    # (n_retries >= _MAX_RETRIES vs < _MAX_RETRIES), so no row is touched twice.
+    retried = 0
+    wedged = 0
+    for row in intake_db.list_exhausted(_MAX_RETRIES):
+        intake_db.mark_status(
+            row.sha, "wedged",
+            error=f"max retries ({_MAX_RETRIES}) exhausted; last: {(row.error or '')[:200]}",
+        )
+        wedged += 1
+        logger.warning("meal_planner_photo_intake_scan: wedged sha=%s after %d retries", row.sha, row.n_retries)
+    for row in intake_db.list_retryable(_MAX_RETRIES):
+        if not Path(row.nas_path).exists():
+            # File gone from _processing/ — a retry can never succeed; wedge it.
+            intake_db.mark_status(row.sha, "wedged", error="retry: source file missing from _processing")
+            wedged += 1
+            continue
+        intake_db.bump_retry(row.sha)  # → pending, n_retries + 1, error cleared
+        try:
+            meal_planner_ingest_photo(row.sha)
+            retried += 1
+            logger.info("meal_planner_photo_intake_scan: retry sha=%s (attempt %d)", row.sha, row.n_retries + 2)
+        except Exception as exc:
+            logger.warning("meal_planner_photo_intake_scan: retry enqueue failed sha=%s: %s", row.sha, exc)
 
     discovered = 0
     enqueued = 0
@@ -122,5 +155,7 @@ def meal_planner_photo_intake_scan() -> dict:
         "enqueued": enqueued,
         "skipped_dup": skipped_dup,
         "re_enqueued": re_enqueued,
+        "retried": retried,
+        "wedged": wedged,
         "tick_at": datetime.now(timezone.utc).isoformat(),
     }

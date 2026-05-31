@@ -197,6 +197,72 @@ def list_pending(
         return [_row_to_intake(r) for r in rows]
 
 
+# Failure statuses worth a re-extraction. llama3.2-vision is non-deterministic:
+# the same image can parse_fail/validation_fail one run and succeed the next
+# (confirmed 2026-05-31 — done_reason=stop, well under num_ctx, yet 2 fails +
+# 1 clean success). timeout/ollama_error are transient transport/load issues.
+RETRYABLE_STATUSES = frozenset({"timeout", "ollama_error", "parse_fail", "validation_fail"})
+
+
+def _list_by_status_and_retries(
+    statuses: frozenset[str], op: str, max_retries: int, conn, db_path,
+) -> list[IntakeRow]:
+    placeholders = ",".join(["?"] * len(statuses))
+    sql = (
+        f"SELECT * FROM photos_intake "
+        f"WHERE status IN ({placeholders}) AND n_retries {op} ? "
+        f"ORDER BY enqueued_at"
+    )
+    params = (*sorted(statuses), max_retries)
+    if conn is not None:
+        return [_row_to_intake(r) for r in conn.execute(sql, params).fetchall()]
+    p = db_path or DB_PATH
+    with _get_conn(p) as c:
+        return [_row_to_intake(r) for r in c.execute(sql, params).fetchall()]
+
+
+def list_retryable(
+    max_retries: int,
+    *,
+    conn: sqlite3.Connection | None = None,
+    db_path: Path | None = None,
+) -> list[IntakeRow]:
+    """Rows in a retryable failure status with n_retries < max_retries."""
+    return _list_by_status_and_retries(RETRYABLE_STATUSES, "<", max_retries, conn, db_path)
+
+
+def list_exhausted(
+    max_retries: int,
+    *,
+    conn: sqlite3.Connection | None = None,
+    db_path: Path | None = None,
+) -> list[IntakeRow]:
+    """Rows still in a retryable failure status that have hit n_retries >= max_retries
+    (i.e. out of attempts — the caller should wedge them)."""
+    return _list_by_status_and_retries(RETRYABLE_STATUSES, ">=", max_retries, conn, db_path)
+
+
+def bump_retry(
+    sha: str,
+    *,
+    conn: sqlite3.Connection | None = None,
+    db_path: Path | None = None,
+) -> None:
+    """Arm a failed row for another attempt: increment n_retries, reset to
+    'pending', and clear the prior error. The caller then re-enqueues ingest."""
+    sql = (
+        "UPDATE photos_intake "
+        "SET n_retries = n_retries + 1, status = 'pending', error = NULL "
+        "WHERE sha = ?"
+    )
+    if conn is not None:
+        conn.execute(sql, (sha,))
+        return
+    p = db_path or DB_PATH
+    with _get_conn(p) as c:
+        c.execute(sql, (sha,))
+
+
 def get_by_sha(
     sha: str,
     *,

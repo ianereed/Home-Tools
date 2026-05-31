@@ -155,6 +155,91 @@ def test_scan_accepts_heic_and_pdf_preserving_suffix(tmp_path, monkeypatch):
     assert suffixes == [".heic", ".pdf"]
 
 
+def _seed_failed(intake_dir: Path, db_p: Path, sha: str, status: str,
+                 n_retries: int, *, make_file: bool = True) -> Path:
+    """Seed a photos_intake row in a failure status with a given n_retries."""
+    import sqlite3
+    from meal_planner.vision.intake_db import mark_status, record_intake
+    proc = intake_dir / "_processing"
+    proc.mkdir(parents=True, exist_ok=True)
+    nas = proc / f"{sha}.jpg"
+    if make_file:
+        nas.write_bytes(b"\xff\xd8\xff\xe0" + b"\x55" * 50)
+    record_intake(sha, source_path="orig.jpg", nas_path=str(nas), path=db_p)
+    mark_status(sha, status, db_path=db_p)
+    c = sqlite3.connect(str(db_p))
+    c.execute("UPDATE photos_intake SET n_retries=? WHERE sha=?", (n_retries, sha))
+    c.commit()
+    c.close()
+    return nas
+
+
+def test_scan_retries_failed_row_below_cap(tmp_path, monkeypatch):
+    """A parse_fail row under the retry cap is re-armed: status→pending,
+    n_retries incremented, ingest re-enqueued."""
+    enqueue_mock = MagicMock()
+    intake_dir, db_p = _setup(tmp_path, monkeypatch, enqueue_mock)
+    _seed_failed(intake_dir, db_p, "fa11ed00000000a1", "parse_fail", 0)
+
+    result = scan_mod.meal_planner_photo_intake_scan.func()
+
+    assert result["retried"] == 1
+    assert result["wedged"] == 0
+    from meal_planner.vision.intake_db import get_by_sha
+    row = get_by_sha("fa11ed00000000a1", db_path=db_p)
+    assert row.status == "pending"
+    assert row.n_retries == 1
+    assert row.error is None
+    enqueue_mock.assert_called_once_with("fa11ed00000000a1")
+
+
+def test_scan_wedges_row_at_retry_cap(tmp_path, monkeypatch):
+    """A row that has already used its retries is wedged (terminal), not retried."""
+    enqueue_mock = MagicMock()
+    intake_dir, db_p = _setup(tmp_path, monkeypatch, enqueue_mock)
+    _seed_failed(intake_dir, db_p, "fa11ed00000000b2", "parse_fail", scan_mod._MAX_RETRIES)
+
+    result = scan_mod.meal_planner_photo_intake_scan.func()
+
+    assert result["wedged"] == 1
+    assert result["retried"] == 0
+    from meal_planner.vision.intake_db import get_by_sha
+    row = get_by_sha("fa11ed00000000b2", db_path=db_p)
+    assert row.status == "wedged"
+    assert row.completed_at is not None  # wedged is terminal
+    enqueue_mock.assert_not_called()
+
+
+def test_scan_wedges_retryable_with_missing_file(tmp_path, monkeypatch):
+    """A retryable row whose _processing file vanished can't recover → wedged."""
+    enqueue_mock = MagicMock()
+    intake_dir, db_p = _setup(tmp_path, monkeypatch, enqueue_mock)
+    _seed_failed(intake_dir, db_p, "fa11ed00000000c3", "timeout", 0, make_file=False)
+
+    result = scan_mod.meal_planner_photo_intake_scan.func()
+
+    assert result["wedged"] == 1
+    assert result["retried"] == 0
+    from meal_planner.vision.intake_db import get_by_sha
+    assert get_by_sha("fa11ed00000000c3", db_path=db_p).status == "wedged"
+    enqueue_mock.assert_not_called()
+
+
+def test_scan_does_not_retry_terminal_ok(tmp_path, monkeypatch):
+    """An ok row is never retried or wedged."""
+    enqueue_mock = MagicMock()
+    intake_dir, db_p = _setup(tmp_path, monkeypatch, enqueue_mock)
+    _seed_failed(intake_dir, db_p, "0kr0w00000000d4", "ok", 0)
+
+    result = scan_mod.meal_planner_photo_intake_scan.func()
+
+    assert result["retried"] == 0
+    assert result["wedged"] == 0
+    from meal_planner.vision.intake_db import get_by_sha
+    assert get_by_sha("0kr0w00000000d4", db_path=db_p).status == "ok"
+    enqueue_mock.assert_not_called()
+
+
 def test_scan_re_enqueues_orphaned_pending(tmp_path, monkeypatch):
     """Self-heal: pending row with existing _processing file is re-enqueued each tick."""
     enqueue_mock = MagicMock()
