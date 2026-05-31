@@ -391,7 +391,6 @@ something is repeatedly crashing.
 | Service | What it does |
 |---|---|
 | `event-agg / worker` | Drains the text + OCR queues, runs Ollama, writes to GCal |
-| `dispatcher` | Slack Socket Mode bot — routes image uploads to event-agg or finance |
 | `finance-monitor / bot` | Slack DM bot — answers finance questions via Ollama |
 | `hd / receiver :8095` | Receives Apple Health data from iPhone |
 | `hd / streamlit :8501` | Hosts the health dashboard web UI |
@@ -416,7 +415,7 @@ the next interval. Only worry if the last exit is non-zero.
 ### ✅ Wait — this is self-healing
 
 - Any **scheduled** service is 🔴 with last exit `0` — it ran fine, will run again on schedule
-- Worker or dispatcher shows exit `-9` or `-15` — normal signal-based restart cycle
+- Worker shows exit `-9` or `-15` — normal signal-based restart cycle
 - Ollama shows ✗ for one refresh cycle — may be loading a model (~30–60s startup)
 - `text_queue` or `ocr_queue` is > 0 but small (1–5) — worker is processing, will drain
 
@@ -453,8 +452,6 @@ launchctl list | grep -E "home-tools|health-dashboard"
 
 # Tail a specific service's error log
 tail -50 ~/Library/Logs/home-tools/event-aggregator-worker.log
-tail -50 ~/Library/Logs/home-tools-dispatcher.log
-tail -50 ~/Library/Logs/home-tools-dispatcher-error.log
 
 # Force-restart a crashed service
 launchctl unload ~/Library/LaunchAgents/com.home-tools.event-aggregator.worker.plist
@@ -479,9 +476,6 @@ Gmail / iMsg / Slack → event-agg/fetch → state.json (queues)
                                         → event-agg/worker → Google Calendar
                                                            → Slack replies
 
-Slack #image-intake  → dispatcher → event-agg (events)
-                                  → finance-mon/intake/ (financial docs)
-
 iPhone Health        → hd/receiver  ┐
 Strava / Garmin      → hd/collect   ├─→ health.db → Streamlit :8501
 Intervals.icu        → hd/intervals ┘
@@ -489,7 +483,7 @@ Intervals.icu        → hd/intervals ┘
 YNAB API + intake/   → fin/watcher → finance.db
                                    → fin/bot → Slack DM responses
 
-Ollama :11434 ← shared by event-agg/worker, dispatcher, finance-monitor
+Ollama :11434 ← shared by event-agg/worker, finance-monitor
 ```
 """)
 

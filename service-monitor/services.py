@@ -3,7 +3,7 @@ import json
 from dataclasses import dataclass
 from paths import (
     LOG_DIR_HOME_TOOLS, LOG_DIR_HEALTH,
-    LOG_PATH_DISPATCHER, LOG_PATH_FINANCE_BOT, LOG_PATH_FINANCE_WATCHER,
+    LOG_PATH_FINANCE_BOT, LOG_PATH_FINANCE_WATCHER,
     LOG_PATH_NAS_INTAKE,
     PHASE6_HEARTBEAT_LOG, PHASE6_DAILY_DIGEST_LOG, PHASE6_WEEKLY_SSH_LOG,
     PHASE6_DIGEST_FAILED_FLAG,
@@ -33,9 +33,9 @@ SERVICES: list[Svc] = [
     #   Replacement kinds: event_aggregator_text, event_aggregator_vision,
     #   event_aggregator_decision_poller — all run inside the jobs consumer.
     # Svc entry removed in Phase 12.7; worker.py loop deleted in Phase 12.8.
-    Svc("disp",         "com.home-tools.dispatcher",                "dispatcher",       "KeepAlive",
-        str(LOG_PATH_DISPATCHER),
-        plist_source_path="dispatcher/com.home-tools.dispatcher.plist"),
+    # dispatcher retired 2026-05-31: decision surface moved to console :8503
+    # (SLACK_DISABLED=1 in event-aggregator), image-intake unused. Plist
+    # renamed .disabled on the mini; code kept in dispatcher/.
     Svc("fin_bot",      "com.home-tools.finance-monitor",           "finance-monitor",  "KeepAlive",
         str(LOG_PATH_FINANCE_BOT),
         plist_source_path="finance-monitor/com.home-tools.finance-monitor.plist"),

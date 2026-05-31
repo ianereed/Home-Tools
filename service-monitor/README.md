@@ -11,7 +11,6 @@ Mac mini service status dashboard. Shows live status of every loaded `com.home-t
 | Project | Services |
 |---|---|
 | event-aggregator | fetch (10 min), worker (KeepAlive) |
-| dispatcher | bot (KeepAlive) |
 | finance-monitor | bot (KeepAlive), watcher (5 min) |
 | health-dashboard | receiver, collect, intervals-poll, staleness, streamlit |
 | nas-intake | watcher (5 min) |

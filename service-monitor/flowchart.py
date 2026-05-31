@@ -160,12 +160,8 @@ def render_dataflow(status: dict, queues: dict, ollama: dict,
         _ext("GCal + Slack #ea"),
     ]))
 
-    # Dispatcher
-    lanes.append(_lane("Dispatcher", [
-        _ext("Slack #ian-image-intake"), _arrow(),
-        _node("dispatcher", st_("disp")), _arrow(),
-        _ext("→ event-agg  or  finance-mon/intake/"),
-    ]))
+    # Dispatcher retired 2026-05-31 (decision surface → console :8503,
+    # image-intake unused). Lane removed; code kept in dispatcher/.
 
     # Mini Jobs — Phase 12. The 12 cron-style agents above were replaced
     # by huey periodic_tasks running in this consumer. Heartbeat / digest /
@@ -280,7 +276,7 @@ def render_dataflow(status: dict, queues: dict, ollama: dict,
             ollama_items.append(_ext(name, last_age_str))
 
     ollama_items.append(
-        f'<span class="svc-mon-note">&nbsp; ← used by event-agg / dispatcher / finance-mon</span>'
+        f'<span class="svc-mon-note">&nbsp; ← used by event-agg / finance-mon</span>'
     )
 
     # RAM indicator — prepended to the Shared Infra lane (memory and
