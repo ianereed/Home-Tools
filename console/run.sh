@@ -21,6 +21,24 @@ KEYCHAIN_PATH="${KEYCHAIN_PATH:-$HOME/Library/Keychains/login.keychain-db}"
 security unlock-keychain -p "" "$KEYCHAIN_PATH" 2>/dev/null || true
 export HOME_TOOLS_HTTP_TOKEN="$(security find-generic-password -a 'home-tools' -s 'jobs_http_token' -w "$KEYCHAIN_PATH" 2>/dev/null || echo '')"
 
+# Phase 21 v2: Capture tab calls meal_planner.runner.process_iphone_intake_sync
+# directly inside Streamlit, so this process needs GEMINI_API_KEY + Todoist
+# config in env. Mirrors jobs/run-consumer.sh.
+export TODOIST_API_TOKEN="$(security find-generic-password -a 'home-tools' -s 'todoist_api_token' -w "$KEYCHAIN_PATH" 2>/dev/null || echo '')"
+
+# Load meal_planner/.env (TODOIST_SECTIONS, GEMINI_API_KEY, TODOIST_PROJECT_ID).
+# Line-by-line read avoids bash brace-expanding the JSON in TODOIST_SECTIONS.
+if [ -f "$(pwd)/meal_planner/.env" ]; then
+    while IFS= read -r _line || [[ -n "$_line" ]]; do
+        [[ "$_line" =~ ^[[:space:]]*# ]] && continue
+        [[ -z "${_line// }" ]] && continue
+        _key="${_line%%=*}"
+        _val="${_line#*=}"
+        export "$_key=$_val"
+    done < "$(pwd)/meal_planner/.env"
+    unset _line _key _val
+fi
+
 # Tailscale IP (so we don't expose console on en0/lo0). Don't let a missing
 # ifconfig kill the script — fall back to localhost.
 set +e
