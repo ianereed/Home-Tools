@@ -3,7 +3,11 @@ from __future__ import annotations
 
 import pytest
 
-from meal_planner.vision._normalize import normalize_extraction, normalize_ingredient
+from meal_planner.vision._normalize import (
+    normalize_extraction,
+    normalize_ingredient,
+    normalize_instructions,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -331,3 +335,90 @@ def test_p3_no_discarded_warning_for_redundant_unit():
     assert out["qty"] == "2"
     assert out["unit"] == "tsp"
     assert len(warns) == 1
+
+
+# ---------------------------------------------------------------------------
+# Phase 19 polish: normalize_instructions — inline-numbered → \n-separated
+# ---------------------------------------------------------------------------
+
+
+def test_normalize_instructions_splits_inline_numbered_steps():
+    """Model often returns '1. step. 2. step. 3. step.' as a single line."""
+    inp = "1. Mix together and pour over chicken. 2. Massage and leave in fridge for 24 hours. 3. Cover with foil and bake for 35-40 minutes at 425F."
+    out = normalize_instructions(inp)
+    assert out == (
+        "1. Mix together and pour over chicken.\n"
+        "2. Massage and leave in fridge for 24 hours.\n"
+        "3. Cover with foil and bake for 35-40 minutes at 425F."
+    )
+
+
+def test_normalize_instructions_idempotent_on_newline_separated():
+    """Already-newline-separated input is unchanged."""
+    inp = "1. Preheat oven.\n2. Mix dry ingredients.\n3. Bake."
+    assert normalize_instructions(inp) == inp
+
+
+def test_normalize_instructions_passes_through_none_and_empty():
+    assert normalize_instructions(None) is None
+    assert normalize_instructions("") == ""
+
+
+def test_normalize_instructions_no_false_positive_on_decimal_in_text():
+    """'35-40 minutes at 425F' has no period-then-digit-dot — no false split."""
+    inp = "1. Bake at 425F for 35-40 minutes. 2. Cool."
+    out = normalize_instructions(inp)
+    assert out == "1. Bake at 425F for 35-40 minutes.\n2. Cool."
+
+
+def test_normalize_instructions_no_false_positive_on_fractional_ingredient():
+    """Sentences containing fractions like '1.5 cups' must not be split.
+
+    The lookbehind requires the preceding period to NOT be inside a number
+    (since 1.5 has '.' followed by digit, not space+digit-period).
+    """
+    inp = "1. Add 1.5 cups of flour. 2. Stir well."
+    out = normalize_instructions(inp)
+    # Should split at "flour. 2." but NOT at "1.5"
+    assert out == "1. Add 1.5 cups of flour.\n2. Stir well."
+
+
+def test_normalize_instructions_handles_unnumbered_prose():
+    """Plain prose (no numbered steps) passes through unchanged."""
+    inp = "Mix everything together and bake until golden."
+    assert normalize_instructions(inp) == inp
+
+
+def test_normalize_extraction_applies_instructions_normalizer():
+    """The wrapper used by call_ollama_vision routes instructions through the splitter."""
+    parsed = {
+        "title": "Bake",
+        "ingredients": [{"qty": "1", "unit": "cup", "name": "flour"}],
+        "tags": [],
+        "instructions": "1. Mix. 2. Bake. 3. Eat.",
+    }
+    out, _ = normalize_extraction(parsed)
+    assert out["instructions"] == "1. Mix.\n2. Bake.\n3. Eat."
+
+
+def test_normalize_extraction_preserves_missing_instructions_key():
+    """No 'instructions' key in input → none added in output (backward compat)."""
+    parsed = {
+        "title": "Bake",
+        "ingredients": [{"qty": "1", "unit": "cup", "name": "flour"}],
+        "tags": [],
+    }
+    out, _ = normalize_extraction(parsed)
+    assert "instructions" not in out
+
+
+def test_normalize_extraction_preserves_null_instructions():
+    """instructions=None passes through unchanged."""
+    parsed = {
+        "title": "Bake",
+        "ingredients": [{"qty": "1", "unit": "cup", "name": "flour"}],
+        "tags": [],
+        "instructions": None,
+    }
+    out, _ = normalize_extraction(parsed)
+    assert out["instructions"] is None

@@ -177,8 +177,33 @@ def normalize_ingredient(ing: dict) -> tuple[dict, list[str]]:
     return ing, warnings
 
 
+# Phase 19 polish: model sometimes returns "1. step. 2. step. 3. step." inline
+# instead of the requested "1. step\n2. step\n3. step" multi-line format.
+# This regex splits on the boundary "<period><whitespace><digit+>.<space><Cap>"
+# using a lookbehind on the period and a lookahead on the next-step marker so
+# only the inter-step whitespace is consumed and replaced with `\n`.
+#
+# Idempotent: if the model already returned \n-separated steps, the matched
+# whitespace IS the newline, and the substitution rewrites \n → \n (no-op).
+# Won't false-positive on "1.5 cups" (no leading period; lookbehind fails)
+# or "35-40 minutes at 425F. Done." (no digit-dot after the period).
+_INLINE_STEP_SPLIT_RE = re.compile(r"(?<=\.)\s+(?=\d+\.\s+[A-Z])")
+
+
+def normalize_instructions(text: str | None) -> str | None:
+    """Re-split inline-numbered cooking steps onto separate lines.
+
+    Returns the input unchanged when None, empty, or no inline-step pattern
+    found. Pure function; no side effects.
+    """
+    if not text:
+        return text
+    return _INLINE_STEP_SPLIT_RE.sub("\n", text)
+
+
 def normalize_extraction(parsed: dict) -> tuple[dict, list[str]]:
-    """Apply normalize_ingredient to every entry in parsed['ingredients'].
+    """Apply normalize_ingredient to every entry in parsed['ingredients']
+    and normalize_instructions to parsed['instructions'].
 
     Returns (new_parsed, all_warnings). Passes title and tags through unchanged.
     If 'ingredients' is missing or not a list, returns (parsed, []) unchanged.
@@ -199,4 +224,8 @@ def normalize_extraction(parsed: dict) -> tuple[dict, list[str]]:
         for warning in w:
             all_warnings.append(f"row {i}: {warning}")
 
-    return {**parsed, "ingredients": normalized}, all_warnings
+    new_parsed = {**parsed, "ingredients": normalized}
+    if "instructions" in parsed:
+        new_parsed["instructions"] = normalize_instructions(parsed["instructions"])
+
+    return new_parsed, all_warnings
