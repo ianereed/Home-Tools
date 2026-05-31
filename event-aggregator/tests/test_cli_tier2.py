@@ -1,13 +1,95 @@
 """
-Tests for tier-2 CLI subcommands: config (mute/watch), undo-last, changes.
+Tests for tier-2 CLI subcommands: config (mute/watch), undo-last, undo, changes.
 """
 from __future__ import annotations
 
+import contextlib
 import json
 import tempfile
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import patch
+
+import pytest
+
+import state as state_module
+
+
+# ── undo (undo-last + undo --gcal-id) ─────────────────────────────────────────
+
+
+@pytest.fixture
+def undo_env(monkeypatch):
+    """Wire cli's undo path to an in-memory State and stubbed GCal/event-log.
+
+    load() returns one shared State so the find-then-remove sequence is coherent;
+    delete_event and record_cancellation are captured."""
+    state = state_module.State({"written_events": {
+        "g_old": {"title": "Old Event", "start": "2026-05-01T10:00:00+00:00",
+                  "created_at": "2026-05-01T09:00:00+00:00", "calendar_id": "weekend@x", "source": "gmail"},
+        "g_new": {"title": "New Event", "start": "2026-05-30T10:00:00+00:00",
+                  "created_at": "2026-05-30T09:00:00+00:00", "calendar_id": "weekend@x", "source": "slack"},
+    }})
+    monkeypatch.setattr(state_module, "load", lambda: state)
+    monkeypatch.setattr(state_module, "save", lambda _s: None)
+    monkeypatch.setattr(state_module, "locked", lambda: contextlib.nullcontext())
+
+    deleted: list = []
+    from writers import google_calendar as gcal
+    monkeypatch.setattr(gcal, "delete_event", lambda cal, gid, dry_run=False: (deleted.append((cal, gid)) or True))
+
+    logged: list = []
+    from logs import event_log
+    monkeypatch.setattr(event_log, "record_cancellation", lambda gid, title, src: logged.append((gid, title, src)))
+
+    return {"state": state, "deleted": deleted, "logged": logged}
+
+
+def test_undo_gcal_id_success(undo_env):
+    from cli import _cmd_undo_gcal_id
+    rc = _cmd_undo_gcal_id("g_old")
+    assert rc == 0
+    assert "g_old" not in undo_env["state"].get_written_events()
+    assert undo_env["deleted"] == [("weekend@x", "g_old")]
+    assert undo_env["logged"] == [("g_old", "Old Event", "gmail")]
+
+
+def test_undo_gcal_id_not_found(undo_env):
+    from cli import _cmd_undo_gcal_id
+    rc = _cmd_undo_gcal_id("ghost")
+    assert rc == 1
+    assert undo_env["deleted"] == []  # no GCal call for an untracked id
+
+
+def test_undo_gcal_id_delete_failure_keeps_state(undo_env, monkeypatch):
+    from writers import google_calendar as gcal
+    monkeypatch.setattr(gcal, "delete_event", lambda *a, **k: False)
+    from cli import _cmd_undo_gcal_id
+    rc = _cmd_undo_gcal_id("g_old")
+    assert rc == 1
+    assert "g_old" in undo_env["state"].get_written_events()  # NOT modified
+    assert undo_env["logged"] == []
+
+
+def test_undo_gcal_id_idempotent_double(undo_env):
+    from cli import _cmd_undo_gcal_id
+    assert _cmd_undo_gcal_id("g_old") == 0       # delete_event idempotent (404/410 → True)
+    assert _cmd_undo_gcal_id("g_old") == 1       # already gone from state → not found
+
+
+def test_undo_last_delegates_to_most_recent(undo_env):
+    from cli import _cmd_undo_last
+    rc = _cmd_undo_last()
+    assert rc == 0
+    # g_new has the newer created_at → it's the one undone
+    assert undo_env["deleted"] == [("weekend@x", "g_new")]
+    assert "g_new" not in undo_env["state"].get_written_events()
+
+
+def test_undo_last_empty():
+    with patch.object(state_module, "load", lambda: state_module.State({})):
+        from cli import _cmd_undo_last
+        assert _cmd_undo_last() == 0  # nothing written → no-op success
 
 
 # ── state helpers (last_written_event / remove_written_event) ─────────────────

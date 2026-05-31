@@ -6,6 +6,7 @@ extractor calendar context injection, and run_summary with proposal counts.
 """
 from __future__ import annotations
 
+import os
 from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock, patch
 
@@ -13,6 +14,14 @@ import pytest
 
 import state as state_module
 from models import CandidateEvent
+
+
+@pytest.fixture(autouse=True)
+def _slack_posting_enabled(monkeypatch):
+    """Neutralize the SLACK_DISABLED notify-gate for posting tests. The mini sets
+    SLACK_DISABLED=1 in its env (Slack retired as the decision channel); these
+    tests still exercise the posting path, so force the gate open here."""
+    monkeypatch.setenv("SLACK_DISABLED", "")
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
