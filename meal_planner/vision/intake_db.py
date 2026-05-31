@@ -33,9 +33,17 @@ class IntakeRow:
     completed_at: str | None
     extraction_path: str | None
     extraction_warnings: str | None
+    source: str | None = None
 
 
 def _row_to_intake(row: sqlite3.Row) -> IntakeRow:
+    # `source` was added in Phase 21 as a migration via _add_column_if_missing;
+    # access defensively so this stays compatible with conns built from in-test
+    # _SCHEMA executescripts that don't run the migration step.
+    try:
+        source = row["source"]
+    except (IndexError, KeyError):
+        source = None
     return IntakeRow(
         sha=row["sha"],
         source_path=row["source_path"],
@@ -48,6 +56,7 @@ def _row_to_intake(row: sqlite3.Row) -> IntakeRow:
         completed_at=row["completed_at"],
         extraction_path=row["extraction_path"],
         extraction_warnings=row["extraction_warnings"],
+        source=source,
     )
 
 
@@ -81,24 +90,45 @@ def record_intake(
     source_path: str,
     nas_path: str,
     *,
+    source: str | None = None,
     conn: sqlite3.Connection | None = None,
     path: Path | None = None,
 ) -> bool:
-    """Insert a fresh pending row for a content-hash. Returns False if sha already exists."""
+    """Insert a fresh pending row for a content-hash. Returns False if sha already exists.
+
+    `source` (Phase 21): provenance label for analytics — "nas" or "iphone".
+    NULL on legacy rows that pre-date the column.
+    """
     now = datetime.now(timezone.utc).isoformat()
-    sql = """
+    # Try the path with `source` first; fall back to the legacy column set on
+    # an in-test schema that hasn't had the migration applied.
+    sql_with_source = """
+        INSERT OR IGNORE INTO photos_intake
+          (sha, source_path, nas_path, status, n_retries, enqueued_at, source)
+        VALUES (?, ?, ?, 'pending', 0, ?, ?)
+    """
+    sql_legacy = """
         INSERT OR IGNORE INTO photos_intake
           (sha, source_path, nas_path, status, n_retries, enqueued_at)
         VALUES (?, ?, ?, 'pending', 0, ?)
     """
-    params = (sha, source_path, nas_path, now)
-    if conn is not None:
-        cur = conn.execute(sql, params)
+    params_with_source = (sha, source_path, nas_path, now, source)
+    params_legacy = (sha, source_path, nas_path, now)
+
+    def _exec(c: sqlite3.Connection) -> bool:
+        try:
+            cur = c.execute(sql_with_source, params_with_source)
+        except sqlite3.OperationalError as exc:
+            if "no column named source" not in str(exc).lower():
+                raise
+            cur = c.execute(sql_legacy, params_legacy)
         return cur.rowcount > 0
+
+    if conn is not None:
+        return _exec(conn)
     p = path or DB_PATH
     with _get_conn(p) as c:
-        cur = c.execute(sql, params)
-        return cur.rowcount > 0
+        return _exec(c)
 
 
 def _delete_by_sha(sha: str, *, db_path: Path | None = None) -> None:

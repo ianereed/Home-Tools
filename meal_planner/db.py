@@ -94,6 +94,7 @@ def init_db(path: Path | str | None = None) -> None:
         _add_column_if_missing(conn, "ingredients", "qty_raw", "TEXT")
         _add_column_if_missing(conn, "photos_intake", "extraction_warnings", "TEXT")
         _add_column_if_missing(conn, "recipes", "recipe_book", "TEXT")
+        _add_column_if_missing(conn, "photos_intake", "source", "TEXT")
 
 
 def insert_recipe(
@@ -186,6 +187,27 @@ def add_recipe_tag(
     p = path or DB_PATH
     with _get_conn(p) as c:
         _run(c)
+
+
+def delete_recipe(
+    recipe_id: int,
+    *,
+    path: Path | None = None,
+    conn: sqlite3.Connection | None = None,
+) -> int:
+    """Hard-delete a recipe. FK cascades on ingredients + recipe_tags clean up.
+
+    Returns the number of rows deleted (1 on success, 0 if recipe_id missing).
+    Used by the Phase 21 shop_only intent after the Todoist push completes.
+    """
+    sql = "DELETE FROM recipes WHERE id = ?"
+    if conn is not None:
+        cur = conn.execute(sql, (recipe_id,))
+        return cur.rowcount
+    p = path or DB_PATH
+    with _get_conn(p) as c:
+        cur = c.execute(sql, (recipe_id,))
+        return cur.rowcount
 
 
 # ---------------------------------------------------------------------------
