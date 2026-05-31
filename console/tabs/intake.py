@@ -9,8 +9,9 @@ Two kinds of destination show up here:
 2. The recipe **photo-intake** drop zone
    (`<NAS>/Documents/Recipes/photo-intake`). It isn't named `intake`, so it's
    added as a special case. The `meal_planner_photo_intake_scan` huey task
-   watches it and routes photos through the meal-planner Gemini vision pipeline
-   — a different LLM workflow from the rest, photos only.
+   watches it and routes files through the meal-planner local **llama3.2-vision**
+   (Ollama) pipeline — a different LLM workflow from the rest. Accepts photos,
+   HEIC, and PDF (HEIC/PDF are converted to an image before extraction).
 
 Either way the user just drops a file and the relevant watcher picks it up
 within ~5 min.
@@ -49,15 +50,16 @@ _SKIP_DIRS = frozenset({
 _ACCEPT_EXTS = ["png", "jpg", "jpeg", "heic", "pdf"]
 
 # Recipe photo-intake — watched by jobs/kinds/meal_planner_photo_intake_scan.py,
-# which accepts photos only and feeds the meal-planner Gemini vision pipeline.
+# which feeds the meal-planner local llama3.2-vision (Ollama) pipeline.
 _RECIPE_PHOTO_SUBPATH = ("Documents", "Recipes", "photo-intake")
-_PHOTO_EXTS = ["jpg", "jpeg", "png"]
+_PHOTO_EXTS = ["jpg", "jpeg", "png", "heic", "heif", "pdf"]
 _RECIPE_NOTE = (
-    "📸 Recipe photos → meal-planner **Gemini vision** pipeline "
-    "(a different workflow from the standard OCR intake). Photos only."
+    "📸 Recipe files → meal-planner local **llama3.2-vision** (Ollama) pipeline "
+    "(a different workflow from the standard OCR intake). "
+    "Photos, HEIC, and PDF — HEIC/PDF are converted to an image first."
 )
 _NAS_PICKUP = "The nas-intake watcher will pick them up within ~5 min."
-_RECIPE_PICKUP = "The recipe photo scanner will pick them up within ~5 min (Gemini vision)."
+_RECIPE_PICKUP = "The recipe photo scanner will pick them up within ~5 min (llama3.2-vision)."
 
 
 class _Dest(NamedTuple):

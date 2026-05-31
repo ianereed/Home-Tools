@@ -18,12 +18,15 @@ from meal_planner import db as _db
 from meal_planner.db import add_recipe_tag, insert_recipe
 from meal_planner.eval.preprocess_images import _process_one
 from meal_planner.seed_from_sheet import _insert_ingredients_batch
-from meal_planner.vision import intake_db
+from meal_planner.vision import intake_db, rasterize
 from meal_planner.vision.extract import extract_recipe_from_photo
 
 logger = logging.getLogger(__name__)
 
 _DEFAULT_INTAKE_DIR = "/Users/homeserver/Share1/Documents/Recipes/photo-intake"
+
+# Let PIL open HEIC/HEIF (iPhone photos). Idempotent; cheap to call at import.
+rasterize.register_heif()
 
 
 # No huey-level retries: the outer except below marks the row ollama_error
@@ -44,15 +47,25 @@ def meal_planner_ingest_photo(sha: str) -> dict:
 
     try:
         nas_path = Path(row.nas_path)
+        src_suffix = nas_path.suffix.lower() or ".jpg"
         intake_dir = Path(os.environ.get("MEAL_PLANNER_NAS_INTAKE_DIR", _DEFAULT_INTAKE_DIR))
         done_dir = intake_dir / "_done"
-        done_path = done_dir / f"{sha}.jpg"
+        # Archive the original under its real extension (.jpg/.png/.heic/.pdf).
+        done_path = done_dir / f"{sha}{src_suffix}"
 
         with tempfile.TemporaryDirectory() as tmpdir:
             tmp = Path(tmpdir)
+            # PDFs aren't images: rasterize every page and stack into one image
+            # before the resize/autocontrast step. HEIC opens directly once
+            # register_heif() has run (at import). Everything else passes through.
+            preprocess_src = nas_path
+            if src_suffix in rasterize.PDF_SUFFIXES:
+                preprocess_src = tmp / f"{sha}_pages.png"
+                rasterize.pdf_to_stacked_image(nas_path, preprocess_src, dpi=200)
+
             preprocessed = tmp / f"{sha}.jpg"
             _process_one(
-                src=nas_path,
+                src=preprocess_src,
                 dst=preprocessed,
                 max_dim=1500,
                 autocontrast_cutoff=2,

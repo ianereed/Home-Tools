@@ -127,6 +127,71 @@ def test_ingest_ok_seeds_recipe(tmp_path, monkeypatch):
     assert db_row.completed_at is not None
 
 
+def test_ingest_pdf_rasterizes_before_preprocess(tmp_path, monkeypatch):
+    """A .pdf source is rasterized+stacked before _process_one, and archived in
+    _done/ under its real .pdf suffix (not forced to .jpg)."""
+    db_p = _setup_db(tmp_path)
+    intake_dir = tmp_path / "photo-intake"
+    proc_dir = intake_dir / "_processing"
+    proc_dir.mkdir(parents=True, exist_ok=True)
+    (intake_dir / "_done").mkdir(parents=True, exist_ok=True)
+
+    nas_path = proc_dir / f"{_TEST_SHA}.pdf"
+    nas_path.write_bytes(b"%PDF-1.4" + b"\x00" * 100)
+    record_intake(_TEST_SHA, source_path="recipe.pdf", nas_path=str(nas_path), path=db_p)
+
+    result_ok = ExtractResult(
+        status="ok", parsed=_GOOD_PARSED, latency_s=1.0, error=None, n_retries=0,
+    )
+    _wire(monkeypatch, intake_dir, db_p, result_ok)
+
+    raster_calls = []
+
+    def _fake_raster(src, dst, dpi=200):
+        raster_calls.append((Path(src), Path(dst)))
+        Path(dst).write_bytes(b"\x89PNG\r\n")  # stand-in rasterized image
+        return 2
+
+    monkeypatch.setattr(ingest_mod.rasterize, "pdf_to_stacked_image", _fake_raster)
+
+    ret = ingest_mod.meal_planner_ingest_photo.func(_TEST_SHA)
+
+    assert ret["status"] == "ok"
+    # rasterize was invoked on the PDF (not on a .jpg)
+    assert len(raster_calls) == 1
+    assert raster_calls[0][0] == nas_path
+    # archived under its real extension
+    done_pdf = intake_dir / "_done" / f"{_TEST_SHA}.pdf"
+    assert done_pdf.exists()
+    assert not (intake_dir / "_done" / f"{_TEST_SHA}.jpg").exists()
+    assert not nas_path.exists()
+
+    import sqlite3
+    conn = sqlite3.connect(str(db_p))
+    conn.row_factory = sqlite3.Row
+    row = conn.execute("SELECT photo_path FROM recipes WHERE source='nas-intake'").fetchone()
+    conn.close()
+    assert row["photo_path"] == str(done_pdf)
+
+
+def test_ingest_jpg_does_not_rasterize(tmp_path, monkeypatch):
+    """A plain .jpg source must NOT go through the PDF rasterizer."""
+    db_p = _setup_db(tmp_path)
+    intake_dir = tmp_path / "photo-intake"
+    _setup_intake(intake_dir, db_p)
+
+    _wire(monkeypatch, intake_dir, db_p, ExtractResult(
+        status="ok", parsed=_GOOD_PARSED, latency_s=1.0, error=None, n_retries=0,
+    ))
+    raster = MagicMock()
+    monkeypatch.setattr(ingest_mod.rasterize, "pdf_to_stacked_image", raster)
+
+    ret = ingest_mod.meal_planner_ingest_photo.func(_TEST_SHA)
+    assert ret["status"] == "ok"
+    raster.assert_not_called()
+    assert (intake_dir / "_done" / f"{_TEST_SHA}.jpg").exists()
+
+
 def test_ingest_timeout_leaves_file_in_processing(tmp_path, monkeypatch):
     db_p = _setup_db(tmp_path)
     intake_dir = tmp_path / "photo-intake"

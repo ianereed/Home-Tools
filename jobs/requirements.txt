@@ -14,3 +14,9 @@ python-dotenv>=1.0
 
 # meal_planner_ingest_photo kind — image preprocessing via preprocess_images.py
 Pillow>=10.0
+
+# photo-intake PDF + HEIC support (meal_planner/vision/rasterize.py):
+#   pypdfium2 rasterizes recipe PDFs (same lib event-aggregator uses);
+#   pillow-heif lets PIL open iPhone HEIC/HEIF photos.
+pypdfium2>=4.0
+pillow-heif>=0.16

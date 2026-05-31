@@ -24,7 +24,9 @@ from meal_planner.vision import intake_db
 logger = logging.getLogger(__name__)
 
 _DEFAULT_INTAKE_DIR = "/Users/homeserver/Share1/Documents/Recipes/photo-intake"
-_IMAGE_SUFFIXES = frozenset({".jpg", ".jpeg", ".png"})
+# Photos, HEIC (iPhone), and PDF (recipe prints). The ingest task converts
+# HEIC/PDF into an image before extraction; see meal_planner/vision/rasterize.py.
+_SUPPORTED_SUFFIXES = frozenset({".jpg", ".jpeg", ".png", ".heic", ".heif", ".pdf"})
 _SUBFOLDERS = ("_processing", "_done", "_skipped", "_wedged")
 
 
@@ -70,12 +72,14 @@ def meal_planner_photo_intake_scan() -> dict:
     for f in files:
         if not f.is_file():
             continue
-        if f.suffix.lower() not in _IMAGE_SUFFIXES:
+        if f.suffix.lower() not in _SUPPORTED_SUFFIXES:
             continue
 
         discovered += 1
         sha = _sha256_hex16(f)
-        target = intake_dir / "_processing" / f"{sha}.jpg"
+        # Preserve the original extension so the ingest task knows whether to
+        # rasterize (.pdf) or open directly (.jpg/.png/.heic).
+        target = intake_dir / "_processing" / f"{sha}{f.suffix.lower()}"
 
         existing = intake_db.get_by_sha(sha)
         if existing is not None:

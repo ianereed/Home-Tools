@@ -137,6 +137,24 @@ def test_scan_ignores_non_image_files(tmp_path, monkeypatch):
     assert enqueue_mock.call_count == 3
 
 
+def test_scan_accepts_heic_and_pdf_preserving_suffix(tmp_path, monkeypatch):
+    """HEIC and PDF are now accepted; _processing keeps the original extension
+    so the ingest task knows whether to rasterize (.pdf) or open directly."""
+    enqueue_mock = MagicMock()
+    intake_dir, db_p = _setup(tmp_path, monkeypatch, enqueue_mock)
+
+    _fake_jpg(intake_dir / "recipe.heic", b"\x00\x00\x00\x18ftypheic" + b"\x07" * 100)
+    _fake_jpg(intake_dir / "print.pdf", b"%PDF-1.4" + b"\x08" * 100)
+
+    result = scan_mod.meal_planner_photo_intake_scan.func()
+
+    assert result["discovered"] == 2
+    assert result["enqueued"] == 2
+
+    suffixes = sorted(f.suffix for f in (intake_dir / "_processing").iterdir())
+    assert suffixes == [".heic", ".pdf"]
+
+
 def test_scan_re_enqueues_orphaned_pending(tmp_path, monkeypatch):
     """Self-heal: pending row with existing _processing file is re-enqueued each tick."""
     enqueue_mock = MagicMock()
