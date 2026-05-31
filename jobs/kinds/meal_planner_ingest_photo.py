@@ -74,10 +74,16 @@ def meal_planner_ingest_photo(sha: str) -> dict:
             conn = _db._get_conn(db_path)
             try:
                 title = (result.parsed.get("title") or "") or sha
+                _raw_instr = result.parsed.get("instructions")
+                if isinstance(_raw_instr, str):
+                    instructions = _raw_instr.strip() or None
+                else:
+                    instructions = None
                 recipe_id = insert_recipe(
                     title=title,
                     source="nas-intake",
                     photo_path=str(done_path),
+                    instructions=instructions,
                     conn=conn,
                 )
                 add_recipe_tag(recipe_id, "photo-intake", conn=conn)

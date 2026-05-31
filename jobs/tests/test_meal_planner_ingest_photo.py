@@ -460,6 +460,116 @@ def test_ingest_photo_sidecar_failure_does_not_block(tmp_path, monkeypatch):
     assert db_row.status == "ok"
 
 
+# ---------------------------------------------------------------------------
+# Phase 19: instructions persistence
+# ---------------------------------------------------------------------------
+
+
+def test_ingest_persists_instructions(tmp_path, monkeypatch):
+    """instructions from result.parsed are stored on the recipe row."""
+    db_p = _setup_db(tmp_path)
+    intake_dir = tmp_path / "photo-intake"
+    _setup_intake(intake_dir, db_p)
+
+    parsed_with_instr = {
+        **_GOOD_PARSED,
+        "instructions": "1. preheat\n2. mix\n3. bake",
+    }
+    result = ExtractResult(
+        status="ok", parsed=parsed_with_instr, latency_s=10.0, error=None, n_retries=0,
+    )
+    _wire(monkeypatch, intake_dir, db_p, result)
+
+    ret = ingest_mod.meal_planner_ingest_photo.func(_TEST_SHA)
+    assert ret["status"] == "ok"
+
+    import sqlite3
+    conn = sqlite3.connect(str(db_p))
+    conn.row_factory = sqlite3.Row
+    row = conn.execute(
+        "SELECT instructions FROM recipes WHERE id=?", (ret["recipe_id"],),
+    ).fetchone()
+    conn.close()
+    assert row["instructions"] == "1. preheat\n2. mix\n3. bake"
+
+
+def test_ingest_no_instructions_key_persists_null(tmp_path, monkeypatch):
+    """When parsed has no 'instructions' key, recipe.instructions stays NULL."""
+    db_p = _setup_db(tmp_path)
+    intake_dir = tmp_path / "photo-intake"
+    _setup_intake(intake_dir, db_p)
+
+    # _GOOD_PARSED has no 'instructions' key — backward-compat path
+    result = ExtractResult(
+        status="ok", parsed=_GOOD_PARSED, latency_s=10.0, error=None, n_retries=0,
+    )
+    _wire(monkeypatch, intake_dir, db_p, result)
+
+    ret = ingest_mod.meal_planner_ingest_photo.func(_TEST_SHA)
+    assert ret["status"] == "ok"
+
+    import sqlite3
+    conn = sqlite3.connect(str(db_p))
+    conn.row_factory = sqlite3.Row
+    row = conn.execute(
+        "SELECT instructions FROM recipes WHERE id=?", (ret["recipe_id"],),
+    ).fetchone()
+    conn.close()
+    assert row["instructions"] is None
+
+
+def test_ingest_empty_instructions_normalized_to_null(tmp_path, monkeypatch):
+    """Whitespace-only or empty-string instructions normalize to NULL in DB."""
+    db_p = _setup_db(tmp_path)
+    intake_dir = tmp_path / "photo-intake"
+    _setup_intake(intake_dir, db_p)
+
+    parsed_empty = {**_GOOD_PARSED, "instructions": "   "}
+    result = ExtractResult(
+        status="ok", parsed=parsed_empty, latency_s=10.0, error=None, n_retries=0,
+    )
+    _wire(monkeypatch, intake_dir, db_p, result)
+
+    ret = ingest_mod.meal_planner_ingest_photo.func(_TEST_SHA)
+    assert ret["status"] == "ok"
+
+    import sqlite3
+    conn = sqlite3.connect(str(db_p))
+    conn.row_factory = sqlite3.Row
+    row = conn.execute(
+        "SELECT instructions FROM recipes WHERE id=?", (ret["recipe_id"],),
+    ).fetchone()
+    conn.close()
+    assert row["instructions"] is None
+
+
+def test_ingest_sidecar_includes_instructions(tmp_path, monkeypatch):
+    """Sidecar JSON in _done/ round-trips the instructions field."""
+    import json
+    db_p = _setup_db(tmp_path)
+    intake_dir = tmp_path / "photo-intake"
+    _setup_intake(intake_dir, db_p)
+
+    parsed_with_instr = {**_GOOD_PARSED, "instructions": "1. step\n2. step"}
+    result = ExtractResult(
+        status="ok", parsed=parsed_with_instr, latency_s=10.0, error=None, n_retries=0,
+    )
+    _wire(monkeypatch, intake_dir, db_p, result)
+
+    ret = ingest_mod.meal_planner_ingest_photo.func(_TEST_SHA)
+    assert ret["status"] == "ok"
+
+    sidecar = intake_dir / "_done" / f"{_TEST_SHA}.json"
+    assert sidecar.exists()
+    parsed = json.loads(sidecar.read_text())
+    assert parsed["instructions"] == "1. step\n2. step"
+
+
+# ---------------------------------------------------------------------------
+# Misc edge cases
+# ---------------------------------------------------------------------------
+
+
 def test_ingest_photo_invalid_tag_entries_skipped(tmp_path, monkeypatch):
     """Non-string, empty, and whitespace-only tags are silently skipped."""
     db_p = _setup_db(tmp_path)
