@@ -33,6 +33,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 
 from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
 from thefuzz import fuzz
 
 import config
@@ -596,6 +597,15 @@ def delete_event(
         return True
     except FileNotFoundError as exc:
         logger.warning("gcal writer: credentials not set up — %s", exc)
+        return False
+    except HttpError as exc:
+        # 404 (not found) / 410 (already deleted) → the event is already gone, which
+        # is the desired end state. Treat as success so undo/cancel is idempotent.
+        status = getattr(exc.resp, "status", None)
+        if status in (404, 410):
+            logger.info("gcal delete: event %s already gone (HTTP %s) — idempotent success", gcal_event_id, status)
+            return True
+        logger.warning("gcal delete error for %s on %s: %s", gcal_event_id, target_calendar_id, exc)
         return False
     except Exception as exc:
         logger.warning("gcal delete error for %s on %s: %s", gcal_event_id, target_calendar_id, exc)

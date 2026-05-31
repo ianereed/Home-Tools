@@ -75,6 +75,9 @@ def main() -> int:
 
     p = sub.add_parser("undo-last", help="Delete the most recently written GCal event")
 
+    p = sub.add_parser("undo", help="Delete a specific written GCal event by id (console Undo/Delete)")
+    p.add_argument("--gcal-id", required=True)
+
     p = sub.add_parser("changes", help="Show calendar changes from event_log.jsonl")
     p.add_argument("--since", default="1d", help="ISO date/datetime, or relative like 1d/12h/30m")
 
@@ -130,6 +133,8 @@ def main() -> int:
         return _cmd_config(mute=args.mute, watch=args.watch, list_channels=args.list_channels)
     if args.cmd == "undo-last":
         return _cmd_undo_last()
+    if args.cmd == "undo":
+        return _cmd_undo_gcal_id(args.gcal_id)
     if args.cmd == "changes":
         return _cmd_changes(since=args.since)
     if args.cmd == "forget":
@@ -949,36 +954,41 @@ def _cmd_config(mute: str, watch: str, list_channels: bool) -> int:
 
 # ── undo-last ────────────────────────────────────────────────────────────────
 
-def _cmd_undo_last() -> int:
-    """Delete the most-recently-written GCal event."""
+def _undo_written_event(gcal_id: str, info: dict) -> int:
+    """Delete a written GCal event by id, drop it from state, and log the
+    cancellation. Shared by `undo-last` and `undo --gcal-id`.
+
+    State is re-loaded INSIDE the lock before mutating so a concurrent fetch's
+    writes aren't clobbered by last-writer-wins on the atomic-rename save.
+    `delete_event` is idempotent for already-gone events (404/410 → success)."""
     import config
     import state as state_module
+    from logs import event_log
     from writers import google_calendar as gcal_writer
-
-    state = state_module.load()
-    last = state.last_written_event()
-    if last is None:
-        print("_No events have been written yet._")
-        return 0
-    gcal_id, info = last
 
     title = info.get("title", "(no title)")
     start = info.get("start", "")
     created_at = info.get("created_at", "")
+    source = info.get("source", "manual")
     target_cal = info.get("calendar_id") or config.GCAL_WEEKEND_CALENDAR_ID
 
     deleted = gcal_writer.delete_event(target_cal, gcal_id, dry_run=False)
     if not deleted:
-        print(f":x: Could not delete `{gcal_id}` — `{title}` (may already be gone in GCal). State NOT modified.")
+        print(f":x: Could not delete `{gcal_id}` — `{title}` (GCal API error). State NOT modified.")
         return 1
 
     with state_module.locked():
-        state.remove_written_event(gcal_id)
-        state_module.save(state)
+        fresh = state_module.load()
+        fresh.remove_written_event(gcal_id)
+        state_module.save(fresh)
+
+    try:
+        event_log.record_cancellation(gcal_id, title, source)
+    except Exception as exc:  # logging must never fail the undo
+        logging.getLogger(__name__).warning("undo: could not log cancellation: %s", exc)
 
     when = ""
     try:
-        # Render start as "Apr 25 2pm" if it parses
         dt = datetime.fromisoformat(start)
         when = f" | {dt.strftime('%b %-d %-I:%M%p').lower()}"
     except Exception:
@@ -987,14 +997,38 @@ def _cmd_undo_last() -> int:
     age_note = ""
     try:
         ca = datetime.fromisoformat(created_at)
-        secs = (datetime.now(timezone.utc) - ca).total_seconds()
-        if secs < 60:
+        if (datetime.now(timezone.utc) - ca).total_seconds() < 60:
             age_note = "\n_GCal may show propagation lag for a few seconds._"
     except Exception:
         pass
 
     print(f":wastebasket: undid: *{title}*{when}{age_note}")
     return 0
+
+
+def _cmd_undo_last() -> int:
+    """Delete the most-recently-written GCal event."""
+    import state as state_module
+
+    state = state_module.load()
+    last = state.last_written_event()
+    if last is None:
+        print("_No events have been written yet._")
+        return 0
+    gcal_id, info = last
+    return _undo_written_event(gcal_id, info)
+
+
+def _cmd_undo_gcal_id(gcal_id: str) -> int:
+    """Delete a specific written GCal event by id (console Undo/Delete button)."""
+    import state as state_module
+
+    state = state_module.load()
+    info = state.get_written_events().get(gcal_id)
+    if info is None:
+        print(f":x: `{gcal_id}` is not a tracked written event — nothing to undo.")
+        return 1
+    return _undo_written_event(gcal_id, info)
 
 
 # ── changes (event_log.jsonl reader) ─────────────────────────────────────────
