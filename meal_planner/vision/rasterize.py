@@ -78,11 +78,14 @@ def pdf_to_stacked_image(src: Path, dst: Path, *, dpi: int = 200) -> int:
         raise RuntimeError("pypdfium2 is required to process PDFs (pip install pypdfium2)") from exc
 
     pdf = pdfium.PdfDocument(src.read_bytes())
-    n = len(pdf)
-    if n == 0:
-        raise RuntimeError(f"PDF has no pages: {src}")
-    scale = dpi / 72.0
-    images = [pdf[i].render(scale=scale).to_pil() for i in range(n)]
+    try:
+        n = len(pdf)
+        if n == 0:
+            raise RuntimeError(f"PDF has no pages: {src}")
+        scale = dpi / 72.0
+        images = [pdf[i].render(scale=scale).to_pil() for i in range(n)]
+    finally:
+        pdf.close()  # release the pdfium document handle (avoids leak warning)
     stacked = _stack_vertical(images)
     dst.parent.mkdir(parents=True, exist_ok=True)
     stacked.save(dst, "PNG")
