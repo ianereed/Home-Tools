@@ -84,6 +84,12 @@ def _render_health_strip() -> None:
     st.caption("Source health")
     cols = st.columns(len(health))
     for col, (src, h) in zip(cols, sorted(health.items())):
+        if src in _ea_state.IGNORED_SOURCES:
+            # Intentionally unconfigured (whatsapp=no FDA, discord=no token) —
+            # neutral, not alarming red. The health card ignores these too.
+            col.metric(label=f"⚪ {src}", value="off")
+            col.caption("not configured")
+            continue
         icon, caption = _ea_state.health_badge(h)
         col.metric(label=f"{icon} {src}", value=str(h.get("last_status_code", "?")))
         col.caption(caption)
