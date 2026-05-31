@@ -8,9 +8,12 @@ event_aggregator_fetch.py. All state mutation + GCal writes happen inside the CL
 which takes the state flock internally, so this kind never touches state.json.
 
 Params (splatted as kwargs by enqueue_http, `fn(**params)`):
-  approve        list[int] | "all" | comma-string → cli.py decide --approve
-  reject         list[int] | "all" | comma-string → cli.py decide --reject
-  undo_gcal_id   str                               → cli.py undo --gcal-id
+  approve        list[int] | "all" | comma-string → main.py decide --approve
+  reject         list[int] | "all" | comma-string → main.py decide --reject
+  undo_gcal_id   str                               → main.py undo --gcal-id
+
+main.py is the runnable entrypoint (it delegates recognized subcommands to
+cli.main()); cli.py itself has no __main__ block.
 
 `decide` exit codes: 0 = all matched, 1 = none matched, 2 = partial.
 """
@@ -66,12 +69,12 @@ def event_aggregator_decide(approve="", reject="", undo_gcal_id="") -> dict:
     otherwise apply the approve/reject batch in one transaction."""
     undo_id = (undo_gcal_id or "").strip() if isinstance(undo_gcal_id, str) else str(undo_gcal_id)
     if undo_id:
-        return _run(["cli.py", "undo", "--gcal-id", undo_id])
+        return _run(["main.py", "undo", "--gcal-id", undo_id])
 
     a, r = _norm(approve), _norm(reject)
     if not a and not r:
         return {"rc": 1, "error": "nothing to decide", "summary": ""}
-    argv = ["cli.py", "decide"]
+    argv = ["main.py", "decide"]
     if a:
         argv += ["--approve", a]
     if r:

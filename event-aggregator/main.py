@@ -1534,7 +1534,7 @@ _SUBCOMMANDS = {
     "classify", "ingest-image", "ingest-image-large", "enqueue-image",
     "approve", "reject", "decide",
     "add-event", "status", "query",
-    "config", "undo-last", "changes", "forget", "swap",
+    "config", "undo-last", "undo", "changes", "forget", "swap",
     "bump-dashboard",
     "run-text-job", "run-ocr-job",
 }

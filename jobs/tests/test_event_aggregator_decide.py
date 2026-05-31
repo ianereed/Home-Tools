@@ -68,7 +68,7 @@ def test_decide_approve_and_reject_argv(monkeypatch):
     captured = _capture(monkeypatch)
     out = mod.event_aggregator_decide.func(approve=[12, 14], reject=[9])
     assert captured["argv"] == [
-        str(mod.VENV_PYTHON), "cli.py", "decide", "--approve", "12,14", "--reject", "9",
+        str(mod.VENV_PYTHON), "main.py", "decide", "--approve", "12,14", "--reject", "9",
     ]
     assert captured["cwd"] == str(mod.PROJECT)
     assert captured["timeout"] == mod._TIMEOUT
@@ -79,14 +79,14 @@ def test_decide_approve_and_reject_argv(monkeypatch):
 def test_decide_approve_only(monkeypatch):
     captured = _capture(monkeypatch)
     mod.event_aggregator_decide.func(approve="all")
-    assert captured["argv"] == [str(mod.VENV_PYTHON), "cli.py", "decide", "--approve", "all"]
+    assert captured["argv"] == [str(mod.VENV_PYTHON), "main.py", "decide", "--approve", "all"]
     assert "--reject" not in captured["argv"]
 
 
 def test_decide_reject_only(monkeypatch):
     captured = _capture(monkeypatch)
     mod.event_aggregator_decide.func(reject=[3])
-    assert captured["argv"] == [str(mod.VENV_PYTHON), "cli.py", "decide", "--reject", "3"]
+    assert captured["argv"] == [str(mod.VENV_PYTHON), "main.py", "decide", "--reject", "3"]
     assert "--approve" not in captured["argv"]
 
 
@@ -111,7 +111,7 @@ def test_decide_returns_rc(monkeypatch, rc):
 def test_undo_argv(monkeypatch):
     captured = _capture(monkeypatch)
     out = mod.event_aggregator_decide.func(undo_gcal_id="abc123")
-    assert captured["argv"] == [str(mod.VENV_PYTHON), "cli.py", "undo", "--gcal-id", "abc123"]
+    assert captured["argv"] == [str(mod.VENV_PYTHON), "main.py", "undo", "--gcal-id", "abc123"]
     assert out["rc"] == 0
 
 
