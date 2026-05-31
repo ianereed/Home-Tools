@@ -72,6 +72,7 @@ class JobsHandler(BaseHTTPRequestHandler):
             self._send_json(200, {"ok": True})
             return
         if parsed.path == "/kinds":
+            from jobs import huey_fast as _huey_fast
             from jobs.cli import _registered_kinds
             from jobs.lib import get_baseline, get_requires
             kinds = _registered_kinds()
@@ -79,6 +80,7 @@ class JobsHandler(BaseHTTPRequestHandler):
             for name, fn in sorted(kinds.items()):
                 bl = get_baseline(fn)
                 req = get_requires(fn)
+                lane = "fast" if getattr(fn, "huey", None) is _huey_fast else "default"
                 out.append({
                     "name": name,
                     "baseline": (
@@ -86,13 +88,18 @@ class JobsHandler(BaseHTTPRequestHandler):
                         if bl else None
                     ),
                     "requires": req.items if req else [],
+                    "lane": lane,
                 })
             self._send_json(200, {"kinds": out})
             return
         if parsed.path == "/queue-size":
             from jobs import huey as _huey
+            from jobs import huey_fast as _huey_fast
             try:
-                self._send_json(200, {"size": _huey.storage.queue_size()})
+                self._send_json(200, {
+                    "size": _huey.storage.queue_size(),
+                    "size_fast": _huey_fast.storage.queue_size(),
+                })
             except Exception as exc:
                 self._send_json(500, {"error": f"queue_size failed: {exc}"})
             return
@@ -102,18 +109,27 @@ class JobsHandler(BaseHTTPRequestHandler):
                 self._send_json(404, {"error": "missing job id"})
                 return
             from jobs import huey as _huey
-            try:
-                result = _huey.result(job_id, blocking=False, preserve=True)
-            except Exception as exc:
-                self._send_json(
-                    200,
-                    {
-                        "status": "error",
-                        "result": None,
-                        "error": f"task crashed: {type(exc).__name__}: {exc}",
-                    },
-                )
-                return
+            from jobs import huey_fast as _huey_fast
+            # huey.result() returns None for both "pending" and "unknown id".
+            # Try default first, then fast; whichever returns a non-None
+            # terminal result wins. If neither does, surface as pending —
+            # the caller polls again.
+            result = None
+            for _instance in (_huey, _huey_fast):
+                try:
+                    result = _instance.result(job_id, blocking=False, preserve=True)
+                except Exception as exc:
+                    self._send_json(
+                        200,
+                        {
+                            "status": "error",
+                            "result": None,
+                            "error": f"task crashed: {type(exc).__name__}: {exc}",
+                        },
+                    )
+                    return
+                if result is not None:
+                    break
             if result is None:
                 self._send_json(200, {"status": "pending", "result": None, "error": None})
             else:
