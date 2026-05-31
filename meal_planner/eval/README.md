@@ -25,13 +25,18 @@ Photos and golden files are gitignored; only the `.gitkeep` placeholder commits.
     {"qty": "1", "unit": "tsp", "name": "salt"},
     {"qty": null, "unit": null, "name": "pepper to taste"}
   ],
-  "tags": ["baking", "vegetarian"]
+  "tags": ["baking", "vegetarian"],
+  "instructions": "1. Preheat oven to 350°F.\n2. Mix dry ingredients in a large bowl.\n3. ..."
 }
 ```
 
 - `qty` — quantity as string, or `null` for "to taste", "as needed", etc.
 - `unit` — unit string, `null` or `""` if no unit
 - `name` — ingredient name only, no qty/unit embedded
+- `instructions` — preparation steps as a string (numbered steps joined by
+  `\n`), or `null` if the image shows no instructions (ingredient-only
+  card). Added in Phase 19 (2026-05). See `_PHASE19_NOTES.md` for
+  per-image transcription notes.
 
 See `recipe_extraction_prompt.txt` for the canonical prompt sent to all models.
 
