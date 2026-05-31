@@ -1283,91 +1283,72 @@ real grocery trips to identify the friction Instacart needs to remove.
 
 ---
 
-## Phase 21 — iPhone-driven recipe intake via Gemini
+## Phase 21 — iPhone recipe intake via the console Capture tab
 
-**Status:** DONE (code + tests) 2026-05-30; pending deploy + iPhone dogfood
-on the mini. See `Mac-mini/shortcuts/iphone-recipe-intake.md` for the
-Apple Shortcut build steps. 506+ tests green on the touched surface.
+**Status:** DONE (code + tests) 2026-05-30; pending deploy + iPhone
+dogfood on the mini. See `Mac-mini/shortcuts/iphone-capture-homescreen.md`
+for the home-screen setup walkthrough.
 
-**Locked answers used (recorded for posterity):**
-- Photo destination: `~/Home-Tools/jobs/data/iphone-intake/` (env override
-  `MEAL_PLANNER_IPHONE_INTAKE_DIR`), outside the NAS share.
-- shop_only: insert with `source='iphone-shop-only'`, push to Todoist
-  synchronously via `send_recipes_to_todoist_sync` (single-worker huey
-  can't block on a self-enqueued task), hard-delete on success; recipe
-  kept if Todoist fails so the user can retry.
-- Gemini key: `GEMINI_API_KEY` in `meal_planner/.env`.
-- Shortcut auth: reuses `HOME_TOOLS_HTTP_TOKEN`.
+**Final shape (v2 — supersedes the v1 Apple Shortcut path):**
+- iPhone Safari → Add to Home Screen pointed at
+  `http://homeserver:8503/?tab=capture`. Tap the icon → upload widget
+  → pick intent (save / save_and_shop / shop_only) → wait ~10 s for
+  the result. No Apple Shortcut to build per device.
+- Streamlit (the existing console at `:8503`) calls
+  `meal_planner.runner.process_iphone_intake_sync` **directly** — no
+  huey enqueue, no polling. User sees a definitive result on the
+  upload page.
+- Gemini 2.5 Flash for extraction (free tier, env `GEMINI_API_KEY`
+  in `meal_planner/.env`). HEIC photos go through verbatim.
+
+**Why v2 replaced v1:** v1 used an Apple Shortcut posting multipart to
+`POST /iphone-intake` on `jobs-http:8504`. The user prefers a
+dashboard upload (more discoverable, same access pattern as the health
+dashboard, no per-device Shortcut to maintain). v1 commits
+(`c467e53 → 5b2d3bc`) remain on main; v2 strips the HTTP multipart
+endpoint and Shortcut doc.
+
+**Structural fix landed alongside v2:**
+- The Streamlit tab cannot import `jobs.huey` (memory rule
+  `feedback_streamlit_in_process_huey.md` — opening `jobs.db` holds
+  an orphan WAL fd and silently drops enqueues from other processes).
+- The intake + Todoist-send sync helpers moved out of `jobs/kinds/*.py`
+  into `meal_planner/runner.py`. The `@huey.task()` decorators in
+  `jobs/kinds/` stayed (so the kinds still register if anything
+  enqueues via `/jobs`), but their bodies are now one-line calls into
+  the runner.
+- `jobs/adapters/todoist.py`'s body was duplicated to
+  `meal_planner/todoist_client.py` so the runner could call it
+  without triggering `jobs/__init__.py`. The original adapter is
+  unchanged; tests retargeted.
 
 **Deploy when ready:**
-1. `git pull` on mini, then
-   `launchctl kickstart -kp gui/$UID/com.home-tools.jobs-consumer`
-   (the `-k` is load-bearing per `feedback_launchctl_kickstart_k_flag.md`).
-2. Verify: `curl -sH "Authorization: Bearer $HOME_TOOLS_HTTP_TOKEN"
-   http://homeserver:8504/kinds | jq '.kinds[] | select(.name=="meal_planner_iphone_intake")'`.
-3. Recreate the Shortcut per `Mac-mini/shortcuts/iphone-recipe-intake.md`.
-
-**Goal:** Anny (or Ian) takes a photo of a recipe with her iPhone,
-picks one of three actions on the phone, and the system handles the
-rest. New entry path that complements (does not replace) the existing
-NAS-drop-zone photo intake.
-
-**Locked decisions (from 2026-05-30 scoping):**
-- iPhone-initiated and iPhone-controlled. Apple Shortcut → HTTP POST
-  to a new endpoint on the mini (likely a new route on jobs-http:8504
-  reusing the existing token auth, or a sibling service if the photo
-  upload pattern doesn't fit).
-- **Gemini's free API** for extraction on this entry path. Faster +
-  more accurate than the local llama3.2-vision:11b on the mini per
-  the user's observation. The existing NAS-drop-zone pipeline keeps
-  using the local model (no regression).
-- Three action paths, picked by the user at intake time via the
-  Shortcut's menu:
-  1. **Save to DB** — extract, insert into recipes table. Same
-     outcome as the existing photo pipeline.
-  2. **Save to DB + send to Todoist** — same as 1, plus enqueue
-     `meal_planner_send_to_todoist` for the new recipe with default
-     servings.
-  3. **Send only to Todoist (don't save the recipe)** — extract,
-     skip DB insert, synthesize a transient grocery list and call
-     the Todoist push path with the extracted ingredients. For
-     one-off shopping where the user doesn't want the recipe in
-     their library (magazine handout, friend's recipe card, etc.).
-
-**Sketched chunks (not locked; refine when started):**
-- **C1 — Gemini vision client.** New `meal_planner/vision/gemini.py`
-  mirroring the `_ollama.py` interface (`extract_recipe_from_photo`,
-  `validate_schema`). Reuses the existing prompt + validator +
-  `normalize_extraction`. API key in keychain + meal_planner/.env.
-  Tests.
-- **C2 — New job kind: `meal_planner_iphone_intake`.** Accepts photo
-  bytes (or path) + intent (`"save"` | `"save_and_shop"` |
-  `"shop_only"`). Routes through gemini.py for extraction, then
-  branches on intent. For `shop_only`, builds a transient grocery
-  list without writing a recipes row. Tests cover all 3 intent paths
-  plus the Gemini-failure branch.
-- **C3 — New HTTP endpoint.** `POST /iphone-intake` on jobs-http:8504
-  accepting multipart (photo + intent + optional servings). Auth via
-  the existing `HOME_TOOLS_HTTP_TOKEN`. Returns task_id for the
-  Shortcut to poll.
-- **C4 — Apple Shortcut definition.** Documented in
-  `Mac-mini/shortcuts/iphone-recipe-intake.md` with screenshots; user
-  recreates on her iPhone. Shortcut: Take photo → "Choose from menu"
-  (Save / Save+Shop / Shop only) → POST to mini → poll for result →
-  show notification.
-- **C5 — Deploy + dogfood.** Anny shoots a recipe magazine photo
-  with the Shortcut, picks "save + shop", confirms recipe appears at
-  `homeserver:8503/?tab=recipes` AND ingredients show in Todoist.
-
-**Open questions to resolve when started:**
-- Photo destination — same NAS intake dir (for dedup + audit) or a
-  separate `iphone-intake/` subdir? Dedup matters: same photo
-  shouldn't trigger duplicate work.
-- For `shop_only`, should the extraction sidecar JSON still be
-  written to disk for audit/dedup? Probably yes — same dedup logic,
-  no DB cost.
-- Shortcut auth — reuse `HOME_TOOLS_HTTP_TOKEN` stored as a Shortcut
-  variable on iPhone, or generate a per-device Shortcut token?
+1. SSH to mini, `cd ~/Home-Tools && git pull`.
+2. Restart both services (each `-k` is load-bearing —
+   `feedback_launchctl_kickstart_k_flag.md`):
+   ```
+   launchctl kickstart -kp gui/$UID/com.home-tools.jobs-consumer
+   launchctl kickstart -kp gui/$UID/com.home-tools.console
+   ```
+   Consumer restart picks up the new kind body
+   (`feedback_huey_kind_module_reload.md`); console restart picks up
+   the new Capture tab (Streamlit under launchd doesn't auto-reload).
+3. From a laptop, browse `http://homeserver:8503/?tab=capture` and
+   confirm the upload widget renders. Upload a test recipe with
+   intent=save.
+4. On each iPhone, follow `Mac-mini/shortcuts/iphone-capture-homescreen.md`
+   to add the home-screen icon. Test all three intents end-to-end:
+   - **save_and_shop** → recipe appears on the Recipes tab AND
+     ingredients land in Todoist Grocery List.
+   - **shop_only** → ingredients land in Todoist; the Recipes tab is
+     unchanged (the temp recipe row was deleted after the Todoist
+     push completed).
+5. **Verify the huey wedge is gone:**
+   ```
+   ssh homeserver@homeserver \
+     "lsof -p \$(pgrep -f 'streamlit run.*app.py') 2>/dev/null | grep -i jobs.db" \
+     || echo "streamlit not holding jobs.db — wedge clear"
+   ```
 
 ---
 
