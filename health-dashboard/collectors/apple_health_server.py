@@ -103,12 +103,15 @@ class HealthDataHandler(BaseHTTPRequestHandler):
                         hrv_val = sample.get("qty")
                         if timestamp and hrv_val:
                             dt = _normalize_timestamp(timestamp)[:10]
+                            # Garmin is authoritative for HRV (see garmin_collector).
+                            # Only fill from Apple when Garmin hasn't set this date —
+                            # i.e. an Apple-Watch-only day.
                             conn.execute(
-                                """INSERT OR REPLACE INTO wellness
-                                   (date, hrv, source)
-                                   VALUES (?, ?, ?)
-                                   ON CONFLICT(date) DO UPDATE SET hrv = ?""",
-                                (dt, float(hrv_val), "apple", float(hrv_val)),
+                                """INSERT INTO wellness (date, hrv, source)
+                                   VALUES (?, ?, 'apple')
+                                   ON CONFLICT(date) DO UPDATE SET hrv = excluded.hrv
+                                   WHERE wellness.source != 'garmin' OR wellness.hrv IS NULL""",
+                                (dt, float(hrv_val)),
                             )
 
                 elif name == "sleep_analysis":

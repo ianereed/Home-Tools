@@ -140,11 +140,21 @@ def collect_wellness(client, target_date: str):
         if all(v is None for v in (hrv, sleep_score, avg_sleeping_hr, spo2, steps)):
             return  # nothing synced for this day
 
+        # Garmin is the authoritative HRV source (it also syncs into Apple Health,
+        # so a value present in both originated here). COALESCE lets a real Garmin
+        # HRV win while NOT nulling an Apple-Watch-only value on days Garmin has none.
         conn.execute(
-            """INSERT OR REPLACE INTO wellness
-               (date, hrv, hrv_sdnn, sleep_score, sleep_quality, avg_sleeping_hr, readiness, spo2, steps, source)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-            (target_date, hrv, None, sleep_score, None, avg_sleeping_hr, None, spo2, steps, "garmin"),
+            """INSERT INTO wellness
+               (date, hrv, sleep_score, avg_sleeping_hr, spo2, steps, source)
+               VALUES (?, ?, ?, ?, ?, ?, 'garmin')
+               ON CONFLICT(date) DO UPDATE SET
+                 hrv = COALESCE(excluded.hrv, wellness.hrv),
+                 sleep_score = excluded.sleep_score,
+                 avg_sleeping_hr = excluded.avg_sleeping_hr,
+                 spo2 = excluded.spo2,
+                 steps = excluded.steps,
+                 source = 'garmin'""",
+            (target_date, hrv, sleep_score, avg_sleeping_hr, spo2, steps),
         )
         conn.commit()
         logger.info(
