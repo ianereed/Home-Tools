@@ -85,6 +85,27 @@ def test_kinds_listing(monkeypatch):
     assert "migration_verifier" in names
 
 
+def test_kinds_listing_includes_lane_field(monkeypatch):
+    """Each kind reports its lane: fast (huey_fast) or default (huey)."""
+    monkeypatch.setenv("HOME_TOOLS_HTTP_TOKEN", "secret")
+    status, body = _request("GET", "/kinds", token="secret")
+    assert status == 200
+    by_name = {k["name"]: k for k in body["kinds"]}
+    # Phase 22: 4 kinds on the fast lane.
+    fast_kinds = {
+        "meal_planner_send_to_todoist",
+        "meal_planner_clear_todoist",
+        "meal_planner_iphone_intake",
+        "event_aggregator_decide",
+    }
+    for name in fast_kinds:
+        assert name in by_name, f"missing kind: {name}"
+        assert by_name[name]["lane"] == "fast", f"{name} should be on fast lane"
+    # Spot-check a few default-lane kinds.
+    assert by_name["nop"]["lane"] == "default"
+    assert by_name["migration_verifier"]["lane"] == "default"
+
+
 def test_post_jobs_unknown_kind(monkeypatch):
     monkeypatch.setenv("HOME_TOOLS_HTTP_TOKEN", "secret")
     status, body = _request("POST", "/jobs", {"kind": "nonexistent"}, token="secret")
@@ -121,10 +142,12 @@ def test_unknown_path(monkeypatch):
 
 
 def test_queue_size(monkeypatch):
+    """/queue-size reports both lanes (size = default huey, size_fast = huey_fast)."""
     monkeypatch.setenv("HOME_TOOLS_HTTP_TOKEN", "secret")
     status, body = _request("GET", "/queue-size", token="secret")
     assert status == 200
     assert isinstance(body["size"], int)
+    assert isinstance(body["size_fast"], int)
 
 
 def test_jobs_id_pending(monkeypatch):
@@ -176,5 +199,43 @@ def test_jobs_id_error(monkeypatch):
     assert status == 200
     assert body["status"] == "error"
     assert "IndexError" in body["error"]
+    assert body["result"] is None
+
+
+def test_jobs_id_finds_result_on_fast_lane(monkeypatch):
+    """When the default lane returns None, /jobs/<id> falls through to huey_fast."""
+    monkeypatch.setenv("HOME_TOOLS_HTTP_TOKEN", "secret")
+    from unittest.mock import patch
+
+    fast_result = {"items_sent": 7, "items_attempted": 7}
+
+    def _default_none(_id, blocking=False, preserve=False):
+        return None  # not found on default lane
+
+    def _fast_hit(_id, blocking=False, preserve=False):
+        return fast_result
+
+    with patch("jobs.huey.result", side_effect=_default_none), \
+         patch("jobs.huey_fast.result", side_effect=_fast_hit):
+        status, body = _request("GET", "/jobs/some-id", token="secret")
+    assert status == 200
+    assert body["status"] == "success"
+    assert body["result"] == fast_result
+    assert body["error"] is None
+
+
+def test_jobs_id_pending_when_neither_lane_has_result(monkeypatch):
+    """Both lanes return None → status=pending (caller polls again)."""
+    monkeypatch.setenv("HOME_TOOLS_HTTP_TOKEN", "secret")
+    from unittest.mock import patch
+
+    def _none(_id, blocking=False, preserve=False):
+        return None
+
+    with patch("jobs.huey.result", side_effect=_none), \
+         patch("jobs.huey_fast.result", side_effect=_none):
+        status, body = _request("GET", "/jobs/some-id", token="secret")
+    assert status == 200
+    assert body["status"] == "pending"
     assert body["result"] is None
 

@@ -6,7 +6,7 @@ shop_only branch of the intake runner) without touching huey.
 """
 from __future__ import annotations
 
-from jobs import huey
+from jobs import huey_fast as huey
 from meal_planner.runner import send_recipes_to_todoist_sync
 
 __all__ = ["meal_planner_send_to_todoist", "send_recipes_to_todoist_sync"]

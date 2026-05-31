@@ -12,7 +12,7 @@ import os
 
 import requests
 
-from jobs import huey
+from jobs import huey_fast as huey
 
 logger = logging.getLogger(__name__)
 

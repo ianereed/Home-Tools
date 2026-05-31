@@ -33,7 +33,7 @@ from pathlib import Path
 
 from huey import SqliteHuey
 
-from jobs.db import HUEY_DB_PATH, configure_sqlite
+from jobs.db import HUEY_DB_PATH, JOBS_DIR, configure_sqlite
 
 # The huey storage file is created lazily on first connection. Tests can
 # override HUEY_DB_PATH by setting $HOME (so Path.home() resolves to a tmp)
@@ -55,13 +55,30 @@ huey = SqliteHuey(
 # Apply WAL + busy_timeout the moment the SQLite file is created.
 configure_sqlite(_db_path)
 
+# Phase 22 — second lane for user-initiated kinds. Same SqliteHuey shape,
+# separate DB file so a slow batch job on `huey` never blocks a click on
+# `huey_fast`. Kinds opt in with `from jobs import huey_fast as huey` at
+# the top of their module.
+_fast_db_path = Path(
+    os.environ.get("JOBS_FAST_DB_OVERRIDE", str(JOBS_DIR / "jobs-fast.db"))
+)
+_fast_db_path.parent.mkdir(parents=True, exist_ok=True)
+
+huey_fast = SqliteHuey(
+    name="home-tools-jobs-fast",
+    filename=str(_fast_db_path),
+    immediate=False,
+    fsync=True,
+)
+configure_sqlite(_fast_db_path)
+
 # The migrations.json runtime-state path. Created lazily by migration_verifier.
 MIGRATIONS_STATE_PATH = Path.home() / "Home-Tools" / "run" / "migrations.json"
 
 # Re-export so kinds can write `from jobs import huey, requires, baseline, requires_model`.
 from jobs.lib import baseline, migrates_from, record_swap, requires, requires_model  # noqa: E402
 
-__all__ = ["huey", "requires", "baseline", "migrates_from", "requires_model", "record_swap", "MIGRATIONS_STATE_PATH"]
+__all__ = ["huey", "huey_fast", "requires", "baseline", "migrates_from", "requires_model", "record_swap", "MIGRATIONS_STATE_PATH"]
 
 
 def _load_all_kinds() -> None:

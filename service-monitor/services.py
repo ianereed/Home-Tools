@@ -52,6 +52,10 @@ SERVICES: list[Svc] = [
     Svc("jobs_consumer", "com.home-tools.jobs-consumer",            "jobs",             "KeepAlive (huey)",
         str(LOG_DIR_HOME_TOOLS / "jobs-consumer.log"),
         plist_source_path="jobs/config/com.home-tools.jobs-consumer.plist"),
+    # Phase 22 — second consumer for user-foreground kinds (huey_fast lane).
+    Svc("jobs_consumer_fast", "com.home-tools.jobs-consumer-fast",   "jobs",             "KeepAlive (huey-fast)",
+        str(LOG_DIR_HOME_TOOLS / "jobs-consumer-fast.log"),
+        plist_source_path="jobs/config/com.home-tools.jobs-consumer-fast.plist"),
     Svc("jobs_http",     "com.home-tools.jobs-http",                "jobs",             "KeepAlive (:8504)",
         str(LOG_DIR_HOME_TOOLS / "jobs-http.log"),
         plist_source_path="jobs/config/com.home-tools.jobs-http.plist"),

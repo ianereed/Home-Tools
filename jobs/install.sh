@@ -19,7 +19,7 @@ RUN="$REPO/run"
 mkdir -p "$LAUNCHAGENTS" "$LOGS" "$RUN"
 
 # Make wrappers executable (idempotent).
-chmod +x "$JOBS/run-consumer.sh" "$JOBS/run-http.sh"
+chmod +x "$JOBS/run-consumer.sh" "$JOBS/run-consumer-fast.sh" "$JOBS/run-http.sh"
 
 ACTION="${1:-install}"
 
@@ -42,7 +42,7 @@ case "$ACTION" in
         fi
 
         # Drop plists into ~/Library/LaunchAgents and load them.
-        for plist in com.home-tools.jobs-consumer com.home-tools.jobs-http; do
+        for plist in com.home-tools.jobs-consumer com.home-tools.jobs-consumer-fast com.home-tools.jobs-http; do
             cp "$JOBS/config/$plist.plist" "$LAUNCHAGENTS/$plist.plist"
             launchctl unload "$LAUNCHAGENTS/$plist.plist" 2>/dev/null || true
             launchctl load "$LAUNCHAGENTS/$plist.plist"
