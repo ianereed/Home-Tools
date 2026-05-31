@@ -23,6 +23,27 @@ never leaves your machine.
 
 ---
 
+## Decision surface (2026-05): console at :8503, Slack retired
+
+Slack is **no longer** the notify/decision channel. Decisions now live in the
+**Decisions tab of the Mini Ops console** (`homeserver:8503`):
+
+- **Source-health strip** — per-connector green/yellow/red from
+  `state.json:connector_health` (whatsapp/discord show ⚪ "not configured").
+- **Pending decisions** — every proposal awaiting Approve/Reject.
+- **On calendar** — auto-added / approved events, each with **Undo/Delete**.
+
+Mutations are enqueued over HTTP to the jobs service (`event_aggregator_decide`
+kind → `main.py decide|undo`); the console never imports huey. A periodic
+`event_aggregator_health_card` kind (every 15 min) posts a loud card to the same
+tab when a source crosses unhealthy, so a silently-dead source can't go unnoticed.
+
+To silence Slack posting set `SLACK_DISABLED=1` in `.env` (the Slack *source*
+connector keeps running). The legacy Slack approval bot (`dispatcher`) stays
+unloaded.
+
+---
+
 ## Quick start
 
 ```bash
