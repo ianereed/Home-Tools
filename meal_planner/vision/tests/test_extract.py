@@ -213,6 +213,69 @@ def test_validate_schema_accepts_null_title_sentinel():
 
 
 # ---------------------------------------------------------------------------
+# validate_schema — instructions field (Phase 19)
+# ---------------------------------------------------------------------------
+
+
+def test_validate_schema_accepts_string_instructions():
+    ok, errs = validate_schema({
+        "title": "Apple Pie",
+        "ingredients": [{"qty": "1", "unit": "cup", "name": "flour"}],
+        "tags": [],
+        "instructions": "1. Preheat oven.\n2. Mix dry ingredients.",
+    })
+    assert ok is True
+    assert errs == []
+
+
+def test_validate_schema_accepts_null_instructions():
+    ok, errs = validate_schema({
+        "title": "Apple Pie",
+        "ingredients": [{"qty": "1", "unit": "cup", "name": "flour"}],
+        "tags": [],
+        "instructions": None,
+    })
+    assert ok is True
+    assert errs == []
+
+
+def test_validate_schema_accepts_missing_instructions_key():
+    """Backward compat: pre-Phase-19 responses without `instructions` stay valid."""
+    ok, errs = validate_schema({
+        "title": "Apple Pie",
+        "ingredients": [{"qty": "1", "unit": "cup", "name": "flour"}],
+        "tags": [],
+    })
+    assert ok is True
+    assert errs == []
+
+
+def test_validate_schema_rejects_non_string_instructions():
+    ok, errs = validate_schema({
+        "title": "Apple Pie",
+        "ingredients": [{"qty": "1", "unit": "cup", "name": "flour"}],
+        "tags": [],
+        "instructions": 123,
+    })
+    assert ok is False
+    assert "instructions_not_str_or_null" in errs
+
+
+def test_recipe_extraction_prompt_includes_instructions_schema():
+    """Canary: prompt file must declare the instructions field for the LLM.
+
+    Cheap regression — survives prose rewording but breaks if a future edit
+    drops the schema entry.
+    """
+    from meal_planner.vision._ollama import load_prompt
+    text = load_prompt()
+    # Schema spec line
+    assert '"instructions": string|null' in text
+    # Example response includes the field
+    assert '"instructions": "1.' in text
+
+
+# ---------------------------------------------------------------------------
 # intake_db — CRUD round-trips on an in-memory schema
 # ---------------------------------------------------------------------------
 

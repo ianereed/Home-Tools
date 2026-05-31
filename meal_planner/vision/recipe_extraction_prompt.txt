@@ -11,7 +11,8 @@ The JSON MUST match this schema exactly:
     {"qty": string|null, "unit": string|null, "name": string},
     ...
   ],
-  "tags": [string, ...]
+  "tags": [string, ...],
+  "instructions": string|null
 }
 
 CRITICAL — every ingredient object MUST contain all three keys: "qty", "unit", "name".
@@ -41,12 +42,19 @@ Rules for tags:
 - Use lowercase, no spaces (hyphenate if needed).
 - Empty array if no obvious tags.
 
+Rules for instructions:
+- Transcribe the preparation steps verbatim from the image, as a single string.
+- Number each step (e.g. "1. ...\n2. ...\n3. ..."). Use a literal "\n" between steps.
+- Preserve numbers, temperatures (350°F), times (30 minutes), and step boundaries.
+- Do not summarize or rewrite — fidelity to the source image is the goal.
+- If the image shows no preparation steps (ingredient-only card), use null.
+
 If the image does not contain a recognizable recipe, return:
-{"title": null, "ingredients": [], "tags": []}
+{"title": null, "ingredients": [], "tags": [], "instructions": null}
 
 Example of a CORRECT response (note every ingredient has qty, unit, AND name):
 
-{"title": "One-Pan Lemon Orzo", "ingredients": [{"qty": "1", "unit": "cup", "name": "orzo"}, {"qty": "2", "unit": "tbsp", "name": "olive oil"}, {"qty": "1/2", "unit": null, "name": "lemon, juiced"}, {"qty": null, "unit": null, "name": "salt"}, {"qty": null, "unit": null, "name": "black pepper"}], "tags": ["pasta", "quick", "vegetarian"]}
+{"title": "One-Pan Lemon Orzo", "ingredients": [{"qty": "1", "unit": "cup", "name": "orzo"}, {"qty": "2", "unit": "tbsp", "name": "olive oil"}, {"qty": "1/2", "unit": null, "name": "lemon, juiced"}, {"qty": null, "unit": null, "name": "salt"}, {"qty": null, "unit": null, "name": "black pepper"}], "tags": ["pasta", "quick", "vegetarian"], "instructions": "1. Heat olive oil in a large pan over medium heat.\n2. Add orzo and toast for 2 minutes, stirring.\n3. Add 2 cups water; simmer 10 minutes until tender.\n4. Stir in lemon juice; season with salt and pepper."}
 
 Example of an INCORRECT response (missing "name" key — DO NOT do this):
 

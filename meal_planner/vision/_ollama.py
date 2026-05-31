@@ -53,7 +53,12 @@ def load_prompt() -> str:
 
 
 def validate_schema(d: dict | None) -> tuple[bool, list[str]]:
-    """Check structural validity. Returns (is_valid, errors)."""
+    """Check structural validity. Returns (is_valid, errors).
+
+    `instructions` is optional (Phase 19): if absent, treated as None. If
+    present, must be a string or None. Required-field would invalidate
+    legacy fixtures and any model response that forgets the key.
+    """
     errors: list[str] = []
     if not isinstance(d, dict):
         errors.append("not_a_dict")
@@ -67,6 +72,11 @@ def validate_schema(d: dict | None) -> tuple[bool, list[str]]:
     if not isinstance(d.get("tags"), list):
         errors.append("tags_not_list")
         return False, errors
+    if "instructions" in d:
+        instr = d["instructions"]
+        if instr is not None and not isinstance(instr, str):
+            errors.append("instructions_not_str_or_null")
+            return False, errors
     for item in d["ingredients"]:
         if not isinstance(item, dict):
             errors.append("ingredient_item_not_dict")
