@@ -364,7 +364,7 @@ def test_send_missing_meals_section_raises_runtimeerror(monkeypatch, tmp_path: P
 
     from jobs.kinds.meal_planner_send_to_todoist import meal_planner_send_to_todoist
     from console.tabs._job_status import _format_status, _read_result_or_synthesize_error
-    from jobs import huey as _huey_mod
+    from jobs import huey_fast as _huey_mod
 
     task_result = meal_planner_send_to_todoist([[rid, 4]])
     synthesized = _read_result_or_synthesize_error(

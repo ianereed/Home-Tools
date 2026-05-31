@@ -9,7 +9,7 @@ when something enqueues via POST /jobs.
 """
 from __future__ import annotations
 
-from jobs import huey
+from jobs import huey_fast as huey
 from meal_planner.runner import iphone_intake_dir, process_iphone_intake_sync
 
 # Re-export so existing callers of `from jobs.kinds.meal_planner_iphone_intake

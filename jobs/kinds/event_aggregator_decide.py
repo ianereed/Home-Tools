@@ -23,7 +23,7 @@ import logging
 import subprocess
 from pathlib import Path
 
-from jobs import huey, requires
+from jobs import huey_fast as huey, requires
 
 logger = logging.getLogger(__name__)
 
