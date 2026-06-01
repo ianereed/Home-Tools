@@ -773,12 +773,12 @@ OPTIONS = [
    ],
    wmp_services=[
      ("🟧 Maroon Bells Shuttles — car relocation", "Drives YOUR car CB→Aspen by road while you hike, so it's waiting at the finish (operating since 2012). ~$415. They email final logistics + the exact Aspen drop point. Book well in advance.", "https://maroonbellsshuttles.com"),
-     ("🟦 Dolly's Mountain Shuttle — ride to TH", "Drives the group (+ dog) CB → West Maroon Trailhead, ~40 min. Mochi is welcome but must be leashed AND have its own reserved (paid) seat — count 5 seats. $55/seat. 970-209-1568. Book early (FareHarbor), esp. weekends.", "https://crestedbutteshuttle.com"),
+     ("🟦 Dolly's Mountain Shuttle — ride to TH", "Drives the group (+ dog) CB → West Maroon Trailhead, ~40 min. Mochi is welcome but must be leashed AND have its own reserved (paid) seat — count 5 seats. $55/seat. 970-209-9757. Book early (FareHarbor), esp. weekends.", "https://crestedbutteshuttle.com"),
      ("🟦 Maroon Bells RFTA bus — return", "Bus from Maroon Lake Trailhead down to Aspen Highlands Welcome Center (15 min). Buy the 'One-Way Return Only' ticket, $10/hiker. Last bus down 5:00 PM — don't miss it. Confirm the leashed-dog policy.", "https://visitmaroonbells.com"),
    ],
    wmp_reservations=[
      "1 — Maroon Bells Shuttles (car relocation): book well in advance. They send final logistics + tell you exactly where the bus drops you to meet your car.",
-     "2 — Dolly's Mountain Shuttle (ride to TH): book early, esp. weekends. Reserve 5 seats (4 people + Mochi). Online (FareHarbor) or call 970-209-1568.",
+     "2 — Dolly's Mountain Shuttle (ride to TH): book early, esp. weekends. Reserve 5 seats (4 people + Mochi). Online (FareHarbor) or call 970-209-9757.",
      "3 — Maroon Bells RFTA bus ('One-Way Return Only'): $10/hiker at visitmaroonbells.com. Pick a departure time; last bus down is 5:00 PM.",
    ],
    wmp_mochi=[
