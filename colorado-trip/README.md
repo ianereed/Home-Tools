@@ -44,10 +44,19 @@ content are maintained by these (idempotent, safe to re-run):
   ride data + per-row Google Maps trailhead pins, Trailforks deep-links, `***` must-do
   marks, hype badges). Rewrites only that section; preserves everything above it.
 - `mtb_tab.py` — builder used by `update_activities_mtb.py`.
+- `activities_links.py` — Activities-tab link master: adds Google Maps trailhead pins to
+  each activity's Trailhead cell **and** labels bare URLs in the Link column
+  (`AllTrails ▸`, `TAMBA ▸`, …). Activity region only; the MTB section carries its own
+  links. (Consolidates the former `add_activities_trailhead_links.py` + `clean_activity_links.py`.)
 - `linkutil.py` — turns `=HYPERLINK(...)` cells into native (always-clickable) links.
 
 To change a ride: edit `update_activities_mtb.py` then run it. To re-polish formatting:
-run `restyle_activities.py`. Both pull colors from `sheet_style.py`.
+run `restyle_activities.py`. To (re)apply trailhead pins + Link labels: run
+`activities_links.py`. All pull colors from `sheet_style.py`.
+
+**Not Activities-specific** (left as-is): `fix_all_hyperlinks.py` / `fix_bare_url_cells.py`
+are document-wide link maintenance; `rebuild_trip_tabs.py`, `add_day_tabs.py`,
+`add_trailhead_distances.py` build other tabs.
 
 ## Setup
 
