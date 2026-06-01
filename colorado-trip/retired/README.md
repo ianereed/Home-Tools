@@ -16,3 +16,23 @@ Superseded one-shot scripts, kept for reference. Not maintained; don't run.
   **CB-C** option tab and deleted; the logistics now live in `../rebuild_trip_tabs.py`
   (the `wmp_route` / `wmp_stats` / `wmp_services` / `wmp_reservations` / `wmp_mochi` /
   `wmp_sources` fields on the CB-C `OPTIONS` dict, rendered in `build_option`).
+
+## Retired 2026-05-31 (overhaul: reliability + reservations consolidation)
+
+- `add_day_tabs.py` — earlier per-day tab generator (one tab per calendar day, incl.
+  flexible days). Superseded by `../rebuild_trip_tabs.py`, which builds fixed-day tabs +
+  per-option tabs and wires the Itinerary/DAY OPTIONS links (flexible days have no per-day
+  tab in the current model).
+- `add_day_options_draft.py`, `add_day_bld_e_draft.py` — drafts/POCs for the day-option
+  tabs; `../rebuild_trip_tabs.py` now owns the `OPTIONS` tabs directly.
+- `workshop_tab.py` — experimental single-tab scratch; never integrated.
+- `create_todo_sheet.py` — built the old `Todo — Todoist` tab (column-A paste format).
+  That tab was consolidated + renamed to `Reservations`; see `consolidate_reservations.py`.
+- `consolidate_reservations.py` — one-shot migration that merged the Itinerary "Advance
+  Reservations" block into the `Todo — Todoist` tab and renamed it `Reservations`
+  (added the West Maroon RFTA bus + car-relocation rows). Done; the tab is now hand-maintained.
+- `add_west_maroon_to_itinerary.py` — injected the West Maroon block into the Itinerary;
+  that block was removed during the reservations consolidation (logistics live on CB-C).
+- `fix_early_dates.py`, `restructure_itinerary.py`, `update_main_itinerary_2.py`,
+  `add_more_options.py`, `create_more_considerations.py` — completed one-shot Itinerary/
+  options edits; their results are baked into the live Sheet + current builders.

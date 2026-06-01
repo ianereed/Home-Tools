@@ -38,9 +38,9 @@ Trip-specific artifact. Functional but most useful as a reference if you build s
   `dining_distances.json` (gitignored) so re-runs don't re-hit the Maps API — delete the
   cache to force a recompute. Website + Address cells are native clickable links.
   Re-running moves the tab to the end of the order and assigns a new sheetId.
-- `restructure_itinerary.py` — periodic reorg sweeps
-- `read_itinerary.py` — fetch current state of the Sheet
-- `fix_backpacking_stats.py` — corrections to specific sections
+- `read_itinerary.py` / `read_backpacking.py` — fetch current Sheet state (debug utilities)
+- `genmeta.py` + `audit_contacts.py` — reliability + data-quality; see **Reliability + tab ownership** below
+- `retired/` — superseded one-shots + drafts, kept for reference; not run (see `retired/README.md`)
 
 ### Activities tab — current pipeline (Hikes / Runs / MTB)
 
@@ -66,8 +66,40 @@ run `restyle_activities.py`. To (re)apply trailhead pins + Link labels: run
 `activities_links.py`. All pull colors from `sheet_style.py`.
 
 **Not Activities-specific** (left as-is): `fix_all_hyperlinks.py` / `fix_bare_url_cells.py`
-are document-wide link maintenance; `rebuild_trip_tabs.py`, `add_day_tabs.py`,
-`add_trailhead_distances.py` build other tabs.
+are document-wide link maintenance; `rebuild_trip_tabs.py` builds the day/option tabs and
+`add_trailhead_distances.py` builds the Trailhead Distances tab (see below).
+
+## Reliability + tab ownership
+
+**Who owns which tab** (the canonical builder — edit its in-script data and re-run):
+
+| Tab(s) | Canonical builder |
+|---|---|
+| Day tabs (`Jul 16 (Thu)` …), option tabs (`BLD-A`…`CB-C`), Itinerary date links | `rebuild_trip_tabs.py` |
+| `Dining Guide` | `add_dining_guide.py` |
+| `Activities — Hikes, Runs & MTB` | `update_activities_mtb.py` (+ `restyle_activities.py`, `activities_links.py`, `mtb_tab.py`, `sheet_style.py`); hikes/runs seeded by legacy `add_activities.py` |
+| `Trailhead Distances` | `add_trailhead_distances.py` |
+| `Dog Daycare Options` / `Scenic Stops & Drives` / `MTB Shuttles & Guides` | `add_dog_daycare_sheet.py` / `add_scenic_stops.py` / `add_shuttle_sheet.py` (seeded once; live tab is authoritative) |
+| `Reservations` (single tracker) | hand-maintained; seeded by `consolidate_reservations.py` (retired). Reconcile with Todoist by hand. |
+| `_genmeta` (hidden) | `genmeta.py` bookkeeping — do not edit |
+
+**Manual-edit detection — generators won't clobber your hand edits.** Every tab
+`rebuild_trip_tabs.py` writes is fingerprinted (sha256 of its values) in the hidden
+`_genmeta` tab. Before overwriting a tab it re-reads the live version and compares; if you
+(or Anny) edited it in the sheet, the rebuild **skips that tab and reports it** instead of
+destroying your work. Each generated tab also carries a visible `🤖 Auto-generated …`
+footer. To intentionally replace an edited tab: `python rebuild_trip_tabs.py --force "Aug 1 (Sat)"`
+(or `--force-all`). Helper: `genmeta.py`. If you do an ad-hoc single-tab build from a REPL,
+call `rebuild_trip_tabs.save_genmeta()` afterward so the baseline doesn't go stale.
+
+**Crash-safe + single-writer.** `rebuild_trip_tabs.py` builds each tab into a temp sheet and
+only then atomically deletes the old + renames — a crash never leaves the sheet blank. It
+also takes a lockfile + `pgrep` check so two sessions can't rebuild at once. (Before running
+any builder, confirm none is live: `pgrep -fl 'rebuild''_trip_tabs'`.)
+
+**`audit_contacts.py`** (read-only) flags the same business carrying different phone numbers
+across tabs, and dining/daycare/shuttle entries missing a phone+website. Run it after any
+contact edit; reconcile flags in the owning builder's data.
 
 ## Setup
 
