@@ -20,7 +20,11 @@ re-run. Does NOT touch Activities / Dining / Trailhead Distances / etc.
 the wmp_* fields on the CB-C OPTIONS dict, rendered in build_option.)
 """
 import re
+import os
+import sys
 import time
+import argparse
+import subprocess
 from urllib.parse import quote as _q
 import gspread
 from config import SPREADSHEET_ID, CREDENTIALS_FILE
@@ -63,6 +67,29 @@ REF = {
     "thd":    GID["Trailhead Distances"],
     "shuttle":GID["MTB Shuttles & Guides"],
 }
+
+# ── manual-edit detection (genmeta) ──────────────────────────────────────────────
+# Every tab is regenerated from the Python source below, which would clobber any edit
+# made by hand in the live sheet. genmeta fingerprints each tab as we write it and lets
+# flush() refuse to overwrite a tab a human has touched. See genmeta.py.
+import genmeta
+_META = None        # lazy-loaded {title: fingerprint}; persisted to the hidden _genmeta tab
+DIRTY = []          # tabs skipped this run because they had manual edits
+FORCE = set()       # specific tab titles to overwrite anyway
+FORCE_ALL = False   # overwrite every tab regardless of manual edits
+
+def _ensure_meta():
+    global _META
+    if _META is None:
+        _META = genmeta.load(sh)
+    return _META
+
+def save_genmeta():
+    """Persist fingerprints. The run block calls this automatically; call it yourself
+    after an ad-hoc single-tab build (e.g. build_fixed(...) from a REPL) so the baseline
+    doesn't go stale and falsely flag the tab dirty on the next full run."""
+    if _META is not None:
+        genmeta.save(sh, _META)
 
 # ── activity lookup: verbatim links pulled from the Activities tab ───────────────
 def pin(q): return f"https://www.google.com/maps/search/?api=1&query={q}"
@@ -1242,16 +1269,15 @@ class Tab:
         r=self.row([(label,url)]); self.mg(r)
         self.fmt(r,0,NCOLS,bg=MAPBTN_BG,fg=LINKC,bold=True,size=11,align="CENTER")
         self.H.append((r,32))
+    def genmarker(self):
+        """Visible per-page contract: tells a human this tab is generated + edit-tracked."""
+        self.spacer(6)
+        r=self.row([genmeta.marker_text()]); self.mg(r)
+        self.fmt(r,0,NCOLS,bg=ALT,fg=GREY,italic=True,size=8,align="LEFT",wrap=True)
+        self.H.append((r,30))
 
-def flush(title, tab):
-    """create the sheet fresh and write its content; returns gid."""
-    # ensure clean
-    if title in GID:
-        sh.batch_update({"requests":[{"deleteSheet":{"sheetId":GID[title]}}]})
-    resp=sh.batch_update({"requests":[{"addSheet":{"properties":{"title":title,
-        "gridProperties":{"rowCount":max(len(tab.V)+4,30),"columnCount":NCOLS}}}}]})
-    sid=resp["replies"][0]["addSheet"]["properties"]["sheetId"]
-    GID[title]=sid
+def _write_content(sid, title, tab):
+    """Write values + formatting + links into the sheet with id `sid` (named `title`)."""
     sh.values_update(f"'{title}'!A1", params={"valueInputOption":"USER_ENTERED"}, body={"values":tab.V})
     reqs=[]
     # column A width
@@ -1272,6 +1298,43 @@ def flush(title, tab):
     reqs.append({"updateSheetProperties":{"properties":{"sheetId":sid,"gridProperties":{"hideGridlines":True}},"fields":"gridProperties.hideGridlines"}})
     for k in range(0,len(reqs),400):
         sh.batch_update({"requests":reqs[k:k+400]})
+
+def flush(title, tab):
+    """Rebuild a tab safely. Two protections live here (see genmeta.py + the plan):
+
+      1. MANUAL-EDIT DETECTION — if a live tab with this title was hand-edited since we
+         last generated it, do NOT overwrite it: record it in DIRTY and return the
+         existing gid untouched (unless FORCE_ALL or title in FORCE).
+      2. CRASH-SAFE BUILD-THEN-SWAP — build the new content in a temp tab, and only once
+         it's fully written delete the old tab + rename temp -> final in ONE batch. A
+         crash mid-write leaves the *previous* good tab in place; the sheet never goes
+         blank.
+    """
+    meta=_ensure_meta()
+    existing=GID.get(title)
+    # 1. don't clobber human edits
+    if existing is not None and not FORCE_ALL and title not in FORCE:
+        if genmeta.is_dirty(sh, title, meta):
+            DIRTY.append(title)
+            print(f"  ⚠️  SKIP '{title}' — manual edits detected; left untouched.")
+            return existing
+    # 2. build-then-swap
+    tmp=("__tmp__"+title)[:99]
+    if tmp in GID:                       # clear a stale temp from a prior crash
+        sh.batch_update({"requests":[{"deleteSheet":{"sheetId":GID[tmp]}}]}); GID.pop(tmp,None)
+    resp=sh.batch_update({"requests":[{"addSheet":{"properties":{"title":tmp,
+        "gridProperties":{"rowCount":max(len(tab.V)+4,30),"columnCount":NCOLS}}}}]})
+    sid=resp["replies"][0]["addSheet"]["properties"]["sheetId"]
+    GID[tmp]=sid
+    _write_content(sid, tmp, tab)        # full content into the temp tab
+    swap=[]
+    if existing is not None:
+        swap.append({"deleteSheet":{"sheetId":existing}})
+    swap.append({"updateSheetProperties":{"properties":{"sheetId":sid,"title":title},"fields":"title"}})
+    sh.batch_update({"requests":swap})   # atomic: old gone + temp renamed to final
+    GID.pop(tmp,None); GID[title]=sid
+    # 3. fingerprint the new tab so the next run can detect hand edits to it
+    genmeta.record(sh, title, meta)
     return sid
 
 def day_route(hub, stops):
@@ -1346,6 +1409,7 @@ def build_option(o):
         t.kv("Same-day trailhead pairs", "Trailhead Distances", link=turl(REF["thd"]))
     t.kv("Where to eat", "Dining Guide", link=turl(REF["dining"]))
     t.kv("Dog daycare", "Dog Daycare Options", link=turl(REF["daycare"]))
+    t.genmarker()
     return flush(o["id"], t)
 
 # ── build fixed-day tab ───────────────────────────────────────────────────────────
@@ -1422,60 +1486,146 @@ def build_fixed(title, d):
     if d.get("dining"): t.kv("Where to eat", f"Dining Guide ({d['dining']})", link=turl(REF["dining"]))
     if d.get("daycare"): t.kv("Dog daycare", f"Dog Daycare Options ({d['daycare']})", link=turl(REF["daycare"]))
     t.kv("← Back to the grid", "Itinerary tab", link=turl(REF["itin"]))
+    t.genmarker()
     return flush(title, t)
 
 # ════════════════════════════════════════════════════════════════════════════════
 #  RUN
 # ════════════════════════════════════════════════════════════════════════════════
+_LOCK = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".rebuild.lock")
+_LOCK_STALE_SEC = 1800
+
+def _other_rebuild_running():
+    """Best-effort: pids of OTHER live python processes running this script (excludes our
+    own process + parent shell wrapper, and any non-python match to avoid self-matching the
+    grep/zsh command line)."""
+    try:
+        pids = subprocess.run(["pgrep","-f","rebuild_trip_tabs.py"],
+                              capture_output=True, text=True).stdout.split()
+    except Exception:
+        return []
+    mine = {os.getpid(), os.getppid()}
+    others = []
+    for p in pids:
+        if not p.strip() or int(p) in mine:
+            continue
+        try:
+            comm = subprocess.run(["ps","-p",p,"-o","comm="],
+                                  capture_output=True, text=True).stdout.strip().lower()
+        except Exception:
+            comm = ""
+        if "python" in comm:           # a real interpreter, not the shell wrapper
+            others.append(p)
+    return others
+
+def _acquire_lock():
+    others = _other_rebuild_running()
+    if others:
+        print(f"❌ Another rebuild_trip_tabs.py is already running (pid {', '.join(others)}). Aborting.")
+        sys.exit(1)
+    try:
+        fd = os.open(_LOCK, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+    except FileExistsError:
+        # lockfile present — alive & recent => abort; stale => take over
+        try:
+            pid_s, ts_s = open(_LOCK).read().split(",")
+            age = time.time() - float(ts_s)
+            alive = True
+            try: os.kill(int(pid_s), 0)
+            except OSError: alive = False
+            if alive and age < _LOCK_STALE_SEC:
+                print(f"❌ Lockfile held by live pid {pid_s} ({int(age)}s old). Aborting.")
+                sys.exit(1)
+            print(f"⚠️  Removing stale lockfile (pid {pid_s}, {int(age)}s old).")
+        except (ValueError, OSError):
+            print("⚠️  Removing unreadable lockfile.")
+        os.remove(_LOCK)
+        fd = os.open(_LOCK, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+    os.write(fd, f"{os.getpid()},{time.time()}".encode())
+    os.close(fd)
+
+def _release_lock():
+    try: os.remove(_LOCK)
+    except OSError: pass
+
 if __name__=="__main__":
-    # PHASE 1 — delete old per-day tabs + old BLD-E draft
-    OLD_RE=re.compile(r'^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \d+ \(\w+\)$')
-    to_del=[s["properties"] for s in sh.fetch_sheet_metadata()["sheets"]
-            if OLD_RE.match(s["properties"]["title"]) or s["properties"]["title"].startswith("Day BLD-E")]
-    if to_del:
-        sh.batch_update({"requests":[{"deleteSheet":{"sheetId":p["sheetId"]}} for p in to_del]})
-        for p in to_del: GID.pop(p["title"],None)
-    print(f"PHASE 1: deleted {len(to_del)} old tabs.")
+    ap = argparse.ArgumentParser(description="Rebuild colorado-trip day/option tabs (crash-safe, manual-edit aware).")
+    ap.add_argument("--force", action="append", default=[], metavar="TAB",
+                    help="overwrite this tab even if it was hand-edited (repeatable)")
+    ap.add_argument("--force-all", action="store_true",
+                    help="overwrite every tab regardless of manual edits")
+    args = ap.parse_args()
+    FORCE.update(args.force)
+    FORCE_ALL = args.force_all
 
-    # PHASE 2 — build option + fixed tabs
-    opt_gid={}
-    for o in OPTIONS:
-        opt_gid[o["id"]]=build_option(o)
-    print(f"PHASE 2a: built {len(opt_gid)} option tabs: {', '.join(opt_gid)}")
-    fixed_gid={}
-    for title in FIXED_ORDER:
-        fixed_gid[title]=build_fixed(title, FIXED[title])
-    print(f"PHASE 2b: built {len(fixed_gid)} fixed-day tabs.")
+    _acquire_lock()
+    try:
+        _ensure_meta()
+        # NOTE: no upfront mass-delete. flush() does crash-safe build-then-swap per tab,
+        # so a failure never leaves the sheet blank. Orphan tabs are cleaned at the end.
 
-    # PHASE 3 — wire DAY OPTIONS id cells -> option tabs
-    menu_ws=sh.worksheet("DAY OPTIONS"); msid=menu_ws.id
-    mvals=menu_ws.get_all_values()
-    link_reqs=[]
-    for ri,rrow in enumerate(mvals):
-        for ci,cell in enumerate(rrow):
-            cid=cell.strip()
-            if cid in opt_gid:
-                link_reqs.append({"updateCells":{"rows":[{"values":[{"userEnteredValue":{"stringValue":cid},
-                    "textFormatRuns":[{"startIndex":0,"format":{"link":{"uri":turl(opt_gid[cid])},"underline":True,"foregroundColor":LINKC}}]}]}],
-                    "fields":"userEnteredValue,textFormatRuns","start":{"sheetId":msid,"rowIndex":ri,"columnIndex":ci}}})
-    # PHASE 3b — wire Itinerary date cell -> fixed tab or DAY OPTIONS
-    itin_ws=sh.worksheet("Itinerary"); isid=itin_ws.id
-    ivals=itin_ws.get_all_values()
-    DATE_RE=re.compile(r'^(Jul|Aug) \d+$')
-    for ri,rrow in enumerate(ivals):
-        if not rrow: continue
-        c0=rrow[0].strip()
-        if not DATE_RE.match(c0): continue
-        dow = rrow[1].strip() if len(rrow)>1 else ""
-        full=f"{c0} ({dow})"
-        target=None
-        if full in fixed_gid: target=turl(fixed_gid[full])
-        elif c0 in FLEX_DATES: target=turl(REF["menu"])
-        if target:
-            link_reqs.append({"updateCells":{"rows":[{"values":[{"userEnteredValue":{"stringValue":c0},
-                "textFormatRuns":[{"startIndex":0,"format":{"link":{"uri":target},"underline":True,"foregroundColor":LINKC}}]}]}],
-                "fields":"userEnteredValue,textFormatRuns","start":{"sheetId":isid,"rowIndex":ri,"columnIndex":0}}})
-    for k in range(0,len(link_reqs),400):
-        sh.batch_update({"requests":link_reqs[k:k+400]})
-    print(f"PHASE 3: wired {len(link_reqs)} links (DAY OPTIONS ids + Itinerary dates).")
-    print("DONE.")
+        # PHASE 2 — build option + fixed tabs (dirty tabs are skipped inside flush())
+        opt_gid={}
+        for o in OPTIONS:
+            opt_gid[o["id"]]=build_option(o)
+        print(f"PHASE 2a: built/kept {len(opt_gid)} option tabs: {', '.join(opt_gid)}")
+        fixed_gid={}
+        for title in FIXED_ORDER:
+            fixed_gid[title]=build_fixed(title, FIXED[title])
+        print(f"PHASE 2b: built/kept {len(fixed_gid)} fixed-day tabs.")
+
+        # PHASE 2c — remove orphan tabs no longer in the model (old date tabs / the old
+        # Day BLD-E draft / stale __tmp__ tabs from a prior crash) — but NEVER delete a
+        # tab a human has edited.
+        OLD_RE=re.compile(r'^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \d+ \(\w+\)$')
+        orphans=[]
+        for s in sh.fetch_sheet_metadata()["sheets"]:
+            ttl=s["properties"]["title"]
+            is_orphan = (ttl.startswith("__tmp__") or ttl.startswith("Day BLD-E")
+                         or (OLD_RE.match(ttl) and ttl not in fixed_gid))
+            if not is_orphan: continue
+            if not ttl.startswith("__tmp__") and genmeta.is_dirty(sh, ttl, _META):
+                print(f"  ⚠️  KEEP orphan '{ttl}' — manual edits detected.")
+                continue
+            orphans.append(s["properties"])
+        if orphans:
+            sh.batch_update({"requests":[{"deleteSheet":{"sheetId":p["sheetId"]}} for p in orphans]})
+            for p in orphans: GID.pop(p["title"],None)
+        print(f"PHASE 2c: removed {len(orphans)} orphan tab(s).")
+
+        # PHASE 3 — wire DAY OPTIONS id cells -> option tabs
+        menu_ws=sh.worksheet("DAY OPTIONS"); msid=menu_ws.id
+        mvals=menu_ws.get_all_values()
+        link_reqs=[]
+        for ri,rrow in enumerate(mvals):
+            for ci,cell in enumerate(rrow):
+                cid=cell.strip()
+                if cid in opt_gid:
+                    link_reqs.append({"updateCells":{"rows":[{"values":[{"userEnteredValue":{"stringValue":cid},
+                        "textFormatRuns":[{"startIndex":0,"format":{"link":{"uri":turl(opt_gid[cid])},"underline":True,"foregroundColor":LINKC}}]}]}],
+                        "fields":"userEnteredValue,textFormatRuns","start":{"sheetId":msid,"rowIndex":ri,"columnIndex":ci}}})
+        # PHASE 3b — wire Itinerary date cell -> fixed tab or DAY OPTIONS
+        itin_ws=sh.worksheet("Itinerary"); isid=itin_ws.id
+        ivals=itin_ws.get_all_values()
+        DATE_RE=re.compile(r'^(Jul|Aug) \d+$')
+        for ri,rrow in enumerate(ivals):
+            if not rrow: continue
+            c0=rrow[0].strip()
+            if not DATE_RE.match(c0): continue
+            dow = rrow[1].strip() if len(rrow)>1 else ""
+            full=f"{c0} ({dow})"
+            target=None
+            if full in fixed_gid: target=turl(fixed_gid[full])
+            elif c0 in FLEX_DATES: target=turl(REF["menu"])
+            if target:
+                link_reqs.append({"updateCells":{"rows":[{"values":[{"userEnteredValue":{"stringValue":c0},
+                    "textFormatRuns":[{"startIndex":0,"format":{"link":{"uri":target},"underline":True,"foregroundColor":LINKC}}]}]}],
+                    "fields":"userEnteredValue,textFormatRuns","start":{"sheetId":isid,"rowIndex":ri,"columnIndex":0}}})
+        for k in range(0,len(link_reqs),400):
+            sh.batch_update({"requests":link_reqs[k:k+400]})
+        print(f"PHASE 3: wired {len(link_reqs)} links (DAY OPTIONS ids + Itinerary dates).")
+        print("DONE.")
+    finally:
+        save_genmeta()
+        genmeta.report(DIRTY)
+        _release_lock()
