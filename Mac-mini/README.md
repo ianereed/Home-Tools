@@ -94,15 +94,21 @@ Tailscale.
 - **finance-monitor** at `~/Home-Tools/finance-monitor` with 2 LaunchAgents:
   `com.home-tools.finance-monitor` (Slack bot, KeepAlive — Socket Mode,
   DM-only, locked to `ALLOWED_SLACK_USER_IDS`, 60s/user rate limit) and
-  `com.home-tools.finance-monitor-watcher` (every 5 min — runs read-only
-  YNAB API sync first, then scans `intake/` for CSVs/PDFs/images). YNAB API
-  client is GET-only by design (hard requirement); cutoff `2026-04-24`. Live
-  data: `~/Home-Tools/finance-monitor/data/finance.db`
+  `com.home-tools.finance-monitor-watcher` (every 5 min — scans `intake/` for
+  CSVs/PDFs/images). **YNAB API sync DEACTIVATED 2026-05-30** (reversible
+  security cleanup): `YNAB_API_TOKEN` blanked in `.env`, so `ynab_api.sync()`
+  early-returns `skipped`; no network calls to api.ynab.com, PAT no longer
+  at-rest, PAT rolled on YNAB's side. Code left intact (paused, not removed).
+  YNAB API client is GET-only by design (hard requirement). Live data:
+  `~/Home-Tools/finance-monitor/data/finance.db`
 
-- **meal-planner + mini ops console** at `~/Home-Tools/console` and `~/Home-Tools/meal_planner`. 2 LaunchAgents:
-  `com.home-tools.console` (Streamlit at port 8503, Tailscale-bound, KeepAlive — recipe browser + edit UI + job status tabs)
-  and `com.home-tools.jobs-consumer` (Huey worker that executes `meal_planner_send_to_todoist`, `meal_planner_clear_todoist`,
-  and all other job kinds). `recipes.db` at `~/Home-Tools/meal_planner/recipes.db` is the sole source of truth for recipes.
+- **meal-planner + mini ops console** at `~/Home-Tools/console` and `~/Home-Tools/meal_planner`. 3 LaunchAgents:
+  `com.home-tools.console` (Streamlit at port 8503, Tailscale-bound, KeepAlive — recipe browser + edit UI + job status tabs),
+  `com.home-tools.jobs-consumer` (Huey worker, **default/slow lane** — background batch kinds like
+  `nas_intake_scan`, `restic_*`, periodic pollers), and `com.home-tools.jobs-consumer-fast` (Huey worker,
+  **fast lane** — Phase 22, 2026-05-30 — user-foreground kinds: `meal_planner_send_to_todoist`,
+  `meal_planner_clear_todoist`, `event_aggregator_decide`, `meal_planner_iphone_intake`).
+  `recipes.db` at `~/Home-Tools/meal_planner/recipes.db` is the sole source of truth for recipes.
   Photo-intake drop folder: `~/Share1/Documents/Recipes/photo-intake/`. Google Sheet archived read-only as of Phase 18
   (2026-05-08) — use `http://homeserver:8503/?tab=recipes` to create/edit/delete recipes.
 
