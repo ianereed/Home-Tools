@@ -798,6 +798,7 @@ FIXED = {
               "duty: refuel + driver swap + lunch, lined up at the ~2-hour mark in Davis.  Van runs clean #2 "
               "ULSD only — NO biodiesel."),
      route_url=maps_route(["Sunnyvale, CA","1601 Research Park Dr, Davis, CA 95616","Incline Village, NV"]),
+     route_label="Sunnyvale → Davis (fuel) → Incline Village",
      rows=[
        dict(kind="depart", k="🚐 9:30 AM · Depart",
             v="Sunnyvale (from the clinic) — Driver 1 at the wheel."),
@@ -829,36 +830,251 @@ FIXED = {
    together="Lunch after AM activities — Bridgetender Tavern (dog patio, Tahoe City) or Alibi Ale Works (Truckee). PM: Lake Tahoe Shakespeare Festival, Sand Harbor, 7:30pm (gates 5:30).",
    notes="PM anchor: Shakespeare at Sand Harbor — book laketahoeshakespeare.com (Macbeth or Heart of Robin Hood).",
    acts_ref=True, dining="Tahoe", daycare="Truckee"),
- "Jul 19 (Sun)": dict(banner="FIXED FOR IAN · FLEXIBLE FOR ANNY", plan="Second Tahoe day → start the Nevada push",
-   wake="Incline Village", sleep="Nevada (TBD)", miles="", hrs="",
+ "Jul 19 (Sun)": dict(banner="FIXED FOR IAN · FLEXIBLE FOR ANNY", plan="Second Tahoe day → evening hop to Reno",
+   wake="Incline Village", sleep="Reno (staging — verify spot)", miles="37", hrs="0.8",
    base="Lake Tahoe area",
    ian="AM ride or a second Tahoe trail (Glass Mtn + Painted Rock / Hole in the Ground). See Activities (Tahoe).",
    anny="CHOICE — a second Tahoe hike with Mochi (Page Meadows / Donner Lake Rim).",
-   mochi="With Anny.", together="Easy lake morning, then begin the drive east into Nevada. Sleep point TBD on the push toward Great Basin.",
-   notes="Lightly planned — confirm a Nevada stop/campsite for the night.",
-   acts_ref=True),
- "Jul 20 (Mon)": dict(banner="TRAVEL", plan="Drive across Nevada (push day)",
-   wake="Nevada (TBD)", sleep="Great Basin NP", miles="400", hrs="6.2", base="—",
-   together="Long push across Nevada on US-50 ('Loneliest Road'). Camp / sleep at Great Basin NP.",
-   notes="Longest driving day of the leg. Fuel up — services are sparse.",
-   route=["Nevada","Great Basin National Park, NV"], dining="Moab", daycare="Moab"),
+   mochi="With Anny on her hike; in the van for the short evening drive.",
+   together="Relaxed second day at the lake. After an early dinner, leave Incline in the EVENING for the ~50-min hop down to Reno — your staging point for the Loneliest Road. Fuel up + stock groceries in Reno tonight (last major city before the desert). See DRIVE PLAN.",
+   notes="Reno is the last big-city fuel / Costco / Trader Joe's before US-50. Top off tonight or first thing — clean #2 only (NV pumps labeled 'Diesel' are ≤B5; pick a name brand).",
+   route=["Incline Village, NV","Reno, NV"], acts_ref=True,
+   drive_plan=dict(
+     summary=("~37 mi · ~50 min, all in the evening. Depart Incline ~6:00 PM after an early dinner → "
+              "arrive Reno ~6:50 PM. Tonight is about staging in Reno so Monday's 376-mi "
+              "Loneliest-Road push starts from a real city. Fill the tank + stock up here — it's the last "
+              "Costco / Trader Joe's / name-brand fuel before Great Basin."),
+     route_url=maps_route(["Incline Village, NV","Reno, NV"]),
+     route_label="Incline Village → Reno",
+     rows=[
+       dict(kind="depart", k="🌆 ~6:00 PM · Depart", v="Incline Village after an early dinner (evening drive — not a 9 AM start)."),
+       dict(kind="leg", k="Evening hop · 6:00–6:50 PM",
+            v="37 mi · ~50 min · NV-431 (Mt Rose Hwy) down to Reno. One driver — short enough to skip a swap.",
+            url=maps_route(["Incline Village, NV","Reno, NV"])),
+       dict(kind="stop", k="⛽ FUEL + 🛒 PROVISION · Reno tonight",
+            v="Top off with clean #2 at a name-brand station (Chevron / Shell / Pilot) and stock groceries + water — the last real resupply before the desert.",
+            url=None),
+       dict(kind="arrive", k="🏁 ~6:50 PM · Arrive Reno", v="Sleep in / near Reno — candidates below to verify."),
+     ],
+     sleep_options=[
+       ("Grand Sierra Resort RV Park", "East Reno off I-80 — paid full-hookup RV park at the casino; clean, easy on/off for the US-50 start. Reserve ahead.", pin(_q("Grand Sierra Resort RV Park, Reno, NV"))),
+       ("Boomtown / Cabela's, Verdi", "West Reno on I-80 — Boomtown casino RV park + Cabela's lot, a classic overnight stop. ~15 min backtrack west.", pin(_q("Boomtown Casino RV Park, Verdi, NV"))),
+       ("BLM dispersed E toward Fernley", "Free dispersed camping on BLM land east toward Fernley / US-50 ALT — check iOverlander for exact pullouts + recent reports.", pin(_q("BLM dispersed camping Fernley NV"))),
+       ("Option: push on to Fallon", "If the evening's going well, ~1 hr more puts you in Fallon (casino RV park / Walmart) and trims ~60 mi off Monday. Harvest Hosts options around Fallon too.", pin(_q("Fallon, NV"))),
+     ],
+   )),
+ "Jul 20 (Mon)": dict(banner="TRAVEL", plan="Reno → Great Basin via US-50 (the Loneliest Road)",
+   wake="Reno", sleep="Great Basin NP (campground TBD)", miles="376", hrs="6", base="—",
+   mochi="In the van for the drive (frequent leg-stretch stops). At Great Basin, dogs are leashed-only in campgrounds + on roads — NOT on park trails (incl. the Bristlecone trail), so the bristlecones are a human-only side trip.",
+   together="The big push: Reno across Nevada on US-50 to Great Basin NP — 376 mi, ~6 hr driving, two fuel + driver-swap stops (Austin, Ely). Towns are 60–110 mi apart, so fuel discipline matters. Arrive afternoon/evening; camp in the park. See DRIVE PLAN.",
+   notes="Longest driving day of the leg. US-50 services are sparse — never pass Austin, Eureka, or Ely below a half tank. NV 'Diesel' pumps are ≤B5 (name brands ≈ straight #2 — fine for the van). Great Basin / Baker has only minimal fuel: arrive with enough to get back to Ely (56 mi).",
+   route=["Reno, NV","Grimes Point Archaeological Area, Fallon, NV","Sand Mountain Recreation Area, NV","Austin, NV","Hickison Petroglyph Recreation Area, NV","Ely, NV","Great Basin National Park, NV"],
+   scenic="US-50 + Great Basin",
+   drive_plan=dict(
+     summary=("376 mi · ~6 hr driving. Depart Reno 9:00 AM (the by-9 default; earlier just buys more scenic "
+              "slack) → arrive Great Basin ~4:00–4:30 PM (later if you linger at the scenic stops). "
+              "Reno → Grimes Point → Sand Mountain → Austin → Hickison → Ely → Great Basin on US-50 — the "
+              "three scenic stops are folded into the main route link above. Plan = two stops that each do "
+              "double duty (fuel + driver swap); the sparse towns dictate where they fall."),
+     route_url=maps_route(["Reno, NV","Grimes Point Archaeological Area, Fallon, NV","Sand Mountain Recreation Area, NV","Austin, NV","Hickison Petroglyph Recreation Area, NV","Ely, NV","Great Basin National Park, NV"]),
+     route_label="Reno → Grimes Pt → Sand Mtn → Austin → Hickison → Ely → Great Basin",
+     rows=[
+       dict(kind="depart", k="🌅 9:00 AM · Depart",
+            v="Reno with a FULL tank, Driver A. The 9 AM default — earlier is better, it buys slack for the scenic stops."),
+       dict(kind="leg", k="Leg 1 · 9:00–11:45 AM (incl. Fallon + scenic)",
+            v="173 mi · Driver A — Reno → Austin via Fallon. Optional quick top-off + leg-stretch in Fallon (mile 63, last sizable town). Then Grimes Point (~mile 73) and Sand Mountain (~mile 88) just past Fallon — both are on the main route link. Add ~30–45 min if you stop at both.",
+            url=maps_route(["Reno, NV","Fallon, NV","Grimes Point Archaeological Area, Fallon, NV","Sand Mountain Recreation Area, NV","Austin, NV"])),
+       dict(kind="stop", k="⛽ FUEL + 🔄 SWAP + 🍽 LUNCH · Austin · ~11:45 AM–12:25 PM",
+            v="Austin Chevron, right on Main St / US-50 (~mile 173). Fuel, swap drivers, lunch (~40 min). From a full Reno tank you reach here with margin; fill for the next 147 mi.",
+            url=pin(_q("Chevron, Austin, NV 89310"))),
+       dict(kind="leg", k="Leg 2 · 12:25–2:45 PM",
+            v="147 mi · Driver B — Austin → Ely via Eureka. Hickison Petroglyphs (24 mi E of Austin, ~mile 197) is an easy leg-stretch and sits on the main route link. Optional top-off at the Eureka Chevron (mile 243) for insurance.",
+            url=maps_route(["Austin, NV","Hickison Petroglyph Recreation Area, NV","Eureka, NV","Ely, NV"])),
+       dict(kind="stop", k="⛽ FUEL + 🔄 SWAP · Ely · ~2:45–3:05 PM",
+            v="Ely (~mile 320) is the biggest town + best fuel on the route (multiple name-brand stations). Top off here (~20 min) — Great Basin / Baker has only minimal fuel and you want enough to get back to Ely (56 mi).",
+            url=pin(_q("Ely, NV 89301"))),
+       dict(kind="leg", k="Leg 3 · 3:05–4:05 PM",
+            v="56 mi · fresh driver — Ely → Great Basin NP via NV-487 → NV-488 into Baker.",
+            url=maps_route(["Ely, NV","Great Basin National Park, NV"])),
+       dict(kind="arrive", k="🏁 ~4:05–4:30 PM · Arrive",
+            v="Great Basin NP — set up camp (later if you lingered at the scenic stops). Bristlecones, Wheeler Peak Scenic Drive + Lehman Caves are the reward (see Scenic Stops)."),
+     ],
+     fuel_options=[
+       ("Austin — Chevron", "On US-50 / Main St. Confirmed diesel (GasBuddy). Your Leg-1 fuel + swap + lunch stop, ~mile 173.", "Chevron, Austin, NV 89310"),
+       ("Eureka — Chevron", "On US-50 / Main St. Confirmed diesel. Optional mid-leg top-off, ~mile 243.", "Chevron, Eureka, NV 89316"),
+       ("Ely — best fuel on the route", "Biggest town; multiple name-brand stations — last reliable fuel before the park. Top off, ~mile 320.", "Ely, NV 89301"),
+       ("Fallon — last big town, W end", "Top off here if you didn't fill in Reno; cheapest fuel before the desert, ~mile 63.", "Fallon, NV 89406"),
+     ],
+     scenic=[
+       ("Grimes Point petroglyphs", "Right off US-50 ~10 mi E of Fallon — short petroglyph loop, quick leg-stretch.", pin(_q("Grimes Point Archaeological Area, Fallon, NV"))),
+       ("Sand Mountain Rec Area", "Singing 600-ft sand dune ~25 mi E of Fallon, just off US-50 — pull-off views or a short walk.", pin(_q("Sand Mountain Recreation Area, NV"))),
+       ("Hickison Petroglyph Rec Area", "BLM site 24 mi E of Austin off US-50 — easy interpretive loop, good mid-drive break.", pin(_q("Hickison Petroglyph Recreation Area, NV"))),
+       ("Great Basin: bristlecones + Wheeler Peak", "Arrival reward — see the Scenic Stops tab (Bristlecone Pine Trail, Wheeler Peak Scenic Drive, Lehman Caves). Note: park trails are no-dogs.", turl(REF["scenic"])),
+     ],
+     sleep_options=[
+       ("Great Basin: Wheeler Peak CG", "9,886 ft, near the bristlecone trailhead — the scenic one. First-come; the steep access road isn't advised for vans/RVs >24 ft. Cool nights even in July.", pin(_q("Wheeler Peak Campground, Great Basin National Park, NV"))),
+       ("Great Basin: Lower / Upper Lehman Creek CG", "Lower Lehman is the year-round, most van-accessible campground (some sites reservable on recreation.gov); Upper Lehman is first-come. Near the visitor center.", pin(_q("Lehman Creek Campground, Great Basin National Park, NV"))),
+       ("Baker Creek CG", "Gravel road, first-come, creekside — quieter. Check road conditions.", pin(_q("Baker Creek Campground, Great Basin National Park, NV"))),
+       ("Sacramento Pass BLM (free)", "Free BLM rec area on US-50 just W of the park turnoff — easy fallback if park campgrounds fill. Check iOverlander.", pin(_q("Sacramento Pass Recreation Area, NV"))),
+       ("Whispering Elms / Baker town", "Small RV park + dispersed options in Baker (the gateway town). Harvest Hosts may have a spot nearby.", pin(_q("Whispering Elms Motel RV Park, Baker, NV"))),
+     ],
+   )),
  "Jul 21 (Tue)": dict(banner="TRAVEL", plan="Drive to Moab",
-   wake="Great Basin NP", sleep="Moab", miles="330", hrs="5.1", base="—",
-   together="Drive to Moab. Optional stop: Dead Horse Point on the way in or as an evening overlook.",
-   notes="", route=["Great Basin National Park, NV","Moab, UT"], scenic="Dead Horse Point"),
+   wake="Great Basin NP", sleep="Moab", miles="330", hrs="5.2", base="—",
+   together="Depart Great Basin 9:00 AM → arrive Moab ~3:15 PM direct (or ~5:00 PM with the Dead Horse Point spur on the way in — it's also a classic sunset overlook from Moab). 328 mi east on US-50/US-6 → I-70 → US-191. Two fuel + driver-swap stops (Delta, Green River); the van runs clean #2 ULSD only. See DRIVE PLAN.",
+   notes="Great Basin / Baker has only minimal fuel — top off whatever you can before leaving; first reliable diesel is Delta (~mile 101). UT has no biodiesel mandate, so name-brand pumps ≈ straight #2 (fine for the van).",
+   route=["Great Basin National Park, NV","Delta, UT","Green River, UT","Dead Horse Point State Park, UT","Moab, UT"],
+   scenic="Dead Horse Point",
+   drive_plan=dict(
+     summary=("328 mi · ~5.2 hr driving. Depart Great Basin 9:00 AM (the by-9 default) → arrive Moab "
+              "~3:15 PM direct, or ~5:00 PM if you fold in Dead Horse Point on the way in. Great Basin → "
+              "Delta → Green River → (Dead Horse Point) → Moab on US-50/US-6 → I-70 → US-191 — the scenic "
+              "stop is folded into the main route link above. Two stops that double as fuel + driver swap; "
+              "UT towns are 75–180 mi apart, so fill at Delta and Green River."),
+     route_url=maps_route(["Great Basin National Park, NV","Delta, UT","Green River, UT","Dead Horse Point State Park, UT","Moab, UT"]),
+     route_label="Great Basin → Delta → Green River → Dead Horse Point → Moab",
+     rows=[
+       dict(kind="depart", k="🌅 9:00 AM · Depart",
+            v="Great Basin NP, Driver A — with as much fuel as Baker could give you. First reliable diesel is Delta (~mile 101)."),
+       dict(kind="leg", k="Leg 1 · 9:00–10:36 AM",
+            v="101 mi · Driver A — Great Basin → Delta, UT on US-50 E / US-6 E (high desert, dead-straight valley miles into Utah).",
+            url=maps_route(["Great Basin National Park, NV","Delta, UT"])),
+       dict(kind="stop", k="⛽ FUEL + 🔄 SWAP + 🍽 LUNCH · Delta · ~10:36–11:10 AM",
+            v="Maverik, 44 N US-6, Delta (RV lanes, 24-hr diesel). Fuel, swap drivers, early lunch (~35 min). Fill here — it's 177 mi to Green River.",
+            url=pin(_q("Maverik, 44 N US Highway 6, Delta, UT 84624"))),
+       dict(kind="leg", k="Leg 2 · 11:10 AM–2:00 PM",
+            v="177 mi · Driver B — Delta → Green River via Salina + I-70 through the San Rafael Swell (the scenic stretch). 177 mi is near the van's range, so top off at the Salina Flying J (I-70 Exit 253, ~mile 176) for insurance.",
+            url=maps_route(["Delta, UT","Salina, UT","Green River, UT"])),
+       dict(kind="stop", k="⛽ FUEL + 🔄 SWAP · Green River · ~2:00–2:20 PM",
+            v="Pilot Travel Center, 1085 E Main St, Green River (or Maverik, 1475 W Main). Top off + swap before the last push (and the Dead Horse spur).",
+            url=pin(_q("Pilot Travel Center, 1085 E Main St, Green River, UT 84525"))),
+       dict(kind="leg", k="Leg 3 · 2:20–3:15 PM",
+            v="52 mi · fresh driver — Green River → Moab on I-70 E to Crescent Junction, then US-191 S. The Dead Horse Point / UT-313 turnoff is ~22 mi N of Moab — peel off here for the overlook, or save it for sunset.",
+            url=maps_route(["Green River, UT","Moab, UT"])),
+       dict(kind="arrive", k="🏁 ~3:15 PM · Arrive (or ~5:00 PM w/ Dead Horse)",
+            v="Moab — set up camp (candidates below). Dead Horse Point is a 44-mi round-trip spur off US-191 (gooseneck of the Colorado 2,000 ft below) — best at sunset; Mochi OK at all overlooks on leash."),
+     ],
+     fuel_options=[
+       ("Delta — Maverik (PRIMARY)", "44 N US-6 · ~mile 101. RV lanes + 24-hr diesel; first reliable fuel in Utah. Your fuel + swap + lunch stop.", "Maverik, 44 N US Highway 6, Delta, UT 84624"),
+       ("Salina — Flying J (top-off)", "I-70 Exit 253 · ~mile 176. Full truck stop where US-50 meets I-70 — the insurance top-off on the long Delta→Green River leg.", "Flying J Travel Center, Salina, UT 84654"),
+       ("Green River — Pilot (2nd stop)", "1085 E Main St · ~mile 278. Name-brand truck-stop diesel; fill before the last 52 mi + any Dead Horse detour.", "Pilot Travel Center, 1085 E Main St, Green River, UT 84525"),
+     ],
+     scenic=[
+       ("Dead Horse Point State Park", "The marquee — 2,000-ft gooseneck overlook of the Colorado, 22 mi out UT-313 (folded into the main route link). Stunning at sunset; leashed dogs OK at overlooks. Small day-use fee.", pin(_q("Dead Horse Point State Park, UT"))),
+       ("San Rafael Swell — Ghost Rock viewpoint", "I-70 cuts through the Swell W of Green River — pull-offs at Ghost Rock + Eagle Canyon for wild eroded geology. Free, right on the route.", pin(_q("Ghost Rock Viewpoint, I-70, Utah"))),
+       ("Black Dragon Canyon", "I-70 just W of Green River (~exit 145) — short walk to a panel of pictographs incl. the 'black dragon'. Quick leg-stretch.", pin(_q("Black Dragon Canyon, Green River, UT"))),
+       ("Sego Canyon rock art", "Off I-70 at Thompson Springs (~exit 187) — Barrier-Canyon / Fremont / Ute panels, an easy detour near the end.", pin(_q("Sego Canyon Rock Art Panel, Thompson Springs, UT"))),
+     ],
+     sleep_options=[
+       ("UT-128 / Colorado Riverway BLM", "The classic Moab van corridor — a string of BLM campgrounds (Goose Island, Big Bend, Hal Canyon) along the Colorado NE of town. Some reservable on recreation.gov, rest first-come.", pin(_q("Goose Island Campground, Moab, UT"))),
+       ("Willow Springs Road (free BLM)", "Free dispersed off US-191 N of Moab — popular, gets busy; high-clearance helps past the first pullouts. Check iOverlander.", pin(_q("Willow Springs Road dispersed camping, Moab, UT"))),
+       ("Sand Flats Recreation Area", "Fee area by the Slickrock trail E of town — established sites, quick to downtown. First-come + some reservable.", pin(_q("Sand Flats Recreation Area, Moab, UT"))),
+       ("Ken's Lake Campground (BLM)", "S of Moab off US-191 — reservable BLM sites by a small reservoir, quieter than the river corridor.", pin(_q("Ken's Lake Campground, Moab, UT"))),
+       ("In-town RV (full hookup)", "Moab Valley RV Resort / Slickrock Campground if you want hookups + showers in town. Reserve ahead in peak July.", pin(_q("Moab Valley RV Resort, Moab, UT"))),
+     ],
+   )),
  "Jul 22 (Wed)": dict(banner="TRAVEL → ARRIVAL", plan="Chautauqua hike + settle into Boulder",
-   wake="Moab", sleep="Boulder — Airbnb", miles="366", hrs="5.6", base="582 Locust Pl, Boulder",
+   wake="Moab", sleep="Boulder — Airbnb", miles="368", hrs="5.8", base="582 Locust Pl, Boulder",
    mochi="With everyone at Chautauqua + downtown (leashed).",
-   together="Leave Moab by 8am. Optional Dead Horse Point. Arrive Boulder PM. Easy Chautauqua meadow walk (1–2 mi), get oriented, explore Baseline/Chautauqua.",
-   notes="Leave Moab by 8am. Dead Horse Point: 32 mi from Moab — gooseneck canyon 1,000 ft below. Mochi allowed at all overlooks on leash.",
-   backup="Boulder Creek Path walk + downtown. OR Boulder Reservoir dog beach (10 min, off-leash swim).",
-   opp="Bands on the Bricks (free, Pearl St, 5:30–9) · Colorado Shakespeare: Twelfth Night (7:30pm, CU)",
-   menu_next="BLD", dining="Boulder", daycare="Boulder"),
- "Aug 1 (Sat)": dict(banner="TRAVEL → ARRIVAL", plan="Drive Boulder → Steamboat",
-   wake="Boulder — Airbnb", sleep="Steamboat — Airbnb", miles="170", hrs="3.0", base="1036 Lincoln Ave, Steamboat",
-   together="Leave Boulder by 7am to catch the Steamboat Farmers Market (9am–2pm, Yampa St — dogs discouraged). Arrive ~noon, settle in, explore downtown. Storm Peak Brewing (dogs inside!), Yampa River walk.",
-   notes="Arrive ~noon.", opp="Steamboat Pro Rodeo (BBQ 6pm, rodeo 7:30, Romick Arena — steamboatprorodeo.com) · Movies on the Mountain (Gondola Sq, sunset, no dogs)",
-   menu_next="STM", dining="Steamboat", daycare="Steamboat"),
+   together="Depart Moab 8:00 AM (early start beats the Glenwood-Canyon traffic + afternoon heat) → arrive Boulder ~3:20 PM. 368 mi on US-191 → I-70 E over the Rockies. Two fuel + driver-swap stops (Grand Junction, Glenwood Springs). PM: easy Chautauqua meadow walk (1–2 mi), get oriented, explore Baseline/Chautauqua. See DRIVE PLAN.",
+   notes="8:00 AM start (earlier than the 9 AM default — it's a long day with mountain passes). Dead Horse Point is the opposite direction (a SW backtrack), so it lives on yesterday's plan; if you skipped it, it's a ~1.5-hr morning spur before you head east. CO has no biodiesel mandate — name-brand pumps ≈ clean #2.",
+   route=["Moab, UT","Grand Junction, CO","Glenwood Springs, CO","582 Locust Pl, Boulder, CO"],
+   scenic="Dead Horse Point",
+   drive_plan=dict(
+     summary=("368 mi · ~5.8 hr driving. Depart Moab 8:00 AM (earlier than the 9 AM default — long day, "
+              "mountain passes) → arrive Boulder ~3:20 PM, in time for a Chautauqua meadow walk. Moab → "
+              "Grand Junction → Glenwood Springs → Boulder on US-191 → I-70 E. Two stops that double as "
+              "fuel + driver swap; the I-70 climb (Vail Pass, Eisenhower Tunnel) burns more, so fill at "
+              "Glenwood before the high country."),
+     route_url=maps_route(["Moab, UT","Grand Junction, CO","Glenwood Springs, CO","582 Locust Pl, Boulder, CO"]),
+     route_label="Moab → Grand Junction → Glenwood Springs → Boulder",
+     rows=[
+       dict(kind="depart", k="🌅 8:00 AM · Depart",
+            v="Moab, Driver A, full tank. Early start (not the 9 AM default) — it's 368 mi with two passes, and you want Boulder PM with daylight for Chautauqua."),
+       dict(kind="leg", k="Leg 1 · 8:00–9:45 AM",
+            v="112 mi · Driver A — Moab → Grand Junction on US-191 N to Crescent Junction, then I-70 E into Colorado.",
+            url=maps_route(["Moab, UT","Grand Junction, CO"])),
+       dict(kind="stop", k="⛽ FUEL + 🔄 SWAP + ☕ 2ND BREAKFAST · Grand Junction · ~9:45–10:20 AM",
+            v="Pilot Flying J, 2195 Hwy 6 & 50 (I-70 Exit 26) — 8 diesel lanes, biggest fuel on the route. Fuel, swap drivers, coffee/snack (~35 min).",
+            url=pin(_q("Pilot Flying J, 2195 Highway 6 and 50, Grand Junction, CO 81505"))),
+       dict(kind="leg", k="Leg 2 · 10:20–11:42 AM",
+            v="89 mi · Driver B — Grand Junction → Glenwood Springs on I-70 E up the Colorado River, into Glenwood Canyon (the scenic stretch — sheer walls, river, bike path).",
+            url=maps_route(["Grand Junction, CO","Glenwood Springs, CO"])),
+       dict(kind="stop", k="⛽ FUEL + 🔄 SWAP + 🍽 LUNCH · Glenwood Springs · ~11:42 AM–12:20 PM",
+            v="Top off + swap + lunch (~38 min). Fill here — the next leg climbs Vail Pass (10,662 ft) + the Eisenhower Tunnel (11,158 ft), which eats fuel.",
+            url=pin(_q("Sinclair, Glenwood Springs, CO 81601"))),
+       dict(kind="leg", k="Leg 3 · 12:20–3:20 PM",
+            v="171 mi · fresh driver — Glenwood → Boulder on I-70 E over the passes, then US-6 / CO-93 up to Boulder. Optional top-off at the Silverthorne Maverik (~mile 290) before the Eisenhower descent.",
+            url=maps_route(["Glenwood Springs, CO","582 Locust Pl, Boulder, CO"])),
+       dict(kind="arrive", k="🏁 ~3:20 PM · Arrive Boulder",
+            v="582 Locust Pl — settle in, then the easy Chautauqua meadow walk (1–2 mi) to get oriented."),
+     ],
+     fuel_options=[
+       ("Grand Junction — Pilot Flying J", "2195 Hwy 6 & 50 (I-70 Exit 26) · ~mile 112. 8 diesel lanes — your primary fuel + swap stop on the CO side.", "Pilot Flying J, 2195 Highway 6 and 50, Grand Junction, CO 81505"),
+       ("Glenwood Springs — name-brand", "On Hwy 6/82 · ~mile 201. Fill + swap + lunch before the high passes (Sinclair / Kum & Go / Conoco in town).", "Sinclair, Glenwood Springs, CO 81601"),
+       ("Silverthorne — Maverik (top-off)", "Blue River Pkwy off I-70 · ~mile 290. Optional insurance top-off before the Eisenhower Tunnel descent to the Front Range.", "Maverik, Silverthorne, CO 80498"),
+     ],
+     scenic=[
+       ("Glenwood Canyon (I-70)", "One of the most scenic stretches of interstate in the US — sheer canyon walls along the Colorado. No detour needed; stop at the Hanging Lake / No Name rest areas to stretch.", pin(_q("Glenwood Canyon Rest Area, Glenwood Springs, CO"))),
+       ("Dead Horse Point — if you skipped it", "If you didn't do it yesterday, it's a ~1.5-hr morning spur (44 mi round-trip off US-191) BEFORE you turn east — adds ~1.5 hr to the day, so leave Moab earlier.", pin(_q("Dead Horse Point State Park, UT"))),
+       ("Vail Pass / Continental Divide", "I-70 tops out at Vail Pass (10,662 ft) then the Eisenhower Tunnel (11,158 ft) — pull off at the Vail Pass rest area for alpine views.", pin(_q("Vail Pass Rest Area, CO"))),
+     ],
+   )),
+ "Aug 1 (Sat)": dict(banner="TRAVEL → ARRIVAL", plan="Drive Boulder → Steamboat (+ a short hike — your pick)",
+   wake="Boulder — Airbnb", sleep="Steamboat — Airbnb", miles="165–175", hrs="3.5 + hike", base="1036 Lincoln Ave, Steamboat",
+   route=[BASE["BLD"], BASE["STM"]],
+   together=("Leave the Boulder Airbnb by 8:30. Eat breakfast OUT in Boulder (no dishes to clean before you go). "
+             "Then it's your call how you get to Steamboat — four routes below, each pairing a different short, "
+             "excellent hike with a different arrival time. Settle into Steamboat, explore downtown: Storm Peak "
+             "Brewing (dogs inside!), Yampa River walk."),
+   notes=("Skipping the Farmers Market this year. The whole drive is ~165–175 mi — well under the van's ~200 mi "
+          "range, so NO fuel stop is needed on a full tank (Sprinter takes clean #2 ULSD only — no biodiesel). "
+          "Arrival times below assume rolling out of Boulder ~9:15 after breakfast."),
+   opp="Steamboat Pro Rodeo (BBQ 6pm, rodeo 7:30, Romick Arena — steamboatprorodeo.com) · Movies on the Mountain (Gondola Sq, sunset, no dogs)",
+   menu_next="STM", dining="Steamboat", daycare="Steamboat",
+   drive_plan=dict(
+     summary=("Boulder → Steamboat is ~165–175 mi / ~3.3–3.7 hr of driving depending on the route — well under the "
+              "van's ~200 mi range, so NO fuel stop needed on a full tank. Leave by 8:30, eat breakfast OUT in "
+              "Boulder, then ⚠️ DECIDE how you're getting there: four routes below, each pairs a different short "
+              "hike with a different Steamboat arrival. Tap an option's name to open that exact route in Google "
+              "Maps. ETAs assume rolling out of Boulder ~9:15 after breakfast."),
+     route_url=maps_route([BASE["BLD"], BASE["STM"]]),
+     route_label="Boulder → Steamboat (direct reference — pick a hike route below)",
+     rows=[
+       dict(kind="depart", k="🚐 8:30 AM · Depart",
+            v="Roll out of the Boulder Airbnb (582 Locust Pl)."),
+       dict(kind="leg", k="🍳 ~8:30–9:15 · Breakfast in Boulder",
+            v=("Eat out so there are no dishes to clean. Dog-friendly picks: Nopalito (Boulder's 'ultimate "
+               "breakfast burrito,' grab-and-go fuel), Santo (chef-driven, patio), or Lucile's (Creole, dogs at "
+               "outdoor tables). Back on the road by ~9:15."),
+            url=pin(_q("Nopalito Restaurant, Boulder, CO"))),
+     ],
+     route_options=[
+       dict(name="① BERTHOUD PASS  ·  arrive Steamboat ~2:30 PM",
+            url=maps_route([BASE["BLD"], "Berthoud Pass, CO 80438", BASE["STM"]]),
+            note=("ON the US-40 route — zero detour. 11,307-ft pass; walk the Continental Divide Trail "
+                  "out-and-back as far as you like (~45–90 min, flat-to-rolling, turn around whenever). Biggest "
+                  "views for the least effort, right at the mid-drive high point. Dogs: leashed, fine. Heads-up: "
+                  "high + exposed — go before afternoon storms and pack a layer.")),
+       dict(name="② HERMAN GULCH  ·  arrive ~2:00 PM (short) / ~4:30 PM (full lake)",
+            url=maps_route([BASE["BLD"], "Herman Gulch Trailhead, Silver Plume, CO 80476", BASE["STM"]]),
+            note=("Just off I-70 at Bakerville (reroutes via Silverthorne / CO-9). Aug 1 = PEAK wildflowers, one of "
+                  "Colorado's best displays. Full hike 6.5 mi / 1,700 ft to Herman Lake (~3.5–4 hr); or turn around "
+                  "at the meadows for a short version (~1.5 hr). Dogs: leashed, fine. The big-payoff pick if you "
+                  "want a real hike.")),
+       dict(name="③ RABBIT EARS PEAK  ·  arrive Steamboat ~3:30 PM",
+            url=maps_route([BASE["BLD"], "Rabbit Ears Peak Trailhead, Colorado", BASE["STM"]]),
+            note=("Near the END — 32 min from the Airbnb, so you knock out the driving first and hike on fresher "
+                  "legs. ~5–6 mi / 700 ft (shortenable) through meadows to the iconic twin-rock formation. Dogs: "
+                  "leashed, fine. Trailhead access road can be rough — clearance helps.")),
+       dict(name="④ FISH CREEK FALLS  ·  in Steamboat by ~12:30 PM, hike after",
+            url=maps_route([BASE["BLD"], BASE["STM"], "Fish Creek Falls Trailhead, Steamboat Springs, CO 80487"]),
+            note=("No mid-drive stop — drive straight through (~3h16), drop bags, then the falls is 0.5 mi / 5 min "
+                  "from town. 0.25-mi paved overlook of a 280-ft waterfall, or 2.5 mi RT to the upper falls. $5 "
+                  "parking (cash/check). The low-stress / bad-weather fallback — earliest arrival by far. Dogs: "
+                  "leashed.")),
+     ],
+   )),
  "Aug 6 (Thu)": dict(banner="TRAVEL", plan="Drive Steamboat → Twin Lakes (Geotrek meetup)",
    wake="Steamboat — Airbnb", sleep="Twin Lakes", miles="144", hrs="2.75", base="—",
    ian="AM trail run: Emerald Mountain system (6–8 mi from Howelsen Hill). Back by lunch, then drive.",
@@ -1171,16 +1387,32 @@ def build_fixed(title, d):
         dp=d["drive_plan"]
         t.spacer(6); t.section("🚐 DRIVE PLAN — ROUTE · FUEL · DRIVER SWAPS")
         t.ctx(dp["summary"])
-        t.maplink("🗺  Open the full route in Google Maps  ·  Sunnyvale → Davis (fuel) → Incline Village", dp["route_url"])
+        _rl = dp.get("route_label")
+        t.maplink("🗺  Open the full route in Google Maps" + (f"  ·  {_rl}" if _rl else ""), dp["route_url"])
         for s in dp["rows"]:
             if s["kind"]=="stop":
                 t.kv(s["k"], s["v"], bg=WARN, vbg=WARN, link=s.get("url"))
             else:
                 t.kv(s["k"], s["v"], link=s.get("url"))
+        if dp.get("route_options"):
+            t.spacer(4)
+            t.section("🥾 CHOOSE YOUR ROUTE — pick ONE  ·  each is a different hike + a different Steamboat arrival")
+            t.callout("⚠️  DECIDE before you leave: these are FOUR different ways to drive Boulder → Steamboat. "
+                      "Tap an option's name to open that exact route in Google Maps.")
+            for ro in dp["route_options"]:
+                t.pick(ro["name"], ro["note"], link=ro["url"])
         if dp.get("fuel_options"):
-            t.spacer(4); t.section("CONFIRMED CLEAN-DIESEL STOPS  ·  #2 ULSD, no biodiesel  ·  tap for the map")
+            t.spacer(4); t.section("CLEAN-DIESEL STOPS  ·  #2 ULSD, no biodiesel  ·  tap for the map")
             for (nm,note,addr) in dp["fuel_options"]:
                 t.pick(nm, note, link=pin(_q(addr)))
+        if dp.get("scenic"):
+            t.spacer(4); t.section("STRETCH YOUR LEGS / SCENIC  ·  optional, on the route")
+            for (nm,note,link) in dp["scenic"]:
+                t.pick(nm, note, link=link)
+        if dp.get("sleep_options"):
+            t.spacer(4); t.section("WHERE TO SLEEP — candidates to verify in Harvest Hosts / iOverlander")
+            for (nm,note,link) in dp["sleep_options"]:
+                t.pick(nm, note, link=link)
     # pointers
     t.spacer(6); t.section("POINTERS")
     if d.get("acts_ref"): t.kv("Activity options", "Activities — Hikes, Runs & MTB", link=turl(REF["acts"]))
