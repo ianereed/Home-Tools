@@ -20,7 +20,7 @@ gc = gspread.authorize(creds)
 sh = gc.open_by_key(SPREADSHEET_ID)
 
 ACTIVITIES_TAB = "Activities — Hikes, Runs & MTB"
-MASTER_HEADER = "🚵 MOUNTAIN BIKING — Colorado  (consolidated from the MTB tabs)"
+MASTER_HEADER = "🚵 MOUNTAIN BIKING — Colorado + Eastern Sierra  (consolidated from the MTB tabs)"
 
 # ── BOULDER ─────────────────────────────────────────────────────────────────
 boulder = {
@@ -282,5 +282,96 @@ crested_butte = {
                 "Lower Loop / Woods Walk (town trails)"},
 }
 
-build_activities_mtb(sh, ACTIVITIES_TAB, MASTER_HEADER, [boulder, steamboat, crested_butte])
+eastern_sierra = {
+    "title": "EASTERN SIERRA MTB — Mammoth Lakes & June Lake  (Aug 14–18)",
+    "banner_text": ("🚡 Mammoth Bike Park is the crown jewel — 80+ mi lift-served (Ikon Pass = free bike-park "
+                    "tickets; confirm your tier). Best backcountry descent: Lower Rock Creek (~35 min S, "
+                    "self-shuttle on the parallel road). June Mountain runs NO summer lifts — everything at "
+                    "June Lake is pedal-up. 🐕 No dogs at the bike park; all the Nat'l-Forest XC rides are "
+                    "dog-OK (leash where signed). Altitude is real: town 7,880 ft, summit 11,053 ft."),
+    "banner_url": None,
+    "col8_header": "Access",
+    "origin": "Mammoth Lakes, CA",
+    "rides": [
+        ["Mammoth Mountain Bike Park", "The premier U.S. lift-served park — 80+ mi of berms, jumps, drops & pro lines on a volcano",
+         "80+ mi; full lap ~5–15 mi", "~3,000 ft lift-served descent (summit ~11,053 ft)",
+         "Main Lodge / The Village (Panorama Gondola + Discovery Chair)", "~10 min W (in town)",
+         "⚫ All levels (🟢 Discovery → ⚫ Velociraptor)", "Lift-served (gondola + chair; park ticket — Ikon = free tickets)",
+         "Panorama Gondola scenic ride + Top of the Sierra interpretive trail", "❌ No (bike park)"],
+        ["Off the Top → Beach Cruiser → Downtown", "The marathon descent — summit to Village, the longest run in the park",
+         "~15 mi pt-to-pt (Off the Top ~5.1 mi)", "~3,000 ft descent",
+         "Top of Panorama Gondola (summit)", "~10 min W (in town)",
+         "🔵 Blue (long, flowy)", "Lift-served (gondola; park ticket)",
+         "Reds Lake area — lakeside picnic / swim on foot", "❌ No (bike park)"],
+        ["Kamikaze (Eliminator DH)", "Ride the most famous descent in MTB history — fast, raw, brakes-off legend",
+         "~3+ mi top-to-bottom", "~2,000+ ft descent",
+         "Top of Panorama Gondola (summit)", "~10 min W (in town)",
+         "🔴 Black (fast, rough — DH-friendly)", "Lift-served (gondola; park ticket)",
+         "Top of the Sierra summit deck + interpretive walk", "❌ No (bike park)"],
+        ["Lower Rock Creek Trail", "The Eastern Sierra's classic ~8 mi tech descent through a creekside aspen canyon",
+         "~7.7 mi pt-to-pt", "~1,934 ft descent (≈30 ft climb)",
+         "Upper Lower Rock Creek TH, Lower Rock Creek Rd (Tom's Place)", "~35 min S",
+         "🔴 Black-ish (TF blue overall; lower gorge tech rock gardens)", "Self-shuttle (road parallels trail, 2 crossings) or 2-car / out-and-back",
+         "Rock Creek Lake basin trails near Tom's Place (alpine, dog-friendly)", "✅ Off-leash (Nat'l Forest/BLM — leash where signed)"],
+        ["Mammoth Rock Trail (Sherwin Ridge)", "Exposed ridge singletrack under Mammoth Rock — caldera views, aspens, a tech boulder field",
+         "~5 mi RT (out-and-back)", "~600–865 ft climb",
+         "Sherwin Creek Rd TH (Sherwin Meadows)", "~5 min S (edge of town)",
+         "🔵 Blue (one tech boulder section)", "None — pedal up from town / Sherwin Creek Rd",
+         "Sherwin Lakes Trail (~800 ft to alpine lakes — great hike + dog)", "✅ Off-leash (Nat'l Forest — leash courtesy)"],
+        ["Uptown / Downtown Town Loop", "Mellow forested town singletrack — pedal Uptown, rip Mountain View/Downtown; no park pass",
+         "~5 mi loop (extend to ~8–10)", "~550–1,000 ft climb",
+         "The Village (Uptown TH, off Hwy 203)", "~5 min (in town)",
+         "🔵 Blue (flowy XC)", "None — loop (or download from Main Lodge w/ Pedal Pass)",
+         "Lakes Basin paved path / Horseshoe Lake Loop (flat, dog-friendly)", "✅ Off-leash (Nat'l Forest — leash near Village)"],
+        ["Inyo Craters Loop", "Big pedally backcountry loop on dirt roads + singletrack past volcanic crater lakes",
+         "~10.3 mi loop", "~1,000–1,200 ft",
+         "Inyo Craters TH via Mammoth Scenic Loop (FS 3S30)", "~15 min N",
+         "🔵→🔴 (int–adv; FS roads + singletrack)", "None — loop (pedal)",
+         "Inyo Craters interpretive hike to the crater lakes (~0.6 mi, dog-friendly)", "✅ Off-leash (Nat'l Forest)"],
+        ["Mammoth Knolls Loop", "Quiet near-town loop mixing FS roads with single/doubletrack — easy lap",
+         "~10.8 mi loop", "~1,200 ft",
+         "Mammoth Knolls (near The Village / Forest Trail)", "~5 min (in town)",
+         "🔵 Blue (XC)", "None — loop (pedal)",
+         "Knolls / Shady Rest Park trails (flat forest walking, dog-friendly)", "✅ Off-leash (Nat'l Forest)"],
+        ["Reversed Peak Loop", "June Lake's standout — climb (some hike-a-bike) to a ridge above Silver Lake, then a tech aspen descent",
+         "~2.8 mi loop", "~710 ft descent",
+         "Reversed Peak / June Lake Loop (off Hwy 158 near Silver Lake)", "~30 min N",
+         "🔴 Black (TF 'blue'; south end advanced tech)", "None — loop (pedal + hike-a-bike)",
+         "Reversed Peak / Yost Lake Trail (alpine lakes, dog-friendly)", "✅ Off-leash (Nat'l Forest — leash courtesy)"],
+        ["June Mountain 'Chair 6' Bike Trail", "Lung-buster fire-road climb up the ski hill to big views, then a fast rocky descent",
+         "~8 mi out-and-back", "~2,200 ft climb",
+         "Lakeview Dr, town of June Lake (Canyon Trail to June Mtn)", "~30 min N",
+         "🔴 Black (sustained climb + rocky/sandy descent)", "Pedal up (June Mtn runs NO summer lifts)",
+         "June Lake Loop lakeshore trails / Fern Lake Trail (dog-friendly)", "✅ Off-leash (Nat'l Forest)"],
+    ],
+    "queries": [
+        "Mammoth Mountain Main Lodge, Minaret Road, Mammoth Lakes, CA",
+        "Panorama Gondola, Mammoth Mountain, Mammoth Lakes, CA",
+        "Mammoth Mountain Panorama Gondola, Mammoth Lakes, CA",
+        "Lower Rock Creek Trailhead, Tom's Place, CA",
+        "Sherwin Creek Road Trailhead, Mammoth Lakes, CA",
+        "Uptown Trail Trailhead, The Village at Mammoth, Mammoth Lakes, CA",
+        "Inyo Craters Trailhead, Mammoth Lakes, CA",
+        "Mammoth Knolls Trailhead, Mammoth Lakes, CA",
+        "Reversed Peak Trailhead, June Lake, CA",
+        "June Mountain Ski Area, June Lake, CA",
+    ],
+    "trailforks": [
+        "https://www.trailforks.com/region/mammoth-mountain-bike-park/",
+        "https://www.trailforks.com/region/mammoth-mountain-bike-park/",
+        "https://www.trailforks.com/region/mammoth-mountain-bike-park/",
+        "https://www.trailforks.com/trails/lower-rock-creek/",
+        "https://www.trailforks.com/region/mammoth-rock-56258/",
+        "https://www.trailforks.com/route/uptown-beach-cruiser-mountain-view-loop/",
+        "https://www.trailforks.com/region/mammoth-lakes/",
+        "https://www.trailforks.com/region/mammoth-lakes/",
+        "https://www.trailforks.com/trails/reversed-peak-loop-trail/",
+        "https://www.trailforks.com/region/june-mountain-ski-area-68551/",
+    ],
+    "hype": ["🌟 MUST-RIDE", "⭐ Highly rated", "🌟 MUST-RIDE", "🌟 MUST-RIDE", "⭐ Highly rated",
+             "", "", "", "⭐ Highly rated", ""],
+    "must_do": {"Mammoth Mountain Bike Park", "Kamikaze (Eliminator DH)", "Lower Rock Creek Trail"},
+}
+
+build_activities_mtb(sh, ACTIVITIES_TAB, MASTER_HEADER, [boulder, steamboat, crested_butte, eastern_sierra])
 print("All done.")
