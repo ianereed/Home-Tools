@@ -199,8 +199,9 @@ ACT = {
 # ════════════════════════════════════════════════════════════════════════════════
 BASE = {"BLD":"582 Locust Pl, Boulder, CO 80304",
         "STM":"1036 Lincoln Ave, Steamboat Springs, CO 80487",
-        "CB":"6 Emmons Rd, Unit 122, Mt Crested Butte, CO 81225"}
-HUBNAME = {"BLD":"Boulder","STM":"Steamboat","CB":"Crested Butte"}
+        "CB":"6 Emmons Rd, Unit 122, Mt Crested Butte, CO 81225",
+        "MAM":"Mammoth Lakes, CA 93546"}
+HUBNAME = {"BLD":"Boulder","STM":"Steamboat","CB":"Crested Butte","MAM":"Mammoth"}
 
 # each: id, type, oneliner, ctx, drive, ian, anny, mochi, together, acts (detail blocks),
 #       res, backup, evening
@@ -798,6 +799,41 @@ OPTIONS = [
      "Commit to the full one-way CB→Aspen, or do the simpler out-and-back to the pass from Schofield (same payoff, no van relocation / RFTA)?",
      "Comfortable handing the Sprinter keys to Maroon Bells Shuttles for relocation (gear/sleep setup, Kebler Pass height)?",
    ]),
+ # ── MAMMOTH (Aug 15–17) — Ian + Mochi only (Anny away at the bach party). ──────────
+ # Mochi rule: anything ≤4 hr → Mochi waits in the A/C van (after Jul 30 the van has A/C +
+ # Starlink); a full bike-park day / big ride / long drive → dog daycare.
+ dict(id="MAM-A", type="BIKE PARK", drive="~10 min (in town)", hub="MAM", bike=True,
+   oneliner="Lift-served laps at Mammoth Mountain Bike Park — Mochi to daycare",
+   ctx="The marquee day: 80+ mi of lift-served gravity off the Panorama Gondola (Kamikaze, Off the Top). It's a full day and dogs aren't allowed at the park, so Mochi goes to daycare. Ikon Pass = 2 free bike-park days (confirm your tier).",
+   ian="Drop Mochi at daycare 7:30–8am → full day at Mammoth Bike Park (Panorama Gondola, ~3,000 ft lift descent). Kamikaze + Off the Top are the classics; full-sus enduro/DH bike. Pick Mochi up 4–4:30pm. See Activities (Eastern Sierra MTB).",
+   mochi="DAYCARE (full day >4 hr, no dogs at the park): PUP Hiking Co — drop 7:30–8, pickup 4–4:30, (760) 582-2176 — BOOK AHEAD. Backups: Sierra Dog Ventures (714) 609-8510; Donna the Dog Lady (760) 387-2331.",
+   acts=[], res="Bike-park ticket (Ikon 2 free days, else ~$65–80); reserve PUP Hiking daycare 6–8 wks ahead.",
+   backup="Park closed/wet → ride Lower Rock Creek (MAM-B) or a town-trail loop (Uptown/Downtown) instead.",
+   evening="Mammoth Brewing Co. beer garden or Distant Brewing (dogs inside) once Mochi's back."),
+ dict(id="MAM-B", type="BIG RIDE", drive="~1h10 · ~50 mi round trip (Tom's Place)", hub="MAM", bike=True,
+   oneliner="Lower Rock Creek tech descent (or another ES backcountry ride) — Mochi to daycare",
+   ctx="The Eastern Sierra's classic ~8 mi tech singletrack descent through an aspen canyon, ~35 min S at Tom's Place (US-395). Self-shuttle on the parallel road. A full day with the drive, so Mochi goes to daycare.",
+   ian="Drop Mochi at daycare → Lower Rock Creek: ~7.7 mi, ~1,900 ft descent, rocky/techy lower gorge. Self-shuttle the road or lap the upper aspens. See Activities (Eastern Sierra MTB).",
+   mochi="DAYCARE (full day + drive >4 hr): PUP Hiking Co (760) 582-2176 / Sierra Dog Ventures (714) 609-8510. Backup: Donna the Dog Lady, Round Valley ~50 min, (760) 387-2331.",
+   acts=[], res="Reserve daycare ahead. No trail fee.",
+   backup="Stay close instead: Mammoth Rock / Sherwin ridge + town loops — short enough that Mochi waits in the A/C van (<4 hr) between laps.",
+   evening="Dinner in town — Roberto's (Mexican) or Mammoth Tavern."),
+ dict(id="MAM-C", type="DOG DAY", drive="~30 min · varies", hub="MAM", bike=False,
+   oneliner="Easy acclimation + dog day: Convict Lake, Hot Creek, Lakes Basin — Mochi comes",
+   ctx="A lighter, dog-friendly day to acclimatize (town 7,880 ft, rides top out ~11,000). Every stop is short and dog-OK, so Mochi rides along in the A/C van and joins — no daycare needed.",
+   ian="Mammoth Rock / Sherwin Ridge AM warm-up (~4 mi). PM: Convict Lake loop (2–3 mi, flat, Mochi swims) + Hot Creek Geological Site (thermal vents, leashed overlook). Optional easy spin on the Lakes Basin path.",
+   mochi="COMES ALL DAY — no daycare. Convict Lake, the Hot Creek overlook + the Lakes Basin path are all dog-friendly (leashed). Each stop is <4 hr, so the A/C van covers any gaps.",
+   acts=[], res="None.",
+   backup="Hot/smoky → Lakes Basin shade + a short Twin Lakes stroll, or a town/rest day (Stellar Brew coffee, brewery patios).",
+   evening="Toomey's at the gondola base or a brewery patio (dogs welcome)."),
+ dict(id="MAM-D", type="DAY TRIP", drive="~1h · ~40 mi round trip (June Lake)", hub="MAM", bike=True,
+   oneliner="June Lake day: a pedal-up ride + the June Lake Loop — Mochi mixed",
+   ctx="~20–30 min N on the June Lake Loop. Ride Reversed Peak (tech aspen loop) or grind June Mountain's Chair 6 fire road, then cruise the lakes + a patio. June Mtn runs no summer lifts — everything's pedal-up.",
+   ian="AM ride: Reversed Peak Loop (~2.8 mi, tech) or June Mtn Chair 6 (~8 mi, +2,200 ft). PM: June Lake Loop lakeshore + a patio. See Activities (Eastern Sierra MTB).",
+   mochi="MIXED: for the AM ride (>4 hr with the drive) → daycare in Mammoth before heading up, OR keep the ride short (<4 hr) and Mochi waits in the A/C van at a shaded lot. PM lakes are dog-friendly. NOTE: June Lake Brewing no longer allows dogs (2026) — use the Tiger Bar / T-Bar patio.",
+   acts=[], res="Daycare if riding long; none otherwise.",
+   backup="Storms → skip the ride; do the scenic June Lake Loop drive + a lakeshore walk with Mochi.",
+   evening="Tiger Bar & Cafe or T-Bar Social Club (dog patio) in June Lake; or back in Mammoth."),
 ]
 for o in OPTIONS:
     o.setdefault("hub", "BLD")
@@ -1135,29 +1171,7 @@ FIXED = {
    wake="Ely, NV", sleep="Mammoth Lakes", miles="295", hrs="4.5", base="—",
    together="AM: optional Nevada Northern Railway Museum. Drive to Mammoth — must arrive by afternoon. Emily bach party in the Mammoth area.",
    notes="Must arrive Mammoth (or Bishop) by afternoon.", route=["Ely, NV","Mammoth Lakes, CA"]),
- "Aug 15 (Sat)": dict(banner="FIXED — IAN SOLO", plan="Ian — Mammoth Bike Park day 1 / Mochi at daycare",
-   wake="Mammoth Lakes", sleep="Van — Bishop area", miles="0", hrs="0", base="Mammoth Lakes",
-   ian="Drop Mochi at PUP Hiking Co (7:30am) → full day at Mammoth Mountain Bike Park (3,100 ft descent; Ikon 2 free days, else ~$65–80). Pick Mochi up 4–4:30pm. See Activities (Mammoth).",
-   anny="Emily bach party (unavailable).",
-   mochi="PUP Hiking Company — drop 7:30–8am, pickup 4–4:30pm. (760) 582-2176. BOOK AHEAD. Backup: Sierra Dog Ventures (714) 609-8510.",
-   together="Ian + Mochi evening — pick up from daycare, settle in.",
-   notes="High altitude (9,000–11,000 ft) — acclimate. Dogs not allowed at the bike park (hence daycare).",
-   acts_ref=True, daycare="Mammoth"),
- "Aug 16 (Sun)": dict(banner="FIXED — IAN SOLO", plan="Ian — Lower Rock Creek Canyon MTB / Mochi at daycare",
-   wake="Mammoth Lakes", sleep="Van — Bishop area", miles="0", hrs="0", base="Mammoth Lakes",
-   ian="Drop Mochi at daycare → Lower Rock Creek Canyon (35 min to Tom's Place, US-395). 8–9 mi, 1,900 ft descent through aspen canyon — best trail ride in the Eastern Sierra. See Activities (Mammoth).",
-   anny="Emily bach party (unavailable).",
-   mochi="PUP Hiking or Sierra Dog Ventures. Backup: Donna the Dog Lady, Round Valley (50 min, (760) 387-2331).",
-   together="Ian + Mochi — evening walk, easy wind-down.",
-   notes="Lower Rock Creek is often shuttled downhill for max descent. Plan a full day with the drive.",
-   acts_ref=True, daycare="Mammoth"),
- "Aug 17 (Mon)": dict(banner="FIXED — IAN + MOCHI", plan="Hike + acclimation day (Convict Lake / Hot Creek)",
-   wake="Mammoth Lakes", sleep="Mammoth Lakes", miles="0", hrs="0", base="Mammoth Lakes",
-   ian="Lighter day — Mammoth Rock / Sherwin Ridge AM (10 min, 4 mi warm-up). PM: Hot Creek Geological Site (thermal pools, dog overlook) + Convict Lake loop (2 mi easy, Mochi swims).",
-   anny="Bach party winding down — may be free PM for Convict Lake together.",
-   mochi="Ian has Mochi today — no daycare. Hot Creek + Convict Lake are both dog-friendly.",
-   together="If Anny's free PM: Hot Creek + Convict Lake together. Easy, beautiful.",
-   notes="", scenic="Hot Creek", daycare="Mammoth"),
+ # Aug 15–17 (Mammoth) are now FLEXIBLE — see the MAM-A..D options + the Mammoth DAY OPTIONS menu.
  "Aug 18 (Tue)": dict(banner="TRAVEL", plan="Drive Tioga Pass → Fresno area (drop Mochi at boarding)",
    wake="Mammoth Lakes", sleep="Near Fresno", miles="150", hrs="2.3", base="—",
    together="Scenic drive over Tioga Pass through Yosemite ($35 entrance). Drop Mochi at Fresno-area boarding (Elaine's Pet Resorts recommended — (559) 227-5959; book well ahead for August).",
@@ -1191,7 +1205,8 @@ FIXED_ORDER = list(FIXED.keys())
 # which calendar dates are flexible (Itinerary date cell -> DAY OPTIONS)
 FLEX_DATES = (["Jul %d" % d for d in range(23,32)] +
               ["Aug %d" % d for d in range(2,6)] +
-              ["Aug 10","Aug 11"])
+              ["Aug 10","Aug 11"] +
+              ["Aug 15","Aug 16","Aug 17"])
 
 # ════════════════════════════════════════════════════════════════════════════════
 #  TAB BUILDER
@@ -1364,9 +1379,9 @@ def build_option(o):
     if o.get("evening"): t.kv("Evening", o["evening"])
     t.spacer(6)
     t.section("THE PLAN")
-    bikes = any(k in ("valmont","walker_mtb","steamboat_bp","evolution") for k in o["acts"])
+    bikes = o.get("bike") or any(k in ("valmont","walker_mtb","steamboat_bp","evolution") for k in o["acts"])
     t.lane("🚵" if bikes else "🥾","Ian", o["ian"], IAN_BG)
-    t.lane("🥾","Anny", o["anny"], ANNY_BG)
+    if o.get("anny"): t.lane("🥾","Anny", o["anny"], ANNY_BG)
     t.lane("🐕","Mochi", o["mochi"], MOCHI_BG)
     if o.get("together"): t.lane("👥","Together", o["together"], TOG_BG)
     if o["acts"]:
