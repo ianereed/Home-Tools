@@ -17,7 +17,7 @@ sid = ws._properties['sheetId']
 
 OPT_COMMON = ("⭐ OPTION (full day): Crested Butte → Aspen via West Maroon Pass — "
               "4 people + Mochi, hike one-way with car relocation + 2 shuttles. "
-              "See 'West Maroon Pass' tab.")
+              "See the CB-C option tab.")  # logistics folded into CB-C (West Maroon Pass tab retired)
 OPT_10 = OPT_COMMON + " Note: conflicts with tonight's Alpenglow Concert."
 OPT_11 = OPT_COMMON + " Note: replaces bike-park day; pushes packing to Aug 12 AM."
 
@@ -31,10 +31,10 @@ cell_updates = []
 if "West Maroon Pass" not in vals[47][14]:        # Aug 10 = row 48
     cell_updates.append(("O48", OPT_10))
     mi = vals[47][16]
-    cell_updates.append(("Q48", (mi + " | " if mi else "") + "→ West Maroon Pass tab"))
+    cell_updates.append(("Q48", (mi + " | " if mi else "") + "→ CB-C option tab"))
 if "West Maroon Pass" not in vals[48][14]:        # Aug 11 = row 49
     cell_updates.append(("O49", OPT_11))
-    cell_updates.append(("Q49", "→ West Maroon Pass tab"))
+    cell_updates.append(("Q49", "→ CB-C option tab"))
 
 for a1, text in cell_updates:
     ws.update([[text]], a1, value_input_option="USER_ENTERED")
@@ -60,7 +60,7 @@ if not already:
     INSERT_AT = 88  # 1-based; before the 'Rank' dog-daycare table at row 88
     new_rows = [
         ["West Maroon Pass hike (Aug 10 or 11) — book all three", "", "", "",
-         "Point-to-point CB→Aspen over West Maroon Pass. Full logistics on the 'West Maroon Pass' tab."],
+         "Point-to-point CB→Aspen over West Maroon Pass. Full logistics on the CB-C option tab."],
         ["Dolly's Mountain Shuttle — ride to West Maroon TH", "Early — books up, esp. weekends",
          "crestedbutteshuttle.com", "",
          "$55/seat × 5 (4 people + Mochi needs its own seat) = $275 ($220 min). CB → West Maroon Trailhead, ~40 min. 970-209-1568. Cancel 48 hr."],

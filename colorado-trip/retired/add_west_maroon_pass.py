@@ -340,4 +340,6 @@ reqs.append({"updateSheetProperties": {
     "fields": "gridProperties.hideGridlines"}})
 
 sh.batch_update({"requests": reqs})
-print(f"OK: '{TAB}' tab built — {len(values)} rows, {len(reqs)} format/merge/dim requests.")
+from linkutil import nativize
+n = nativize(sh, ws, sid, len(values), NCOLS)
+print(f"OK: '{TAB}' tab built — {len(values)} rows, {len(reqs)} format/merge/dim requests, {n} native links.")

@@ -27,6 +27,17 @@ Trip-specific artifact. Functional but most useful as a reference if you build s
 - 14+ `add_*.py` scripts — each populated one Sheet section. The Activities-tab builders
   (`add_activities.py`, `add_backpacking_sheet.py`, `add_tahoe_mammoth_content.py`,
   `add_trail_rides.py`) are now **legacy/historical** — see the MTB + styling pipeline below.
+- `add_dining_guide.py` — **owns the `Dining Guide` tab**, data-driven + idempotent.
+  Edit the `SECTIONS`/`*_rows` lists + the `ADDRESSES` dict and re-run; it deletes and
+  rebuilds the tab (8 trip-ordered sections incl. day-trip towns Golden/Nederland/Estes
+  + Aspen + Tahoe; color bars; `⭐` splurge marks). 12 columns, three computed at build
+  time: **From Airbnb** (walk/bike/drive + miles via Distance Matrix from the per-town
+  Airbnb in `BASES`, Mochi-aware — biking only flagged useful for non-dog-friendly
+  spots), **Come As You Are?** (dress/dirt level from type+price rules + `DRESS_OVERRIDE`),
+  and **Address** (native Google-Maps link). Distances are cached in
+  `dining_distances.json` (gitignored) so re-runs don't re-hit the Maps API — delete the
+  cache to force a recompute. Website + Address cells are native clickable links.
+  Re-running moves the tab to the end of the order and assigns a new sheetId.
 - `restructure_itinerary.py` — periodic reorg sweeps
 - `read_itinerary.py` — fetch current state of the Sheet
 - `fix_backpacking_stats.py` — corrections to specific sections
