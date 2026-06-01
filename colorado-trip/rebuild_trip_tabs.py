@@ -1142,8 +1142,51 @@ FIXED = {
    wake="Steamboat — Airbnb", sleep="Twin Lakes", miles="144", hrs="2.75", base="—",
    ian="AM trail run: Emerald Mountain system (6–8 mi from Howelsen Hill). Back by lunch, then drive.",
    anny="AM hike: Red Dirt Trail with Mochi (gentle, creeks, wildflowers).",
-   mochi="With Anny on Red Dirt.", together="Drive to Twin Lakes after the morning. Geotrek meetup begins.",
-   notes="", route=["Steamboat Springs, CO","Twin Lakes, CO"]),
+   mochi="With Anny on Red Dirt; in the van for the afternoon drive.",
+   together="Drive to Twin Lakes after the morning activities. Geotrek meetup begins this evening. See DRIVE PLAN.",
+   notes=("Under the van's ~200 mi range — no fuel stop needed on a full tank (optional top-off in Leadville, the "
+          "last fuel before Twin Lakes). Two paved passes: Rabbit Ears (9,426 ft) + Fremont (11,318 ft). Clean #2 "
+          "ULSD only; CO has no biodiesel mandate, so name-brand pumps ≈ #2."),
+   route=["Steamboat Springs, CO","Kremmling, CO","Silverthorne, CO","Leadville, CO","Twin Lakes, CO"],
+   drive_plan=dict(
+     summary=("144 mi · ~2h45m driving. After the morning trail run + lunch, depart Steamboat ~12:30 PM → arrive "
+              "Twin Lakes ~3:15 PM, ahead of the evening Geotrek meetup. US-40 E over Rabbit Ears Pass → CO-9 S "
+              "past Green Mountain Reservoir → Silverthorne → a one-exit I-70 W hop → CO-91 S over Fremont Pass → "
+              "Leadville → US-24/CO-82 to Twin Lakes. Under the ~200 mi range, so NO fuel stop is required on a "
+              "full tank — one driver swap at Silverthorne, optional top-off in Leadville."),
+     route_url=maps_route(["Steamboat Springs, CO","Kremmling, CO","Silverthorne, CO","Leadville, CO","Twin Lakes, CO"]),
+     route_label="Steamboat → Kremmling → Silverthorne → Leadville → Twin Lakes",
+     rows=[
+       dict(kind="depart", k="🚐 ~12:30 PM · Depart",
+            v="Steamboat (after the AM run + lunch), Driver 1, full tank."),
+       dict(kind="leg", k="Leg 1 · 12:30–1:25 PM",
+            v="52 mi · US-40 E over Rabbit Ears Pass (9,426 ft) → down to Kremmling. Driver 1.",
+            url=maps_route(["Steamboat Springs, CO","Kremmling, CO"])),
+       dict(kind="leg", k="Leg 2 · 1:25–2:10 PM",
+            v="37 mi · CO-9 S down the Blue River valley past Green Mountain Reservoir to Silverthorne. Driver 1.",
+            url=maps_route(["Kremmling, CO","Silverthorne, CO"])),
+       dict(kind="stop", k="🔄 SWAP (+ optional ⛽ top-off) · Silverthorne · ~2:10 PM",
+            v="Driver swap at the I-70 / CO-9 junction (full services). Optional clean-#2 top-off if you're low — otherwise press on, you're well inside range.",
+            url=pin(_q("Silverthorne, CO 80498"))),
+       dict(kind="leg", k="Leg 3 · 2:10–2:55 PM",
+            v="36 mi · a one-exit hop on I-70 W → CO-91 S over Fremont Pass (11,318 ft, Climax mine) into Leadville. Driver 2.",
+            url=maps_route(["Silverthorne, CO","Leadville, CO"])),
+       dict(kind="leg", k="Leg 4 · 2:55–3:15 PM",
+            v="19 mi · US-24 S → CO-82 W to Twin Lakes. Driver 2.",
+            url=maps_route(["Leadville, CO","Twin Lakes, CO"])),
+       dict(kind="arrive", k="🏁 ~3:15 PM · Arrive", v="Twin Lakes — settle in before the Geotrek meetup."),
+     ],
+     fuel_options=[
+       ("Leadville — Shell (optional top-off)", "12655 US Hwy 24 · ~mile 125, 24 hr. The LAST fuel before Twin Lakes (which has none) — fill here if you're arriving low. Confirmed clean #2.", "Shell, 12655 US Highway 24, Leadville, CO 80461"),
+       ("Silverthorne — Conoco (at the swap)", "I-70 & Hwy 9 jct · ~mile 89. Name-brand clean #2 right at the driver-swap point if you'd rather fuel mid-drive.", "Conoco, Silverthorne, CO 80498"),
+     ],
+     scenic=[
+       ("Rabbit Ears Pass", "9,426 ft just E of Steamboat — meadow pullouts, a good first leg-stretch.", pin(_q("Rabbit Ears Pass, CO"))),
+       ("Green Mountain Reservoir", "On CO-9 ~20 mi S of Kremmling — lakeside pullouts.", pin(_q("Green Mountain Reservoir, CO"))),
+       ("Fremont Pass / Climax Mine", "11,318 ft on CO-91 — dramatic high-alpine mine basin overlook.", pin(_q("Fremont Pass, CO"))),
+       ("Leadville historic district", "Highest incorporated city in the US (10,150 ft) — Victorian Harrison Ave, coffee before the last leg.", pin(_q("Harrison Avenue, Leadville, CO"))),
+     ],
+   )),
  "Aug 7 (Fri)": dict(banner="FIXED", plan="Geotrek meetup — Twin Lakes",
    wake="Twin Lakes", sleep="Twin Lakes", miles="0", hrs="0", base="Twin Lakes",
    together="Geotrek meetup in Twin Lakes.", notes="Group event — agenda set by Geotrek."),
@@ -1152,30 +1195,256 @@ FIXED = {
    together="Geotrek meetup in Twin Lakes.", notes="Group event — agenda set by Geotrek."),
  "Aug 9 (Sun)": dict(banner="TRAVEL → ARRIVAL", plan="Drive Twin Lakes → Crested Butte",
    wake="Twin Lakes", sleep="Crested Butte — Airbnb", miles="144", hrs="2.5", base="6 Emmons Rd, Mt CB",
-   mochi="Can swim at Emerald Lake.",
-   together="Arrive CB ~noon–1pm. Check in. PM: Emerald Lake hike (1.7 mi, easy, flat — Mochi swims), 10 min from town. Explore Elk Avenue — Butte Bagels (closes ~2pm), dinner at The Breadery or The Public House.",
-   notes="PM orienting hike after settling in.",
+   mochi="In the van for the drive; can swim at Emerald Lake on the PM hike.",
+   together="Arrive CB ~noon–1pm. Check in. PM: Emerald Lake hike (1.7 mi, easy, flat — Mochi swims), 10 min from town. Explore Elk Avenue — Butte Bagels (closes ~2pm), dinner at The Breadery or The Public House. See DRIVE PLAN.",
+   notes=("PM orienting hike after settling in. ⚠️ PAVED ROUTE ONLY — do NOT let GPS send you over Cottonwood or "
+          "Kebler Pass (both have long dirt sections unsuitable for the Sprinter); the reliable line is US-50 via "
+          "Gunnison. Under the ~200 mi range — optional top-off in Gunnison before the final CO-135 leg."),
    backup="Copper Creek / Judd Falls (moderate, dog-friendly) if Emerald Lake is crowded.",
-   menu_next="CB", scenic="Kebler Pass"),
+   route=["Twin Lakes, CO","Buena Vista, CO","Gunnison, CO","Mt. Crested Butte, CO"],
+   menu_next="CB", scenic="Kebler Pass",
+   drive_plan=dict(
+     summary=("144 mi · ~2h30m driving. Depart Twin Lakes ~9:45–10:00 AM → arrive Mt. Crested Butte ~12:30 PM, "
+              "ahead of the afternoon orienting hike. PAVED route: CO-82 E → US-24 S to Buena Vista → US-285 S → "
+              "US-50 W to Gunnison → CO-135 N to Crested Butte. ⚠️ Do NOT take Cottonwood or Kebler Pass — both "
+              "have long dirt stretches unsuitable for the van. Under the ~200 mi range, so NO fuel stop is "
+              "required on a full tank — one swap + optional top-off in Gunnison."),
+     route_url=maps_route(["Twin Lakes, CO","Buena Vista, CO","Gunnison, CO","Mt. Crested Butte, CO"]),
+     route_label="Twin Lakes → Buena Vista → Gunnison → Mt. Crested Butte (paved via US-50)",
+     rows=[
+       dict(kind="depart", k="🚐 ~9:45 AM · Depart", v="Twin Lakes, Driver 1, full tank."),
+       dict(kind="leg", k="Leg 1 · 9:45–10:25 AM",
+            v="35 mi · CO-82 E → US-24 S down the Arkansas headwaters past the Collegiate Peaks to Buena Vista. Driver 1.",
+            url=maps_route(["Twin Lakes, CO","Buena Vista, CO"])),
+       dict(kind="leg", k="Leg 2 · 10:25–11:45 AM",
+            v="64 mi · US-285 S to Poncha Springs → US-50 W to Gunnison. Driver 1.",
+            url=maps_route(["Buena Vista, CO","Gunnison, CO"])),
+       dict(kind="stop", k="🔄 SWAP (+ optional ⛽ top-off) · Gunnison · ~11:45 AM",
+            v="Driver swap + the natural fuel stop (full services). Top off clean #2 here before the CO-135 leg — Mt. Crested Butte has limited fuel.",
+            url=pin(_q("Gunnison, CO 81230"))),
+       dict(kind="leg", k="Leg 3 · 12:00–12:30 PM",
+            v="30 mi · CO-135 N up the East/Slate River valley (past Almont) to Crested Butte → Mt. Crested Butte base. Driver 2.",
+            url=maps_route(["Gunnison, CO","Mt. Crested Butte, CO"])),
+       dict(kind="arrive", k="🏁 ~12:30 PM · Arrive", v="6 Emmons Rd, Mt. Crested Butte — check in, then the PM Emerald Lake orienting hike."),
+     ],
+     fuel_options=[
+       ("Gunnison — Conoco (optional top-off)", "821 W Tomichi Ave · ~mile 99, 24 hr. On US-50 right before the CO-135 turnoff — the last name-brand fuel before the climb to CB. Confirmed clean #2.", "Conoco, 821 W Tomichi Ave, Gunnison, CO 81230"),
+       ("Buena Vista — Loaf 'N Jug (earlier option)", "610 US Hwy 24 S · ~mile 35. Kroger-owned, diesel + C-store, if you'd rather fuel before the long middle leg.", "Loaf N Jug, 610 US Highway 24 S, Buena Vista, CO 81211"),
+     ],
+     scenic=[
+       ("Buena Vista riverfront", "Arkansas River whitewater park under the 14er Collegiate Peaks — good first stretch + coffee.", pin(_q("Buena Vista River Park, Buena Vista, CO"))),
+       ("Gunnison", "Western Colorado University college town — full services and the fuel/swap stop.", pin(_q("Gunnison, CO"))),
+       ("CO-135 / Almont", "Taylor + East River confluence ~10 mi N of Gunnison — classic ranch-and-river valley driving up to CB.", pin(_q("Almont, CO"))),
+     ],
+   )),
  "Aug 12 (Wed)": dict(banner="TRAVEL", plan="Drive CB → SLC via Grand Junction + Colorado National Monument",
-   wake="Crested Butte — Airbnb", sleep="SLC", miles="380", hrs="6.5", base="—",
-   together="Long drive (~6.5 hr via Grand Junction/I-70). Colorado National Monument (Rim Rock Drive, 23 mi, 19 overlooks, dog-friendly, free w/ pass) adds 1.5–2 hr — worth it. Evening with SLC friend.",
+   wake="Crested Butte — Airbnb", sleep="SLC", miles="430", hrs="6.5", base="—",
+   together="The big back-half day — ~430 mi + the Colorado National Monument scenic loop (Rim Rock Drive, 23 mi, ~19 overlooks, leashed dogs at overlooks, $25/vehicle or free w/ park pass) adds ~1.5–2 hr. Evening with the SLC friend. See DRIVE PLAN.",
    opp="SLC (Wed eve): Twilight Concert Series — check saltlakearts.org · Pepper + Myles Smith at The Lot at The Complex. (Optional — you're also seeing a friend tonight.)",
-   notes="", route=["Crested Butte, CO","Colorado National Monument, CO","Salt Lake City, UT"], scenic="Colorado Natl Monument"),
+   notes=("~430 mi driving + the Monument loop = a full ~9–10 hr day; start at 8:00 AM. ⚠️ At Green River, turn "
+          "NORTH on US-6 — do NOT coast west on I-70 toward Salina (the longest no-services Interstate stretch in "
+          "the US). Three fills: Grand Junction + Green River + a Price top-off. Clean #2 ULSD only — UT/CO have no "
+          "biodiesel mandate, so name-brand truck stops ≈ #2."),
+   route=["Mt. Crested Butte, CO","Gunnison, CO","Grand Junction, CO","Colorado National Monument, CO","Green River, UT","Price, UT","Salt Lake City, UT"],
+   scenic="Colorado Natl Monument",
+   drive_plan=dict(
+     summary=("~430 mi · ~6.5 hr driving + a ~1.5–2 hr Colorado National Monument loop — a full ~9–10 hr day. "
+              "Depart Mt. Crested Butte 8:00 AM (earlier than the 9 AM default — long day) → arrive SLC "
+              "~5:30–6:00 PM for the evening with your friend. CO-135 S → US-50 W (Gunnison–Montrose–Delta) to "
+              "Grand Junction → Rim Rock Drive at Colorado National Monument → I-70 W into Utah → US-6 N at Green "
+              "River (over Soldier Summit) → I-15 N to SLC. ⚠️ Turn NORTH on US-6 at Green River. Three stops that "
+              "double as fuel + driver swap."),
+     route_url=maps_route(["Mt. Crested Butte, CO","Gunnison, CO","Grand Junction, CO","Colorado National Monument, CO","Green River, UT","Price, UT","Salt Lake City, UT"]),
+     route_label="Mt. CB → Gunnison → Grand Junction → Colorado NM → Green River → Price → SLC",
+     rows=[
+       dict(kind="depart", k="🌅 8:00 AM · Depart",
+            v="Mt. Crested Butte, Driver A. Top off diesel in Gunnison (CB-town fuel is limited) before the long US-50 leg."),
+       dict(kind="leg", k="Leg 1 · 8:00–11:00 AM",
+            v="~150 mi · CO-135 S to Gunnison, then US-50 W through Montrose + Delta to Grand Junction (steady highway over Blue Mesa Reservoir + the Uncompahgre Valley). Driver A.",
+            url=maps_route(["Mt. Crested Butte, CO","Gunnison, CO","Grand Junction, CO"])),
+       dict(kind="stop", k="⛽ FUEL + 🔄 SWAP · Grand Junction · ~11:00–11:35 AM",
+            v="Love's #517, 748 22 Road (I-70 Exit 26), 24 hr, 8 diesel lanes — the big fill. Fuel, swap drivers (Driver B), snack.",
+            url=pin(_q("Love's Travel Stop, 748 22 Road, Grand Junction, CO 81505"))),
+       dict(kind="leg", k="Leg 2 · 11:35 AM–1:30 PM (Monument loop)",
+            v="~33 mi + overlooks · Rim Rock Drive through Colorado National Monument (NPS suggests driving it so your vehicle sits away from the cliff edge). ~1.5–2 hr with overlook stops + lunch. $25/vehicle or free w/ park pass. Driver B.",
+            url=pin(_q("Colorado National Monument Visitor Center, 1750 Rim Rock Drive, Fruita, CO 81521"))),
+       dict(kind="leg", k="Leg 3 · 1:30–3:00 PM",
+            v="~105 mi · back to I-70 W into Utah to Green River (Exit 160). ⚠️ At Green River, turn NORTH on US-6 — do NOT continue W on I-70. Driver B.",
+            url=maps_route(["Colorado National Monument, CO","Green River, UT"])),
+       dict(kind="stop", k="⛽ FUEL + 🔄 SWAP · Green River · ~3:00–3:20 PM",
+            v="Love's #119, 1775 W Main St (I-70 Exit 160), 24 hr — last big truck stop before the US-6 mountain leg. Top off + swap to Driver A.",
+            url=pin(_q("Love's Travel Stop, 1775 W Main Street, Green River, UT 84525"))),
+       dict(kind="leg", k="Leg 4 · 3:20–4:15 PM",
+            v="~65 mi · US-6 N through the desert toward Price.",
+            url=maps_route(["Green River, UT","Price, UT"])),
+       dict(kind="stop", k="⛽ TOP-OFF · Price · ~4:15 PM",
+            v="Maverik #755, 651 S Carbon Ave, 24 hr — a splash here keeps the final SLC leg < 130 mi (with the Soldier Summit climb) safely inside range.",
+            url=pin(_q("Maverik, 651 South Carbon Avenue, Price, UT 84501"))),
+       dict(kind="leg", k="Leg 5 · 4:30–6:00 PM",
+            v="~120 mi · US-6/US-191 N over Soldier Summit (Price Canyon, 7,477 ft) → Spanish Fork → I-15 N into SLC.",
+            url=maps_route(["Price, UT","Salt Lake City, UT"])),
+       dict(kind="arrive", k="🏁 ~5:30–6:00 PM · Arrive SLC", v="Evening with your friend (+ optional Twilight Concert)."),
+     ],
+     fuel_options=[
+       ("Grand Junction — Love's #517 (PRIMARY)", "748 22 Road, I-70 Exit 26 · ~mile 150. 8 diesel lanes, 24 hr — your big fill + swap on the CO side. Confirmed clean #2.", "Love's Travel Stop, 748 22 Road, Grand Junction, CO 81505"),
+       ("Green River — Love's #119 (2nd stop)", "1775 W Main St, I-70 Exit 160 · ~mile 280. Last big truck stop before the US-6 mountain leg.", "Love's Travel Stop, 1775 W Main Street, Green River, UT 84525"),
+       ("Price — Maverik #755 (top-off)", "651 S Carbon Ave · ~mile 345, 24 hr. Splash to keep the final SLC leg inside range over Soldier Summit.", "Maverik, 651 South Carbon Avenue, Price, UT 84501"),
+       ("Gunnison — pre-fill", "Top off in Gunnison before US-50 — CB-town diesel is limited; start the long leg full.", "Conoco, 821 W Tomichi Ave, Gunnison, CO 81230"),
+     ],
+     scenic=[
+       ("Colorado National Monument — Rim Rock Drive", "The marquee: 23 mi, ~19 red-rock overlooks ('mini Grand Canyon'). $25/vehicle (or free w/ park pass). Leashed dogs OK at overlooks / paved areas — NOT on trails. Headlights on in the tunnels.", pin(_q("Colorado National Monument Visitor Center, 1750 Rim Rock Drive, Fruita, CO 81521"))),
+       ("Blue Mesa Reservoir / Curecanti", "On US-50 W of Gunnison — pull-offs over Colorado's largest lake, a good early leg-stretch.", pin(_q("Curecanti National Recreation Area, Gunnison, CO"))),
+       ("John Wesley Powell River History Museum", "Right off Main St in Green River — a 20-min stretch at the fuel stop.", pin(_q("John Wesley Powell River History Museum, Green River, UT"))),
+       ("Price Canyon / Soldier Summit", "US-6 scenic mountain pass (7,477 ft) on the final leg into the SLC valley.", pin(_q("Soldier Summit, UT"))),
+     ],
+   )),
  "Aug 13 (Thu)": dict(banner="TRAVEL", plan="Drive SLC → Ely",
    wake="SLC", sleep="Ely, NV", miles="242", hrs="4.0", base="—",
-   together="Drive SLC → Ely. Plan the Nevada Northern Railway Museum visit for tomorrow AM before pushing to Mammoth.",
-   notes="NNR Museum (1100 Ave A, Ely) — 1906 steam depot + roundhouse, Mon–Sat ~8am–5pm. Excursion train Sat–Sun only (not available — arrive Thu).",
-   route=["Salt Lake City, UT","Ely, NV"], scenic="NNR"),
- "Aug 14 (Fri)": dict(banner="FIXED", plan="Drive Ely → Mammoth Lakes",
-   wake="Ely, NV", sleep="Mammoth Lakes", miles="295", hrs="4.5", base="—",
-   together="AM: optional Nevada Northern Railway Museum. Drive to Mammoth — must arrive by afternoon. Emily bach party in the Mammoth area.",
-   notes="Must arrive Mammoth (or Bishop) by afternoon.", route=["Ely, NV","Mammoth Lakes, CA"]),
+   together="Drive SLC → Ely — a short, easy day. Plan the Nevada Northern Railway Museum for tomorrow AM before pushing to Mammoth. See DRIVE PLAN.",
+   notes=("NNR Museum (1100 Ave A, Ely) — 1906 steam depot + roundhouse, Mon–Sat ~8am–5pm; excursion train Sat–Sun "
+          "only (not available — arrive Thu). FUEL: fill in SLC, then FILL COMPLETELY at Delta — it's the last "
+          "real fuel before a ~150 mi desert run whose only pump is the Border Inn at the state line. UT no bio "
+          "mandate / NV name-brand 'Diesel' ≈ #2 — both fine."),
+   route=["Salt Lake City, UT","Delta, UT","Ely, NV"], scenic="NNR",
+   drive_plan=dict(
+     summary=("242 mi · ~4 hr driving — a short day. Depart SLC ~11:00 AM (no early start needed) → arrive Ely "
+              "~3:45–4:00 PM. I-15 S to Spanish Fork → US-6 W across the West Desert to Delta → US-6/US-50 W ('the "
+              "Loneliest Road') across the UT–NV line at the Border Inn into Ely. Top off in SLC, then FILL "
+              "COMPLETELY at Delta — the last real fuel before the desert (the only pump in the ~150 mi gap is the "
+              "Border Inn). One fuel + swap + lunch stop at Delta."),
+     route_url=maps_route(["Salt Lake City, UT","Delta, UT","Ely, NV"]),
+     route_label="SLC → Delta → (Border Inn) → Ely",
+     rows=[
+       dict(kind="depart", k="🌆 ~11:00 AM · Depart", v="SLC, Driver A, topped off."),
+       dict(kind="leg", k="Leg 1 · 11:00 AM–12:55 PM",
+            v="~140 mi · I-15 S to Spanish Fork (Exit 257) → US-6 W through Santaquin + Eureka across the West Desert to Delta. Driver A.",
+            url=maps_route(["Salt Lake City, UT","Delta, UT"])),
+       dict(kind="stop", k="⛽ FUEL + 🔄 SWAP + 🍽 LUNCH · Delta · ~12:55–1:25 PM",
+            v="Maverik #493, 44 N US-6, 24 hr — the last sizable fuel town. FILL TO FULL here; swap to Driver B; lunch (~30 min). It's ~150 mi to Ely with only the Border Inn in between.",
+            url=pin(_q("Maverik, 44 N US Highway 6, Delta, UT 84624"))),
+       dict(kind="leg", k="Leg 2 · 1:25–3:45 PM",
+            v="~102 mi · US-6 W; near the line it merges with US-50 — cross at the Border Inn, over the Snake Range, then US-50/US-93 into Ely. Driver B.",
+            url=maps_route(["Delta, UT","Ely, NV"])),
+       dict(kind="arrive", k="🏁 ~3:45–4:00 PM · Arrive", v="Ely, NV — afternoon to spare; NNR Museum is tomorrow AM."),
+     ],
+     fuel_options=[
+       ("Delta — Maverik #493 (FILL FULL)", "44 N US-6 · ~mile 140, 24 hr. The last real fuel before the desert — leave Delta with a FULL tank. Confirmed clean #2.", "Maverik, 44 N US Highway 6, Delta, UT 84624"),
+       ("Border Inn — Phillips 66 (emergency only)", "US-50 at the UT–NV line (Baker, NV side) · ~mile 240, 24 hr. The ONLY pump in the ~150 mi gap — your safety net, not the plan.", "Border Inn, 3777 E US Highway 50, Baker, NV 89311"),
+       ("Ely — Love's #691 (arrival)", "1701 Great Basin Blvd · 24 hr truck stop. Top off on arrival so you're full for tomorrow's remote Ely→Tonopah leg.", "Love's Travel Stop, 1701 Great Basin Blvd, Ely, NV 89301"),
+     ],
+     scenic=[
+       ("Little Sahara Recreation Area", "Sand dunes off US-6 between Eureka + Delta — a quick photo / leg-stretch.", pin(_q("Little Sahara Recreation Area, UT"))),
+       ("Topaz Museum, Delta", "55 W Main, Delta — WWII Japanese-American incarceration museum, an easy in-town stop at the fuel break.", pin(_q("Topaz Museum, Delta, UT"))),
+       ("Border Inn", "The iconic state-line stop — one foot in each time zone; fuel, food, bathrooms.", pin(_q("Border Inn Casino, Baker, NV"))),
+       ("Sevier Lake / desert basins", "Vast dry-lake desert scenery flanking US-6/50 W of Delta.", pin(_q("Sevier Lake, UT"))),
+     ],
+   )),
+ "Aug 14 (Fri)": dict(banner="TRAVEL", plan="Drive Ely → Mammoth Lakes",
+   wake="Ely, NV", sleep="Mammoth Lakes", miles="293", hrs="4.75", base="—",
+   together="AM: optional self-guided walk through the Nevada Northern Railway Museum (opens 8am). Then the remote US-6 run to Mammoth — must arrive by afternoon. Emily bach party in the Mammoth area. See DRIVE PLAN.",
+   notes=("⚠️ FUEL IS THE WHOLE GAME: the Ely→Tonopah leg is ~168 mi with ZERO services — against the van's ~200 mi "
+          "range, leaving Ely with a FULL tank is NON-NEGOTIABLE. Tonopah is the only real fuel before the US-395 "
+          "corridor; top off again in Bishop before the climb to Mammoth. Expect long cell dead zones + high-desert "
+          "heat — carry water. NV name-brand 'Diesel' ≈ #2; CA = name-brand pumps only (B5 standard)."),
+   route=["Ely, NV","Tonopah, NV","Bishop, CA","Mammoth Lakes, CA"], dining="Mammoth",
+   drive_plan=dict(
+     summary=("293 mi · ~4h50m driving. After a self-guided AM walk through the NNR Museum (opens 8am; the steam "
+              "ride is 4:30pm Fri — too late), depart Ely ~9:30 AM → arrive Mammoth ~3:30 PM. US-6 W across central "
+              "Nevada through Tonopah → past Coaldale + Benton → the US-6/US-395 jct N of Bishop → US-395 N → CA-203 "
+              "into Mammoth. ⚠️ The Ely→Tonopah leg is ~168 mi with NO services — leave Ely FULL. Refill at Tonopah, "
+              "top off in Bishop."),
+     route_url=maps_route(["Ely, NV","Tonopah, NV","Bishop, CA","Mammoth Lakes, CA"]),
+     route_label="Ely → Tonopah → (Benton) → Bishop → Mammoth Lakes",
+     rows=[
+       dict(kind="depart", k="🚂 ~8:00–9:00 AM · NNR Museum (optional)",
+            v="Self-guided walk through the 1906 steam yard + roundhouse before leaving Ely (1100 Ave A)."),
+       dict(kind="depart", k="🌅 ~9:30 AM · Depart Ely · FULL TANK",
+            v="Driver A, topped off at the Love's. Do NOT leave Ely below full — the next leg has zero fuel for ~168 mi."),
+       dict(kind="leg", k="Leg 1 · 9:30 AM–12:10 PM",
+            v="168 mi · US-6 W across the high desert to Tonopah. ⚠️ NO services the entire leg — no fuel, no reliable cell, nothing. This is the leg the whole day is planned around. Driver A.",
+            url=maps_route(["Ely, NV","Tonopah, NV"])),
+       dict(kind="stop", k="⛽ FUEL + 🔄 SWAP + 🍽 LUNCH · Tonopah · ~12:10–12:45 PM",
+            v="Love's #857, 1170 US-95 (US-95/US-6) — the only real fuel between Ely and the US-395 corridor. Fill, swap to Driver B, lunch.",
+            url=pin(_q("Love's Travel Stop, 1170 US Highway 95, Tonopah, NV 89049"))),
+       dict(kind="leg", k="Leg 2 · 12:45–2:40 PM",
+            v="116 mi · US-6 W past Coaldale Jct (no fuel) + Benton, CA to the US-6/US-395 jct ~5 mi N of Bishop, then US-395 S into Bishop. Driver B.",
+            url=maps_route(["Tonopah, NV","Bishop, CA"])),
+       dict(kind="stop", k="⛽ TOP-OFF · Bishop · ~2:40–2:55 PM",
+            v="Chevron, 2392 N Sierra Hwy (or Shell, 1290 N Main St). Top off before the sustained Sherwin-Grade climb to Mammoth. Swap to Driver A.",
+            url=pin(_q("Chevron, 2392 N Sierra Highway, Bishop, CA 93514"))),
+       dict(kind="leg", k="Leg 3 · 3:00–3:45 PM",
+            v="40 mi · US-395 N up Sherwin Grade past Crowley Lake → CA-203 W (Minaret Rd) into Mammoth Lakes (~7,900 ft). Driver A.",
+            url=maps_route(["Bishop, CA","Mammoth Lakes, CA"])),
+       dict(kind="arrive", k="🏁 ~3:45 PM · Arrive", v="Mammoth Lakes — Emily bach party in the area. (Aug 15–17 are flexible — see the Mammoth DAY OPTIONS menu.)"),
+     ],
+     fuel_options=[
+       ("Ely — Love's #691 (FILL FULL)", "1701 Great Basin Blvd · mile 0, 24 hr. Non-negotiable: leave Ely at 100% — the next leg is ~168 mi with zero services. Confirmed clean #2.", "Love's Travel Stop, 1701 Great Basin Blvd, Ely, NV 89301"),
+       ("Tonopah — Love's #857 (mid-route)", "1170 US-95 · ~mile 168, 24 hr. The ONLY real fuel between Ely and US-395 — your fuel + swap + lunch stop.", "Love's Travel Stop, 1170 US Highway 95, Tonopah, NV 89049"),
+       ("Bishop — Chevron / Shell (top-off)", "2392 N Sierra Hwy / 1290 N Main St · ~mile 284. Top off before the climb to Mammoth (CA = name-brand pumps, B5 standard).", "Chevron, 2392 N Sierra Highway, Bishop, CA 93514"),
+     ],
+     scenic=[
+       ("Nevada Northern Railway Museum", "1100 Ave A, Ely — National Historic Landmark steam-era rail yard; self-guided AM walk before departure.", pin(_q("Nevada Northern Railway, 1100 Avenue A, Ely, NV"))),
+       ("Tonopah Historic Mining Park", "Silver-boom headframes + tunnels above town — an easy 30-min stop at the fuel/lunch break.", pin(_q("Tonopah Historic Mining Park, Tonopah, NV"))),
+       ("The Clown Motel, Tonopah", "'America's Scariest Motel' (6,000+ clowns) next to the 1900s mining cemetery — a quick, weird photo stop on US-6.", pin(_q("Clown Motel, Tonopah, NV"))),
+       ("Boundary Peak / White Mountains", "Nevada's highest point (13,147 ft), dramatic on the skyline as US-6 nears the CA line.", pin(_q("Boundary Peak, Nevada"))),
+       ("Benton Hot Springs", "Tiny 1850s stage town with private soaking tubs, just off US-6 near the CA junction.", pin(_q("Benton Hot Springs, CA"))),
+     ],
+   )),
  # Aug 15–17 (Mammoth) are now FLEXIBLE — see the MAM-A..D options + the Mammoth DAY OPTIONS menu.
  "Aug 18 (Tue)": dict(banner="TRAVEL", plan="Drive Tioga Pass → Fresno area (drop Mochi at boarding)",
-   wake="Mammoth Lakes", sleep="Near Fresno", miles="150", hrs="2.3", base="—",
-   together="Scenic drive over Tioga Pass through Yosemite ($35 entrance). Drop Mochi at Fresno-area boarding (Elaine's Pet Resorts recommended — (559) 227-5959; book well ahead for August).",
-   notes="Mochi boards here through the Rae Lakes Loop.", route=["Mammoth Lakes, CA","Yosemite (Tioga Pass), CA","Fresno, CA"]),
+   wake="Mammoth Lakes", sleep="Near Fresno", miles="200", hrs="5", base="—",
+   together="Scenic drive over Tioga Pass through Yosemite, then down to drop Mochi at Fresno-area boarding before the Rae Lakes Loop. See DRIVE PLAN.",
+   notes=("⚠️ This is ~200 mi / ~5 hr of DRIVING (not the short hop it looks like — Tioga + Yosemite are slow); "
+          "budget 6–7 hr door-to-kennel with the gate + stops. FILL THE VAN FULL IN MAMMOTH before leaving — a "
+          "full tank covers the whole leg, so you skip the limited/seasonal in-park pumps. Yosemite 2026: NO "
+          "timed-entry reservation required — just $35/vehicle at the Tioga (east) gate. Mochi boards through the "
+          "Rae Lakes Loop at Elaine's Pet Resorts, 3912 N Hayston Ave, Fresno (559) 227-5959 — book ahead for Aug + "
+          "bring vaccination records."),
+   route=["Mammoth Lakes, CA","Lee Vining, CA","Yosemite Valley, CA","Oakhurst, CA","Fresno, CA"],
+   drive_plan=dict(
+     summary=("~200 mi · ~5 hr driving (Tioga + Yosemite are slow — budget 6–7 hr door-to-kennel). FILL FULL in "
+              "Mammoth first — a full tank covers the whole leg, so you skip the limited in-park pumps. CA-203 → "
+              "US-395 N to Lee Vining → CA-120 W over Tioga Pass (9,943 ft) through Yosemite → Yosemite Valley → "
+              "CA-41 S (Wawona) → Oakhurst → Fresno. Yosemite 2026: NO reservation needed — pay $35/vehicle at the "
+              "Tioga gate. Depart ~7:30–8:00 AM → reach Elaine's Pet Resorts ~1:30–3:00 PM, inside kennel hours."),
+     route_url=maps_route(["Mammoth Lakes, CA","Lee Vining, CA","Yosemite Valley, CA","Oakhurst, CA","Fresno, CA"]),
+     route_label="Mammoth → Lee Vining → Tioga/Yosemite → Oakhurst → Fresno",
+     rows=[
+       dict(kind="depart", k="🚐 ~7:30–8:00 AM · Depart · FULL TANK",
+            v="Mammoth, Driver A. Fill the van completely in town first — there's no reliable fuel once you're on Tioga Rd."),
+       dict(kind="leg", k="Leg 1 · ~30 min",
+            v="27 mi · CA-203 → US-395 N to Lee Vining (jct CA-120). Driver A.",
+            url=maps_route(["Mammoth Lakes, CA","Lee Vining, CA"])),
+       dict(kind="stop", k="⛽ LAST EAST-SIDE FUEL (if not full) · Lee Vining",
+            v="Tioga Gas Mart / 'The Mobil', 22 Vista Point Rd (jct US-395 & CA-120). Top off here if you skipped Mammoth — after this there's essentially no fuel until Crane Flat.",
+            url=pin(_q("Tioga Gas Mart, 22 Vista Point Road, Lee Vining, CA 93541"))),
+       dict(kind="leg", k="Leg 2 · ~2.5 hr (incl. gate + scenic)",
+            v="74 mi · CA-120 W over Tioga Pass (9,943 ft) through Yosemite high country → Crane Flat → into Yosemite Valley. Pay $35 at the Tioga gate. Slow + winding + summer congestion; swap drivers at Olmsted Point / Tenaya Lake. Only in-park fuel = Crane Flat Chevron (backstop only). Driver B from here.",
+            url=maps_route(["Lee Vining, CA","Yosemite Valley, CA"])),
+       dict(kind="leg", k="Leg 3 · ~1.5 hr",
+            v="~50 mi · CA-41 S (Wawona Rd) out the south end — over Chinquapin, through Wawona, down to Oakhurst. Optional fuel/lunch at the Oakhurst Chevron. Driver B.",
+            url=maps_route(["Yosemite Valley, CA","Oakhurst, CA"])),
+       dict(kind="leg", k="Leg 4 · ~50 min",
+            v="~50 mi · CA-41 S through Coarsegold, descending into the Central Valley to Fresno.",
+            url=maps_route(["Oakhurst, CA","Fresno, CA"])),
+       dict(kind="stop", k="🐕 DROP MOCHI · ~1:30–3:00 PM · Elaine's Pet Resorts",
+            v="3912 N Hayston Ave, Fresno · (559) 227-5959. Boards through the Rae Lakes Loop. Arrive mid-afternoon to clear check-in before close; vaccination records required.",
+            url=pin(_q("Elaine's Pet Resorts, 3912 N Hayston Ave, Fresno, CA 93726"))),
+       dict(kind="arrive", k="🏁 Settle near Fresno", v="Stage for the early-morning drive to the Rae Lakes trailhead tomorrow."),
+     ],
+     fuel_options=[
+       ("Mammoth Lakes — FILL FULL (PRIMARY)", "Top off in town before departure (multiple name-brand stations) — a full tank covers the whole ~200 mi leg, so you never gamble on the in-park pumps.", "Mammoth Lakes, CA 93546"),
+       ("Lee Vining — Tioga Gas Mart / Mobil", "22 Vista Point Rd (jct US-395 & CA-120). Last reliable diesel EAST of Tioga — top off if you didn't fill in Mammoth.", "Tioga Gas Mart, 22 Vista Point Road, Lee Vining, CA 93541"),
+       ("Crane Flat — Chevron (in-park backstop)", "8028 Big Oak Flat Rd, Yosemite NP — 24/7 pay-at-pump, the ONLY reliable fuel between Lee Vining + the valley. Emergency only.", "Crane Flat Chevron, 8028 Big Oak Flat Road, Yosemite National Park, CA 95389"),
+       ("Oakhurst — Chevron (exit-side)", "40219 CA-41 — good final top-off before Fresno. (Avoid the Mariposa Chevron on CA-140 — its diesel is B20.)", "Chevron, 40219 CA-41, Oakhurst, CA 93644"),
+     ],
+     scenic=[
+       ("Tioga Lake", "Alpine lake right beside CA-120 just W of the entrance (~9,650 ft) — quick roadside stop.", pin(_q("Tioga Lake, Yosemite, CA"))),
+       ("Tuolumne Meadows", "Vast subalpine meadow; roadside pullouts + seasonal store. Mochi can stretch in the paved lot only.", pin(_q("Tuolumne Meadows, Yosemite, CA"))),
+       ("Olmsted Point", "Dramatic granite overlook toward Half Dome / Clouds Rest — a paved viewpoint + good driver-swap spot.", pin(_q("Olmsted Point, Yosemite, CA"))),
+       ("Tenaya Lake", "Large alpine lake right off the road with a granite backdrop — roadside/parking-area only with the dog.", pin(_q("Tenaya Lake, Yosemite, CA"))),
+     ],
+   )),
  "Aug 19 (Wed)": dict(banner="FIXED — BACKPACK START", plan="Drive to trailhead + start Rae Lakes Loop",
    wake="Fresno area", sleep="Trail", miles="100", hrs="2.0", base="Kings Canyon trailhead",
    together="Drive to the trailhead and START the Rae Lakes Loop. Must start today. OK to start before lunch.",
@@ -1194,9 +1463,48 @@ FIXED = {
    together="Finish the loop, hike out to the trailhead, drive to the van near Fresno. Pick up Mochi if boarding hours allow, else tomorrow AM.",
    notes="Hike end."),
  "Aug 24 (Mon)": dict(banner="TRAVEL — HOME", plan="Drive home",
-   wake="Van near Fresno", sleep="Home", miles="180", hrs="3.0", base="—",
-   together="Pick up Mochi, drive home. Trip complete.", notes="",
-   route=["Fresno, CA","Home (Bay Area)"]),
+   wake="Van near Fresno", sleep="Home", miles="175", hrs="3.0", base="—",
+   together="Pick up Mochi at Elaine's, then the final drive home. Trip complete. See DRIVE PLAN.",
+   notes=("~175 mi / ~3 hr — well under the ~200 mi range, so no fuel stop needed on a full tank (optional top-off "
+          "+ swap at the Gilroy Shell where CA-152 meets US-101). A ~9:30 AM pickup gets you home ~1:00–1:30 PM, "
+          "ahead of the Bay Area PM commute. CA = name-brand pumps only (B5 standard)."),
+   route=["Fresno, CA","Los Banos, CA","Gilroy, CA","Redwood City, CA"],
+   drive_plan=dict(
+     summary=("~175 mi · ~3 hr driving — the final leg. After picking Mochi up at Elaine's Pet Resorts (Fresno), "
+              "depart ~9:30 AM → home ~1:00–1:30 PM, ahead of the Bay Area PM commute. CA-99 N → CA-152 W over "
+              "Pacheco Pass (past San Luis Reservoir) → US-101 N up the Peninsula. Well under the ~200 mi range — "
+              "no fuel stop needed on a full tank; optional top-off + driver swap at the Gilroy Shell where CA-152 "
+              "meets US-101."),
+     route_url=maps_route(["Fresno, CA","Los Banos, CA","Gilroy, CA","Redwood City, CA"]),
+     route_label="Fresno → Los Banos → Pacheco Pass → Gilroy → Redwood City",
+     rows=[
+       dict(kind="stop", k="🐕 PICK UP MOCHI · ~9:00 AM · Elaine's Pet Resorts",
+            v="3912 N Hayston Ave, Fresno · (559) 227-5959 (Mon 7am–6pm). Collect Mochi, then roll.",
+            url=pin(_q("Elaine's Pet Resorts, 3912 N Hayston Ave, Fresno, CA 93726"))),
+       dict(kind="depart", k="🚐 ~9:30 AM · Depart", v="Fresno, Driver A."),
+       dict(kind="leg", k="Leg 1 · 9:30–10:50 AM",
+            v="~75 mi · CA-99 N to the Chowchilla/Madera area → CA-152 W toward Los Banos (flat, fast valley miles). Driver A.",
+            url=maps_route(["Fresno, CA","Los Banos, CA"])),
+       dict(kind="leg", k="Leg 2 · 10:50–11:45 AM",
+            v="~45 mi · CA-152 W over Pacheco Pass past San Luis Reservoir, down to the US-101 junction at Gilroy. Driver A.",
+            url=maps_route(["Los Banos, CA","Gilroy, CA"])),
+       dict(kind="stop", k="🔄 SWAP (+ optional ⛽ top-off) · Gilroy · ~11:45 AM",
+            v="Shell, 850 Pacheco Pass Hwy (right at the CA-152/US-101 jct), 24 hr. Swap to fresh Driver B for the Peninsula freeway miles; top off if you want. Stretch Mochi here / at Casa de Fruta.",
+            url=pin(_q("Shell, 850 Pacheco Pass Highway, Gilroy, CA 95020"))),
+       dict(kind="leg", k="Leg 3 · 12:00–1:15 PM",
+            v="~55 mi · US-101 N through Morgan Hill + San Jose up the Peninsula to Redwood City. Driver B.",
+            url=maps_route(["Gilroy, CA","Redwood City, CA"])),
+       dict(kind="arrive", k="🏁 ~1:00–1:30 PM · Home", v="Trip complete. 🎉"),
+     ],
+     fuel_options=[
+       ("Gilroy — Shell (optional top-off + swap)", "850 Pacheco Pass Hwy at the CA-152/US-101 jct · ~mile 120, 24 hr. Coincides with the driver swap — fewer stops on the last day. Name-brand clean #2.", "Shell, 850 Pacheco Pass Highway, Gilroy, CA 95020"),
+       ("Los Banos — Chevron ExtraMile (midpoint)", "1164 E Pacheco Blvd · ~mile 75, 24 hr. The earlier midpoint option on CA-152.", "Chevron, 1164 E Pacheco Blvd, Los Banos, CA 93635"),
+     ],
+     scenic=[
+       ("Romero Overlook / San Luis Reservoir", "On CA-152 at Pacheco Pass — sweeping reservoir view, a quick photo-and-stretch (dog OK on leash in the lot).", pin(_q("Romero Overlook Visitor Center, CA"))),
+       ("Casa de Fruta", "10021 Pacheco Pass Hwy, ~2 mi E of the 152/156 jct — classic roadside stop with food, restrooms + dog-friendly grounds.", pin(_q("Casa de Fruta, 10021 Pacheco Pass Highway, Hollister, CA 95023"))),
+     ],
+   )),
 }
 
 # order of fixed tabs (chronological, for placement)
