@@ -49,6 +49,7 @@ from dotenv import load_dotenv
 from meal_planner import db as _db
 from meal_planner.db import add_recipe_tag, init_db, insert_recipe
 from meal_planner.qty_parse import parse_qty
+from meal_planner.sections import CANONICAL_SECTIONS, GROCERY_SECTIONS, classify
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -59,7 +60,11 @@ GEMINI_ENDPOINT = (
     "gemini-2.5-flash-lite:generateContent"
 )
 
-_DEFAULT_SECTIONS = ["Produce", "Dairy", "Meat", "Pantry", "Frozen", "Other"]
+# Real Todoist grocery sections, used as the Gemini hint when TODOIST_SECTIONS
+# isn't in the environment. (Previously fake names like "Produce"/"Pantry" that
+# don't exist in Todoist, which is how "Pantry"-tagged ingredients ended up with
+# no real section.)
+_DEFAULT_SECTIONS = list(GROCERY_SECTIONS)
 
 _INGREDIENT_PROMPT_TEMPLATE = """\
 Parse these ingredient strings for the recipe "{title}" (base: {base_servings} servings).
@@ -441,6 +446,12 @@ def _insert_ingredients_batch(
             unit = str(item.get("unit", "") or "").strip() or None
             notes = str(item.get("notes", "") or "").strip() or None
             todoist_section = str(item.get("todoist_section", "") or "").strip() or None
+            # Photo-intake/corpus ingredients arrive with no section. Rather than
+            # leave it NULL (which dumps to the produce fallback at send time),
+            # classify deterministically. Also a safety net for any sheet item the
+            # Gemini categorizer left blank or set to a non-canonical name.
+            if todoist_section not in CANONICAL_SECTIONS:
+                todoist_section = classify(name, notes or "")
 
             cur = conn.execute(
                 """
