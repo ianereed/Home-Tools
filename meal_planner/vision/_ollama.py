@@ -108,7 +108,7 @@ def unload_ollama(model: str, base_url: str) -> None:
 
 def _ollama_one_call(
     model: str,
-    image_b64: str,
+    image_b64: str | None,
     prompt: str,
     base_url: str,
     num_ctx: int,
@@ -118,16 +118,21 @@ def _ollama_one_call(
     """Single Ollama call. Returns (parsed_dict_or_None, per_call_metadata, raw_response_text).
 
     per_call_metadata keys: latency_s, eval_count, raw_response, http_status.
+
+    When `image_b64` is None this is a text-only generation (no `images` key in
+    the request) — used by the PDF text-layer fast-path. Vision callers pass the
+    base64 image as before; behavior for them is unchanged.
     """
     body = {
         "model": model,
         "prompt": prompt,
         "stream": False,
         "format": "json",
-        "images": [image_b64],
         "keep_alive": keep_alive,
         "options": {"temperature": 0.1, "num_ctx": num_ctx},
     }
+    if image_b64 is not None:
+        body["images"] = [image_b64]
     md: dict = {"latency_s": None, "eval_count": None, "raw_response": None, "http_status": None}
 
     t0 = time.monotonic()
@@ -195,6 +200,60 @@ def call_ollama_vision(
     with image_path.open("rb") as f:
         image_b64 = base64.b64encode(f.read()).decode("ascii")
 
+    return _extract_with_retry(
+        model, prompt, image_b64,
+        base_url=base_url, num_ctx=num_ctx, keep_alive=keep_alive, timeout_s=timeout_s,
+    )
+
+
+def call_ollama_text(
+    model: str,
+    recipe_text: str,
+    prompt: str,
+    base_url: str = "http://localhost:11434",
+    num_ctx: int | None = None,
+    keep_alive: str | int = "10s",
+    timeout_s: int = _OLLAMA_HTTP_TIMEOUT_S,
+) -> tuple[dict | None, dict]:
+    """Call Ollama in text-only mode against a recipe's extracted text layer.
+
+    Same contract as call_ollama_vision (same retry-once, schema validation, and
+    normalization), but the input is the PDF text layer rather than an image. The
+    recipe text is appended to the standard extraction prompt; no `images` are
+    sent. Used by the PDF text-layer fast-path so digital recipe PDFs skip the
+    flaky vision OCR entirely.
+    """
+    if num_ctx is None:
+        num_ctx = default_ctx_for(model, "text")
+
+    full_prompt = (
+        f"{prompt}\n\n"
+        f"--- RECIPE (extracted text below; transcribe it into the schema) ---\n"
+        f"{recipe_text}"
+    )
+    return _extract_with_retry(
+        model, full_prompt, None,
+        base_url=base_url, num_ctx=num_ctx, keep_alive=keep_alive, timeout_s=timeout_s,
+    )
+
+
+def _extract_with_retry(
+    model: str,
+    prompt: str,
+    image_b64: str | None,
+    *,
+    base_url: str,
+    num_ctx: int,
+    keep_alive: str | int,
+    timeout_s: int,
+) -> tuple[dict | None, dict]:
+    """Shared extraction core for vision and text callers.
+
+    One call, then a single retry on parseable-but-schema-invalid output (feeding
+    the malformed response back with an explicit error list). HTTP non-200 /
+    transport errors are never collapsed into a parsed result — they return
+    (None, metadata). `image_b64=None` produces a text-only request.
+    """
     metadata: dict = {
         "latency_s": None,
         "cold_load_s": None,

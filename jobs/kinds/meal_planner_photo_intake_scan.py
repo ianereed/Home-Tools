@@ -40,6 +40,24 @@ def _sha256_hex16(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()[:16]
 
 
+def _move_to_wedged(nas_path: str, intake_dir: Path) -> None:
+    """Move a wedged file out of _processing/ into _wedged/ so it stops showing
+    as "in processing." Best-effort: a missing file or rename error is logged and
+    swallowed (the DB row is already the source of truth, marked wedged). Mirrors
+    nas-intake's `_WEDGED_*` behavior so a wedged recipe doesn't sit in the
+    processing bucket forever.
+    """
+    src = Path(nas_path)
+    if not src.exists():
+        return
+    dest = intake_dir / "_wedged" / src.name
+    try:
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        src.rename(dest)
+    except OSError as exc:
+        logger.warning("meal_planner_photo_intake_scan: could not move wedged file %s: %s", src, exc)
+
+
 @huey.periodic_task(crontab(minute="*/5"))
 @requires(["fs:meal_planner"])
 def meal_planner_photo_intake_scan() -> dict:
@@ -82,6 +100,7 @@ def meal_planner_photo_intake_scan() -> dict:
             row.sha, "wedged",
             error=f"max retries ({_MAX_RETRIES}) exhausted; last: {(row.error or '')[:200]}",
         )
+        _move_to_wedged(row.nas_path, intake_dir)
         wedged += 1
         logger.warning("meal_planner_photo_intake_scan: wedged sha=%s after %d retries", row.sha, row.n_retries)
     for row in intake_db.list_retryable(_MAX_RETRIES):

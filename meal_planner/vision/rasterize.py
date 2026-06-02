@@ -67,6 +67,38 @@ def _stack_vertical(images: list, bg=(255, 255, 255)):
     return canvas
 
 
+def extract_text_layer(src: Path, *, min_chars: int = 200) -> str | None:
+    """Return a PDF's embedded text layer, or None if it has no usable one.
+
+    Digital recipe printouts (e.g. NYT Cooking) carry a clean text layer that is
+    far more reliable to read than rasterizing the page and OCRing it with a
+    vision model. Scanned/photographed PDFs have no text layer (or only stray
+    glyphs), so we gate on `min_chars` of non-whitespace and return None below
+    that — the caller then falls back to the rasterize+vision path.
+
+    Uses the same pypdfium2 already imported for rasterizing; no new dependency.
+    """
+    try:
+        import pypdfium2 as pdfium
+    except ImportError:
+        logger.warning("rasterize: pypdfium2 missing — cannot read PDF text layer")
+        return None
+
+    pdf = pdfium.PdfDocument(src.read_bytes())
+    try:
+        parts = [pdf[i].get_textpage().get_text_bounded() for i in range(len(pdf))]
+    except Exception as exc:  # noqa: BLE001 — any pdfium failure → fall back to vision
+        logger.warning("rasterize: text-layer read failed for %s: %s", src.name, exc)
+        return None
+    finally:
+        pdf.close()
+
+    text = "\n".join(parts).strip()
+    if len("".join(text.split())) < min_chars:
+        return None
+    return text
+
+
 def pdf_to_stacked_image(src: Path, dst: Path, *, dpi: int = 200) -> int:
     """Rasterize every page of `src` (a PDF) and write a single stacked PNG to
     `dst`. Returns the page count. Raises RuntimeError if pypdfium2 is missing or

@@ -515,3 +515,96 @@ def test_call_ollama_vision_normalizes_schema_invalid_retry(monkeypatch, tmp_pat
     assert any("tablespoons" in w for w in metadata["normalize_warnings"])
     # The schema-invalid ingredient is preserved untouched (no 'name' key added).
     assert "name" not in parsed["ingredients"][0]
+
+
+# ---------------------------------------------------------------------------
+# PDF text-layer fast-path (Phase 16+): extract_recipe_from_text + extract_text_layer
+# ---------------------------------------------------------------------------
+
+from meal_planner.vision import rasterize
+from meal_planner.vision.extract import extract_recipe_from_text
+
+
+def test_extract_from_text_status_ok(monkeypatch):
+    """Text-mode extraction parses + validates, and sends NO image to Ollama."""
+    payload = _good_payload()
+    captured: dict = {}
+
+    def mock_post(*args, **kwargs):
+        captured["body"] = kwargs.get("json")
+        body = {"model": "llama3.2-vision:11b", "response": json.dumps(payload), "eval_count": 30}
+        m = MagicMock()
+        m.status_code = 200
+        m.text = json.dumps(body)
+        m.json.return_value = body
+        return m
+
+    monkeypatch.setattr(_ollama.requests, "post", mock_post)
+    res = extract_recipe_from_text("2 cups flour\n1 cup butter")
+
+    assert res.status == "ok"
+    assert res.parsed == payload
+    # The whole point of the fast-path: no rasterized image is sent.
+    assert "images" not in captured["body"]
+    # The recipe text is fed to the model via the prompt.
+    assert "2 cups flour" in captured["body"]["prompt"]
+
+
+def test_extract_from_text_validation_fail(monkeypatch):
+    """A text-mode response missing an ingredient `name` is validation_fail (after retry)."""
+    bad = {"title": "X", "ingredients": [{"qty": "1", "unit": "cup"}], "tags": []}
+
+    def mock_post(*args, **kwargs):
+        body = {"model": "llama3.2-vision:11b", "response": json.dumps(bad), "eval_count": 3}
+        m = MagicMock()
+        m.status_code = 200
+        m.text = json.dumps(body)
+        m.json.return_value = body
+        return m
+
+    monkeypatch.setattr(_ollama.requests, "post", mock_post)
+    res = extract_recipe_from_text("1 cup mystery")
+
+    assert res.status == "validation_fail"
+    assert res.n_retries == 1  # call_ollama_text retries once on schema fail
+
+
+def _install_fake_pdfium(monkeypatch, pages_text: list[str]) -> None:
+    """Inject a fake pypdfium2 so extract_text_layer is testable without the lib."""
+    import sys
+    import types
+
+    class _FakeTextPage:
+        def __init__(self, t): self._t = t
+        def get_text_bounded(self): return self._t
+
+    class _FakePage:
+        def __init__(self, t): self._t = t
+        def get_textpage(self): return _FakeTextPage(self._t)
+
+    class _FakeDoc:
+        def __init__(self, _data): pass
+        def __len__(self): return len(pages_text)
+        def __getitem__(self, i): return _FakePage(pages_text[i])
+        def close(self): pass
+
+    fake = types.ModuleType("pypdfium2")
+    fake.PdfDocument = _FakeDoc
+    monkeypatch.setitem(sys.modules, "pypdfium2", fake)
+
+
+def test_extract_text_layer_returns_text(monkeypatch, tmp_path):
+    _install_fake_pdfium(monkeypatch, ["A real ingredient list with plenty of words. " * 20])
+    p = tmp_path / "recipe.pdf"
+    p.write_bytes(b"%PDF-1.4 fake")
+    text = rasterize.extract_text_layer(p)
+    assert text is not None
+    assert "ingredient" in text
+
+
+def test_extract_text_layer_none_when_no_text_layer(monkeypatch, tmp_path):
+    """A scanned/photographed PDF has no usable text layer → None (caller falls back to vision)."""
+    _install_fake_pdfium(monkeypatch, ["  \n  "])  # only whitespace
+    p = tmp_path / "scanned.pdf"
+    p.write_bytes(b"%PDF-1.4 fake")
+    assert rasterize.extract_text_layer(p) is None

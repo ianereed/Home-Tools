@@ -19,7 +19,7 @@ from meal_planner.db import add_recipe_tag, insert_recipe
 from meal_planner.eval.preprocess_images import _process_one
 from meal_planner.seed_from_sheet import _insert_ingredients_batch
 from meal_planner.vision import intake_db, rasterize
-from meal_planner.vision.extract import extract_recipe_from_photo
+from meal_planner.vision.extract import extract_recipe_from_photo, extract_recipe_from_text
 
 logger = logging.getLogger(__name__)
 
@@ -53,29 +53,52 @@ def meal_planner_ingest_photo(sha: str) -> dict:
         # Archive the original under its real extension (.jpg/.png/.heic/.pdf).
         done_path = done_dir / f"{sha}{src_suffix}"
 
-        with tempfile.TemporaryDirectory() as tmpdir:
-            tmp = Path(tmpdir)
-            # PDFs aren't images: rasterize every page and stack into one image
-            # before the resize/autocontrast step. HEIC opens directly once
-            # register_heif() has run (at import). Everything else passes through.
-            preprocess_src = nas_path
-            if src_suffix in rasterize.PDF_SUFFIXES:
-                preprocess_src = tmp / f"{sha}_pages.png"
-                rasterize.pdf_to_stacked_image(nas_path, preprocess_src, dpi=200)
+        # Text-layer fast-path: a digital recipe PDF (e.g. an NYT Cooking
+        # printout) carries a clean embedded text layer that reads far more
+        # reliably than rasterizing the page and OCRing it with the vision
+        # model (which is non-deterministic on dense recipes). Use the text
+        # directly when present; scanned/photographed PDFs have no usable text
+        # layer and fall through to the vision path below.
+        extraction_path_used = "ollama"
+        result = None
+        if src_suffix in rasterize.PDF_SUFFIXES:
+            text_layer = rasterize.extract_text_layer(nas_path)
+            if text_layer:
+                extraction_path_used = "text-layer"
+                logger.info(
+                    "meal_planner_ingest_photo: text-layer path sha=%s (%d chars)",
+                    sha, len(text_layer),
+                )
+                result = extract_recipe_from_text(
+                    text_layer,
+                    timeout_s=500,
+                    keep_alive="300s",
+                )
 
-            preprocessed = tmp / f"{sha}.jpg"
-            _process_one(
-                src=preprocess_src,
-                dst=preprocessed,
-                max_dim=1500,
-                autocontrast_cutoff=2,
-                log_path=tmp / "preprocess.log",
-            )
-            result = extract_recipe_from_photo(
-                preprocessed,
-                timeout_s=500,
-                keep_alive="300s",
-            )
+        if result is None:
+            with tempfile.TemporaryDirectory() as tmpdir:
+                tmp = Path(tmpdir)
+                # PDFs aren't images: rasterize every page and stack into one image
+                # before the resize/autocontrast step. HEIC opens directly once
+                # register_heif() has run (at import). Everything else passes through.
+                preprocess_src = nas_path
+                if src_suffix in rasterize.PDF_SUFFIXES:
+                    preprocess_src = tmp / f"{sha}_pages.png"
+                    rasterize.pdf_to_stacked_image(nas_path, preprocess_src, dpi=200)
+
+                preprocessed = tmp / f"{sha}.jpg"
+                _process_one(
+                    src=preprocess_src,
+                    dst=preprocessed,
+                    max_dim=1500,
+                    autocontrast_cutoff=2,
+                    log_path=tmp / "preprocess.log",
+                )
+                result = extract_recipe_from_photo(
+                    preprocessed,
+                    timeout_s=500,
+                    keep_alive="300s",
+                )
 
         if result.status == "ok":
             # Option B: rename first so photo_path always points at a real file.
@@ -143,12 +166,12 @@ def meal_planner_ingest_photo(sha: str) -> dict:
             if all_warnings:
                 intake_db.mark_status(
                     sha, "ok_partial",
-                    recipe_id=recipe_id, extraction_path="ollama",
+                    recipe_id=recipe_id, extraction_path=extraction_path_used,
                     extraction_warnings=json.dumps(all_warnings),
                 )
                 status_for_return = "ok_partial"
             else:
-                intake_db.mark_status(sha, "ok", recipe_id=recipe_id, extraction_path="ollama")
+                intake_db.mark_status(sha, "ok", recipe_id=recipe_id, extraction_path=extraction_path_used)
                 status_for_return = "ok"
             logger.info(
                 "meal_planner_ingest_photo: %s sha=%s recipe_id=%d ing_warns=%d norm_warns=%d",
