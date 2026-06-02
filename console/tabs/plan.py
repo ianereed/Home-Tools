@@ -28,6 +28,7 @@ from console.tabs._recipe_form import (
 )
 from meal_planner import db as _db
 from meal_planner import queries
+from meal_planner.sections import GROCERY_SECTIONS
 from meal_planner.tag_categories import CATEGORY_MAP, _partition_tags_by_category
 
 from console.tabs._job_status import (
@@ -418,7 +419,12 @@ def _render_edit_panel(recipe_id: int) -> None:
             "qty_per_serving": st.column_config.NumberColumn("Qty/serving", format="%.2f"),
             "unit": st.column_config.TextColumn("Unit"),
             "notes": st.column_config.TextColumn("Notes"),
-            "todoist_section": st.column_config.TextColumn("Todoist section"),
+            "todoist_section": st.column_config.SelectboxColumn(
+                "Grocery section",
+                help="Which Todoist grocery section this ingredient is sent to.",
+                options=GROCERY_SECTIONS,
+                required=False,
+            ),
             "sort_order": st.column_config.NumberColumn("Sort", step=1),
         },
         num_rows="dynamic",

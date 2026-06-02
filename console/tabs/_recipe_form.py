@@ -157,7 +157,10 @@ def ingredients_to_rows(ingredients: list) -> list[dict]:
             "qty_per_serving": ing.qty_per_serving,
             "unit": ing.unit or "",
             "notes": ing.notes or "",
-            "todoist_section": ing.todoist_section or "",
+            # None (not "") for a blank section: the grid renders this as a
+            # SelectboxColumn, which accepts only values in its options or a blank
+            # (None) — an empty string would error.
+            "todoist_section": ing.todoist_section or None,
             "sort_order": ing.sort_order,
         }
         for ing in ingredients
