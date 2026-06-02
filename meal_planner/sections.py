@@ -56,6 +56,62 @@ EDITABLE_SECTIONS = [*GROCERY_SECTIONS, SKIP_SECTION]
 # Shelf-stable is the least-bad default (vs the old produce fallback).
 _FALLBACK = SHELF
 
+# --- Household staples -> auto-Skip ----------------------------------------
+# Everyday items the user keeps in stock are routed to SKIP so future recipes
+# auto-mark them (stay on the recipe for reference, never hit the grocery list).
+# This mirrors the NARROW set the user curated in the 2026-06-02 scrub:
+# plain water, soy sauce, avocado oil, salt, and everyday black/white/ground
+# pepper. Ice is deliberately NOT a staple (no ice maker), and specialty heats
+# (cayenne, red pepper flakes, bell/sichuan pepper) stay ON the list.
+#
+# Matched against the ingredient NAME only (not notes): a cooking note like
+# "(omit water)" or "if frozen, add 1-2 min" must not skip the ingredient it
+# qualifies. Names are matched exactly where a substring would over-reach
+# ("water" the staple vs "coconut water" the drink vs "hot water or stock").
+
+# Full-name water variants that are plain tap water (exact-match, so
+# "coconut water", "rose water", "hot water or chicken stock" are NOT staples).
+_WATER_STAPLE_NAMES = frozenset({
+    "water", "warm water", "cold water", "hot water", "lukewarm water",
+    "boiling water", "ice water", "filtered water", "tap water",
+    "room temperature water", "room-temperature water",
+})
+
+# Substrings that disqualify a "salt" name from being the everyday salt shaker.
+_SALT_NOT_STAPLE = ("unsalted", "butter", "caramel")
+
+# Substrings that disqualify a "pepper" name from being the everyday pepper
+# shaker (specialty heats / fresh peppers / whole peppercorns stay on the list).
+_PEPPER_NOT_STAPLE = (
+    "bell", "cayenne", "red pepper", "chili", "chile", "jalap", "sichuan",
+    "szechuan", "peppercorn", "pepperoncini", "banana pepper", "poblano",
+    "serrano", "habanero", "shishito",
+)
+
+
+def _is_staple_skip(name: str) -> bool:
+    """True for everyday household staples the user keeps in stock.
+
+    Deliberately narrow (see the 2026-06-02 curation): plain water, soy sauce,
+    avocado oil, salt (but not 'unsalted'/'salted butter'/'salted caramel'),
+    and everyday black/white/ground pepper (but not bell/cayenne/red-pepper-
+    flakes/peppercorn/etc). Checked against the NAME only.
+    """
+    n = (name or "").strip().lower()
+    if not n:
+        return False
+    if n in _WATER_STAPLE_NAMES:
+        return True
+    if "soy sauce" in n:
+        return True
+    if "avocado oil" in n:
+        return True
+    if "salt" in n and not any(x in n for x in _SALT_NOT_STAPLE):
+        return True
+    if "pepper" in n and not any(x in n for x in _PEPPER_NOT_STAPLE):
+        return True
+    return False
+
 # Ordered (substring, section). First substring found in the lowercased name wins.
 _RULES: list[tuple[str, str]] = [
     # --- Frozen specials ("frozen " leading qualifier handled in code) ---
@@ -212,12 +268,16 @@ def classify(name: str, notes: str = "") -> str:
 
     Matches the first rule whose substring appears in the lowercased name
     (notes are appended as a tiebreaker hint). "frozen X" as a leading qualifier
-    routes to Frozen, but "frozen" buried in a cooking note does not. Unknown
+    routes to Frozen, but "frozen" buried in a cooking note does not. Everyday
+    household staples (salt, pepper, water, soy sauce, avocado oil) route to
+    Skip so they stay on the recipe but never hit the grocery list. Unknown
     items fall back to Shelf-stable. Never returns a non-canonical section.
     """
     hay = f"{name or ''} {notes or ''}".lower().strip()
     if hay.startswith("frozen "):
         return FROZEN
+    if _is_staple_skip(name):
+        return SKIP_SECTION
     for needle, section in _RULES:
         if needle in hay:
             return section
