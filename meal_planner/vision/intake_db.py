@@ -277,3 +277,61 @@ def get_by_sha(
     with _get_conn(p) as c:
         row = c.execute(sql, (sha,)).fetchone()
         return _row_to_intake(row) if row else None
+
+
+# ── Gemini daily-budget counter ──────────────────────────────────────────────
+#
+# The Gemini escalation path is capped per calendar day to leave free-tier
+# headroom for other Gemini tasks. The cap is keyed on the *local* calendar day
+# (date('now','localtime')) so it resets at the user's midnight, not UTC — a
+# user-facing boundary (see the TZ rule). The mini runs in the user's timezone.
+# Counts ATTEMPTS (a failed Gemini call still burned quota), so callers consume
+# the budget BEFORE making the call.
+
+def gemini_used_today(
+    *,
+    conn: sqlite3.Connection | None = None,
+    db_path: Path | None = None,
+) -> int:
+    """Number of Gemini calls already consumed on the current local day."""
+    sql = (
+        "SELECT COALESCE("
+        "(SELECT n FROM gemini_usage WHERE day = date('now','localtime')), 0)"
+    )
+    if conn is not None:
+        return int(conn.execute(sql).fetchone()[0])
+    p = db_path or DB_PATH
+    with _get_conn(p) as c:
+        return int(c.execute(sql).fetchone()[0])
+
+
+def gemini_try_consume(
+    max_per_day: int = 5,
+    *,
+    conn: sqlite3.Connection | None = None,
+    db_path: Path | None = None,
+) -> bool:
+    """Atomically consume one unit of today's Gemini budget.
+
+    Returns True if a unit was consumed (caller may proceed with the Gemini
+    call), False if today's cap is already reached. The increment is a single
+    upsert gated on the current count, so concurrent callers can't overshoot the
+    cap. Success is verified via the connection's total_changes delta rather than
+    trusting rowcount (see feedback_insert_or_ignore_silent_failure)."""
+    sql = (
+        "INSERT INTO gemini_usage(day, n) VALUES(date('now','localtime'), 1) "
+        "ON CONFLICT(day) DO UPDATE SET n = n + 1 WHERE gemini_usage.n < ?"
+    )
+
+    def _run(c: sqlite3.Connection) -> bool:
+        before = c.total_changes
+        c.execute(sql, (max_per_day,))
+        return (c.total_changes - before) == 1
+
+    if conn is not None:
+        return _run(conn)
+    p = db_path or DB_PATH
+    with _get_conn(p) as c:
+        consumed = _run(c)
+        c.commit()
+        return consumed

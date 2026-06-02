@@ -7,19 +7,15 @@ Card UX (Chunk 3) and wedge logic (Chunk 4) are not yet wired.
 """
 from __future__ import annotations
 
-import json
 import logging
 import os
 import tempfile
 from pathlib import Path
 
 from jobs import huey, requires, requires_model
-from meal_planner import db as _db
-from meal_planner.db import add_recipe_tag, insert_recipe
-from meal_planner.eval.preprocess_images import _process_one
-from meal_planner.seed_from_sheet import _insert_ingredients_batch
 from meal_planner.vision import intake_db, rasterize
 from meal_planner.vision.extract import extract_recipe_from_photo, extract_recipe_from_text
+from meal_planner.vision.ingest_common import persist_recipe, preprocess_to_image
 
 logger = logging.getLogger(__name__)
 
@@ -49,9 +45,6 @@ def meal_planner_ingest_photo(sha: str) -> dict:
         nas_path = Path(row.nas_path)
         src_suffix = nas_path.suffix.lower() or ".jpg"
         intake_dir = Path(os.environ.get("MEAL_PLANNER_NAS_INTAKE_DIR", _DEFAULT_INTAKE_DIR))
-        done_dir = intake_dir / "_done"
-        # Archive the original under its real extension (.jpg/.png/.heic/.pdf).
-        done_path = done_dir / f"{sha}{src_suffix}"
 
         # Text-layer fast-path: a digital recipe PDF (e.g. an NYT Cooking
         # printout) carries a clean embedded text layer that reads far more
@@ -77,23 +70,7 @@ def meal_planner_ingest_photo(sha: str) -> dict:
 
         if result is None:
             with tempfile.TemporaryDirectory() as tmpdir:
-                tmp = Path(tmpdir)
-                # PDFs aren't images: rasterize every page and stack into one image
-                # before the resize/autocontrast step. HEIC opens directly once
-                # register_heif() has run (at import). Everything else passes through.
-                preprocess_src = nas_path
-                if src_suffix in rasterize.PDF_SUFFIXES:
-                    preprocess_src = tmp / f"{sha}_pages.png"
-                    rasterize.pdf_to_stacked_image(nas_path, preprocess_src, dpi=200)
-
-                preprocessed = tmp / f"{sha}.jpg"
-                _process_one(
-                    src=preprocess_src,
-                    dst=preprocessed,
-                    max_dim=1500,
-                    autocontrast_cutoff=2,
-                    log_path=tmp / "preprocess.log",
-                )
+                preprocessed = preprocess_to_image(nas_path, sha, Path(tmpdir))
                 result = extract_recipe_from_photo(
                     preprocessed,
                     timeout_s=500,
@@ -101,86 +78,12 @@ def meal_planner_ingest_photo(sha: str) -> dict:
                 )
 
         if result.status == "ok":
-            # Option B: rename first so photo_path always points at a real file.
-            # If rename fails, the outer try/except catches it → ollama_error, no recipe row.
-            done_dir.mkdir(parents=True, exist_ok=True)
-            nas_path.rename(done_path)
-
-            db_path = _db.DB_PATH
-            conn = _db._get_conn(db_path)
-            try:
-                title = (result.parsed.get("title") or "") or sha
-                _raw_instr = result.parsed.get("instructions")
-                if isinstance(_raw_instr, str):
-                    instructions = _raw_instr.strip() or None
-                else:
-                    instructions = None
-                _raw_book = result.parsed.get("recipe_book")
-                if isinstance(_raw_book, str):
-                    recipe_book = _raw_book.strip() or None
-                else:
-                    recipe_book = None
-                recipe_id = insert_recipe(
-                    title=title,
-                    source="nas-intake",
-                    photo_path=str(done_path),
-                    instructions=instructions,
-                    recipe_book=recipe_book,
-                    conn=conn,
-                )
-                add_recipe_tag(recipe_id, "photo-intake", conn=conn)
-                for raw_tag in result.parsed.get("tags", []):
-                    if not isinstance(raw_tag, str):
-                        continue
-                    t = raw_tag.strip()
-                    if not t:
-                        continue
-                    add_recipe_tag(recipe_id, t, conn=conn)
-                ing_count, ing_warnings = _insert_ingredients_batch(
-                    recipe_id=recipe_id,
-                    parsed=result.parsed.get("ingredients", []),
-                    base_servings=4,
-                    path=db_path,
-                    conn=conn,
-                )
-                conn.commit()
-            except Exception:
-                conn.rollback()
-                raise
-            finally:
-                conn.close()
-
-            try:
-                # Sidecar captures post-normalize output (Chunk F). Raw LLM text is in
-                # result.metadata["raw_response"]; normalize_warnings in metadata too.
-                sidecar_path = done_dir / f"{sha}.json"
-                sidecar_path.write_text(json.dumps(result.parsed, indent=2, ensure_ascii=False))
-            except Exception as _sidecar_exc:
-                logger.warning("meal_planner_ingest_photo: sidecar write failed sha=%s: %s", sha, _sidecar_exc)
-
-            # Merge normalize_warnings (qty/unit splits, discarded unit content)
-            # into the persisted warnings so the DB reflects every transformation
-            # applied between raw LLM output and stored ingredients.
-            norm_warnings = result.normalize_warnings or []
-            all_warnings = list(ing_warnings) + list(norm_warnings)
-            if all_warnings:
-                intake_db.mark_status(
-                    sha, "ok_partial",
-                    recipe_id=recipe_id, extraction_path=extraction_path_used,
-                    extraction_warnings=json.dumps(all_warnings),
-                )
-                status_for_return = "ok_partial"
-            else:
-                intake_db.mark_status(sha, "ok", recipe_id=recipe_id, extraction_path=extraction_path_used)
-                status_for_return = "ok"
-            logger.info(
-                "meal_planner_ingest_photo: %s sha=%s recipe_id=%d ing_warns=%d norm_warns=%d",
-                status_for_return, sha, recipe_id, len(ing_warnings), len(norm_warnings),
+            return persist_recipe(
+                sha, result,
+                nas_path=nas_path,
+                intake_dir=intake_dir,
+                extraction_path=extraction_path_used,
             )
-            return {"sha": sha, "status": status_for_return, "recipe_id": recipe_id,
-                    "latency_s": result.latency_s,
-                    "warning_count": len(all_warnings),
-                    "normalize_warning_count": len(norm_warnings)}
 
         intake_db.mark_status(sha, result.status, error=result.error)
         logger.warning(

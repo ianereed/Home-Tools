@@ -66,6 +66,10 @@ CREATE TABLE IF NOT EXISTS photos_intake (
     extraction_path TEXT      -- "ollama" | "gemini" | NULL
 );
 CREATE INDEX IF NOT EXISTS idx_photos_intake_status ON photos_intake(status);
+CREATE TABLE IF NOT EXISTS gemini_usage (
+    day TEXT PRIMARY KEY,   -- local calendar day, date('now','localtime')
+    n INTEGER NOT NULL DEFAULT 0
+);
 """
 
 

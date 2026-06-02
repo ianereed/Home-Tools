@@ -29,8 +29,9 @@ def _setup(tmp_path: Path, monkeypatch, enqueue_mock: MagicMock):
     monkeypatch.setattr(idb, "DB_PATH", db_p)
     monkeypatch.setenv("MEAL_PLANNER_NAS_INTAKE_DIR", str(intake_dir))
     monkeypatch.setattr(jobs.lib.RequiresSpec, "validate", lambda self: [])
-    # Prevent the real ingest task from running during scan tests.
+    # Prevent the real ingest + gemini tasks from running during scan tests.
     monkeypatch.setattr(scan_mod, "meal_planner_ingest_photo", enqueue_mock)
+    monkeypatch.setattr(scan_mod, "meal_planner_gemini_extract", MagicMock())
     return intake_dir, db_p
 
 
@@ -193,21 +194,53 @@ def test_scan_retries_failed_row_below_cap(tmp_path, monkeypatch):
     enqueue_mock.assert_called_once_with("fa11ed00000000a1")
 
 
-def test_scan_wedges_row_at_retry_cap(tmp_path, monkeypatch):
-    """A row that has already used its retries is wedged (terminal), not retried."""
+def test_scan_escalates_at_retry_cap_when_budget(tmp_path, monkeypatch):
+    """A row at the retry cap escalates to Gemini (not wedged) when budget remains:
+    status→gemini_pending, the gemini task is enqueued, budget is consumed."""
     enqueue_mock = MagicMock()
     intake_dir, db_p = _setup(tmp_path, monkeypatch, enqueue_mock)
+    gemini_mock = MagicMock()
+    monkeypatch.setattr(scan_mod, "meal_planner_gemini_extract", gemini_mock)
     _seed_failed(intake_dir, db_p, "fa11ed00000000b2", "parse_fail", scan_mod._MAX_RETRIES)
 
     result = scan_mod.meal_planner_photo_intake_scan.func()
 
-    assert result["wedged"] == 1
+    assert result["escalated"] == 1
+    assert result["wedged"] == 0
     assert result["retried"] == 0
-    from meal_planner.vision.intake_db import get_by_sha
+    from meal_planner.vision.intake_db import get_by_sha, gemini_used_today
+    row = get_by_sha("fa11ed00000000b2", db_path=db_p)
+    assert row.status == "gemini_pending"
+    gemini_mock.assert_called_once_with("fa11ed00000000b2")
+    assert gemini_used_today(db_path=db_p) == 1  # one budget unit consumed
+
+
+def test_scan_wedges_at_retry_cap_when_budget_exhausted(tmp_path, monkeypatch):
+    """With the daily Gemini budget already spent, a capped row wedges (terminal)
+    and leaves _processing/ — no escalation."""
+    enqueue_mock = MagicMock()
+    intake_dir, db_p = _setup(tmp_path, monkeypatch, enqueue_mock)
+    gemini_mock = MagicMock()
+    monkeypatch.setattr(scan_mod, "meal_planner_gemini_extract", gemini_mock)
+
+    # Burn the whole daily budget first.
+    from meal_planner.vision.intake_db import get_by_sha, gemini_try_consume
+    for _ in range(scan_mod.GEMINI_DAILY_CAP):
+        gemini_try_consume(scan_mod.GEMINI_DAILY_CAP, db_path=db_p)
+
+    nas = _seed_failed(intake_dir, db_p, "fa11ed00000000b2", "parse_fail", scan_mod._MAX_RETRIES)
+
+    result = scan_mod.meal_planner_photo_intake_scan.func()
+
+    assert result["wedged"] == 1
+    assert result["escalated"] == 0
     row = get_by_sha("fa11ed00000000b2", db_path=db_p)
     assert row.status == "wedged"
     assert row.completed_at is not None  # wedged is terminal
-    enqueue_mock.assert_not_called()
+    gemini_mock.assert_not_called()
+    # File moved out of _processing/ into _wedged/.
+    assert not nas.exists()
+    assert (intake_dir / "_wedged" / nas.name).exists()
 
 
 def test_scan_wedges_retryable_with_missing_file(tmp_path, monkeypatch):

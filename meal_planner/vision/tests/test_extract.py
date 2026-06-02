@@ -608,3 +608,33 @@ def test_extract_text_layer_none_when_no_text_layer(monkeypatch, tmp_path):
     p = tmp_path / "scanned.pdf"
     p.write_bytes(b"%PDF-1.4 fake")
     assert rasterize.extract_text_layer(p) is None
+
+
+# ---------------------------------------------------------------------------
+# Gemini daily-budget counter (escalation path rate-limit)
+# ---------------------------------------------------------------------------
+
+
+def test_gemini_budget_consume_up_to_cap(db_path: Path):
+    """Exactly `max_per_day` consumes succeed; the next is refused."""
+    assert intake_db.gemini_used_today(db_path=db_path) == 0
+    for i in range(3):
+        assert intake_db.gemini_try_consume(3, db_path=db_path) is True, f"consume {i} should succeed"
+    assert intake_db.gemini_try_consume(3, db_path=db_path) is False  # cap reached
+    assert intake_db.gemini_used_today(db_path=db_path) == 3
+
+
+def test_gemini_budget_counts_attempts_not_outcomes(db_path: Path):
+    """Each consume increments regardless of whether the Gemini call later fails."""
+    intake_db.gemini_try_consume(5, db_path=db_path)
+    intake_db.gemini_try_consume(5, db_path=db_path)
+    assert intake_db.gemini_used_today(db_path=db_path) == 2
+
+
+def test_gemini_budget_atomic_via_shared_conn(db_path: Path):
+    """With a shared conn, the gate still stops exactly at the cap."""
+    with _get_conn(db_path) as c:
+        consumed = [intake_db.gemini_try_consume(2, conn=c) for _ in range(4)]
+        c.commit()
+    assert consumed == [True, True, False, False]
+    assert intake_db.gemini_used_today(db_path=db_path) == 2

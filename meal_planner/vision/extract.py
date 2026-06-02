@@ -97,6 +97,26 @@ def extract_recipe_from_text(
     return _classify(parsed, metadata)
 
 
+def extract_recipe_from_gemini(
+    photo_path: Path,
+    *,
+    api_key: str,
+    timeout_s: int = 60,
+) -> ExtractResult:
+    """Extract a recipe via Gemini 2.5 Flash (the escalation path).
+
+    Same status classification as the local entrypoints so the worker can persist
+    a Gemini result identically. `call_gemini_vision` already validates + retries +
+    normalizes; this wraps it into the shared ExtractResult contract.
+    """
+    # Imported here (not at module top) so the local-only extract paths don't pull
+    # the Gemini HTTP module when Gemini isn't configured.
+    from meal_planner.vision.gemini_fallback import call_gemini_vision
+
+    parsed, metadata = call_gemini_vision(photo_path, api_key=api_key, timeout_s=timeout_s)
+    return _classify(parsed, metadata)
+
+
 def _classify(parsed: dict | None, metadata: dict) -> ExtractResult:
     """Map an (Ollama parsed result, metadata) pair to an ExtractResult.
 

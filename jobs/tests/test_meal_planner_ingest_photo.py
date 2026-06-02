@@ -54,6 +54,7 @@ def _wire(monkeypatch, intake_dir: Path, db_p: Path, extract_result: ExtractResu
     import jobs.lib
     import meal_planner.db
     import meal_planner.vision.intake_db as idb
+    import meal_planner.vision.ingest_common as ingest_common
 
     monkeypatch.setattr(jobs.lib.RequiresSpec, "validate", lambda self: [])
     monkeypatch.setattr(jobs.lib._model_state, "_http_post", lambda *a, **kw: None)
@@ -61,12 +62,13 @@ def _wire(monkeypatch, intake_dir: Path, db_p: Path, extract_result: ExtractResu
     monkeypatch.setattr(meal_planner.db, "DB_PATH", db_p)
     monkeypatch.setattr(idb, "DB_PATH", db_p)
 
-    # _process_one: just copy src → dst so the preprocessed file exists
+    # _process_one (now in ingest_common): just copy src → dst so the
+    # preprocessed file exists.
     def _fake_process_one(src, dst, max_dim, autocontrast_cutoff, log_path):
         dst.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(src, dst)
 
-    monkeypatch.setattr(ingest_mod, "_process_one", _fake_process_one)
+    monkeypatch.setattr(ingest_common, "_process_one", _fake_process_one)
     monkeypatch.setattr(ingest_mod, "extract_recipe_from_photo", lambda *a, **kw: extract_result)
 
 
@@ -321,8 +323,10 @@ def test_ingest_crash_records_error(tmp_path, monkeypatch):
     _wire(monkeypatch, intake_dir, db_p, ExtractResult(
         status="ok", parsed=_GOOD_PARSED, latency_s=1.0, error=None, n_retries=0,
     ))
-    # Override _process_one to crash after _wire already set it to a copy helper.
-    monkeypatch.setattr(ingest_mod, "_process_one", lambda *a, **kw: (_ for _ in ()).throw(OSError("NAS gone")))
+    # Override _process_one (in ingest_common) to crash after _wire already set
+    # it to a copy helper.
+    import meal_planner.vision.ingest_common as ingest_common
+    monkeypatch.setattr(ingest_common, "_process_one", lambda *a, **kw: (_ for _ in ()).throw(OSError("NAS gone")))
 
     with pytest.raises(OSError, match="NAS gone"):
         ingest_mod.meal_planner_ingest_photo.func(_TEST_SHA)

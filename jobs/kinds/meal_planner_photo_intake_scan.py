@@ -19,7 +19,12 @@ from huey import crontab
 
 from jobs import huey, requires
 from jobs.kinds.meal_planner_ingest_photo import meal_planner_ingest_photo
+from jobs.kinds.meal_planner_gemini_extract import (
+    GEMINI_DAILY_CAP,
+    meal_planner_gemini_extract,
+)
 from meal_planner.vision import intake_db
+from meal_planner.vision.ingest_common import move_to_wedged
 
 logger = logging.getLogger(__name__)
 
@@ -38,24 +43,6 @@ _SUBFOLDERS = ("_processing", "_done", "_skipped", "_wedged")
 
 def _sha256_hex16(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()[:16]
-
-
-def _move_to_wedged(nas_path: str, intake_dir: Path) -> None:
-    """Move a wedged file out of _processing/ into _wedged/ so it stops showing
-    as "in processing." Best-effort: a missing file or rename error is logged and
-    swallowed (the DB row is already the source of truth, marked wedged). Mirrors
-    nas-intake's `_WEDGED_*` behavior so a wedged recipe doesn't sit in the
-    processing bucket forever.
-    """
-    src = Path(nas_path)
-    if not src.exists():
-        return
-    dest = intake_dir / "_wedged" / src.name
-    try:
-        dest.parent.mkdir(parents=True, exist_ok=True)
-        src.rename(dest)
-    except OSError as exc:
-        logger.warning("meal_planner_photo_intake_scan: could not move wedged file %s: %s", src, exc)
 
 
 @huey.periodic_task(crontab(minute="*/5"))
@@ -95,12 +82,28 @@ def meal_planner_photo_intake_scan() -> dict:
     # (n_retries >= _MAX_RETRIES vs < _MAX_RETRIES), so no row is touched twice.
     retried = 0
     wedged = 0
+    escalated = 0
     for row in intake_db.list_exhausted(_MAX_RETRIES):
+        # Escalation: the local model has exhausted its retries. Before giving up,
+        # hand the recipe to Gemini — but only if today's Gemini budget has
+        # headroom (consumed atomically here so we never enqueue more than the
+        # daily cap) and the source file still exists to re-extract from. Once
+        # marked gemini_pending the row leaves the retryable set, so it won't be
+        # re-swept; a Gemini failure later marks it wedged (no re-escalation).
+        if Path(row.nas_path).exists() and intake_db.gemini_try_consume(GEMINI_DAILY_CAP):
+            intake_db.mark_status(row.sha, "gemini_pending", error=None)
+            try:
+                meal_planner_gemini_extract(row.sha)
+                escalated += 1
+                logger.info("meal_planner_photo_intake_scan: escalated sha=%s to Gemini", row.sha)
+            except Exception as exc:
+                logger.warning("meal_planner_photo_intake_scan: gemini enqueue failed sha=%s: %s", row.sha, exc)
+            continue
         intake_db.mark_status(
             row.sha, "wedged",
             error=f"max retries ({_MAX_RETRIES}) exhausted; last: {(row.error or '')[:200]}",
         )
-        _move_to_wedged(row.nas_path, intake_dir)
+        move_to_wedged(row.nas_path, intake_dir)
         wedged += 1
         logger.warning("meal_planner_photo_intake_scan: wedged sha=%s after %d retries", row.sha, row.n_retries)
     for row in intake_db.list_retryable(_MAX_RETRIES):
@@ -176,5 +179,6 @@ def meal_planner_photo_intake_scan() -> dict:
         "re_enqueued": re_enqueued,
         "retried": retried,
         "wedged": wedged,
+        "escalated": escalated,
         "tick_at": datetime.now(timezone.utc).isoformat(),
     }
