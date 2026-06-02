@@ -453,11 +453,28 @@ def _render_edit_panel(recipe_id: int) -> None:
     }
     ok, errs = validate_recipe_form(payload)
     after_rows = _rows_from_editor(edited_ingr)
+    ingr_diff = diff_ingredients(before_rows, after_rows)
+    ingr_changed = bool(
+        ingr_diff["updates"]
+        or ingr_diff["deletes"]
+        or any(r.get("name", "").strip() for r in ingr_diff["adds"])
+    )
     saved_now = False
     if ok and _edit_is_dirty(recipe, current_tags, payload, merged, before_rows, after_rows):
         pok, perr = _persist_recipe(recipe_id, payload, merged, before_rows, edited_ingr)
         if pok:
             saved_now = True
+            if ingr_changed:
+                # st.data_editor keeps its edits as a POSITION-keyed delta in
+                # session_state that survives reruns. We just wrote the
+                # ingredient changes to the DB; on the next rerun
+                # list_ingredients reorders the rows (ORDER BY sort_order, name)
+                # and grows/shrinks the set, so the stale delta would re-apply at
+                # the wrong row positions — reverting or duplicating the edit
+                # (Anny: every edit after the first needs two tries). Drop the
+                # delta and rerun so the grid rebuilds clean from the saved rows.
+                st.session_state.pop(f"edit_ingr_{recipe_id}", None)
+                st.rerun()
         elif perr and "deleted" in perr.lower():
             st.error("Recipe was deleted by another session — closing editor.")
             _close_edit_panel(recipe_id)
