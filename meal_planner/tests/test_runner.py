@@ -376,3 +376,64 @@ def test_send_skips_staple_ingredients(tmp_path, monkeypatch):
     assert any("carrots" in t for t in sent_titles)
     assert res["items_sent"] == 3       # header + chicken + carrots
     assert res["items_attempted"] == 3  # salt was skipped, never attempted
+
+
+def test_send_groups_like_items_within_section(tmp_path, monkeypatch):
+    """Items in the same Todoist section are created adjacent + name-sorted,
+    even when they come from different recipes (so 'chicken thigh' and 'chicken
+    drumstick' end up next to each other instead of split by recipe)."""
+    import json
+    import meal_planner.db
+    from meal_planner.db import _get_conn, insert_recipe
+
+    db_p = _setup_db(tmp_path)
+    monkeypatch.setattr(meal_planner.db, "DB_PATH", db_p)
+
+    # Two recipes, interleaved Meats + Veggies ingredients.
+    with _get_conn(db_p) as c:
+        r1 = insert_recipe(title="Stir Fry", source="t", conn=c)
+        r2 = insert_recipe(title="Roast", source="t", conn=c)
+        rows = [
+            (r1, "chicken thigh", "Meats"),
+            (r1, "onion", "Fruits + Veggies"),
+            (r2, "chicken drumstick", "Meats"),
+            (r2, "carrot", "Fruits + Veggies"),
+        ]
+        for i, (rid, name, sec) in enumerate(rows):
+            c.execute(
+                "INSERT INTO ingredients (recipe_id, name, qty_per_serving, unit, "
+                "notes, todoist_section, sort_order) VALUES (?,?,?,?,?,?,?)",
+                (rid, name, 1.0, "", None, sec, i),
+            )
+        c.commit()
+
+    monkeypatch.setenv(
+        "TODOIST_SECTIONS",
+        json.dumps({"Meals": "m", "Meats": "mt", "Fruits + Veggies": "fv"}),
+    )
+    monkeypatch.delenv("TODOIST_PROJECT_ID", raising=False)
+
+    # Record (section_id, title) in creation order.
+    sent: list[tuple[str, str]] = []
+
+    def _fake_create(output_config, payload):
+        sent.append((output_config["section_id"], payload["title"]))
+        return {"created": True}
+
+    monkeypatch.setattr(runner.todoist_adapter, "create_task", _fake_create)
+
+    runner.send_recipes_to_todoist_sync([[r1, 4], [r2, 4]])
+
+    # Both headers go to Meals first, in recipe order.
+    assert sent[0] == ("m", "Stir Fry (4 servings)")
+    assert sent[1] == ("m", "Roast (4 servings)")
+
+    # Ingredient creation order: grouped by section, then name-sorted within it.
+    ingredient_order = [(sec, title) for sec, title in sent[2:]]
+    # Fruits + Veggies ("fv") sorts before Meats ("mt"); within each, by name.
+    assert ingredient_order == [
+        ("fv", "4 carrot (Roast)"),
+        ("fv", "4 onion (Stir Fry)"),
+        ("mt", "4 chicken drumstick (Roast)"),
+        ("mt", "4 chicken thigh (Stir Fry)"),
+    ]

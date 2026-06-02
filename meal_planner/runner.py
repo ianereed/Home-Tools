@@ -84,6 +84,15 @@ def send_recipes_to_todoist_sync(recipe_scales: list[list]) -> dict:
     attempted = 0
     skipped = 0  # ingredients marked "Skip" (household staples) — not sent
 
+    # Buffer every ingredient task across all recipes so we can group "like
+    # items" within each Todoist section. Todoist displays tasks in creation
+    # order within a section, so creating same-section items consecutively and
+    # name-sorted makes similar ingredients ("chicken thigh", "chicken
+    # drumstick") land adjacent instead of scattered by source recipe. Recipe
+    # headers are still created up front, in recipe order, so the Meals section
+    # reads top-to-bottom by recipe.
+    pending: list[dict] = []
+
     for rid, target_servings in recipe_scales:
         recipe = get_recipe(int(rid))
         scaled = scale_ingredients(recipe, int(target_servings))
@@ -114,8 +123,6 @@ def send_recipes_to_todoist_sync(recipe_scales: list[list]) -> dict:
                 skipped += 1
                 continue
 
-            attempted += 1
-
             qty = ingredient.qty_per_serving
             if qty is not None:
                 qty_str = f"{qty:.4g}"
@@ -132,24 +139,38 @@ def send_recipes_to_todoist_sync(recipe_scales: list[list]) -> dict:
                 if ingredient.todoist_section in sections
                 else fallback_name
             )
-            section_id = sections[section_name]
+            pending.append({
+                "section_name": section_name,
+                # group key: ingredient name (qty-stripped), so "1 cup flour"
+                # and "2 cups flour" from different recipes sort together.
+                "sort_key": (ingredient.name or "").strip().lower(),
+                "title": title,
+                "recipe_id": recipe.id,
+            })
 
-            result = todoist_adapter.create_task(
-                output_config={
-                    "project_id": project_id,
-                    "section_id": section_id,
-                    "labels": ["meal-planner"],
-                },
-                payload={
-                    "title": title,
-                    "source": "meal-planner",
-                    "source_id": f"recipes:{recipe.id}",
-                    "priority": "normal",
-                    "confidence": 1.0,
-                },
-            )
-            if result.get("created"):
-                sent += 1
+    # Group like items: order by section, then ingredient name. Creating tasks
+    # in this order makes same-section items land adjacent and alphabetized.
+    pending.sort(key=lambda t: (t["section_name"], t["sort_key"]))
+
+    for task in pending:
+        attempted += 1
+        section_id = sections[task["section_name"]]
+        result = todoist_adapter.create_task(
+            output_config={
+                "project_id": project_id,
+                "section_id": section_id,
+                "labels": ["meal-planner"],
+            },
+            payload={
+                "title": task["title"],
+                "source": "meal-planner",
+                "source_id": f"recipes:{task['recipe_id']}",
+                "priority": "normal",
+                "confidence": 1.0,
+            },
+        )
+        if result.get("created"):
+            sent += 1
 
     logger.info(
         "send_recipes_to_todoist_sync: sent %d/%d items (%d skipped staples)",
