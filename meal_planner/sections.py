@@ -33,14 +33,24 @@ SHELF = "Shelf-stable"
 HOME = "Home/Pharmacy"
 ASIAN = "Asian market"
 
+# Sentinel section for household staples kept in stock (salt, pepper, water,
+# oil, ...). An ingredient marked "Skip" stays on the recipe page for reference
+# but is NOT sent to the Todoist grocery list (see runner.py). It is NOT a real
+# Todoist section and has no section_id.
+SKIP_SECTION = "Skip"
+
 CANONICAL_SECTIONS = frozenset(
-    {FRUITS_VEGGIES, DAIRY, FROZEN, MEATS, SHELF, HOME, ASIAN, "Meals"}
+    {FRUITS_VEGGIES, DAIRY, FROZEN, MEATS, SHELF, HOME, ASIAN, "Meals", SKIP_SECTION}
 )
 
-# Ordered grocery sections (excludes "Meals", which is the recipe-header section,
-# not an ingredient destination). Used as the real-name fallback for the Gemini
+# Ordered grocery sections (excludes "Meals", the recipe-header section, and
+# "Skip", the not-sent sentinel). Used as the real-name fallback for the Gemini
 # categorize prompt when TODOIST_SECTIONS isn't in the environment.
 GROCERY_SECTIONS = [FRUITS_VEGGIES, DAIRY, MEATS, SHELF, FROZEN, ASIAN, HOME]
+
+# Options offered in the console's per-ingredient section dropdown: every grocery
+# section plus Skip (so a staple can be marked "don't add to the list").
+EDITABLE_SECTIONS = [*GROCERY_SECTIONS, SKIP_SECTION]
 
 # Unknowns fall here: most uncategorized grocery items are pantry staples, and
 # Shelf-stable is the least-bad default (vs the old produce fallback).

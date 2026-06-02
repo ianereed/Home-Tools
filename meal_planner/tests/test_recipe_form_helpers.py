@@ -218,7 +218,9 @@ def test_ingredients_to_rows() -> None:
     assert r["qty_per_serving"] == 2.0
     assert r["unit"] == ""
     assert r["notes"] == ""
-    assert r["todoist_section"] == ""
+    # None (not "") so the SelectboxColumn grid renders a blank section without
+    # erroring on an out-of-options value.
+    assert r["todoist_section"] is None
 
 
 # ---------------------------------------------------------------------------

@@ -24,6 +24,7 @@ from meal_planner import todoist_client as todoist_adapter
 from meal_planner.db import add_recipe_tag, delete_recipe, insert_recipe
 from meal_planner.queries import get_recipe
 from meal_planner.scaling import scale_ingredients
+from meal_planner.sections import SKIP_SECTION
 from meal_planner.seed_from_sheet import _insert_ingredients_batch
 from meal_planner.vision import intake_db
 from meal_planner.vision.gemini_fallback import call_gemini_vision
@@ -81,6 +82,7 @@ def send_recipes_to_todoist_sync(recipe_scales: list[list]) -> dict:
     project_id = os.environ.get("TODOIST_PROJECT_ID")
     sent = 0
     attempted = 0
+    skipped = 0  # ingredients marked "Skip" (household staples) — not sent
 
     for rid, target_servings in recipe_scales:
         recipe = get_recipe(int(rid))
@@ -106,6 +108,12 @@ def send_recipes_to_todoist_sync(recipe_scales: list[list]) -> dict:
             sent += 1
 
         for ingredient in scaled:
+            # Household staples kept in stock are marked "Skip": keep them on the
+            # recipe for reference, but never add them to the grocery list.
+            if ingredient.todoist_section == SKIP_SECTION:
+                skipped += 1
+                continue
+
             attempted += 1
 
             qty = ingredient.qty_per_serving
@@ -143,10 +151,14 @@ def send_recipes_to_todoist_sync(recipe_scales: list[list]) -> dict:
             if result.get("created"):
                 sent += 1
 
-    logger.info("send_recipes_to_todoist_sync: sent %d/%d items", sent, attempted)
+    logger.info(
+        "send_recipes_to_todoist_sync: sent %d/%d items (%d skipped staples)",
+        sent, attempted, skipped,
+    )
     return {
         "items_sent": sent,
         "items_attempted": attempted,
+        "items_skipped": skipped,
         "consolidate_failed": None,
         "consolidate_dropped": 0,
         "error": None,

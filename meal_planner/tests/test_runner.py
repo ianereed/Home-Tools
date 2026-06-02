@@ -327,3 +327,52 @@ def test_already_handled_is_skipped(tmp_path, monkeypatch):
 
     ret = runner.process_iphone_intake_sync(_TEST_SHA, "save")
     assert ret["status"] == "skipped_already_handled"
+
+
+# ---------------------------------------------------------------------------
+# Skip section — household staples stay on the recipe but aren't sent to Todoist
+# ---------------------------------------------------------------------------
+
+
+def test_send_skips_staple_ingredients(tmp_path, monkeypatch):
+    """Ingredients in the 'Skip' section are not sent; others still are."""
+    import json
+    import meal_planner.db
+    from meal_planner.db import _get_conn, insert_recipe
+
+    db_p = _setup_db(tmp_path)
+    monkeypatch.setattr(meal_planner.db, "DB_PATH", db_p)
+
+    with _get_conn(db_p) as c:
+        rid = insert_recipe(title="Test Soup", source="t", conn=c)
+        rows = [("chicken", "Meats"), ("salt", "Skip"), ("carrots", "Fruits + Veggies")]
+        for i, (name, sec) in enumerate(rows):
+            c.execute(
+                "INSERT INTO ingredients (recipe_id, name, qty_per_serving, unit, "
+                "notes, todoist_section, sort_order) VALUES (?,?,?,?,?,?,?)",
+                (rid, name, 1.0, "", None, sec, i),
+            )
+        c.commit()
+
+    monkeypatch.setenv(
+        "TODOIST_SECTIONS",
+        json.dumps({"Meals": "m", "Meats": "mt", "Fruits + Veggies": "fv"}),
+    )
+    monkeypatch.delenv("TODOIST_PROJECT_ID", raising=False)
+
+    sent_titles: list[str] = []
+
+    def _fake_create(output_config, payload):
+        sent_titles.append(payload["title"])
+        return {"created": True}
+
+    monkeypatch.setattr(runner.todoist_adapter, "create_task", _fake_create)
+
+    res = runner.send_recipes_to_todoist_sync([[rid, 4]])
+
+    assert res["items_skipped"] == 1
+    assert not any("salt" in t for t in sent_titles), "staple must not be sent"
+    assert any("chicken" in t for t in sent_titles)
+    assert any("carrots" in t for t in sent_titles)
+    assert res["items_sent"] == 3       # header + chicken + carrots
+    assert res["items_attempted"] == 3  # salt was skipped, never attempted

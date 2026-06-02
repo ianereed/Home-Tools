@@ -28,7 +28,7 @@ from console.tabs._recipe_form import (
 )
 from meal_planner import db as _db
 from meal_planner import queries
-from meal_planner.sections import GROCERY_SECTIONS
+from meal_planner.sections import EDITABLE_SECTIONS
 from meal_planner.tag_categories import CATEGORY_MAP, _partition_tags_by_category
 
 from console.tabs._job_status import (
@@ -421,8 +421,10 @@ def _render_edit_panel(recipe_id: int) -> None:
             "notes": st.column_config.TextColumn("Notes"),
             "todoist_section": st.column_config.SelectboxColumn(
                 "Grocery section",
-                help="Which Todoist grocery section this ingredient is sent to.",
-                options=GROCERY_SECTIONS,
+                help="Which Todoist grocery section this ingredient is sent to. "
+                     "Pick 'Skip' for household staples you keep in stock — they "
+                     "stay on the recipe but are never added to the grocery list.",
+                options=EDITABLE_SECTIONS,
                 required=False,
             ),
             "sort_order": st.column_config.NumberColumn("Sort", step=1),
