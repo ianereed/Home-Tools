@@ -372,7 +372,8 @@ def render_fitness():
 
     st.markdown("## Weekly training load")
     acts = load_data("SELECT date, duration_minutes, avg_hr FROM activities "
-                     "WHERE date >= date('now', ?) ORDER BY date", (f"-{days} days",))
+                     "WHERE date >= date('now', ?) AND dup_of IS NULL ORDER BY date",
+                     (f"-{days} days",))
     if acts.empty:
         st.caption("No activities in range.")
     else:
@@ -399,12 +400,35 @@ def fmt_dur(m):
 
 
 def render_activity():
-    df = load_data("SELECT date, type, duration_minutes, distance_km, avg_hr, max_hr, calories, "
-                   "source_id FROM activities WHERE date >= date('now', ?) ORDER BY date DESC",
-                   (f"-{days} days",))
+    # dup_of IS NULL keeps only canonical rows (the recording device's copy);
+    # cross-source mirrors (e.g. the Strava twin of a Garmin workout) are hidden
+    # so counts and totals aren't doubled. stream_id resolves the HR stream from
+    # whichever copy in the dup group actually carries it (Strava collects them).
+    df = load_data(
+        """SELECT date, type, duration_minutes, distance_km, avg_hr, max_hr, calories,
+                  COALESCE(
+                    (SELECT a.source_id WHERE EXISTS
+                       (SELECT 1 FROM activity_streams s WHERE s.activity_id = a.source_id)),
+                    (SELECT a2.source_id FROM activities a2
+                       JOIN activity_streams s ON s.activity_id = a2.source_id
+                      WHERE a2.dup_of = a.id LIMIT 1),
+                    a.source_id) AS stream_id
+           FROM activities a
+           WHERE date >= date('now', ?) AND dup_of IS NULL ORDER BY date DESC""",
+        (f"-{days} days",))
     if df.empty:
         st.info("No activity data in range.")
         return
+
+    hidden = load_data(
+        "SELECT COUNT(*) n FROM activities WHERE date >= date('now', ?) AND dup_of IS NOT NULL",
+        (f"-{days} days",))
+    n_hidden = int(hidden["n"].iloc[0]) if not hidden.empty else 0
+    if n_hidden:
+        st.caption(f"↪ {n_hidden} duplicate {'copy' if n_hidden == 1 else 'copies'} "
+                   "hidden (same workout mirrored from another source; the recording "
+                   "device's copy is kept).")
+
     c = st.columns(4)
     c[0].metric("Activities", len(df))
     c[1].metric("Total time", f"{df['duration_minutes'].sum()/60:.0f}h")
@@ -428,14 +452,14 @@ def render_activity():
         st.plotly_chart(lib.apply_theme(fig, 220, legend=True), use_container_width=True, key="ac_pie")
     with cc[1]:
         st.markdown("### Per-activity heart rate")
-        streamed = df[df["source_id"].notna()].head(25)
+        streamed = df[df["stream_id"].notna()].head(25)
         if streamed.empty:
             st.caption("No HR streams available.")
         else:
             opts = [f"{r['date']} — {r['type']} ({fmt_dur(r['duration_minutes'])})"
                     for _, r in streamed.iterrows()]
             sel = st.selectbox("Activity", opts, key="ac_pick")
-            act_id = str(streamed.iloc[opts.index(sel)]["source_id"])
+            act_id = str(streamed.iloc[opts.index(sel)]["stream_id"])
             stream = load_data("SELECT timestamp_offset/60.0 minutes, bpm FROM activity_streams "
                                "WHERE activity_id = ? ORDER BY timestamp_offset", (act_id,))
             if stream.empty:
