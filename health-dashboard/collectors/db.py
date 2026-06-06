@@ -49,6 +49,8 @@ def init_db():
             calories INTEGER,
             source TEXT NOT NULL,
             source_id TEXT,
+            start_time TEXT,
+            dup_of INTEGER,
             UNIQUE(source, source_id)
         );
 
@@ -72,8 +74,27 @@ def init_db():
             PRIMARY KEY (activity_id, timestamp_offset)
         );
     """)
+    _migrate(conn)
     conn.commit()
     conn.close()
+
+
+def _migrate(conn):
+    """Apply additive schema changes to a pre-existing DB.
+
+    CREATE TABLE IF NOT EXISTS never alters an existing table, so columns added
+    after the table first shipped have to be added with guarded ALTER TABLEs.
+    Each is a no-op once present, so init_db() stays idempotent.
+    """
+    cols = {row[1] for row in conn.execute("PRAGMA table_info(activities)")}
+    if "start_time" not in cols:
+        # Full local start timestamp — lets the de-dup matcher pair the same
+        # workout across sources by time, not just calendar date.
+        conn.execute("ALTER TABLE activities ADD COLUMN start_time TEXT")
+    if "dup_of" not in cols:
+        # NULL = canonical/unique. Non-NULL points at the canonical row this is
+        # a cross-source duplicate of (the recording device's copy).
+        conn.execute("ALTER TABLE activities ADD COLUMN dup_of INTEGER")
 
 
 if __name__ == "__main__":

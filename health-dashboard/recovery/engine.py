@@ -82,29 +82,48 @@ def calculate_trimp_from_summary(avg_hr: float, duration_min: float,
     return round(duration_min * hr_fraction * 0.64 * math.exp(1.92 * hr_fraction), 1)
 
 
+def stream_source_id(conn: sqlite3.Connection, activity_id, own_source_id):
+    """The source_id whose HR stream represents this (canonical) activity.
+
+    The recording device's row is kept as canonical, but the HR stream is
+    collected only from its de-duplicated Strava twin. So when the activity's
+    own source_id has no stream, fall back to any duplicate's source_id. Returns
+    None when no copy in the group has a stream.
+    """
+    if conn.execute(
+        "SELECT 1 FROM activity_streams WHERE activity_id = ? LIMIT 1",
+        (str(own_source_id),),
+    ).fetchone():
+        return str(own_source_id)
+    row = conn.execute(
+        """SELECT a.source_id FROM activities a
+           JOIN activity_streams s ON s.activity_id = a.source_id
+           WHERE a.dup_of = ? LIMIT 1""",
+        (activity_id,),
+    ).fetchone()
+    return str(row[0]) if row else None
+
+
 def get_daily_trimp(target_date: str, conn: sqlite3.Connection) -> list[dict]:
     """Calculate TRIMP for all activities on a given date. Returns list of activity details."""
     resting_hr = get_resting_hr(conn)
     max_hr = get_max_hr(conn)
 
     activities = conn.execute(
-        """SELECT source_id, type, duration_minutes, avg_hr, max_hr, date
-           FROM activities WHERE date = ?""",
+        """SELECT id, source_id, type, duration_minutes, avg_hr, max_hr, date
+           FROM activities WHERE date = ? AND dup_of IS NULL""",
         (target_date,),
     ).fetchall()
 
     results = []
     for act in activities:
-        source_id, act_type, duration, avg_hr_act, max_hr_act, act_date = act
+        act_id, source_id, act_type, duration, avg_hr_act, max_hr_act, act_date = act
 
-        # Try stream-based TRIMP first
-        stream_count = conn.execute(
-            "SELECT COUNT(*) FROM activity_streams WHERE activity_id = ?",
-            (str(source_id),),
-        ).fetchone()[0]
+        # Try stream-based TRIMP first (resolved across the dup group)
+        sid = stream_source_id(conn, act_id, source_id)
 
-        if stream_count > 0:
-            trimp = calculate_trimp_from_stream(str(source_id), resting_hr, max_hr, conn)
+        if sid:
+            trimp = calculate_trimp_from_stream(sid, resting_hr, max_hr, conn)
             method = "stream"
         elif avg_hr_act:
             trimp = calculate_trimp_from_summary(avg_hr_act, duration or 0, resting_hr, max_hr)
@@ -135,8 +154,8 @@ def get_trimp_history(days: int, conn: sqlite3.Connection) -> dict[str, float]:
         daily[d] = 0.0
 
     activities = conn.execute(
-        """SELECT source_id, date, duration_minutes, avg_hr
-           FROM activities WHERE date >= ?""",
+        """SELECT id, source_id, date, duration_minutes, avg_hr
+           FROM activities WHERE date >= ? AND dup_of IS NULL""",
         (start,),
     ).fetchall()
 
@@ -144,14 +163,11 @@ def get_trimp_history(days: int, conn: sqlite3.Connection) -> dict[str, float]:
     max_hr = get_max_hr(conn)
 
     for act in activities:
-        source_id, act_date, duration, avg_hr_act = act
-        stream_count = conn.execute(
-            "SELECT COUNT(*) FROM activity_streams WHERE activity_id = ?",
-            (str(source_id),),
-        ).fetchone()[0]
+        act_id, source_id, act_date, duration, avg_hr_act = act
+        sid = stream_source_id(conn, act_id, source_id)
 
-        if stream_count > 0:
-            trimp = calculate_trimp_from_stream(str(source_id), resting_hr, max_hr, conn)
+        if sid:
+            trimp = calculate_trimp_from_stream(sid, resting_hr, max_hr, conn)
         elif avg_hr_act:
             trimp = calculate_trimp_from_summary(avg_hr_act, duration or 0, resting_hr, max_hr)
         else:
@@ -170,8 +186,8 @@ def get_current_fatigue(conn: sqlite3.Connection) -> dict:
     now = date.today()
 
     activities = conn.execute(
-        """SELECT source_id, date, type, duration_minutes, avg_hr
-           FROM activities WHERE date >= date('now', '-7 days')
+        """SELECT id, source_id, date, type, duration_minutes, avg_hr
+           FROM activities WHERE date >= date('now', '-7 days') AND dup_of IS NULL
            ORDER BY date DESC""",
     ).fetchall()
 
@@ -179,15 +195,12 @@ def get_current_fatigue(conn: sqlite3.Connection) -> dict:
     activity_fatigue = []
 
     for act in activities:
-        source_id, act_date, act_type, duration, avg_hr_act = act
+        act_id, source_id, act_date, act_type, duration, avg_hr_act = act
 
-        stream_count = conn.execute(
-            "SELECT COUNT(*) FROM activity_streams WHERE activity_id = ?",
-            (str(source_id),),
-        ).fetchone()[0]
+        sid = stream_source_id(conn, act_id, source_id)
 
-        if stream_count > 0:
-            trimp = calculate_trimp_from_stream(str(source_id), resting_hr, max_hr, conn)
+        if sid:
+            trimp = calculate_trimp_from_stream(sid, resting_hr, max_hr, conn)
         elif avg_hr_act:
             trimp = calculate_trimp_from_summary(avg_hr_act, duration or 0, resting_hr, max_hr)
         else:
