@@ -51,6 +51,12 @@ def main(days_back: int = 7):
     # NOTE: Suunto (via Intervals.icu) was retired 2026-05-30 — device gone.
     # Wellness/HRV/sleep-score data now comes from Garmin.
 
+    # Strava mirrors every Garmin workout, so the same session lands twice.
+    # Mark the cross-source duplicates (keeping the recording device's copy) so
+    # totals, weekly load and TRIMP don't double-count. Cheap, local, idempotent.
+    from . import dedupe
+    _collect_with_retry("De-dup", dedupe.dedupe_activities)
+
     logger.info("All collection complete.")
 
 

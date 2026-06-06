@@ -86,6 +86,7 @@ def collect_activities(days_back: int = 7):
         for activity in activities:
             activity_id = str(activity.id)
             activity_date = activity.start_date_local.strftime("%Y-%m-%d") if activity.start_date_local else ""
+            start_local = activity.start_date_local.isoformat() if activity.start_date_local else None
 
             duration_secs = activity.elapsed_time
             if hasattr(duration_secs, 'total_seconds'):
@@ -116,8 +117,8 @@ def collect_activities(days_back: int = 7):
 
             conn.execute(
                 """INSERT OR REPLACE INTO activities
-                   (date, type, duration_minutes, distance_km, avg_hr, max_hr, calories, source, source_id)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                   (date, type, duration_minutes, distance_km, avg_hr, max_hr, calories, source, source_id, start_time)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     activity_date,
                     str(sport).lower() if sport else "unknown",
@@ -128,6 +129,7 @@ def collect_activities(days_back: int = 7):
                     calories,
                     "strava",
                     activity_id,
+                    start_local,
                 ),
             )
             count += 1

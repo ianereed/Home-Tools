@@ -191,12 +191,13 @@ def collect_activities(client, start_date: str, end_date: str):
             duration_secs = act.get("duration", 0)
             distance_m = act.get("distance", 0)
 
+            start_local = act.get("startTimeLocal", "")
             conn.execute(
                 """INSERT OR REPLACE INTO activities
-                   (date, type, duration_minutes, distance_km, avg_hr, max_hr, calories, source, source_id)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                   (date, type, duration_minutes, distance_km, avg_hr, max_hr, calories, source, source_id, start_time)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
-                    act.get("startTimeLocal", "")[:10],
+                    start_local[:10],
                     act.get("activityType", {}).get("typeKey", "unknown"),
                     round(duration_secs / 60, 1) if duration_secs else 0,
                     round(distance_m / 1000, 2) if distance_m else 0,
@@ -205,6 +206,7 @@ def collect_activities(client, start_date: str, end_date: str):
                     act.get("calories"),
                     "garmin",
                     activity_id,
+                    start_local or None,
                 ),
             )
 
@@ -212,6 +214,83 @@ def collect_activities(client, start_date: str, end_date: str):
         logger.info(f"Saved {len(activities)} Garmin activities")
     except Exception as e:
         logger.error(f"Error collecting Garmin activities: {e}")
+    finally:
+        conn.close()
+
+
+# Garmin's detail payload downsamples to maxchart points; 4000 keeps ~1 sample
+# every 2s even for a multi-hour activity, which is ample resolution for TRIMP.
+_DETAIL_MAX_CHART = 4000
+
+
+def collect_hr_streams(client, days_back: int = 7):
+    """Fetch per-activity HR time-series from Garmin — the device that recorded it.
+
+    HR streams used to come only from Strava (the historical activity source),
+    which meant the canonical Garmin row leaned on its Strava mirror for the raw
+    data that originated on the watch. Garmin's get_activity_details exposes the
+    same series (directHeartRate vs sumElapsedDuration, in seconds), so we pull it
+    straight from the source. Strava stream collection stays as a fallback for
+    activities never recorded on the watch.
+    """
+    conn = get_connection()
+    try:
+        rows = conn.execute(
+            """SELECT source_id FROM activities
+               WHERE source = 'garmin' AND avg_hr IS NOT NULL
+               AND date >= date('now', ?)
+               AND source_id NOT IN (SELECT DISTINCT activity_id FROM activity_streams)""",
+            (f"-{days_back} days",),
+        ).fetchall()
+
+        stream_count = 0
+        for row in rows:
+            activity_id = row[0]
+            try:
+                details = client.get_activity_details(int(activity_id), maxchart=_DETAIL_MAX_CHART)
+                descriptors = details.get("metricDescriptors", []) or []
+                metrics = details.get("activityDetailMetrics", []) or []
+                idx = {d.get("key"): d.get("metricsIndex") for d in descriptors}
+                hr_i = idx.get("directHeartRate")
+                # sumElapsedDuration is seconds-since-start — matches the Strava
+                # `time` stream and the activity_streams.timestamp_offset contract.
+                t_i = idx.get("sumElapsedDuration")
+                if hr_i is None or t_i is None:
+                    logger.debug(f"Garmin activity {activity_id} has no HR/elapsed metric; skipping stream")
+                    continue
+
+                n = 0
+                for m in metrics:
+                    vals = m.get("metrics", [])
+                    if hr_i >= len(vals) or t_i >= len(vals):
+                        continue
+                    hr, t = vals[hr_i], vals[t_i]
+                    if hr is None or t is None:
+                        continue
+                    # Guard per-sample: a single NaN/inf would otherwise raise and
+                    # abort the rest of this activity's stream, not just the sample.
+                    try:
+                        offset, bpm = int(t), int(hr)
+                    except (ValueError, TypeError):
+                        continue
+                    conn.execute(
+                        """INSERT OR IGNORE INTO activity_streams
+                           (activity_id, timestamp_offset, bpm)
+                           VALUES (?, ?, ?)""",
+                        (str(activity_id), offset, bpm),
+                    )
+                    n += 1
+
+                conn.commit()
+                if n:
+                    stream_count += 1
+                    logger.info(f"Saved {n} HR points for Garmin activity {activity_id}")
+            except Exception as e:
+                logger.warning(f"Could not fetch Garmin stream for activity {activity_id}: {e}")
+
+        logger.info(f"Collected HR streams for {stream_count} Garmin activities")
+    except Exception as e:
+        logger.error(f"Error collecting Garmin HR streams: {e}")
     finally:
         conn.close()
 
@@ -231,4 +310,5 @@ def collect_all(days_back: int = 7):
         collect_wellness(client, d)
 
     collect_activities(client, start.isoformat(), today.isoformat())
+    collect_hr_streams(client, days_back)
     logger.info("Garmin collection complete.")
