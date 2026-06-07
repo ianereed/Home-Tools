@@ -401,12 +401,14 @@ def add_ingredient(
                 """,
                 (recipe_id, name, qty_per_serving, unit, notes, todoist_section, sort_order),
             )
-        except sqlite3.IntegrityError:
-            # FK violation is the only realistic IntegrityError here: name is
-            # NOT NULL but typed `str` (no None default), and ingredients has
-            # no UNIQUE constraints. If a UNIQUE is added later, this catch
-            # would silently misreport "missing recipe" — narrow it then.
-            raise KeyError(recipe_id)
+        except sqlite3.IntegrityError as exc:
+            # Only convert FK violations ("FOREIGN KEY constraint failed") to
+            # KeyError(recipe_id). Re-raise everything else (e.g. a future
+            # UNIQUE constraint) so it surfaces honestly rather than being
+            # misreported as "missing recipe".
+            if "FOREIGN KEY" in str(exc):
+                raise KeyError(recipe_id) from exc
+            raise
         ingredient_id = cur.lastrowid
         c.execute(
             "UPDATE recipes SET updated_at = ? WHERE id = ?", (now, recipe_id)
@@ -504,7 +506,11 @@ def delete_ingredient(
         c.execute(
             "UPDATE recipes SET updated_at = ? WHERE id = ?", (now, row["recipe_id"])
         )
-        c.execute("DELETE FROM ingredients WHERE id = ?", (ingredient_id,))
+        cur = c.execute("DELETE FROM ingredients WHERE id = ?", (ingredient_id,))
+        if cur.rowcount == 0:
+            # Concurrent delete between the SELECT and our DELETE — raise so
+            # callers know the row is gone rather than silently succeeding.
+            raise KeyError(ingredient_id)
 
     if conn is not None:
         _run(conn)

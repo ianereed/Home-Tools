@@ -526,11 +526,20 @@ def _render_edit_panel(recipe_id: int) -> None:
 def _rows_from_editor(edited_ingr) -> list[dict]:
     """Turn the data_editor frame into plain row dicts with normalized ids.
 
-    NaN/None ids become 0 so diff_ingredients treats those rows as adds.
+    Applies nan_to_none to every cell first: pandas turns Python None into
+    float('nan') for any mixed-type numeric column (e.g. qty_per_serving when
+    some rows are blank, todoist_section when some rows are unsectioned), so
+    a naive dict compare would see None != nan as a permanent phantom "update"
+    and trigger an infinite autosave rerun loop. Blanket normalization at this
+    boundary keeps the diff idempotent regardless of which columns are affected.
+    After that, NaN/None ids become 0 so diff_ingredients treats those rows as
+    adds.
     """
     after_rows = edited_ingr.to_dict("records") if hasattr(edited_ingr, "to_dict") else []
     for row in after_rows:
-        if nan_to_none(row.get("id")) is None:
+        for k in list(row):
+            row[k] = nan_to_none(row[k])
+        if row.get("id") is None:
             row["id"] = 0
     return after_rows
 

@@ -117,8 +117,11 @@ def diff_ingredients(
                 # id present in after but not before — treat as add
                 adds.append({k: v for k, v in row.items() if k != "id"})
             else:
-                old_cmp = {k: v for k, v in old.items() if k != "id"}
-                new_cmp = {k: v for k, v in row.items() if k != "id"}
+                # Canonicalize NaN→None on both sides so a round-trip through
+                # pandas (which turns None into float('nan') in mixed numeric
+                # columns) never produces a phantom "update".
+                old_cmp = {k: nan_to_none(v) for k, v in old.items() if k != "id"}
+                new_cmp = {k: nan_to_none(v) for k, v in row.items() if k != "id"}
                 if old_cmp != new_cmp:
                     updates.append(row)
 

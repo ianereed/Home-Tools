@@ -734,3 +734,44 @@ def test_update_ingredient_omitted_kwarg_does_not_clear(db_path: Path) -> None:
     ing = list_ingredients(rid, path=db_path)[0]
     assert ing.name == "Carnaroli rice"
     assert ing.qty_per_serving == 1.5
+
+
+# ---------------------------------------------------------------------------
+# WS3 hardening: delete_ingredient rowcount check + add_ingredient FK narrowing
+# ---------------------------------------------------------------------------
+
+def test_delete_ingredient_raises_on_missing_id(db_path: Path) -> None:
+    """delete_ingredient must raise KeyError for a non-existent id (rowcount=0 path)."""
+    with pytest.raises(KeyError):
+        delete_ingredient(99999, path=db_path)
+
+
+def test_add_ingredient_fk_raises_key_error(db_path: Path) -> None:
+    """add_ingredient raises KeyError when recipe_id doesn't exist (FK violation)."""
+    with pytest.raises(KeyError):
+        add_ingredient(99999, name="Flour", sort_order=0, path=db_path)
+
+
+def test_add_ingredient_non_fk_integrity_error_propagates(db_path: Path) -> None:
+    """add_ingredient does NOT swallow non-FK IntegrityErrors as KeyError.
+
+    Simulates a UNIQUE-constraint failure by monkeypatching the connection to
+    raise an IntegrityError whose message does NOT contain "FOREIGN KEY".
+    That exception must propagate un-modified, not be mis-reported as KeyError.
+    """
+    import sqlite3
+    from unittest.mock import MagicMock, patch
+
+    rid = insert_recipe(title="FKTest", path=db_path)
+
+    real_exc = sqlite3.IntegrityError("UNIQUE constraint failed: ingredients.name")
+
+    with patch("meal_planner.queries._db._get_conn") as mock_get_conn:
+        mock_conn = MagicMock()
+        mock_conn.__enter__ = lambda s: mock_conn
+        mock_conn.__exit__ = MagicMock(return_value=False)
+        mock_conn.execute.side_effect = real_exc
+        mock_get_conn.return_value = mock_conn
+
+        with pytest.raises(sqlite3.IntegrityError, match="UNIQUE constraint"):
+            add_ingredient(rid, name="Salt", sort_order=0, path=db_path)

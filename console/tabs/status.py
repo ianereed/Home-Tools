@@ -11,6 +11,34 @@ import socket
 import streamlit as st
 
 
+# app.py renders ALL tabs on every script run (st.tabs renders all panels, not
+# just the active one), so any network I/O here fires on every page load and
+# every rerun. Cache with a short TTL so a rerun storm (or an autosave loop)
+# doesn't hammer the local services on every iteration.
+
+@st.cache_data(ttl=10)
+def _jobs_queue_size() -> int | None:
+    from console import jobs_client
+    return jobs_client.queue_size()
+
+
+@st.cache_data(ttl=10)
+def _jobs_base_url() -> str:
+    from console import jobs_client
+    return jobs_client.base_url()
+
+
+@st.cache_data(ttl=15)
+def _ollama_model_count() -> int | None:
+    """Return number of loaded Ollama models, or None if unreachable."""
+    try:
+        import requests
+        r = requests.get("http://127.0.0.1:11434/api/tags", timeout=1)
+        return len(r.json().get("models", []))
+    except Exception:
+        return None
+
+
 def render() -> None:
     col_status, col_links = st.columns(2)
 
@@ -19,22 +47,19 @@ def render() -> None:
         st.caption(f"host · `{socket.gethostname()}`")
 
         # jobs-http
-        from console import jobs_client
-        depth = jobs_client.queue_size()
+        depth = _jobs_queue_size()
         if depth is None:
             st.caption("jobs http · :x: unreachable")
         else:
-            st.caption(f"jobs http · `{jobs_client.base_url()}`")
+            st.caption(f"jobs http · `{_jobs_base_url()}`")
             st.caption(f"queue · {depth} pending")
 
         # ollama
-        try:
-            import requests
-            r = requests.get("http://127.0.0.1:11434/api/tags", timeout=1)
-            models = r.json().get("models", [])
-            st.caption(f"ollama · :white_check_mark: {len(models)} model(s)")
-        except Exception:
+        n = _ollama_model_count()
+        if n is None:
             st.caption("ollama · :x: unreachable")
+        else:
+            st.caption(f"ollama · :white_check_mark: {n} model(s)")
 
     with col_links:
         st.subheader("Links")
