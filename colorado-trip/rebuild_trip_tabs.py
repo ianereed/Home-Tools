@@ -1038,6 +1038,9 @@ FIXED = {
    )),
  "Jul 22 (Wed)": dict(banner="TRAVEL → ARRIVAL", plan="Chautauqua hike + settle into Boulder",
    wake="Moab", sleep="Boulder — Airbnb", miles="368", hrs="5.8", base="582 Locust Pl, Boulder",
+   checkin=("“Hike + Paraglide Boulder” · entire home, hosted by Kendal. Check-in after 3:00 PM · checkout by 11:00 AM. "
+            "Message Kendal to coordinate check-in: +1 234-264-0306. Confirmation HMS33NSE3T. "
+            "Max 2 guests + Mochi · quiet hours 10 PM–6 AM · exterior security cameras on the property."),
    mochi="With everyone at Chautauqua + downtown (leashed).",
    together="Depart Moab 8:00 AM (early start beats the Glenwood-Canyon traffic + afternoon heat) → arrive Boulder ~3:20 PM. 368 mi on US-191 → I-70 E over the Rockies. Two fuel + driver-swap stops (Grand Junction, Glenwood Springs). PM: easy Chautauqua meadow walk (1–2 mi), get oriented, explore Baseline/Chautauqua. See DRIVE PLAN.",
    notes="8:00 AM start (earlier than the 9 AM default — it's a long day with mountain passes). Dead Horse Point is the opposite direction (a SW backtrack), so it lives on yesterday's plan; if you skipped it, it's a ~1.5-hr morning spur before you head east. CO has no biodiesel mandate — name-brand pumps ≈ clean #2.",
@@ -1085,6 +1088,10 @@ FIXED = {
    )),
  "Aug 1 (Sat)": dict(banner="TRAVEL → ARRIVAL", plan="Drive Boulder → Steamboat (+ a short hike — your pick)",
    wake="Boulder — Airbnb", sleep="Steamboat — Airbnb", miles="165–175", hrs="3.5 + hike", base="1036 Lincoln Ave, Steamboat",
+   checkin=("“Walk to Shops with Hot Tub, Free Parking + Ski Bus” · private room, hosted by Nordic Lodge. "
+            "Check-in after 4:00 PM · checkout by 11:00 AM. Message host to coordinate check-in: +1 954-362-9089. "
+            "Confirmation HMYAS2YFFE. Max 4 guests + Mochi · hot tub + free parking + ski-bus stop + walk to shops. "
+            "⚠️ No carbon-monoxide alarm reported — bring a portable CO detector."),
    route=[BASE["BLD"], BASE["STM"]],
    together=("Leave the Boulder Airbnb by 8:30. Eat breakfast OUT in Boulder (no dishes to clean before you go). "
              "Then it's your call how you get to Steamboat — four routes below, each pairing a different short, "
@@ -1195,6 +1202,10 @@ FIXED = {
    together="Geotrek meetup in Twin Lakes.", notes="Group event — agenda set by Geotrek."),
  "Aug 9 (Sun)": dict(banner="TRAVEL → ARRIVAL", plan="Drive Twin Lakes → Crested Butte",
    wake="Twin Lakes", sleep="Crested Butte — Airbnb", miles="144", hrs="2.5", base="6 Emmons Rd, Mt CB",
+   checkin=("“Pet-Friendly · Hot Tub & Pool · Walk to Slopes” · entire home, hosted by Meredith. "
+            "Check-in after 4:00 PM · checkout by 10:00 AM — self check-in with keypad (get the code from Meredith ahead of arrival). "
+            "Host: +1 850-919-4430. Confirmation HM552YRYMN. Max 4 guests + Mochi · hot tub + pool + walk to slopes · "
+            "CO + smoke alarms + exterior security cameras."),
    mochi="In the van for the drive; can swim at Emerald Lake on the PM hike.",
    together="Arrive CB ~noon–1pm. Check in. PM: Emerald Lake hike (1.7 mi, easy, flat — Mochi swims), 10 min from town. Explore Elk Avenue — Butte Bagels (closes ~2pm), dinner at The Breadery or The Public House. See DRIVE PLAN.",
    notes=("PM orienting hike after settling in. ⚠️ PAVED ROUTE ONLY — do NOT let GPS send you over Cottonwood or "
@@ -1757,6 +1768,7 @@ def build_fixed(title, d):
     else:
         t.kv("Driving", drive)
     t.kv("Home base", d.get("base","—"))
+    if d.get("checkin"): t.kv("🏠 Airbnb check-in", d["checkin"])
     if d.get("notes"): t.kv("Notes / heads-up", d["notes"], vfg=GREY)
     t.spacer(6)
     t.section("THE PLAN")

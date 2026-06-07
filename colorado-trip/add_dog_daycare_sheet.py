@@ -13,7 +13,10 @@ SSID = SPREADSHEET_ID
 # ══════════════════════════════════════════════════════════════════════════════
 # 1. CREATE "Dog Daycare Options" SHEET
 # ══════════════════════════════════════════════════════════════════════════════
-ws = sh.add_worksheet(title="Dog Daycare Options", rows=55, cols=8)
+try:
+    ws = sh.add_worksheet(title="Dog Daycare Options", rows=55, cols=8)
+except gspread.exceptions.APIError:
+    ws = sh.worksheet("Dog Daycare Options")  # already exists — reuse + overwrite
 sheet_id = ws._properties['sheetId']
 
 def rgb(r, g, b):
@@ -69,6 +72,7 @@ STEAM_BG   = rgb(21, 101, 192)    # deep blue — Steamboat
 CB_BG      = rgb(69,  27, 142)    # deep purple — Crested Butte
 MAMM_BG    = rgb(180,  40,   0)   # volcanic red — Mammoth (PRIORITY)
 BISH_BG    = rgb(55,  71,  79)    # dark slate — Bishop
+FRES_BG    = rgb(78,  52,  46)    # dark brown — Fresno (Rae Lakes boarding)
 COL_HDR    = rgb(230, 230, 230)
 DARK_TXT   = rgb(30,  30,  30)
 WHITE      = rgb(255, 255, 255)
@@ -82,17 +86,17 @@ PRI_HEADERS = ["Priority", "City / When", "Facility", "Phone",
 # ── PRIORITY DATA ─────────────────────────────────────────────────────────────
 priority_rows = [
     ["🔴  1", "Mammoth  |  Aug 15–17",
-     "PUP Hiking Co + Sierra Dog Ventures", "(760) 582-2176 / (714) 609-8510",
-     "Call both — small operations at peak summer. Ian is solo with Mochi all 3 days.",
+     "PUP Hiking Company   ·   ⛔ Sierra Dog Ventures DECLINED", "(760) 582-2176  (PUP Hiking)",
+     "Sierra Dog Ventures declined new clients (it was the backup). PUP Hiking is now the ONLY in-town option — LOCK IT IN: fill online intake form + waiver, then book Aug 15–17. Ian solo with Mochi all 3 days. Only fallback is Donna the Dog Lady, Bishop (~50 min, overnight-style).",
      "NOW", "", ""],
     ["🔴  2", "Steamboat  |  Aug 1–7",
      "Red Rover Resort", "(970) 879-3647",
      "Ask about split-hour pickup policy. Confirm full daycare day is possible.",
      "Before trip", "", ""],
-    ["🔴  3", "Crested Butte  |  Aug 8–11",
-     "Oh Be Dogful Pet Ranch", "(970) 349-5047",
-     "⚠️ NO WEEKEND DAYCARE. Call to confirm weekday availability Aug 8-11.",
-     "2–4 weeks out", "", ""],
+    ["⚫  —", "Crested Butte  |  Aug 8–11",
+     "DROPPED — no daycare in CB", "—",
+     "DECIDED: not pursuing dog daycare in Crested Butte. Mochi stays with us.",
+     "n/a", "", ""],
     ["🟡  4", "Truckee / Lake Tahoe  |  Jul 18",
      "Truckee-Tahoe Pet Lodge", "(530) 582-7268",
      "Complete new-client registration online before Jul 18. One-day drop-off.",
@@ -102,9 +106,9 @@ priority_rows = [
      "Book via Google Form at wanderlustmuttsmoab.com. One-night stop.",
      "1–2 weeks ahead", "", ""],
     ["🟡  6", "Boulder  |  Jul 22–31",
-     "Camp Bow Wow (interview req'd first)", "(720) 605-4733",
-     "Schedule interview first 1–2 days of Boulder stay (Jul 22–23). Drop-in after.",
-     "Interview Day 1–2", "", ""],
+     "⛔ Doggie Depot DECLINED → Camp Bow Wow / Rogue's Farm", "(720) 605-4733  /  (303) 651-2834",
+     "Doggie Depot declined new clients. Book a backup (weekday-only no longer a constraint): Camp Bow Wow ($41/day, interview first, open weekends) or Rogue's Farm, Erie ($32/day, cheapest, ~15 min). Bring printed vaccine records.",
+     "1–2 weeks out", "", ""],
     ["⚪  7", "Bishop  |  backup for Mammoth",
      "Donna the Dog Lady", "(760) 387-2331",
      "~50 min from Mammoth. Best if PUP Hiking is full. Free-range boarding.",
@@ -113,7 +117,12 @@ priority_rows = [
 
 # ── FACILITY DATA ─────────────────────────────────────────────────────────────
 boulder_rows = [
-    ["Camp Bow Wow Boulder", "Indoor/outdoor open-play",
+    ["⛔ Doggie Depot (North Boulder) — DECLINED", "Small structured play groups + training",
+     "4525 Broadway St, Boulder, CO 80304", "(303) 443-7297", "doggiedepot.org",
+     "$36 full day\n$24.50 half day",
+     "⛔ DECLINED new clients",
+     "⛔ DECLINED NEW CLIENTS (confirmed Jun 2026). Was the Boulder pick. Owner-run (Jonathan & Cailey). 5.0★ on Yelp (7 reviews); Reddit r/boulder regulars call them 'friendly and extremely knowledgeable.' Small structured play groups, midday nap in crates, training woven in. ⚠️ WEEKDAYS ONLY M–F 7am–6:30pm (closed weekends + major holidays — Jul 25/26 are out). Drop-off by 9:30am. NO overnight. Buy single full days ($36) — most days Mochi's with us, only a few daycare days, and packages expire in 4 months. Bring printed proof of Rabies + DHPP + Bordetella (yearly) at drop-off. Age 12wk+ (Mochi fine)."],
+    ["🏆 Camp Bow Wow Boulder  (NEW BOULDER PICK)", "Indoor/outdoor open-play",
      "3631 Pearl St, Boulder, CO 80301", "(720) 605-4733", "campbowwow.com/boulder",
      "$41/day (full)\n$35/day (half)",
      "Interview required first; no reservation after",
@@ -123,7 +132,7 @@ boulder_rows = [
      "$45/day (large dog)",
      "Book 1+ week ahead",
      "50+ year old farm-style facility. All-inclusive with enrichment, group play, outdoor time. More personal feel than a chain. Well-reviewed. Mon–Sun 7:30am–6pm. Good fit for an active golden."],
-    ["Rogue's Farm", "Small open-play groups",
+    ["⭐ Rogue's Farm  (backup — cheapest)", "Small open-play groups",
      "7019 County Road 5, Erie, CO 80516\n(~15 min from Boulder)", "(303) 651-2834", "rogues.farm",
      "$32/day (full)\n$22/day (half)",
      "Call/email ahead",
@@ -173,26 +182,26 @@ cb_rows = [
     ["Oh Be Dogful Pet Ranch", "Pet ranch — daycare + boarding",
      "336 Buckley Dr, Crested Butte, CO 81224", "(970) 349-5047", "ohbedogful.com",
      "Call for rates",
-     "Book 2–4 weeks ahead",
-     "⚠️ NO WEEKEND DAYCARE — weekends (Sat/Sun) are boarding pickup/drop only, not daycare. WEEKDAY DAYCARE ONLY: Mon–Fri 7:30am–6pm. Plan bike park days on weekdays (Aug 8 Sat, Aug 9 Sun are excluded — use these for trail rides or schedule boarding overnight). Only dedicated in-town CB option."],
+     "DROPPED — not booking",
+     "⚫ DECIDED: not pursuing CB daycare — kept for reference only. ⚠️ NO WEEKEND DAYCARE — weekends (Sat/Sun) are boarding pickup/drop only, not daycare. WEEKDAY DAYCARE ONLY: Mon–Fri 7:30am–6pm. Plan bike park days on weekdays (Aug 8 Sat, Aug 9 Sun are excluded — use these for trail rides or schedule boarding overnight). Only dedicated in-town CB option."],
     ["Gunnison Critter Sitters", "Open-play daycare + vet on-site",
      "98 County Road 17, Gunnison, CO 81230\n(28 miles / ~35 min from CB)", "(970) 641-0460", "gunnisoncrittersitters.com",
      "$22/day",
-     "Call ahead — small operation",
-     "Best price of the trip ($22/day). Split hours: drop 8:30–12:30pm, pickup 2:30–5:30pm (Sat pickup 8:30–10:30am). 5 designated play areas. Vet clinic on-site. The drive from CB is the tradeoff. Good weekday option with a flexible CB schedule."],
+     "DROPPED — not booking",
+     "⚫ DECIDED: not pursuing CB daycare — kept for reference only. Best price of the trip ($22/day). Split hours: drop 8:30–12:30pm, pickup 2:30–5:30pm (Sat pickup 8:30–10:30am). 5 designated play areas. Vet clinic on-site. The drive from CB is the tradeoff. Good weekday option with a flexible CB schedule."],
 ]
 
 mammoth_rows = [
     ["PUP Hiking Company", "Off-leash pack hiking daycare",
-     "126 Old Mammoth Rd #106, Mammoth Lakes, CA 93546", "(760) 582-2176", "puphikingcompany.com",
-     "Call for rates",
-     "BOOK NOW — August fills fast",
-     "🏆 TOP PICK for Mochi. Off-leash pack hikes on actual trails, groups of 7–15 dogs, Garmin tracking collars. Drop-off 7:30–8am, hike all day, pickup 4–4:30pm. Perfect for an active 2-yr-old golden. Ian drops Mochi, spends full day at bike park. Book as far ahead as possible."],
-    ["Sierra Dog Ventures", "Off-leash pack adventure daycare",
+     "126 Old Mammoth Rd #106, Mammoth Lakes, CA 93546", "(760) 582-2176\npuphikingcompany@gmail.com", "puphikingcompany.com/services",
+     "$80 / one 2-hr hike\n$140 / two 2-hr hikes",
+     "Online booking — INTAKE FORM + WAIVER required first",
+     "🏆 TOP PICK for Mochi. Off-leash pack hikes on actual trails, Garmin tracking collars. Booked as hike sessions, NOT all-day daycare: $80 for one 2-hr hike (e.g. morning 9am–12pm), $140 for two 2-hr hikes to cover a longer day. For a full MTB day, book two hikes. PROCESS: (1) review Daily Photos + Services to confirm fit, (2) fill out online Intake Form + waiver, (3) book via online scheduler. Questions: puphikingcompany@gmail.com. Book as far ahead as possible — August fills fast."],
+    ["⛔ Sierra Dog Ventures — DECLINED", "Off-leash pack adventure daycare",
      "Mammoth Lakes, CA (mobile)", "(714) 609-8510", "sierradogventures.com",
      "Call for rates",
-     "Book ahead — small operation",
-     "Similar concept to PUP Hiking. Group/pack hikes with socialization focus. Dog CPR + first aid certified. Mammoth Lakes Recreation partnership. 34 Yelp reviews as of 2026. Best backup if PUP Hiking is full for any of the 3 days (Aug 15–17). Call both at the same time."],
+     "⛔ DECLINED new clients",
+     "⛔ DECLINED NEW CLIENTS (confirmed Jun 2026). Similar concept to PUP Hiking. Group/pack hikes with socialization focus. Dog CPR + first aid certified. Mammoth Lakes Recreation partnership. 34 Yelp reviews as of 2026. Best backup if PUP Hiking is full for any of the 3 days (Aug 15–17). STATUS: Emailed 6/1 introducing Mochi (2.5yr golden, Wag Hotels regular) for Aug 15–17, asked about pricing — awaiting reply."],
     ["Donna the Dog Lady", "Free-range home boarding",
      "1215 Birchim Lane, Round Valley\n(Bishop, CA — ~50 min from Mammoth)", "(760) 387-2331 or (760) 873-8405", "bishopvisitor.com/places/donna-the-dog-lady",
      "Call for rates",
@@ -211,6 +220,24 @@ bishop_rows = [
      "Call for rates",
      "Call ahead",
      "Traditional boarding and grooming in Bishop. Fallback if Donna is unavailable. Limited online info — call directly."],
+]
+
+fresno_rows = [
+    ["Rover (Fresno sitters)", "Online marketplace — in-home sitters",
+     "Various Fresno locations", "N/A — book via app", "rover.com",
+     "$26–53/night\n(median ~$44)",
+     "Book 2–4 weeks ahead",
+     "311 sitters in Fresno area. Filter for: fenced yard, large dog, overnight boarding, Aug 19–22 (4 nights). 90% respond within an hour. Background-checked sitters. Good option if facilities are full or Elaine's test visit is a dealbreaker. Check sitter reviews carefully for dogs Mochi's size/energy level."],
+    ["Elaine's Pet Resorts", "Luxury boarding facility",
+     "Fresno + Madera locations (call for address)", "Call for number", "elainespetresorts.com",
+     "Call for rates",
+     "Book ahead — call directly",
+     "⚠️ REQUIRES TEST VISIT 48 HRS BEFORE DROP-OFF — likely a dealbreaker for a road trip (would need to be Aug 17, which conflicts with driving from Mammoth to Fresno). Luxury facility, well-reviewed. Only viable if you can schedule the test visit on Aug 17 arrival day and board night of Aug 18. Call to ask if they make exceptions for out-of-town visitors."],
+    ["Pet Medical Center & Spa", "Vet practice with boarding",
+     "Fresno, CA (call for address)", "Call for number", "petmedcenterfresno.com",
+     "Call for rates",
+     "Call ahead",
+     "Vet clinic with attached boarding — less stimulating environment than a dedicated daycare. Upside: vet on-site if anything goes wrong. Limited online info. Ian noted facility looks basic. Last resort if Rover sitters and Elaine's both fall through."],
 ]
 
 # ── ROW LAYOUT (0-indexed) ────────────────────────────────────────────────────
@@ -255,42 +282,42 @@ vaccine_note = ("⚠️  VACCINE REMINDER — Confirm Mochi is current on: "
                 "Rabies | DHPP | Bordetella (often required every 6 months at daycare, not just annually — "
                 "most common gotcha). Bring printed records to every drop-off.")
 
-ALL_ROWS = [
-    ["Dog Daycare Options — Mochi 🐾"] + [""] * 7,                          # 0
-    E,                                                                         # 1
-    [vaccine_note] + [""] * 7,                                                # 2
-    E,                                                                         # 3
-    ["BOOKING PRIORITY — Make These Calls First"] + [""] * 7,               # 4
-    PRI_HEADERS,                                                               # 5
-] + priority_rows + [                                                          # 6-12
-    E,                                                                         # 13
-    ["BOULDER, CO  |  Jul 22–31  (10 nights)"] + [""] * 7,                  # 14
-    FAC_HEADERS,                                                               # 15
-] + boulder_rows + [                                                           # 16-18
-    E,                                                                         # 19
-    ["MOAB, UT  |  Jul 20  (one night)"] + [""] * 7,                        # 20
-    FAC_HEADERS,                                                               # 21
-] + moab_rows + [                                                              # 22-23
-    E,                                                                         # 24
-    ["TRUCKEE / LAKE TAHOE, CA  |  Jul 18  (one day)"] + [""] * 7,         # 25
-    FAC_HEADERS,                                                               # 26
-] + tahoe_rows + [                                                             # 27
-    E,                                                                         # 28
-    ["STEAMBOAT SPRINGS, CO  |  Aug 1–7  (6 nights)"] + [""] * 7,          # 29
-    FAC_HEADERS,                                                               # 30
-] + steamboat_rows + [                                                         # 31-33
-    E,                                                                         # 34
-    ["CRESTED BUTTE, CO  |  Aug 8–11  ⚠️ No weekend daycare at Oh Be Dogful"] + [""] * 7,  # 35
-    FAC_HEADERS,                                                               # 36
-] + cb_rows + [                                                                # 37-38
-    E,                                                                         # 39
-    ["MAMMOTH LAKES, CA  |  Aug 15–17  ⭐ Ian solo with Mochi — daycare needed daily"] + [""] * 7,  # 40
-    FAC_HEADERS,                                                               # 41
-] + mammoth_rows + [                                                           # 42-44
-    E,                                                                         # 45
-    ["BISHOP, CA  |  backup / en route option"] + [""] * 7,                 # 46
-    FAC_HEADERS,                                                               # 47
-] + bishop_rows                                                                # 48-49
+# Build the sheet row-by-row, capturing row indices as we go so that adding
+# or removing facility rows never breaks the formatting offsets. (Earlier this
+# layout used hardcoded indices and a single extra row silently mis-formatted
+# every section below it.)
+ALL_ROWS = []
+city_header_rows = []   # (row_index, bg) for each city section title
+colhdr_rows = []        # row_index for every FAC_HEADERS / PRI_HEADERS row
+
+def _add(row):
+    ALL_ROWS.append(row)
+    return len(ALL_ROWS) - 1
+
+def _add_section(title, bg, rows):
+    _add(E)
+    city_header_rows.append((_add([title] + [""] * 7), bg))
+    colhdr_rows.append(_add(FAC_HEADERS))
+    for r in rows:
+        _add(r)
+
+_add(["Dog Daycare Options — Mochi 🐾"] + [""] * 7)
+_add(E)
+vaccine_row = _add([vaccine_note] + [""] * 7)
+_add(E)
+priority_hdr_row = _add(["BOOKING PRIORITY — Make These Calls First"] + [""] * 7)
+colhdr_rows.append(_add(PRI_HEADERS))
+for r in priority_rows:
+    _add(r)
+
+_add_section("BOULDER, CO  |  Jul 22–31  (10 nights)", BOULD_BG, boulder_rows)
+_add_section("MOAB, UT  |  Jul 20  (one night)", MOAB_BG, moab_rows)
+_add_section("TRUCKEE / LAKE TAHOE, CA  |  Jul 18  (one day)", TAHOE_BG, tahoe_rows)
+_add_section("STEAMBOAT SPRINGS, CO  |  Aug 1–7  (6 nights)", STEAM_BG, steamboat_rows)
+_add_section("CRESTED BUTTE, CO  |  Aug 8–11  ⚫ DROPPED — decided not to pursue daycare in CB (Mochi stays with us); options kept below for reference", CB_BG, cb_rows)
+_add_section("MAMMOTH LAKES, CA  |  Aug 15–17  ⭐ Ian solo with Mochi — daycare needed daily", MAMM_BG, mammoth_rows)
+_add_section("BISHOP, CA  |  backup / en route option", BISH_BG, bishop_rows)
+_add_section("FRESNO, CA  |  Aug 19–22  ⭐ Mochi boards here for Rae Lakes backpacking (4 nights)", FRES_BG, fresno_rows)
 
 ws.update(range_name="A1", values=ALL_ROWS)
 
@@ -299,26 +326,17 @@ requests = []
 
 # Title + vaccine warning
 requests += [merge(0), fmt_row(0, TITLE_BG, text_color=WHITE, bold=True)]
-requests += [merge(2), fmt_row(2, WARN_BG, text_color=WHITE, bold=True)]
+requests += [merge(vaccine_row), fmt_row(vaccine_row, WARN_BG, text_color=WHITE, bold=True)]
 
 # Priority section
-requests += [merge(4), fmt_row(4, PRIORITY_BG, text_color=WHITE, bold=True)]
-requests.append(fmt_row(5, COL_HDR, text_color=DARK_TXT, bold=True))
+requests += [merge(priority_hdr_row), fmt_row(priority_hdr_row, PRIORITY_BG, text_color=WHITE, bold=True)]
 
-# City sections
-for row_i, bg in [
-    (14, BOULD_BG),
-    (20, MOAB_BG),
-    (25, TAHOE_BG),
-    (29, STEAM_BG),
-    (35, CB_BG),
-    (40, MAMM_BG),
-    (46, BISH_BG),
-]:
+# City section headers
+for row_i, bg in city_header_rows:
     requests += [merge(row_i), fmt_row(row_i, bg, text_color=WHITE, bold=True)]
 
-# Col header rows for city sections
-for row_i in [15, 21, 26, 30, 36, 41, 47]:
+# All column-header rows (priority + every city section)
+for row_i in colhdr_rows:
     requests.append(fmt_row(row_i, COL_HDR, text_color=DARK_TXT, bold=True))
 
 # Column widths: A=185, B=120, C=175, D=130, E=155, F=90, G=115, H=295
@@ -328,7 +346,7 @@ requests += col_widths([
 
 # Wrap Notes (H), Address (C), Cost (F), Book Ahead (G) for all data rows
 for col in [7, 2, 5, 6]:
-    requests.append(wrap_col(col, col+1, 5, 50))
+    requests.append(wrap_col(col, col+1, 5, 60))
 
 # Also wrap priority section columns B, D, E
 for col in [1, 3, 4]:
@@ -387,7 +405,7 @@ daycare_links = [
     ("Q27", "→ Dog Daycare (Moab)"),        # Jul 20 Moab
     ("Q29", "→ Dog Daycare (Boulder)"),     # Jul 22 Boulder
     ("Q39", "→ Dog Daycare (Steamboat)"),   # Aug 1 Steamboat
-    ("Q46", "→ Dog Daycare (CB)"),          # Aug 8 CB
+    ("Q46", "Mochi with us in CB (no daycare)"),  # Aug 8 CB — daycare dropped
     ("Q53", "→ Dog Daycare (Mammoth)"),     # Aug 15
     ("Q54", "→ Dog Daycare (Mammoth)"),     # Aug 16
     ("Q55", "→ Dog Daycare (Mammoth)"),     # Aug 17
