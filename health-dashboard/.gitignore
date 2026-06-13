@@ -1,0 +1,9 @@
+imports/
+cardiology/out/
+cardiology/*.db
+cardiology/clinical_data.py
+cardiology/*.bak
+apple_health_export.zip
+apple_health_export/
+garmin_Activities.csv
+FOR CARDIOLOGIST OFFICE/
