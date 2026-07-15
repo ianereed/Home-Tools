@@ -24,7 +24,7 @@ CARDIO_METHODS = ["get_blood_pressure", "get_weigh_ins", "get_daily_weigh_ins",
                    "get_body_composition"]
 
 
-def _shape(value, depth=0, max_depth=4):
+def _shape(value, depth=0, max_depth=6):
     """Describe a payload's structure — keys and types, values truncated.
 
     Never prints a raw leaf value: numbers/strings collapse to their type and
