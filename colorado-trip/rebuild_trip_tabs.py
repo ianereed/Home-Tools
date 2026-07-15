@@ -703,120 +703,126 @@ FIXED = {
        ("Lower Lehman Creek — 4-day window", "Books only 4 days out; 7/18 filled the moment it opened. Not worth planning around — check once, then let it go.", pin(_q("Lower Lehman Creek Campground, Great Basin National Park, NV"))),
      ],
    )),
- "Jul 19 (Sun)": dict(banner="TRAVEL", plan="Across Utah — pick your push (3 options, all end up high + cool)",
-   wake="Great Basin — Wheeler Peak CG", sleep="High country — your pick (La Sal / Grand Mesa / Vail Pass)",
-   miles="354–537", hrs="6–8", base="—",
-   together=("Decision day: how far east? All three options run the same first stretch — US-50/6 to Delta, I-70 at "
-             "Salina — then peel off at different points, and every one ends the night at 9,500–11,000 ft. "
-             "A) La Sal Mountains above Moab (~6 hr) · B) Grand Mesa (~7 hr — the recommended balance) · "
-             "C) Vail Pass / Shrine Pass (~8 hr, nearly done with the crossing). Pick on the road; the DRIVE PLAN "
-             "below has a route link for each."),
-   mochi=("Hot valley midday (Green River runs ~100°F) — he stays in the A/C van at stops; the payoff is an "
-          "evening walk in cool forest wherever you land."),
-   notes=("Don't sleep low: whatever option you pick, finish the climb. Fire snapshot (Jul 15): I-70 corridor + Grand Mesa CLEAR; La Sals OPEN (the 106k-acre Babylon Fire is 45–60 mi south in the Abajos — expect some SE-Utah haze); every forest on the route is Stage 2 — no campfires anywhere, gas stove only. Re-check InciWeb before picking. Fuel: Delta → Salina → "
-          "(Green River for A · Grand Junction for B/C · +Glenwood for C) — all previously verified clean-#2 "
-          "stops."),
-   route=["Great Basin National Park, NV","Delta, UT","Salina, UT","Green River, UT"],
+ "Jul 19 (Sun)": dict(banner="TRAVEL", plan="Across Utah to GRAND MESA — locked: sleep at 10,000 ft among the lakes",
+   wake="Great Basin — Sacramento Pass BLM", sleep="Grand Mesa — Island Lake CG (reserve) or dispersed (van)",
+   miles="430", hrs="6.8", base="—",
+   together=("The push, decided: Great Basin → Delta → I-70 through the San Rafael Swell → Grand Junction → "
+             "CO-65, the Grand Mesa Scenic Byway, 4,600 ft up onto the world's largest flat-top — 300+ lakes in "
+             "spruce forest at ten thousand feet. Camp by ~4:30. LOCKED 2026-07-14 (this was a 3-option day; the "
+             "La Sal and Vail Pass write-ups live in research-context.md if the road argues)."),
+   mochi=("Lake country is his: evening shoreline loop at Island/Cobbett Lake. Hot Grand Junction valley midday "
+          "(~95°F) — he stays in the A/C van at the fuel stops."),
+   notes=("RESERVE Island Lake CG from the road (recreation.gov campground 233387 — 9 Sunday sites open as of "
+          "Jul 15). The Mesa itself is CLEAR of fires (GMUG's two are ~90 mi south) — one glance at GMUG alerts "
+          "before the climb. Stage 2 forest-wide: stove only, no campfires. Bring bug spray — July lake country."),
+   route=["Great Basin National Park, NV","Delta, UT","Grand Junction, CO","39.0316,-107.9861"],
    drive_plan=dict(
-     summary=("354–537 mi · 6–8 hr driving depending on the option. Depart 8:30 AM after a campground-loop walk. "
-              "Common stem: Great Basin → Delta (fuel + swap, ~10:30) → Salina (I-70, optional top-off) → then "
-              "choose. Every option's link opens the full route in Maps."),
-     route_url=maps_route(["Great Basin National Park, NV","Delta, UT","Salina, UT","Green River, UT","Grand Junction, CO"]),
-     route_label="Great Basin → Delta → I-70 east (then pick A / B / C)",
-     route_options_title="🧭 PICK YOUR PUSH — one option, three distances, all sleep cool",
-     route_options_callout=("⚠️  Decide by Salina (~11:45 AM). Every option ends at 9,500–11,000 ft — the miles "
-                            "differ, the night temperature doesn't. Tap an option to open its exact route."),
-     route_options=[
-       dict(name="Option A · La Sal Mountains — 354 mi · ~6 hr (camp ~3:00 PM)",
-            note=("I-70 → US-191 toward Moab, then the La Sal Loop Rd up to Geyser Pass Rd dispersed sites at "
-                  "~9,500 ft — red-rock views from aspen shade. Shortest day, biggest afternoon. Camp: at-large dispersed off Geyser Pass Rd, ~9,500–10,600 ft (Warner Lake CG was full for Sunday + rates only 20-ft vehicles)."),
-            url=maps_route(["Great Basin National Park, NV","Delta, UT","Moab, UT","38.4906,-109.2686"])),
-       dict(name="Option B · Grand Mesa — 430 mi · ~7 hr (camp ~4:30 PM) ★ RECOMMENDED",
-            note=("I-70 through Green River to Grand Junction (fuel: Love's #517), then CO-65 up the world's "
-                  "largest flat-top mountain — lakes + spruce at ~10,000 ft. Best progress-vs-arrival balance. "
-                  "Camp: Island Lake CG had 9 Sunday sites open as of 7/15 (rec.gov 233387), Cobbett Lake 8 (233936) — or legal dispersed off the Mesa's forest roads."),
-            url=maps_route(["Great Basin National Park, NV","Delta, UT","Grand Junction, CO","39.0316,-107.9861"])),
-       dict(name="Option C · Vail Pass / Shrine Pass — 537 mi · ~8 hr (camp ~6:00 PM)",
-            note=("The big push: I-70 through Glenwood Canyon (fuel Glenwood), camp off Shrine Pass Rd at "
-                  "~11,000 ft. Crossing basically done — Boulder is 1h48 away. Camp: dispersed off Shrine Pass Rd (FR-709) at 10,700–11,100 ft — the coldest option."),
-            url=maps_route(["Great Basin National Park, NV","Delta, UT","Glenwood Springs, CO","39.5299,-106.2179"])),
-     ],
+     summary=("430 mi · ~6.8 hr driving. Depart 8:30 AM after a campground-loop walk → camp ~4:30 PM. Great "
+              "Basin → Delta (fuel + swap) → Salina → I-70 through the San Rafael Swell → Green River → Grand "
+              "Junction (fuel + swap) → CO-65 up the Grand Mesa Scenic Byway. Longest fuel gap ~180 mi "
+              "(Delta → GJ direct) — the optional Green River splash keeps it trivial."),
+     route_url=maps_route(["Great Basin National Park, NV","Delta, UT","Grand Junction, CO","39.0316,-107.9861"]),
+     route_label="Great Basin → Delta → Grand Junction → Grand Mesa (CO-65)",
      rows=[
        dict(kind="depart", k="🌅 8:30 AM · Depart",
-            v="Wheeler Peak CG, Driver A — campground-loop walk for Mochi first; tank is full from Ely."),
+            v="Sacramento Pass (or Wheeler Peak if the watch paid off), Driver A — tank full from Ely."),
        dict(kind="leg", k="Leg 1 · 8:30–10:30 AM",
-            v="~100 mi · Driver A — down the scenic drive, US-50/6 E across the state line to Delta, UT.",
+            v="~100 mi · Driver A — US-50/6 E across the state line to Delta, UT.",
             url=maps_route(["Great Basin National Park, NV","Delta, UT"])),
        dict(kind="stop", k="⛽ FUEL + 🔄 SWAP · Delta · ~10:30–10:55 AM",
-            v="Maverik, 44 N US-6 (RV lanes, 24-hr diesel) — first reliable fuel in Utah; fill for the I-70 miles.",
+            v="Maverik, 44 N US-6 (RV lanes, 24-hr diesel) — first reliable fuel in Utah.",
             url=pin(_q("Maverik, 44 N US Highway 6, Delta, UT 84624"))),
-       dict(kind="leg", k="Leg 2 · 10:55–11:45 AM",
-            v="~70 mi · Driver B — US-50 to Salina and onto I-70 E. DECIDE HERE: A, B, or C (options above).",
-            url=maps_route(["Delta, UT","Salina, UT"])),
-       dict(kind="stop", k="⛽ Top-off options eastbound",
-            v=("Salina Flying J (I-70 Exit 253) → Green River Pilot (1085 E Main, option A) → Grand Junction "
-               "Love's #517 (748 22 Road, options B/C) → Glenwood Springs Sinclair (option C). All verified "
-               "clean-#2; longest gap on any option < 150 mi."),
+       dict(kind="leg", k="Leg 2 · 10:55 AM–1:30 PM",
+            v=("~180 mi · Driver B — US-50 to Salina, I-70 E through the San Rafael Swell (Ghost Rock + Eagle "
+               "Canyon pullouts are on the route link) to Green River (optional Pilot splash-and-go) and on "
+               "toward the Colorado line."),
+            url=maps_route(["Delta, UT","Salina, UT","Green River, UT","Grand Junction, CO"])),
+       dict(kind="stop", k="⛽ FUEL + 🔄 SWAP + 🥤 · Grand Junction · ~1:30–2:00 PM",
+            v="Love's #517, 748 22 Road (I-70 Exit 26). Fill full — last big-town fuel; the Mesa has none.",
             url=pin(_q("Love's Travel Stop, 748 22 Road, Grand Junction, CO 81505"))),
-       dict(kind="arrive", k="🏁 3:00 / 4:30 / 6:00 PM · Camp high",
-            v="Per your option — set camp, dinner in the trees, and a genuinely cold night wherever you chose."),
+       dict(kind="leg", k="Leg 3 · 2:00–2:45 PM",
+            v="~40 mi · Driver A — I-70 E along the Bookcliffs to Exit 49 (Mesa), onto CO-65 south.",
+            url=maps_route(["Grand Junction, CO","Mesa, CO"])),
+       dict(kind="leg", k="Leg 4 · 2:45–3:45 PM · THE CLIMB",
+            v=("CO-65 Grand Mesa Scenic Byway — 4,600 ft up through Plateau Canyon and the aspen belt to the "
+               "lake plateau. Mesa Lakes pullouts en route; watch the temperature gauge fall."),
+            url=maps_route(["Mesa, CO","39.0316,-107.9861"])),
+       dict(kind="arrive", k="🏁 ~4:00–4:30 PM · Island Lake / Cobbett Lake (10,000+ ft)",
+            v=("Check into your reserved site (or claim a dispersed pullout), evening lake loop with Mochi, "
+               "dinner in the spruce. ~40°F tonight — the cool you drove for.")),
      ],
      fuel_options=[
-       ("Delta — Maverik (PRIMARY)", "44 N US-6 · ~mile 100. RV lanes, 24-hr diesel; the fuel + swap stop.", "Maverik, 44 N US Highway 6, Delta, UT 84624"),
-       ("Salina — Flying J", "I-70 Exit 253 · ~mile 176. Top off at the decision point.", "Flying J Travel Center, Salina, UT 84654"),
-       ("Green River — Pilot (option A)", "1085 E Main St · ~mile 278.", "Pilot Travel Center, 1085 E Main St, Green River, UT 84525"),
-       ("Grand Junction — Love's #517 (B/C)", "748 22 Road, I-70 Exit 26 · ~mile 360.", "Love's Travel Stop, 748 22 Road, Grand Junction, CO 81505"),
-       ("Glenwood Springs — Sinclair (C)", "Hwy 6/82 · ~mile 460 — before the canyon climb.", "Sinclair, Glenwood Springs, CO 81601"),
+       ("Delta — Maverik (PRIMARY)", "44 N US-6 · ~mile 100. RV lanes, 24-hr diesel; fuel + swap.", "Maverik, 44 N US Highway 6, Delta, UT 84624"),
+       ("Salina — Flying J", "I-70 Exit 253 · ~mile 176. Optional top-off at the I-70 on-ramp.", "Flying J Travel Center, Salina, UT 84654"),
+       ("Green River — Pilot (optional)", "1085 E Main St · ~mile 278. Splash-and-go if you want the gap tiny.", "Pilot Travel Center, 1085 E Main St, Green River, UT 84525"),
+       ("Grand Junction — Love's #517 (PRIMARY)", "748 22 Road, I-70 Exit 26 · ~mile 370. Fill FULL — no fuel on the Mesa.", "Love's Travel Stop, 748 22 Road, Grand Junction, CO 81505"),
+     ],
+     scenic=[
+       ("San Rafael Swell — Ghost Rock", "I-70's wild eroded-geology stretch W of Green River; free pullouts right on the route.", pin(_q("Ghost Rock Viewpoint, I-70, Utah"))),
+       ("Mesa Lakes overlooks", "First taste of the lake plateau as CO-65 crests — quick pullouts before camp.", pin(_q("Mesa Lakes, Grand Mesa Scenic Byway, CO"))),
+       ("Land's End Observatory (if early)", "1930s stone overlook hanging 6,000 ft over the Grand Valley — 12 mi of decent gravel each way; only if you're parked by 4.", pin(_q("Land's End Observatory, Grand Mesa, CO"))),
      ],
      sleep_options=[
-       ("A · Geyser Pass Rd dispersed — La Sals", "At-large dispersed at ~9,500–10,600 ft in aspen + spruce above the red rock; maintained gravel, van-fine dry. Stage 2 = stove only. Pick the pullout on iOverlander.", pin(_q("Geyser Pass Road, La Sal Mountains, Moab, UT"))),
-       ("B · Island Lake CG — Grand Mesa (RESERVE)", "10,300 ft; 9 sites open for Sun 7/19 as of Jul 15 (rec.gov 233387). Cobbett Lake (233936, 8 open) + Jumbo (233189, 2) nearby, plus dispersed along the Mesa roads.", pin(_q("Island Lake Campground, Grand Mesa, CO"))),
-       ("C · Shrine Pass Rd dispersed — Vail Pass", "Classic FR-709 pullouts at 10,700–11,100 ft ('passable by all but the lowest passenger cars'). Coldest, starriest option (~35–38°F).", pin(_q("Shrine Pass Road, Vail Pass, CO"))),
+       ("Island Lake CG — RESERVE (the plan)", "10,300 ft, lakeside spruce; 9 of 11 reservable sites open for Sun 7/19 as of Jul 15 — recreation.gov campground 233387. Book from the road at Salina.", pin(_q("Island Lake Campground, Grand Mesa, CO"))),
+       ("Cobbett Lake CG (fallback)", "By the visitor center at 10,250 ft; 8 open for Sunday as of Jul 15 (rec.gov 233936).", pin(_q("Cobbett Lake Campground, Grand Mesa, CO"))),
+       ("Jumbo CG (fallback)", "Mesa Lakes area, ~9,870 ft; 2 open as of Jul 15 (rec.gov 233189).", pin(_q("Jumbo Campground, Grand Mesa, CO"))),
+       ("Dispersed on the Mesa roads (free)", "Legal at-large dispersed along the MVUM forest roads off CO-65 — pick the pullout on iOverlander; stove only.", pin(_q("Grand Mesa dispersed camping, CO-65, Colorado"))),
      ],
    )),
- "Jul 20 (Mon)": dict(banner="TRAVEL", plan="Converge on the Colorado high country (Vail Pass / Camp Hale)",
-   wake="Last night's camp (A / B / C)", sleep="Shrine Pass or Camp Hale area (van, ~9,200–11,000 ft)",
-   miles="0–272", hrs="0–5", base="—",
-   together=("Everyone funnels to the same neighborhood tonight: the Vail Pass / Camp Hale high country. From "
-             "La Sal it's ~4.75 hr, from Grand Mesa ~3 hr, and if you already pushed to Shrine Pass last night "
-             "this is a LAYOVER — sleep in, hike Shrine Ridge (wildflowers, ~4 mi RT, dogs OK), move nothing. "
-             "Set camp by ~3 PM regardless: afternoon thunderstorms are the summer rhythm up here."),
-   mochi=("Aspen-and-spruce camps at 9,000–11,000 ft — his kind of country. Leash in developed sites; storms "
-          "mid-afternoon (he hates thunder? camp early)."),
-   notes=("Fire snapshot (Jul 15): Vail Pass + Camp Hale CLEAR. ⚠️ Willow Fire (6,539 ac, 28%) burns 6 mi WEST of Leadville with a closure on the Mt Massive/Hagerman side — US-24 over Tennessee Pass is open, but do NOT camp west of Leadville and expect smoke pockets near town. Re-check InciWeb before committing. Camp Hale/Homestake CHANGED Jun 15, 2026: FR-703/704 camping is now designated-sites-only, $20/night at the kiosk, all first-come this year (44 sites). Zero-drama move: reserve Camp Hale Memorial CG (rec.gov 232274, ~9,200 ft — 16 Monday sites open as of Jul 15). Shrine Pass dispersed stays free. Nights run 35–42°F at this elevation — the coldest sleeps of "
-          "the whole trip. Tomorrow is a choice day (stay or hop to Boulder's backyard), so pick a camp you'd "
-          "happily keep."),
-   route=["Grand Mesa Visitor Center, Cedaredge, CO","Vail Pass Rest Area, CO"],
+ "Jul 20 (Mon)": dict(banner="TRAVEL", plan="Crag Crest taste → down the Mesa → Camp Hale / Vail Pass high country",
+   wake="Grand Mesa (van)", sleep="Camp Hale / Shrine Pass area (van, 9,200–11,000 ft)",
+   miles="165", hrs="3.0", base="—",
+   together=("Morning on the Mesa's signature trail: walk the CRAG CREST National Recreation Trail from the east "
+             "trailhead by Island Lake — out-and-back as far as feels good (the full loop is ~10 mi; even 2 mi "
+             "buys the knife-edge lake views). Then an easy 3-hour drive: CO-65 down, I-70 E through GLENWOOD "
+             "CANYON (the prettiest interstate miles in America), and pick your night — Camp Hale (9,200 ft, "
+             "reservable) via Minturn/US-24, or Shrine Pass dispersed (11,000 ft) off Vail Pass. Camp set by "
+             "~3 PM, ahead of the storm cell."),
+   mochi=("Crag Crest is leashed-dog-OK; Camp Hale's valley-floor loops are flat and easy for the evening. "
+          "Storms mid-afternoon — camp early."),
+   notes=("⚠️ Willow Fire (6,539 ac, 28% as of Jul 15) burns 6 mi WEST of Leadville — US-24/Tennessee Pass is "
+          "open but do NOT camp west of Leadville; re-check InciWeb before choosing the Camp Hale side. "
+          "Camp Hale/Homestake changed Jun 15, 2026: FR-703/704 is designated-sites-only, $20/night, first-come "
+          "— the zero-drama move is reserving Camp Hale Memorial CG (rec.gov 232274; 16 Monday sites open as of "
+          "Jul 15). Stage 2 everywhere: stove only. Nights 35–42°F — coldest sleeps of the trip."),
+   route=["39.0316,-107.9861","Glenwood Springs, CO","Vail Pass Rest Area, CO"],
    drive_plan=dict(
-     summary=("0–272 mi depending on where Sunday ended. From La Sal: I-70 E through Grand Junction + Glenwood "
-              "(~272 mi / 4h45). From Grand Mesa: down CO-65, I-70 E to Vail Pass or over Battle Mtn to Camp Hale "
-              "(~165 mi / ~3h). From Shrine Pass: zero — layover + hike. Fuel as needed at Glenwood (Sinclair) or "
-              "Silverthorne (Conoco, I-70 & Hwy 9)."),
-     route_url=maps_route(["Grand Junction, CO","Glenwood Springs, CO","Vail Pass Rest Area, CO"]),
-     route_label="I-70 east → Vail Pass / Camp Hale",
+     summary=("~165 mi · ~3 hr driving, after the morning hike. Grand Mesa → CO-65 down → I-70 E through "
+              "Glenwood Canyon → Eagle → EITHER exit Minturn → US-24 to Camp Hale (~1:45 PM) OR stay on I-70 to "
+              "Vail Pass → Shrine Pass Rd FR-709 (~1:30 PM). Fuel only if wanted — Glenwood Sinclair or "
+              "Silverthorne Conoco; the GJ fill covers the day."),
+     route_url=maps_route(["39.0316,-107.9861","Glenwood Springs, CO","Vail Pass Rest Area, CO"]),
+     route_label="Grand Mesa → Glenwood Canyon → Camp Hale / Vail Pass",
      rows=[
-       dict(kind="depart", k="🌅 Depart when the coffee's done",
-            v="Short day by design — 9:00–10:00 AM is plenty from Grand Mesa; ~8:30 from La Sal."),
-       dict(kind="leg", k="From La Sal · ~272 mi · 4h45",
-            v="La Sal Loop down to US-191 → I-70 E through Grand Junction, Glenwood Canyon, Vail → Vail Pass. Fuel Glenwood.",
-            url=maps_route(["38.4906,-109.2686","Grand Junction, CO","Glenwood Springs, CO","Vail Pass Rest Area, CO"])),
-       dict(kind="leg", k="From Grand Mesa · ~165 mi · ~3h",
-            v=("CO-65 down to I-70 E. For Shrine Pass: exit at Vail Pass rest area, FR-709. For Camp Hale: exit "
-               "Minturn, US-24 over Battle Mountain (~3h)."),
-            url=maps_route(["39.0316,-107.9861","Glenwood Springs, CO","Vail Pass Rest Area, CO"])),
-       dict(kind="leg", k="Already at Shrine Pass? · LAYOVER",
-            v=("Hike Shrine Ridge Trail from the pass (~4 mi RT, 11,089 → 11,888 ft, dogs OK, July wildflower "
-               "peak) — or Camp Hale valley loop if you dropped down. Zero driving days are what the van's for."),
-            url=pin(_q("Shrine Ridge Trailhead, Shrine Pass Road, Vail Pass, CO"))),
-       dict(kind="stop", k="⛽ If fueling today",
-            v="Glenwood Springs Sinclair (Hwy 6/82) westsiders · Silverthorne Conoco (I-70 & Hwy 9) if you overshoot east. Both verified clean #2.",
-            url=pin(_q("Conoco, Silverthorne, CO 80498"))),
-       dict(kind="arrive", k="🏁 By ~3:00 PM · Camp set",
-            v="Shrine Pass Rd (FR-709) dispersed or the Camp Hale / Homestake Rd area (details below) — beat the afternoon storm cell, dinner early."),
+       dict(kind="leg", k="🥾 8:00–10:00 AM · Crag Crest, the taste",
+            v=("East trailhead by Island Lake — climb to the crest and walk the knife-edge as far as you like "
+               "(AllTrails ~4.7★; full loop 10.3 mi, but 2–4 mi out-and-back gets the drama). Leashed Mochi "
+               "welcome."),
+            url=pin(_q("Crag Crest East Trailhead, Grand Mesa, CO"))),
+       dict(kind="depart", k="🚐 10:15 AM · Roll",
+            v="Driver A — CO-65 down the north side toward I-70."),
+       dict(kind="leg", k="Leg 1 · 10:15–11:30 AM",
+            v="~60 mi · CO-65 → I-70 E to Glenwood Springs (optional Sinclair fuel, Hwy 6/82).",
+            url=maps_route(["39.0316,-107.9861","Glenwood Springs, CO"])),
+       dict(kind="leg", k="Leg 2 · 11:30 AM–1:15 PM",
+            v=("~90 mi · Driver B — GLENWOOD CANYON (1,300-ft walls, the Colorado River at your elbow) → Eagle → "
+               "decision at Minturn: US-24 over Battle Mountain to Camp Hale, or I-70 up to Vail Pass for "
+               "Shrine Pass Rd."),
+            url=maps_route(["Glenwood Springs, CO","Minturn, CO","Vail Pass Rest Area, CO"])),
+       dict(kind="stop", k="🔥 WILDFIRE CHECK · before committing",
+            v=("One InciWeb glance for the Willow Fire (W of Leadville) if you're taking the Camp Hale side — "
+               "closure is west of town, your side is clear as of Jul 15, but verify day-of."),
+            url=None),
+       dict(kind="arrive", k="🏁 ~1:30–2:00 PM · Camp at 9,200–11,000 ft",
+            v="Reserved Camp Hale site, a Shrine Pass pullout, or a $20 Homestake kiosk site (candidates below). Afternoon: Camp Hale's 10th-Mountain ruins loop or a Shrine Ridge leg-stretch."),
+     ],
+     fuel_options=[
+       ("Glenwood Springs — Sinclair (optional)", "Hwy 6/82 · ~mile 100 of the day. Only if you want a top-off; the GJ fill covers today.", "Sinclair, Glenwood Springs, CO 81601"),
+       ("Silverthorne — Conoco (if you overshoot east)", "I-70 & Hwy 9 jct — verified clean #2.", "Conoco, Silverthorne, CO 80498"),
      ],
      sleep_options=[
        ("Camp Hale Memorial CG (RESERVE — zero drama)", "~9,200 ft on the 10th Mountain Division's historic valley floor; 16 sites open for Mon 7/20 as of Jul 15 (rec.gov 232274). Stay on established routes — WWII ordnance country.", pin(_q("Camp Hale Memorial Campground, Leadville, CO"))),
-       ("Shrine Pass Rd (FR-709) dispersed — free", "10,700–11,100 ft pullouts between Vail Pass and Redcliff; coldest + starriest. Stove only (Stage 2, forest-wide).", pin(_q("Shrine Pass Road, Vail Pass, CO"))),
+       ("Shrine Pass Rd (FR-709) dispersed — free", "10,700–11,100 ft pullouts between Vail Pass and Redcliff; coldest + starriest. Stove only (Stage 2).", pin(_q("Shrine Pass Road, Vail Pass, CO"))),
        ("Homestake Rd (FR-703) — $20 designated sites", "New this summer: 44 numbered first-come sites along 15 mi of the Homestake valley; Gold Park CG (12 FCFS sites) at the end.", pin(_q("Homestake Road, White River National Forest, CO"))),
        ("Kenosha Pass CG — backup east", "~10,000 ft on US-285; 13 Monday sites open as of Jul 15 (rec.gov 233185) if you'd rather stage southeast.", pin(_q("Kenosha Pass Campground, Jefferson, CO"))),
      ],

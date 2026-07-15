@@ -48,3 +48,7 @@ Superseded one-shot scripts, kept for reference. Not maintained; don't run.
   Truckee-Tahoe Pet Lodge / Wanderlust Mutts. Ran once before the same-day rebuild
   (commit 75fd1e4). NOTE: carries the merged-cell fix for the DAY OPTIONS evenings
   rows (text lives at the C-column merge anchor — write there, not col B).
+- `lock_option_b.py` — one-shot (2026-07-14 late): locked the Jul 19 push to
+  Grand Mesa (option B) on the Itinerary + added the Island Lake CG booking row
+  to Reservations; the Jul 19/20 day tabs were rebuilt via the single-tab
+  workshop path (build_fixed ×2 + date-cell link rewire + save_genmeta).

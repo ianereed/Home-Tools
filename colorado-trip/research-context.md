@@ -268,8 +268,8 @@ stove only + free CA campfire permit for the CA nights.**
 |---|---|---|---|
 | Jul 17 | Surgery appt → Davis (fuel) → I-80 → Truckee | ~230 / 4 (+Fri traffic) | CA-89 N dispersed: Prosser Hill OHV / Sagehen / Kyburz Flat (~5,900–6,400 ft) |
 | Jul 18 | I-80 → Fernley (fuel) → US-50: Fallon → Austin → Ely → Great Basin | ~410 / 6.5 | Sacramento Pass BLM (7,150 ft, free FCFS) — Wheeler Peak CG (9,886 ft) on a cancellation |
-| Jul 19 | Delta (fuel) → I-70 → pick-your-push | 354–537 / 6–8 | A: La Sal Geyser Pass dispersed (~9,500–10,600) · B★: Grand Mesa (Island Lake CG 10,300 / dispersed) · C: Shrine Pass dispersed (10,700–11,100) |
-| Jul 20 | Converge on Vail Pass / Camp Hale (layover if C) | 0–272 / 0–5 | Camp Hale Memorial CG (9,200, reservable) / Shrine Pass free / Homestake $20 designated |
+| Jul 19 | Delta (fuel) → I-70 → GJ (fuel) → CO-65 up **GRAND MESA** — **✔ LOCKED 2026-07-14 (option B)** | 430 / 6.8 | Island Lake CG 10,300 ft (reserve — rec.gov 233387) / Mesa dispersed. *(Unpicked alternates for reference: A La Sal Geyser Pass dispersed ~354 mi · C Shrine Pass push ~537 mi.)* |
+| Jul 20 | Crag Crest AM taste → Glenwood Canyon → Camp Hale / Vail Pass | 165 / 3.0 | Camp Hale Memorial CG (9,200, reservable 232274) / Shrine Pass free / Homestake $20 designated |
 | Jul 21 | Layover OR hop to Boulder's backyard | 0 or ~80–110 | Same camp OR West Magnolia / Gordon Gulch (free designated FCFS, ~8,800–9,000 ft) |
 | Jul 22 | Boulder: groceries + Chautauqua + 3 PM check-in | ~22 (or ~97) | Boulder Airbnb (582 Locust Pl) |
 

@@ -11,6 +11,13 @@ from .db import DB_PATH
 NTFY_TOPIC = "ian-health-dashboard"
 STALE_THRESHOLD_HOURS = 24
 
+# Sparse-metric thresholds (days). BP/weight aren't daily-cadence like sleep/HR,
+# so a fixed 24h window would page Ian every morning before he even owns a scale.
+BP_STALE_DAYS = 14
+BP_DORMANT_DAYS = 60
+WEIGHT_STALE_DAYS = 10
+WEIGHT_DORMANT_DAYS = 45
+
 # Heartbeat log. The health_staleness huey kind uses this file's mtime as its
 # migration baseline metric (file-mtime:logs/health-staleness.log), so every run
 # must touch it — otherwise the verifier thinks the job stopped firing.
@@ -39,10 +46,57 @@ def _write_heartbeat(stale_sources: list[str]) -> None:
         fh.write(f"{datetime.now().isoformat(timespec='seconds')} {status}\n")
 
 
-def check_staleness() -> list[str]:
+def _sparse_metric_alert(
+    conn: sqlite3.Connection,
+    table: str,
+    source_filter: str | None,
+    stale_days: int,
+    dormant_days: int,
+    label: str,
+    now: datetime,
+) -> str | None:
+    """Armed / stale / dormant staleness for a sparse metric (BP, weight).
+
+    A metric that has never produced a (filtered) row is *unarmed* — no device
+    exists yet, so there's nothing to nag about (e.g. weight arms only on
+    source='garmin' rows, so pre-scale Apple/DEXA anchors can never trigger a
+    "no weigh-in" alarm). Once armed, a row older than `dormant_days` silences
+    it again (habit abandoned — stop nagging); an alert fires only in the
+    stale_days..dormant_days window. Queries are wrapped so a pre-migration DB
+    (missing the cardio tables) degrades to "not armed" instead of crashing the
+    whole staleness check.
+    """
+    try:
+        if source_filter is not None:
+            row = conn.execute(
+                f"SELECT MAX(timestamp) FROM {table} WHERE source = ?", (source_filter,)
+            ).fetchone()
+        else:
+            row = conn.execute(f"SELECT MAX(timestamp) FROM {table}").fetchone()
+    except sqlite3.OperationalError:
+        return None
+
+    last = row[0] if row else None
+    if not last:
+        return None  # unarmed: no data ever recorded
+
+    try:
+        last_dt = datetime.fromisoformat(last)
+    except ValueError:
+        return None
+
+    age_days = (now - last_dt).total_seconds() / 86400
+    if age_days > dormant_days:
+        return None  # dormant: habit abandoned, stop nagging
+    if age_days > stale_days:
+        return f"{label} (last: {last[:10]})"
+    return None
+
+
+def check_staleness(now: datetime | None = None) -> list[str]:
     """Return list of stale data source descriptions."""
+    now = now or datetime.now()
     conn = sqlite3.connect(DB_PATH)
-    now = datetime.now()
     cutoff = now - timedelta(hours=STALE_THRESHOLD_HOURS)
     cutoff_date = cutoff.strftime("%Y-%m-%d")
     cutoff_ts = cutoff.strftime("%Y-%m-%dT%H:%M:%S")
@@ -69,6 +123,22 @@ def check_staleness() -> list[str]:
     if not row or row[0] < cutoff_date:
         last = row[0] if row else "never"
         stale.append(f"HRV (last: {last})")
+
+    # Blood pressure (armed on any source; sparse — cuff or manual entries).
+    bp_alert = _sparse_metric_alert(
+        conn, "blood_pressure", None, BP_STALE_DAYS, BP_DORMANT_DAYS, "Blood pressure", now
+    )
+    if bp_alert:
+        stale.append(bp_alert)
+
+    # Weight — arms only on source='garmin' rows, so Apple historical anchors
+    # and quarterly DEXA scans can never trigger "no weigh-in" before the
+    # Garmin scale exists (or on the weeks between DEXA scans afterward).
+    weight_alert = _sparse_metric_alert(
+        conn, "body_weight", "garmin", WEIGHT_STALE_DAYS, WEIGHT_DORMANT_DAYS, "Weight", now
+    )
+    if weight_alert:
+        stale.append(weight_alert)
 
     conn.close()
     return stale
