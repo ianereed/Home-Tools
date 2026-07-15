@@ -18,6 +18,7 @@ import sqlite3
 import sys
 
 import pandas as pd
+import plotly.graph_objects as go
 import streamlit as st
 
 _HD_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -203,21 +204,221 @@ def _medications_html() -> str:
     return f'<div class=cards>{"".join(cards)}</div>'
 
 
+def _render_bp_section():
+    """Blood pressure: metrics row, systolic/diastolic scatter + 7-day rolling
+    means with AHA bands, recent-readings table. Empty-safe."""
+    st.markdown("## Blood pressure")
+    bp = lib.load_df(
+        "SELECT timestamp, systolic, diastolic, pulse FROM blood_pressure ORDER BY timestamp")
+    if bp.empty:
+        st.caption("No blood-pressure readings yet — they sync from Garmin Connect "
+                   "(cuff or manual entries).")
+        return
+
+    bp["timestamp"] = pd.to_datetime(bp["timestamp"])
+    latest = bp.iloc[-1]
+    cat, color = lib.bp_category(latest["systolic"], latest["diastolic"])
+    since_14d = pd.Timestamp.now() - pd.Timedelta(days=14)
+    last_14 = bp[bp["timestamp"] >= since_14d]
+    days_ago = (pd.Timestamp.now().normalize() - latest["timestamp"].normalize()).days
+
+    c = st.columns(4)
+    c[0].metric("Latest", f"{int(latest['systolic'])}/{int(latest['diastolic'])}")
+    c[0].markdown(f'<span style="color:{color};font-size:12px;">{cat}</span>',
+                  unsafe_allow_html=True)
+    c[1].metric("14-day mean",
+                f"{last_14['systolic'].mean():.0f}/{last_14['diastolic'].mean():.0f}"
+                if not last_14.empty else "—")
+    c[2].metric("Readings in range", f"{len(bp)}")
+    c[3].metric("Last reading", f"{days_ago} day{'s' if days_ago != 1 else ''} ago")
+
+    bp["sys_roll"] = bp["systolic"].rolling(7, min_periods=1).mean()
+    bp["dia_roll"] = bp["diastolic"].rolling(7, min_periods=1).mean()
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=bp["timestamp"], y=bp["systolic"], mode="markers",
+                              name="Systolic", marker=dict(color=lib.ACCENT, size=6)))
+    fig.add_trace(go.Scatter(x=bp["timestamp"], y=bp["diastolic"], mode="markers",
+                              name="Diastolic", marker=dict(color=lib.HRV, size=6)))
+    fig.add_trace(go.Scatter(x=bp["timestamp"], y=bp["sys_roll"], mode="lines",
+                              name="Systolic 7d mean", line=dict(color=lib.ACCENT, width=2)))
+    fig.add_trace(go.Scatter(x=bp["timestamp"], y=bp["dia_roll"], mode="lines",
+                              name="Diastolic 7d mean", line=dict(color=lib.HRV, width=2)))
+    lib.add_bp_bands(fig)
+    st.plotly_chart(lib.apply_theme(fig, 260, legend=True), use_container_width=True,
+                    key="cardio_bp")
+
+    with st.expander("Recent readings"):
+        table = bp.copy()
+        table["category"] = table.apply(
+            lambda r: lib.bp_category(r["systolic"], r["diastolic"])[0], axis=1)
+        table["timestamp"] = table["timestamp"].dt.strftime("%Y-%m-%d %H:%M")
+        st.dataframe(
+            table[["timestamp", "systolic", "diastolic", "pulse", "category"]].iloc[::-1],
+            use_container_width=True, hide_index=True)
+
+
+def _render_weight_section():
+    """Weight: metrics row in lb (kg in help text), daily-mean + 7-day rolling
+    chart in lb, goal band + baseline overlay only when CARDIO_GOALS is
+    present, DEXA (diamond) and Apple (circle) points overlaid. Empty-safe."""
+    st.markdown("## Weight")
+    w = lib.load_df("SELECT timestamp, weight_kg, source FROM body_weight ORDER BY timestamp")
+    if w.empty:
+        st.caption("No weigh-ins yet — data will flow from the Garmin scale once "
+                   "it's set up.")
+        return
+
+    w["timestamp"] = pd.to_datetime(w["timestamp"])
+    w["weight_lb"] = w["weight_kg"] * lib.KG_TO_LB
+    latest = w.iloc[-1]
+    since_7d = pd.Timestamp.now() - pd.Timedelta(days=7)
+    last_7 = w[w["timestamp"] >= since_7d]
+
+    goals = getattr(CD, "CARDIO_GOALS", None)
+    weight_goal = goals.get("weight", {}) if goals else {}
+    baseline_kg = weight_goal.get("baseline_kg")
+    has_baseline = baseline_kg is not None
+
+    cols = st.columns(4 if has_baseline else 3)
+    cols[0].metric("Latest", f"{latest['weight_lb']:.1f} lb",
+                   help=f"{latest['weight_kg']:.1f} kg")
+    cols[1].metric("7-day mean",
+                   f"{last_7['weight_lb'].mean():.1f} lb" if not last_7.empty else "—")
+    cols[2].metric("Readings", f"{len(w)}")
+    if has_baseline:
+        baseline_lb = baseline_kg * lib.KG_TO_LB
+        delta_lb = latest["weight_lb"] - baseline_lb
+        cols[3].metric("vs baseline", f"{delta_lb:+.1f} lb")
+
+    daily = w.copy()
+    daily["date"] = daily["timestamp"].dt.date
+    daily_mean = daily.groupby("date", as_index=False)["weight_lb"].mean()
+    daily_mean["date"] = pd.to_datetime(daily_mean["date"])
+    daily_mean["roll"] = daily_mean["weight_lb"].rolling(7, min_periods=1).mean()
+
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=daily_mean["date"], y=daily_mean["weight_lb"], mode="markers",
+                              name="Daily mean", marker=dict(color=lib.ACCENT, size=5, opacity=0.5)))
+    fig.add_trace(go.Scatter(x=daily_mean["date"], y=daily_mean["roll"], mode="lines",
+                              name="7-day rolling", line=dict(color=lib.ACCENT, width=2)))
+
+    dexa = w[w["source"] == "dexa"]
+    if not dexa.empty:
+        fig.add_trace(go.Scatter(x=dexa["timestamp"], y=dexa["weight_lb"], mode="markers",
+                                  name="DEXA", marker=dict(symbol="diamond", size=10, color=lib.WARN)))
+    apple = w[w["source"] == "apple"]
+    if not apple.empty:
+        fig.add_trace(go.Scatter(x=apple["timestamp"], y=apple["weight_lb"], mode="markers",
+                                  name="Apple", marker=dict(symbol="circle", size=8, color=lib.SLEEP)))
+
+    if (has_baseline and weight_goal.get("lose_lb_min") is not None
+            and weight_goal.get("lose_lb_max") is not None):
+        goal_min_lb = baseline_lb - weight_goal["lose_lb_max"]
+        goal_max_lb = baseline_lb - weight_goal["lose_lb_min"]
+        fig.add_hrect(y0=goal_min_lb, y1=goal_max_lb, fillcolor=lib.GOOD, opacity=0.07,
+                      line_width=0, annotation_text="goal", annotation_position="top left")
+        fig.add_hline(y=baseline_lb, line_dash="dot", line_color=lib.MUTED, line_width=1,
+                      annotation_text="baseline", annotation_position="bottom right")
+
+    st.plotly_chart(lib.apply_theme(fig, 260, legend=True), use_container_width=True,
+                    key="cardio_weight")
+
+
+def _render_body_composition_section():
+    """Body composition: rendered only when body_composition has rows. BIA
+    (Garmin) and DEXA are always separate traces — different measurement
+    physics, never merged into one series."""
+    bc = lib.load_df(
+        "SELECT timestamp, body_fat_pct, lean_mass_kg, visceral_fat_rating, "
+        "visceral_fat_mass_kg, source FROM body_composition ORDER BY timestamp")
+    if bc.empty:
+        return
+
+    st.markdown("## Body composition")
+    bc["timestamp"] = pd.to_datetime(bc["timestamp"])
+    bia = bc[bc["source"] == "garmin"]
+    dexa = bc[bc["source"] == "dexa"]
+
+    st.markdown("### Body fat %")
+    st.caption("BIA (Garmin scale) and DEXA measure body fat with different physics "
+               "and are not directly comparable — shown as separate traces, never merged.")
+    fat_fig = go.Figure()
+    if not bia.empty:
+        fat_fig.add_trace(go.Scatter(x=bia["timestamp"], y=bia["body_fat_pct"],
+                                      mode="lines+markers", name="BIA (Garmin scale)",
+                                      line=dict(color=lib.ACCENT, width=2)))
+    if not dexa.empty:
+        fat_fig.add_trace(go.Scatter(x=dexa["timestamp"], y=dexa["body_fat_pct"],
+                                      mode="markers", name="DEXA",
+                                      marker=dict(size=12, color=lib.WARN, symbol="diamond")))
+    st.plotly_chart(lib.apply_theme(fat_fig, 240, legend=True), use_container_width=True,
+                    key="cardio_bodyfat")
+
+    c1, c2 = st.columns(2)
+    with c1:
+        lean = bc[bc["lean_mass_kg"].notna()]
+        if not lean.empty:
+            st.markdown("### Lean mass")
+            fig = go.Figure()
+            for src, name, color in (("garmin", "Garmin", lib.ACCENT), ("dexa", "DEXA", lib.WARN)):
+                d = lean[lean["source"] == src]
+                if not d.empty:
+                    fig.add_trace(go.Scatter(x=d["timestamp"], y=d["lean_mass_kg"],
+                                              mode="lines+markers", name=name,
+                                              line=dict(color=color)))
+            st.plotly_chart(lib.apply_theme(fig, 180, legend=True), use_container_width=True,
+                            key="cardio_lean")
+    with c2:
+        visc = bc[bc["visceral_fat_rating"].notna() | bc["visceral_fat_mass_kg"].notna()]
+        if not visc.empty:
+            st.markdown("### Visceral fat")
+            fig = go.Figure()
+            garmin_v = visc[(visc["source"] == "garmin") & visc["visceral_fat_rating"].notna()]
+            if not garmin_v.empty:
+                fig.add_trace(go.Scatter(x=garmin_v["timestamp"], y=garmin_v["visceral_fat_rating"],
+                                          mode="lines+markers", name="Garmin rating",
+                                          line=dict(color=lib.ACCENT)))
+            dexa_v = visc[(visc["source"] == "dexa") & visc["visceral_fat_mass_kg"].notna()]
+            if not dexa_v.empty:
+                fig.add_trace(go.Scatter(x=dexa_v["timestamp"], y=dexa_v["visceral_fat_mass_kg"],
+                                          mode="markers", name="DEXA mass (kg)",
+                                          marker=dict(size=10, color=lib.WARN, symbol="diamond")))
+            st.plotly_chart(lib.apply_theme(fig, 180, legend=True), use_container_width=True,
+                            key="cardio_visceral")
+
+    if not dexa.empty:
+        with st.expander("DEXA history"):
+            table = dexa.copy()
+            table["timestamp"] = table["timestamp"].dt.strftime("%Y-%m-%d")
+            st.dataframe(
+                table[["timestamp", "body_fat_pct", "lean_mass_kg", "visceral_fat_mass_kg"]],
+                use_container_width=True, hide_index=True)
+
+
 def render_cardiology():
     st.markdown(_CARD_CSS, unsafe_allow_html=True)
     st.markdown("# Cardiology")
 
+    lip = br.lipids_df()
+
+    # _frames() scans activity_streams/sleep/heart_rate/wellness/activities and
+    # raises SystemExit("No data in DB.") — not just Exception — when none of
+    # those tables have any rows yet (a freshly-initialized DB, day one before
+    # any wearable sync). Catch both so that case degrades to skipping the
+    # activity-history sections below rather than blanking the whole page:
+    # goals/meds/BP/weight/body-comp only need CD + the new cardio tables.
     try:
         q, w, meta = _frames()
-    except Exception as e:                       # never take the whole dashboard down
-        st.error(f"Could not build the cardiology dataset: {e}")
-        return
+    except (Exception, SystemExit) as e:
+        q = w = meta = None
+        frames_error = str(e)
+    else:
+        frames_error = None
 
-    lip = br.lipids_df()
-    end_ts = pd.Timestamp(meta["data_max"])
-
+    activity_note = (f"activity data through {meta['data_max']}. " if meta
+                      else "no wearable activity history in this DB yet. ")
     st.caption(f"{CD.PATIENT_NAME} · {CD.SEX} · DOB {CD.DOB} · {CD.DESCRIPTOR} · "
-               f"activity data through {meta['data_max']}. Lipid/statin data is transcribed "
+               f"{activity_note}Lipid/statin data is transcribed "
                "from LabCorp panels; verify against originals before any clinical decision.")
     st.markdown(f'<div class="cardio summary"><b>Clinical picture.</b> {CD.CLINICAL_SUMMARY}</div>',
                 unsafe_allow_html=True)
@@ -238,29 +439,40 @@ def render_cardiology():
             with st.expander("Statin dose history"):
                 st.dataframe(statin_events, use_container_width=True, hide_index=True)
 
+    # ---- BP / weight / body-comp (Phase 3) --------------------------------
+    _render_bp_section()
+    _render_weight_section()
+    _render_body_composition_section()
+
     st.markdown(br.stat_cards_html(lip), unsafe_allow_html=True)
 
-    # ---- headline overlay ------------------------------------------------
-    st.markdown("## Lipid response to therapy × exercise")
-    st.caption(f"Quarterly exercise intensity (bars, left axis), labeled LDL-C / ApoB draws "
-               f"(left axis, mg/dL), {CD.STATIN} dose step (right axis). Pink dotted "
-               "verticals = clinical events.")
-    st.plotly_chart(br.exec_overlay(q, lip, end_ts), use_container_width=True, key="cardio_exec")
+    if meta is None:
+        st.info("No wearable activity history yet — the exercise/lipid overlay, quarterly "
+                 f"summary, and detail charts need at least one day of synced data ({frames_error}).")
+    else:
+        end_ts = pd.Timestamp(meta["data_max"])
 
-    # ---- quarterly summary table ----------------------------------------
-    st.markdown("## Quarterly summary — therapy, labs & lifestyle")
-    st.caption("One row per quarter; lab values are the last draw inside the quarter. "
-               "Red = above target. **Bold dose ↑** = changed during that quarter. "
-               "Grayed rows = no wearable data that quarter.")
-    st.markdown(br.quarterly_table_html(q, lip), unsafe_allow_html=True)
+        # ---- headline overlay ------------------------------------------------
+        st.markdown("## Lipid response to therapy × exercise")
+        st.caption(f"Quarterly exercise intensity (bars, left axis), labeled LDL-C / ApoB draws "
+                   f"(left axis, mg/dL), {CD.STATIN} dose step (right axis). Pink dotted "
+                   "verticals = clinical events.")
+        st.plotly_chart(br.exec_overlay(q, lip, end_ts), use_container_width=True, key="cardio_exec")
 
-    # ---- detailed charts -------------------------------------------------
-    with st.expander("Detailed charts — weekly & quarterly trends", expanded=False):
-        st.caption("Dashed lines on min/week charts = AHA guidelines: 75 vigorous / "
-                   "150 moderate minimum, 300 goal.")
-        for i, (label, fig) in enumerate(br.detail_figures(q, w, end_ts)):
-            st.markdown(f"### {label}")
-            st.plotly_chart(fig, use_container_width=True, key=f"cardio_detail_{i}")
+        # ---- quarterly summary table ----------------------------------------
+        st.markdown("## Quarterly summary — therapy, labs & lifestyle")
+        st.caption("One row per quarter; lab values are the last draw inside the quarter. "
+                   "Red = above target. **Bold dose ↑** = changed during that quarter. "
+                   "Grayed rows = no wearable data that quarter.")
+        st.markdown(br.quarterly_table_html(q, lip), unsafe_allow_html=True)
+
+        # ---- detailed charts -------------------------------------------------
+        with st.expander("Detailed charts — weekly & quarterly trends", expanded=False):
+            st.caption("Dashed lines on min/week charts = AHA guidelines: 75 vigorous / "
+                       "150 moderate minimum, 300 goal.")
+            for i, (label, fig) in enumerate(br.detail_figures(q, w, end_ts)):
+                st.markdown(f"### {label}")
+                st.plotly_chart(fig, use_container_width=True, key=f"cardio_detail_{i}")
 
     # ---- complete lab panels --------------------------------------------
     st.markdown("## Complete lab panels by draw date")
@@ -284,20 +496,21 @@ def render_cardiology():
     st.markdown(br.life_events_html(), unsafe_allow_html=True)
 
     # ---- methods --------------------------------------------------------
-    with st.expander("Methods & caveats"):
-        st.markdown(
-            f"- **Source coverage varies by era.** Apple full export: steps complete 2016→now; "
-            f"official resting HR 2021-06+; workouts 2015+ but HR-zone minutes only 2021+; real "
-            f"Apple sleep only from mid-2024 (earlier 'sleep' was a bedtime schedule, excluded). "
-            f"Garmin API backfill fills 2020+ resting HR / sleep / HRV / VO₂max.\n"
-            f"- **Resting HR** uses Garmin's true daily value where present, then Apple's official "
-            f"RestingHeartRate, then a {int(br.RESTING_PCTL * 100)}th-percentile overnight-low "
-            f"proxy of intraday samples (dense-sampling days only).\n"
-            f"- **'Moderate–vigorous' / 'vigorous' minutes** are HR-zone minutes (Z3–Z5 / Z4–Z5), "
-            f"%HRmax bands off an empirical peak of {br.HRMAX} bpm, computed only for activities "
-            f"with HR streams ({meta['acts_with_streams']} activities). This is NOT raw workout "
-            f"duration — long easy hikes/skis are training volume, not intensity.\n"
-            f"- **Activity↔lipid alignment.** Lipid draws span 2020→2026 but quantified activity "
-            f"begins {meta['data_min']}; earlier quarters have no activity overlay.\n"
-            f"- Lipid/statin/risk-marker values are transcribed from LabCorp reports — verify "
-            f"against originals before any clinical decision.")
+    if meta is not None:
+        with st.expander("Methods & caveats"):
+            st.markdown(
+                f"- **Source coverage varies by era.** Apple full export: steps complete 2016→now; "
+                f"official resting HR 2021-06+; workouts 2015+ but HR-zone minutes only 2021+; real "
+                f"Apple sleep only from mid-2024 (earlier 'sleep' was a bedtime schedule, excluded). "
+                f"Garmin API backfill fills 2020+ resting HR / sleep / HRV / VO₂max.\n"
+                f"- **Resting HR** uses Garmin's true daily value where present, then Apple's official "
+                f"RestingHeartRate, then a {int(br.RESTING_PCTL * 100)}th-percentile overnight-low "
+                f"proxy of intraday samples (dense-sampling days only).\n"
+                f"- **'Moderate–vigorous' / 'vigorous' minutes** are HR-zone minutes (Z3–Z5 / Z4–Z5), "
+                f"%HRmax bands off an empirical peak of {br.HRMAX} bpm, computed only for activities "
+                f"with HR streams ({meta['acts_with_streams']} activities). This is NOT raw workout "
+                f"duration — long easy hikes/skis are training volume, not intensity.\n"
+                f"- **Activity↔lipid alignment.** Lipid draws span 2020→2026 but quantified activity "
+                f"begins {meta['data_min']}; earlier quarters have no activity overlay.\n"
+                f"- Lipid/statin/risk-marker values are transcribed from LabCorp reports — verify "
+                f"against originals before any clinical decision.")

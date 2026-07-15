@@ -36,6 +36,16 @@ def fake_db(tmp_path, monkeypatch):
     return str(db_path)
 
 
+@pytest.fixture
+def empty_db(tmp_path, monkeypatch):
+    """Freshly-initialized tmp-path DB: schema only, zero rows — the no-scale/
+    no-BP-cuff reality every UI section must render without crashing on."""
+    db_path = tmp_path / "empty_health.db"
+    monkeypatch.setattr(db, "DB_PATH", str(db_path))
+    db.init_db()
+    return str(db_path)
+
+
 def _base_fake_clinical_module():
     """Fields common to every fake clinical_data variant. Values are obviously
     fake (round numbers, placeholder names) — nothing here resembles Ian's

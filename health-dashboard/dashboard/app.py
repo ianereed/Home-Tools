@@ -511,8 +511,6 @@ def render_wellness():
         fig.update_yaxes(range=[85, 101])
         st.plotly_chart(lib.apply_theme(fig, 200), use_container_width=True, key="we_spo2")
 
-    st.caption("Weight & body composition are on the roadmap.")
-
 
 # --- dispatch --------------------------------------------------------------
 dispatch = {
