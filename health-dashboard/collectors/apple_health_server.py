@@ -1,4 +1,12 @@
-"""Lightweight HTTP server to receive Apple Health data from Health Auto Export app."""
+"""Lightweight HTTP server to receive Apple Health data from Health Auto Export app.
+
+Deliberately does NOT ingest weight or blood-pressure metrics: Garmin is the
+authoritative source for both (collectors/garmin_collector.py). Garmin Connect
+mirrors scale weight into Apple Health, so accepting weight/BP here too would
+double-write the same reading under two sources. Historical pre-Garmin Apple
+weight is a one-time backfill instead (cardiology/import_apple_to_dashboard.py::
+import_weight), not a live ingestion path.
+"""
 
 import json
 import logging
