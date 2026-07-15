@@ -2,7 +2,7 @@
 
 import logging
 import os
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 
 from .db import get_connection
 
@@ -295,6 +295,155 @@ def collect_hr_streams(client, days_back: int = 7):
         conn.close()
 
 
+def _bp_rows(payload: dict | None) -> list[tuple]:
+    """Map a get_blood_pressure(...) payload into blood_pressure insert rows.
+
+    Real shape (Phase 0 probe, Appendix D): a day-summary wrapper around a
+    nested per-reading list. The day-level aggregates (highSystolic/
+    lowSystolic/categoryStats/etc.) are pre-aggregated and NOT written here —
+    blood_pressure is one row per reading, so this iterates
+    measurementSummaries[*].measurements[*], not the top level.
+    """
+    rows = []
+    for day in (payload or {}).get("measurementSummaries") or []:
+        for m in day.get("measurements") or []:
+            systolic = m.get("systolic")
+            diastolic = m.get("diastolic")
+            if systolic is None or diastolic is None:
+                continue
+            # measurementTimestampLocal observed as len=21 ISO-ish with
+            # fractional seconds ("YYYY-MM-DDTHH:MM:SS.f"); truncate to the
+            # local-ISO convention the rest of the schema uses.
+            raw_ts = m.get("measurementTimestampLocal") or ""
+            ts = raw_ts[:19]
+            if not ts:
+                continue
+            version = m.get("version")
+            source_id = str(version) if version is not None else None
+            # Observed payload used "" for no note, not None — falsy-empty
+            # means no note, not just `is None`.
+            notes = m.get("notes") or None
+            rows.append((ts, systolic, diastolic, m.get("pulse"), "garmin", source_id, notes))
+    return rows
+
+
+def _weight_rows(payload: dict | None) -> tuple[list[tuple], list[tuple]]:
+    """Map a get_body_composition(...) payload into (body_weight, body_composition) rows.
+
+    Garmin reports weight/muscleMass/boneMass in grams; convert to kg here.
+    Prefers local calendarDate over the GMT epoch fields (Appendix D gotcha);
+    falls back to a date derived from timestampGMT with a T00:00:00 time-of-day
+    when calendarDate is absent. A body_composition row is written only when at
+    least one BIA field is present — the observed payload returns an
+    all-BIA-None day-summary row for manual (non-scale) weigh-ins rather than
+    omitting it, and that's not a composition reading.
+    """
+    weight_rows, comp_rows = [], []
+    for row in (payload or {}).get("dateWeightList") or []:
+        weight_g = row.get("weight")
+        if weight_g is None:
+            continue
+
+        calendar_date = row.get("calendarDate")
+        if calendar_date:
+            ts = f"{calendar_date}T00:00:00"
+        else:
+            gmt_ms = row.get("timestampGMT")
+            if gmt_ms is None:
+                continue
+            gmt_date = datetime.fromtimestamp(gmt_ms / 1000, tz=timezone.utc).date()
+            ts = f"{gmt_date.isoformat()}T00:00:00"
+
+        weight_kg = weight_g / 1000
+        sample_pk = row.get("samplePk")
+        source_id = str(sample_pk) if sample_pk is not None else None
+        weight_rows.append((ts, weight_kg, row.get("bmi"), "garmin", source_id))
+
+        bone_mass = row.get("boneMass")
+        muscle_mass = row.get("muscleMass")
+        bia_fields = (
+            row.get("bodyFat"), row.get("bodyWater"), bone_mass,
+            muscle_mass, row.get("visceralFat"), row.get("physiqueRating"),
+        )
+        if any(v is not None for v in bia_fields):
+            comp_rows.append((
+                ts,
+                weight_kg,
+                row.get("bodyFat"),
+                muscle_mass / 1000 if muscle_mass is not None else None,
+                None,  # fat_mass_kg: DEXA-direct only, never reported by Garmin
+                bone_mass / 1000 if bone_mass is not None else None,
+                row.get("visceralFat"),
+                None,  # visceral_fat_mass_kg: DEXA only
+                row.get("bodyWater"),
+                None,  # note
+                "garmin",
+            ))
+    return weight_rows, comp_rows
+
+
+def collect_blood_pressure(client, start_date: str, end_date: str):
+    """Collect blood-pressure readings for a date range (single range call)."""
+    conn = get_connection()
+    try:
+        payload = client.get_blood_pressure(start_date, end_date)
+        rows = _bp_rows(payload)
+        if not rows:
+            logger.info(f"No Garmin BP readings from {start_date} to {end_date}")
+            return
+
+        conn.executemany(
+            """INSERT OR REPLACE INTO blood_pressure
+               (timestamp, systolic, diastolic, pulse, source, source_id, notes)
+               VALUES (?, ?, ?, ?, ?, ?, ?)""",
+            rows,
+        )
+        conn.commit()
+        logger.info(f"Saved {len(rows)} Garmin BP readings")
+    except Exception as e:
+        logger.error(f"Error collecting Garmin blood pressure: {e}")
+    finally:
+        conn.close()
+
+
+def collect_body_composition(client, start_date: str, end_date: str):
+    """Collect weight + body-composition data for a date range (single range call).
+
+    A Garmin weigh-in with BIA data writes BOTH a body_weight row and a
+    body_composition row (same timestamp/source); a manual weigh-in with no
+    BIA fields only gets the body_weight row.
+    """
+    conn = get_connection()
+    try:
+        payload = client.get_body_composition(start_date, end_date)
+        weight_rows, comp_rows = _weight_rows(payload)
+        if not weight_rows:
+            logger.info(f"No Garmin weigh-ins from {start_date} to {end_date}")
+            return
+
+        conn.executemany(
+            """INSERT OR REPLACE INTO body_weight
+               (timestamp, weight_kg, bmi, source, source_id)
+               VALUES (?, ?, ?, ?, ?)""",
+            weight_rows,
+        )
+        if comp_rows:
+            conn.executemany(
+                """INSERT OR REPLACE INTO body_composition
+                   (timestamp, weight_kg, body_fat_pct, lean_mass_kg, fat_mass_kg,
+                    bone_mass_kg, visceral_fat_rating, visceral_fat_mass_kg,
+                    body_water_pct, note, source)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                comp_rows,
+            )
+        conn.commit()
+        logger.info(f"Saved {len(weight_rows)} Garmin weigh-ins ({len(comp_rows)} with BIA)")
+    except Exception as e:
+        logger.error(f"Error collecting Garmin body composition: {e}")
+    finally:
+        conn.close()
+
+
 def collect_all(days_back: int = 7):
     """Collect all Garmin data for the past N days."""
     logger.info(f"Collecting Garmin data for past {days_back} days...")
@@ -311,4 +460,6 @@ def collect_all(days_back: int = 7):
 
     collect_activities(client, start.isoformat(), today.isoformat())
     collect_hr_streams(client, days_back)
+    collect_blood_pressure(client, start.isoformat(), today.isoformat())
+    collect_body_composition(client, start.isoformat(), today.isoformat())
     logger.info("Garmin collection complete.")
