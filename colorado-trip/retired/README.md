@@ -36,3 +36,8 @@ Superseded one-shot scripts, kept for reference. Not maintained; don't run.
 - `fix_early_dates.py`, `restructure_itinerary.py`, `update_main_itinerary_2.py`,
   `add_more_options.py`, `create_more_considerations.py` — completed one-shot Itinerary/
   options edits; their results are baked into the live Sheet + current builders.
+- `restructure_back_half.py` — one-shot for the 2026-07-14 back-half cancellation
+  (Steamboat / Twin Lakes / CB / SLC / Ely → Aug 1–5 Boulder→Redwood City drive home):
+  deleted the STM/CB DAY OPTIONS sections, rewrote Itinerary constraint + Aug 1–13 day
+  rows, inserted the OUT-OF-SCOPE divider above Aug 14, marked 15 Reservations rows
+  CANCELLED. Ran once before the same-day full rebuild (commit 2899ddd).

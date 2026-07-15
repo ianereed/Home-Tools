@@ -2,6 +2,8 @@ imports/
 cardiology/out/
 cardiology/*.db
 cardiology/clinical_data.py
+# Cardio project plan — contains PHI (physician, meds, goal values); scp only
+CARDIO_PLAN.md
 cardiology/*.bak
 apple_health_export.zip
 apple_health_export/

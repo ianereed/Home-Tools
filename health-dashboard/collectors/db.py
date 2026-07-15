@@ -73,6 +73,67 @@ def init_db():
             bpm INTEGER,
             PRIMARY KEY (activity_id, timestamp_offset)
         );
+
+        -- Blood pressure readings. Sparse: manual entries or a Garmin cuff. Multiple
+        -- readings per day matter clinically, so keyed on timestamp (like heart_rate),
+        -- not date (like wellness).
+        CREATE TABLE IF NOT EXISTS blood_pressure (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            timestamp TEXT NOT NULL,        -- local ISO 'YYYY-MM-DDTHH:MM:SS' (measurement time)
+            systolic INTEGER NOT NULL,      -- mmHg
+            diastolic INTEGER NOT NULL,     -- mmHg
+            pulse INTEGER,                  -- bpm when the cuff reports it
+            source TEXT NOT NULL,           -- 'garmin' | 'apple' | 'manual'
+            source_id TEXT,                 -- Garmin measurement pk/version (audit/debug)
+            notes TEXT,
+            UNIQUE(timestamp, source)
+        );
+
+        CREATE TABLE IF NOT EXISTS body_weight (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            timestamp TEXT NOT NULL,        -- local ISO; 'YYYY-MM-DDT00:00:00' if date-only
+            weight_kg REAL NOT NULL,        -- kg canonical (Garmin sends grams: /1000 at write)
+            bmi REAL,                       -- as reported by source; never computed locally
+            source TEXT NOT NULL,           -- 'garmin' | 'apple' | 'dexa' | 'manual'
+            source_id TEXT,                 -- Garmin samplePk
+            UNIQUE(timestamp, source)
+        );
+
+        -- Body-composition snapshots: Garmin scale BIA rows AND quarterly DEXA rows.
+        -- source implies method ('garmin'=BIA estimate, 'dexa'=DEXA scan); the UI must
+        -- never merge them into one series.
+        CREATE TABLE IF NOT EXISTS body_composition (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            timestamp TEXT NOT NULL,        -- 'YYYY-MM-DDT00:00:00' for DEXA (date-only)
+            weight_kg REAL,
+            body_fat_pct REAL,
+            lean_mass_kg REAL,              -- DEXA lean soft tissue; Garmin muscleMass
+            fat_mass_kg REAL,               -- DEXA direct; NULL for Garmin
+            bone_mass_kg REAL,
+            visceral_fat_rating REAL,       -- Garmin unitless index
+            visceral_fat_mass_kg REAL,      -- DEXA VAT mass (converted from lb)
+            body_water_pct REAL,            -- Garmin only
+            note TEXT,                      -- e.g. scan provider
+            source TEXT NOT NULL,           -- 'garmin' | 'dexa' | 'manual'
+            UNIQUE(timestamp, source)
+        );
+
+        -- Daily nutrition rollup. Created in Phase 0 (future-proofing); populated in
+        -- Phase 7 once the diet-tracking app is chosen and adopted.
+        CREATE TABLE IF NOT EXISTS nutrition_daily (
+            date TEXT NOT NULL,
+            calories_kcal REAL,
+            protein_g REAL,
+            carbs_g REAL,
+            fat_g REAL,
+            saturated_fat_g REAL,
+            fiber_g REAL,
+            sugar_g REAL,
+            sodium_mg REAL,
+            potassium_mg REAL,
+            source TEXT NOT NULL,           -- 'apple' (HAE receiver) | 'garmin' | 'manual'
+            PRIMARY KEY (date, source)
+        );
     """)
     _migrate(conn)
     conn.commit()

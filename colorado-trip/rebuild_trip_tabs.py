@@ -1,23 +1,24 @@
 """Rebuild the trip's day tabs under the new model:
 
-  • FLEXIBLE days (Boulder Jul 23-31, Steamboat Aug 2-5, CB Aug 10-11) get NO per-day
-    tab. They are run from the DAY OPTIONS menu, which links to one OPTION tab per menu
-    row: BLD-A..J, STM-A..D, CB-A..C (17 tabs, rich BLD-E style).
+  • FLEXIBLE days (Boulder Jul 23-31, Mammoth Aug 15-17) get NO per-day tab. They are
+    run from the DAY OPTIONS menu, which links to one OPTION tab per menu
+    row: BLD-A..J, MAM-A..D (14 tabs, rich BLD-E style).
   • FIXED days (everything else) get a date-titled tab ("Jul 16 (Thu)" ...), linked
     from the Itinerary's date cell.
 
 Phases:
   1. delete the 39 old "Mon DD (Dow)" per-day tabs + the old BLD-E draft (idempotent —
      also deletes any of the NEW titles if a prior run created them).
-  2. create + populate the 17 option tabs and the 25 fixed-day tabs.
+  2. create + populate the 14 option tabs and the 20 fixed-day tabs.
   3. wire links: DAY OPTIONS ID cell -> option tab; Itinerary date cell -> fixed tab
      (or -> DAY OPTIONS for flexible days).
 
 All links are native rich-text links (see memory feedback_gsheets_hyperlink_native).
 Re-runnable: it deletes the tabs it owns before recreating, so design tweaks = edit +
 re-run. Does NOT touch Activities / Dining / Trailhead Distances / etc.
-(The former standalone 'West Maroon Pass' tab is now folded into the CB-C option — see
-the wmp_* fields on the CB-C OPTIONS dict, rendered in build_option.)
+(2026-07-14 restructure: Steamboat / Twin Lakes / Crested Butte / SLC / Ely legs
+cancelled — Aug 1-5 are now Boulder→Redwood City drive-home tabs. Aug 14+ tabs
+(Mammoth, Rae Lakes) are kept but OUT OF SCOPE for active planning per the user.)
 """
 import re
 import os
@@ -532,273 +533,6 @@ OPTIONS = [
      "BLD-J was built around a Boulder Reservoir off-leash swim, but the swim beach bans dogs mid-May–Labor Day. OK to swap to East Boulder Dog Park's pond? (Or I can check Coot Lake's current dog hours.)",
    ]),
 
- dict(id="STM-A", type="TOGETHER DAY", drive="~25 min · 8 mi round trip", hub="STM",
-   oneliner="Together: Fish Creek Falls — lower + upper falls",
-   ctx="Steamboat's signature hike. Lower falls is a quick 0.5 mi; push to the upper falls for the full 5 mi.",
-   ian="Upper Falls (5 mi RT, moderate)", anny="Same hike", mochi="Comes along, leashed (off-leash claims for this trail are unofficial — keep him leashed).",
-   together="One hike, the whole crew.", acts=["fish_creek"], res="$5 parking (cash/check); start early (popular).",
-   route_stops=["Fish Creek Falls Trailhead, Steamboat Springs, CO","Mountain Tap Brewery, Steamboat Springs, CO","Yampa River Core Trail, Steamboat Springs, CO"],
-   backup="Emerald Mtn Blackmere (3.7 mi, from town)", evening="Pro Rodeo (Fri/Sat) / Aurum dinner",
-   beta=[
-     "$5/vehicle, cash or check; medium lot with heavy midday use — arrive before 9am on weekends. Hours 6am–10pm.",
-     "Lower Falls: 0.25-mi paved overlook to the 283-ft falls — an easy win for the whole crew in <30 min. Add the short dirt path to the base bridge.",
-     "Upper Falls push: ~2.5 mi one-way (part of the 4.7-mi / ~1,400 ft loop, Moderate, 4.8★). Rocky/technical past the lower falls but well-shaded; Ian can extend to Long Lake for a bigger day.",
-     "Dogs LEASHED throughout — AllTrails + Routt NF rules say leash; the 'off-leash past 0.25 mi' claim is unofficial. Keep Mochi leashed.",
-     "August flows are lower than spring, so the upper creek crossings are easier (stepping stones exposed). Be descending by ~noon for the afternoon storm window.",
-   ],
-   lunch="Short morning near town (back ~10am for lower-only, noon–1 if you push to Upper). Head downtown for lunch — Yampa Valley Kitchen (dog patio) or Mountain Tap Brewery (dog patio, wood-fired pizza). Or picnic at the shaded lower lot picnic area with creek access for Mochi.",
-   eat=[
-     ('Creekside Café & Grill', '🥾 Come as you are — best breakfast in town, creekside dog patio, 0.1 mi from the Airbnb (7am–2pm).', pin(_q('131 11th St, Steamboat Springs, CO 80487'))),
-     ('Mountain Tap Brewery', '🚵 Come as you are — Yampa St wood-fired pizza + craft beer, big dog patio with water bowls.', pin(_q('910 Yampa St, Steamboat Springs, CO 80487'))),
-     ('Salt & Lime', '🚵 Come as you are — lively downtown Mexican, rooftop + side patio, top margaritas (0.3 mi walk).', pin(_q('628 Lincoln Ave, Steamboat Springs, CO 80487'))),
-     ('Aurum Food & Wine', '👔 Dress up + shower first — the riverfront splurge over the Yampa; reserve. HH 4:30–6.', pin(_q('811 Yampa St, Steamboat Springs, CO 80487'))),
-   ],
-   after=[
-     ("Yampa River Core Trail", "~6 mi paved riverside path through downtown, leashed dogs, river access points — easy post-hike stroll.", pin(_q("Yampa River Core Trail, Steamboat Springs, CO"))),
-     ("Downtown Lincoln Ave", "Shops, galleries, ice cream — short walk from the Airbnb; lively on rodeo nights.", pin(_q("Lincoln Avenue, Steamboat Springs, CO"))),
-     ("Steamboat Pro Rodeo", "Fri/Sat nights (gates 5:30, rodeo 7:30) — very Steamboat. Confirm the dog policy at the grounds, else Mochi waits in the van.", pin(_q("Steamboat Pro Rodeo, Steamboat Springs, CO"))),
-   ],
-   q=[
-     "Is the rodeo a Fri/Sat anchor for this day? And is the rodeo ground dog-OK or does Mochi stay back?",
-     "Confirm Aurum's riverfront patio is dog-OK before booking (Laundry Kitchen is the confirmed dog-patio fallback).",
-     "If pushing to Upper Falls, set a turnaround time — Ian could extend to Long Lake solo while Anny turns back, given the storm window.",
-   ]),
- dict(id="STM-B", type="SEPARATE DAY", drive="~27 min · 8 mi round trip", hub="STM",
-   oneliner="Separate: Ian bike park / Anny + Mochi Emerald Mtn, PM hot springs together",
-   ctx="Ian rides the lift-served park; Anny + Mochi take Emerald Mtn from town. Old Town Hot Springs together in the afternoon.",
-   ian="Steamboat Bike Park — lift DH/enduro (back by lunch)", anny="Emerald Mtn Blackmere Trail (3.7 mi)",
-   mochi="With Anny on Emerald; at the Airbnb (A/C) during the PM hot springs.",
-   together="Old Town Hot Springs downtown in the afternoon.", acts=["steamboat_bp","emerald_blackmere"],
-   route_stops=["Steamboat Resort, Steamboat Springs, CO","Howelsen Hill, Steamboat Springs, CO","Laundry Kitchen and Cocktails, Steamboat Springs, CO","Old Town Hot Springs, Steamboat Springs, CO"],
-   res="Bike-park ticket / Ikon perk.", backup="Park closed/wet → Ian trail-runs Emerald (6–8 mi).",
-   evening="Old Town Hot Springs / Pro Rodeo",
-   beta=[
-     "Steamboat Bike Park: gondola + Christie Peak Express haul bikes in summer (~10am–5pm, ~mid-June–late-Sept). 26 trails on ~2,200 vert: greens (Why Not), flowy/techy blues (Voodoo Child, Chutes), steep blacks (Jah Man). Ride early — August monsoon storms build by 1–2pm and can suspend the gondola; wet dirt closes the jump lines.",
-     "Ikon: full pass = 2 free bike-haul days, Base = 1; redeem in person at the base ticket office (no online comp). Walk-up ~$65–80. Helmet required; full-face + pads recommended/rentable.",
-     "Rentals + gear at the base village book out in August — reserve a full-suspension park bike ahead.",
-     "Anny + Mochi: Emerald Mtn Blackmere — 3.7 mi / ~938 ft, walkable from downtown via Howelsen (~15 min along the Core Trail). Leashed (city trails, no off-leash on Emerald); exposed upper ridge — start early.",
-   ],
-   lunch="Ian descends by noon–12:30 and drives ~10 min downtown. Regroup at Laundry Kitchen & Cocktails (Soda Creek dog patio) — same neighborhood as Anny's Emerald finish. Fallback: Storm Peak Brewing's downtown taproom (dogs inside; NOT the Bus Stop location, which bans dogs). Then drop Mochi at the A/C Airbnb before the PM hot springs.",
-   eat=[
-     ('Storm Peak Brewing', '🚵 Come as you are — DOGS WELCOME INSIDE at the downtown taproom + rooftop; the easy post-ride beer.', pin(_q('1885 Elk River Plaza, Steamboat Springs, CO 80487'))),
-     ('Mountain Tap Brewery', '🚵 Come as you are — Yampa St dog patio + water bowls, wood-fired pizza; the midday regroup.', pin(_q('910 Yampa St, Steamboat Springs, CO 80487'))),
-     ('Back Door Grill', '🚵 Come as you are — widely called the best burger in town (Oak St), patio; go off-peak.', pin(_q('825 Oak St, Steamboat Springs, CO 80487'))),
-     ('Laundry Kitchen & Cocktails', '🚿 Shower first — small plates + cocktails on the Soda Creek patio; the post-hot-springs evening (opens 4:30).', pin(_q('127 11th St, Steamboat Springs, CO 80487'))),
-   ],
-   after=[
-     ("Old Town Hot Springs", "Downtown mineral pools + 230-ft slides (~$35, no reservation, NO dogs) — drop Mochi at the A/C Airbnb first. ~1.5–2 hr.", pin(_q("Old Town Hot Springs, Steamboat Springs, CO"))),
-     ("Yampa River Core Trail", "Flat paved riverside path, leashed dogs — easy evening walk after a long day.", pin(_q("Yampa River Core Trail, Steamboat Springs, CO"))),
-     ("Steamboat Pro Rodeo", "Fri/Sat — classic Steamboat; outdoor bleachers. Confirm dog policy or leave Mochi at the Airbnb.", pin(_q("Steamboat Pro Rodeo, Steamboat Springs, CO"))),
-   ],
-   q=[
-     "Does Ian have an Ikon pass (2 free days / Base 1), and is he bringing his own bike or renting (reserve ahead)?",
-     "Confirm the Airbnb A/C so Mochi's comfortable during the PM hot springs.",
-     "Is there a Fri/Sat rodeo in the Aug 1–6 window to anchor the evening?",
-   ]),
- dict(id="STM-C", type="BIG DAY", drive="~1h40 · 64 mi round trip", hub="STM",
-   oneliner="Big day: Hahns Peak summit + Fishhook Lake (or Red Dirt)",
-   ctx="Drive ~40 min north for a summit + alpine lake double. Or swap to Red Dirt for a gentler dog day.",
-   ian="Hahns Peak fire-lookout (3 mi RT) + Fishhook Lake (6 mi)", anny="Same",
-   mochi="Comes along (dog-friendly).", together="Summit + lake, full day out.", acts=["hahns","fishhook"],
-   route_stops=["The Clark Store, Clark, CO","Hahns Peak Trailhead, Clark, CO","Hahns Peak Lake, Clark, CO","Storm Peak Brewing Company, Steamboat Springs, CO"],
-   res="None — ~40 min drive N to Hahns Peak Village.", backup="Yampa River Core Trail (7 mi paved)",
-   evening="Aurum dinner / Movies on the Mountain",
-   beta=[
-     "Hahns Peak fire lookout (10,839 ft): ~3 mi RT / ~1,000 ft, Hard, 4.8★. Meadow + forest to the shoulder, then a steep loose-talus summit cone (hands-on rock) crowned by the 1912 lookout + 360° views. Mochi needs help on the talus; leash on the exposed sections.",
-     "Fishhook Lake: ~6 mi RT / ~1,200 ft from the Clearwater TH (FR 490/496) — alpine cirque lake. Doing both = a 9+ mi / ~2,200 ft day; budget the whole day.",
-     "Drive: US-40 W → CR-129 (Elk River Rd) N ~26–30 mi through Clark; paved to Steamboat Lake, then graded gravel. The Sprinter handles it fine; ~45–50 min to the TH.",
-     "Leashed (Medicine Bow-Routt NF); marmots/pikas above treeline will tempt Mochi. Summit by 11am — the cone is fully exposed to afternoon storms.",
-     "Red Dirt as the gentler alt: the full trail is actually long (13.9 mi); for a true easy dog day do the flat Hahns Peak Lake Loop (3.3 mi) or a partial out-and-back instead.",
-   ],
-   lunch="Remote alpine day — pack a real picnic (sandwiches, cheese, 2+ L water + a bowl) and eat at the saddle or down at Hahns Peak Lake (Mochi wades the shore). On the drive up/back, The Clark Store (Clark, 7am–7pm) is the classic Elk River general-store/deli stop — coffee + breakfast burritos out, ice cream + cold drinks back. Dinner back in Steamboat: Aurum (splurge) or Storm Peak (dogs inside).",
-   eat=[
-     ('The Clark Store', '🚵 Come as you are — country store + deli on CR-129 (~20 min N toward Hahns); famous giant breakfast burrito, deck for Mochi. ~7am–7pm.', pin(_q('54175 RCR 129, Clark, CO 80428'))),
-     ('Storm Peak Brewing', '🚵 Come as you are — dogs INSIDE at the downtown taproom; the easy tired-crew dinner back in town.', pin(_q('1885 Elk River Plaza, Steamboat Springs, CO 80487'))),
-     ('Mountain Tap Brewery', '🚵 Come as you are — Yampa St dog patio, wood-fired pizza; casual post-summit dinner.', pin(_q('910 Yampa St, Steamboat Springs, CO 80487'))),
-     ('Aurum Food & Wine', '👔 Dress up + shower first — riverfront splurge to celebrate a big summit day; reserve.', pin(_q('811 Yampa St, Steamboat Springs, CO 80487'))),
-   ],
-   after=[
-     ("Hahns Peak Lake", "Flat ~3.3-mi lakeside loop at the base — post-summit cooldown, Mochi wades, peak reflection. Free (NF).", pin(_q("Hahns Peak Lake, Clark, CO"))),
-     ("Steamboat Lake State Park", "25 mi S on CR-129 — beach + trails, leashed dogs (not in the swim water). A lake-view stop on the drive home ($12–17/vehicle).", pin(_q("Steamboat Lake State Park, Clark, CO"))),
-     ("Yampa River Core Trail", "Back home — flat paved riverside walk to loosen legs before dinner.", pin(_q("Yampa River Core Trail, Steamboat Springs, CO"))),
-   ],
-   q=[
-     "Hahns + Fishhook double (~9 mi) or Hahns alone (3 mi) + the easy lake loop? The double is a long day.",
-     "Mochi on the Hahns summit talus — is he comfortable on loose rock? If not, the saddle view (~10,400 ft) is already great and a fine turnaround.",
-     "For a true easy dog day, the 'Red Dirt' backup is actually 13.9 mi — use Hahns Peak Lake Loop (3.3 mi flat) instead. Confirm intent. Call the Hahns Peak/Bears Ears RD (970-870-2299) re: FR 490 if recent rain.",
-   ]),
- dict(id="STM-D", type="TOWN / REST DAY", drive="~43 min · 16 mi round trip", hub="STM",
-   oneliner="Town/rest: Strawberry Park Hot Springs + Yampa River + downtown",
-   ctx="A soak-and-stroll rest day. Strawberry Park is cash-only and books ahead; Old Town is the easy fallback.",
-   ian="Soak + downtown / Yampa River walk", anny="Soak + downtown",
-   mochi="At the Airbnb (A/C) — no dogs at the springs.", together="Strawberry Park soak + Yampa River.",
-   acts=[], res="Strawberry Park: book ~30 days ahead, CASH $30/person (strawberryhotsprings.com).",
-   route_stops=["Strawberry Park Hot Springs, Steamboat Springs, CO","Freshies Restaurant, Steamboat Springs, CO","Yampa River Core Trail, Steamboat Springs, CO"],
-   backup="Old Town Hot Springs (downtown, no reservation)", evening="Strawberry Park soak / downtown dinner",
-   beta=[
-     "Strawberry Park Hot Springs (44200 CR-36, ~7 mi N): $30/adult CASH ONLY (no cards, no ATM on site — get cash in town). Reservations required, open exactly 30 days ahead; 2-hr timed sessions. Clothing-optional after dark; no minors after dark.",
-     "The road: the last ~2 mi of CR-36 are unpaved, steep, narrow and winding; high-clearance recommended. RVs/trailers are banned — a Sprinter is a van, not an RV, but its length/width is the concern. Call (970) 879-0342 to confirm a Sprinter's OK + road conditions, and go slow.",
-     "NO dogs anywhere — not on the property AND not left in the lot. Mochi stays at the A/C Airbnb for this.",
-     "Old Town Hot Springs (downtown, 136 Lincoln) is the easy walk-up fallback: $35, no reservation, 9 pools + cold plunge + 230-ft slides, <10 min from the Airbnb.",
-     "Yampa River Core Trail (6.5 mi paved) is a great leashed Mochi walk morning or evening — but river TUBING doesn't allow dogs (city rule).",
-   ],
-   lunch="Town day — lean into a sit-down brunch before the soak. Freshies (Lincoln Ave) is the local breakfast/brunch go-to (quick, filling). For a dog patio, Ghost Ranch Coffee (patio) in the morning, then Mountain Tap (dog patio) for lunch. Fallback: Sweet Pea Market patio.",
-   eat=[
-     ('Creekside Café & Grill', '🥾 Come as you are — best-breakfast pick, creekside dog patio, 0.1 mi walk; the morning anchor.', pin(_q('131 11th St, Steamboat Springs, CO 80487'))),
-     ('Big Iron Coffee Co.', '🚵 Come as you are — Lincoln Ave coffee + breakfast burritos, dog patio (0.3 mi walk).', pin(_q('635 Lincoln Ave, Steamboat Springs, CO 80487'))),
-     ('Laundry Kitchen & Cocktails', '🚿 Shower first — Soda Creek patio small plates + cocktails; the post-soak dinner (opens 4:30). Reserve.', pin(_q('127 11th St, Steamboat Springs, CO 80487'))),
-     ('Aurum Food & Wine', '👔 Dress up + shower first — riverfront splurge with a sunset post-soak; reserve.', pin(_q('811 Yampa St, Steamboat Springs, CO 80487'))),
-   ],
-   after=[
-     ("Yampa River Core Trail", "Paved 6.5-mi riverside path, leashed dogs — morning Mochi walk before the soak, or an easy evening stroll.", pin(_q("Yampa River Core Trail, Steamboat Springs, CO"))),
-     ("Yampa River Botanic Park", "Free 6-acre garden off the Core Trail, leashed dogs — a quiet 20-min leg-stretch.", pin(_q("Yampa River Botanic Park, Steamboat Springs, CO"))),
-     ("Downtown Lincoln Ave", "Western storefronts, galleries, Sweet Pea Market — dog-friendly sidewalks, best in the evening post-soak.", pin(_q("Lincoln Avenue, Steamboat Springs, CO"))),
-   ],
-   q=[
-     "Can the Sprinter handle the steep dirt CR-36 to Strawberry Park, and is the cash + 30-day reservation workable? If not, Old Town Hot Springs downtown is the zero-hassle fallback.",
-     "Withdraw cash in town first — Strawberry Park is $30/adult cash only, no ATM (price has risen from $20; confirm at booking).",
-     "Confirm the Airbnb A/C is running before you leave — Mochi can't go to the springs or wait in the van.",
-   ]),
-
- dict(id="CB-A", type="SEPARATE DAY", drive="~23 min · 8 mi round trip", hub="CB",
-   oneliner="Separate: Ian Evolution bike park / Anny + Mochi Oh-Be-Joyful, Alpenglow eve",
-   ctx="Ian rides Evolution (walk from the Airbnb); Anny takes Mochi up Oh-Be-Joyful or the mellower Judd Falls. Back by 4:30 for the free concert.",
-   ian="Evolution Bike Park — lift DH (back ~4:30 for the concert)",
-   anny="Oh-Be-Joyful (9.6 mi, hard) OR Judd Falls / Copper Creek (moderate)",
-   mochi="With Anny (both hikes are dog-friendly).", together="Reconvene for the Alpenglow Concert.",
-   acts=["evolution","oh_be_joyful","judd_falls"], res="Bike-park ticket — get the 2-day pass (Aug 10 + 11).",
-   route_stops=["Evolution Bike Park, Mount Crested Butte, CO","Oh-Be-Joyful Trailhead, Crested Butte, CO","Crested Butte Town Park, Crested Butte, CO"],
-   backup="Lower Loop / Slate River (easy–moderate, river + meadow)",
-   evening="Alpenglow Concert — free, 5:30pm, CB Town Park (no pets inside)",
-   beta=[
-     "Evolution Bike Park (CBMR base, walk from the Airbnb): 52 lift-served trails, beginner (Hotdogger) → expert proline (Psycho Rocks ⚫). Red Lady Express ~9am–5pm. Base ~9,400 ft — ride by 9am before afternoon storms; CBMR rain-checks weather holds of 90+ min.",
-     "2-Day Bike Haul ~$126 ($63/day) vs $70 single — buy both days online ahead to skip the window. Rentals at the base book out in August; reserve a full-suspension bike + pads early.",
-     "Anny + Mochi — Oh-Be-Joyful: 4.8★ wildflowers + waterfalls. The full hike to Blue Lake is ~13 mi / big day; to the OBJ falls junction it's a shorter ~4–5 hr. Leashed; spotty cell — download the map.",
-     "OBJ access road (BLM 3220) is steep + rough, flagged unsuitable for larger low-clearance rigs — the Sprinter may struggle the last stretch. Park at Slate River Rd staging and walk/bike in, or confirm conditions first.",
-     "Mellow alt — Judd Falls / Copper Creek (Gothic Rd): 2.2 mi / ~440 ft, paved/gravel approach (no clearance issue), waterfall + East River, done before noon. Leashed.",
-   ],
-   lunch="Separate day: Ian eats at the base (Butte 66 deck, or Coffee Lab for a pre-ride bite); Anny packs trail food + water for OBJ (long, spotty cell) and snacks at the falls. If she does Judd Falls instead she's back by noon for Teocalli Tamale or Butte Bagels (closes ~2pm). Reconvene by 4:30 for the 5:30 Alpenglow concert (drop Mochi first — no pets).",
-   eat=[
-     ('Coffee Lab', '🚵 Come as you are — base-area espresso in Mountaineer Square, walkable from the Airbnb; pre-lift fuel (~6:30am).', pin(_q('620 Gothic Rd Ste C-100, Mount Crested Butte, CO 81225'))),
-     ('Butte 66', '🚵 Come as you are — slopeside BBQ + burgers at the Mt CB base, big deck; the post-lift fit (walkable).', pin(_q('10 Crested Butte Way, Mount Crested Butte, CO 81225'))),
-     ('Bonez Tequila Bar & Grill', '🚵 Come as you are — Elk Ave contemporary Mexican, riverside patio, heavy margs; lively pre-concert dinner.', pin(_q('130 Elk Ave, Crested Butte, CO 81224'))),
-     ('Montanya Distillers', '🚵 Come as you are — Elk Ave rum tasting room + dog patios; the pre-Alpenglow cocktail stop (not a full dinner).', pin(_q('204 Elk Ave, Crested Butte, CO 81224'))),
-   ],
-   after=[
-     ("Elk Avenue stroll", "Browse the 3 blocks of Elk Ave + a Montanya rum cocktail; drop Mochi at the Airbnb before Town Park (no pets at the concert).", pin(_q("Elk Avenue, Crested Butte, CO"))),
-     ("Alpenglow Concert — Town Park", "Free outdoor concert, Mondays 5:30–7:30 at Town Park (606 6th St). No pets, no glass; bring a low chair + picnic; free CB bus from the base.", pin(_q("Crested Butte Town Park, Crested Butte, CO"))),
-     ("Slate River Road (sunset walk)", "After the concert, pick up Mochi for a flat dirt-road meadow walk toward Paradise Divide at golden hour.", pin(_q("Slate River Road, Crested Butte, CO"))),
-   ],
-   q=[
-     "OBJ access road (BLM 3220) is rough for the van — default to Judd Falls (paved approach) unless you confirm conditions or stage + walk in?",
-     "OBJ to Blue Lake is a ~6–7 hr day; back by 4:30 for Alpenglow means turning around at the falls (~4–5 hr, leave by 8am) or doing Judd Falls. Which?",
-     "Alpenglow is Mondays — Aug 10 is a Monday (lines up). Confirm the 2-day Evolution pass covers Aug 10 + 11 (some are sold consecutive-only); reserve a rental bike 2–3 wks out if not bringing Ian's.",
-   ]),
- dict(id="CB-B", type="SEPARATE DAY", drive="~1h20 · 33 mi round trip (Kebler is dirt — Google may misroute the long way)", hub="CB",
-   oneliner="Separate: Ian Evolution day 2 / Anny + Mochi Three Lakes, pack up + last Elk Ave dinner",
-   ctx="Second bike-park session on the 2-day pass; Anny + Mochi do the easy Three Lakes loop. Pack up, last dinner on Elk Avenue.",
-   ian="Evolution Bike Park — second session (2-day pass)", anny="Three Lakes Loop (3 mi, easy)",
-   mochi="With Anny (easy alpine-lake loop).", together="Pack up; last dinner on Elk Ave.",
-   acts=["evolution","three_lakes"], res="Use the 2-day pass from Aug 10.",
-   route_stops=["Evolution Bike Park, Mount Crested Butte, CO","38.8672,-107.2068","Elk Avenue, Crested Butte, CO"],
-   backup="Lower Loop or Woods Walk (easy, dog-friendly)", evening="Last Elk Avenue dinner — Soupçon if booked",
-   beta=[
-     "Three Lakes Loop (Anny + Mochi): Lost Lake Campground TH on Kebler Pass Rd, ~16 mi W. ~3.5 mi / ~518 ft, Moderate, 4.8★ — Lost Lake, Dollar Lake + Lost Lake Slough, with a short waterfall spur. Wildflowers peak in August. Leashed (Gunnison NF); bring water (no reliable filter source).",
-     "Kebler Pass Rd is packed dirt/gravel, no pavement — fine for the Sprinter in August (no mud/snow), scenic aspens, watch for elk.",
-     "Evolution day 2 on the 2-day pass — lift laps green→expert, or pedal XC (Painter Boy) if legs are cooked. Load bikes after the ride while everything's open; the park closes mid-afternoon — natural cue to pack the van.",
-     "In-town backup if Kebler's a no-go: Lower Loop (7 mi, easy, river) or Woods Walk — both leashed, dog-friendly, walkable from Elk Ave.",
-   ],
-   lunch="Pack-up day, keep it low-friction: Anny + Mochi picnic at Lost Lake (grab Butte Bagels before driving Kebler — closes ~2pm); Ian eats at the base or back at the Airbnb. Regroup in CB town ~5–6pm for the farewell dinner.",
-   eat=[
-     ("Mikey's Pizza", '🚵 Come as you are — hole-in-the-wall slices, the post-ride refuel; breakfast burritos Mon–Fri (a pre-ride ritual).', pin(_q('611 3rd St, Crested Butte, CO 81224'))),
-     ('Secret Stash', "🚵 Come as you are — the CB institution (#1-rated), funky decor, the 'Notorious F.I.G.' pizza; patio limited (call).", pin(_q('303 Elk Ave, Crested Butte, CO 81224'))),
-     ('Soupçon', '👔 Dress up + shower first — the marquee CB farewell dinner; French prix fixe (~$200/pp), INDOOR, no dogs. Book NOW (sells out in Aug).', pin(_q('127A Elk Ave, Crested Butte, CO 81224'))),
-     ('The Sunflower', '🚿 Shower first — relaxed farm-to-table alt to Soupçon, best on Elk Ave; indoor, no dogs. Reserve by text.', pin(_q('214 Elk Ave, Crested Butte, CO 81224'))),
-   ],
-   after=[
-     ("Elk Avenue (evening stroll)", "Last walk down the historic strip — galleries, ice cream, golden-hour light on the Elk Mtns. Dog-friendly sidewalks.", pin(_q("Elk Avenue, Crested Butte, CO"))),
-     ("Montanya Distillers", "Open to 9pm — a rum nightcap to toast the end of the CB leg (patio).", pin(_q("Montanya Distillers, Crested Butte, CO"))),
-     ("Mt CB base (last sunset)", "Drive up to the resort base for a final alpenglow look at the peak before departure — quick + memorable.", pin(_q("Mount Crested Butte, CO"))),
-   ],
-   q=[
-     "Is Soupçon booked for the farewell dinner? It's 28 seats, indoor-only, no dogs, books weeks ahead on Tock — confirm it's open in summer + reserved, else Public House / Secret Stash.",
-     "Dog plan for the Soupçon window (~2 hr, indoor): one person dines with Mochi outside and you alternate, or dog-sit? CB evenings are cool (~50°F) which helps.",
-     "Three Lakes TH (Lost Lake CG) fills early on weekends — Anny departs by 8–9am. Confirm Montanya's summer hours when you book.",
-   ]),
- dict(id="CB-C", type="BIG DAY", drive="~2.5 hr (shuttle logistics)", hub="CB",
-   oneliner="Big day: Crested Butte → Aspen via West Maroon Pass (4 + Mochi)",
-   ctx="The headline one-way alpine hike over the pass to Aspen — needs a car relocation + two shuttles. Full logistics + booking are in the SHUTTLE LOGISTICS section below.",
-   ian="Hike 10.5 mi over West Maroon Pass (12,490 ft)", anny="Same hike",
-   mochi="Comes along, leashed (USFS wilderness); consider booties for the rocky Aspen-side descent.", together="One-way point-to-point; full-day commitment.",
-   acts=[], res="Dolly's + Maroon Bells bus + car relocation — book all three (see SHUTTLE LOGISTICS below).",
-   backup="Full-day commitment; replaces a bike-park day.", evening="Dinner in Aspen or back in CB",
-   beta=[
-     "~10.2 mi point-to-point, West Maroon TH (CB side) → Maroon Lake (Aspen side), cresting the pass at 12,490 ft. CB→Aspen is the easier direction (~2,350 ft gain). Plan 6–8 hr; the Aspen-side descent is long, rocky, with ~3 creek crossings (wet feet).",
-     "Late July–early Aug is peak wildflowers; past the pass the Maroon Bells come into full view dropping to the lake.",
-     "Three-layer logistics: (1) Dolly's Mountain Shuttle CB→TH (Mochi needs a paid seat; books up early); (2) Maroon Bells Shuttles relocates the Sprinter CB→Aspen Highlands (~$415); (3) RFTA bus Maroon Lake→Aspen Highlands ($10/person, reserve — last bus 5pm, don't miss it).",
-     "Start EARLY — crest the pass by 11am; August storms above treeline are dangerous. A 6:30am Dolly's pickup is the target.",
-     "Simpler alt if shuttles don't line up: out-and-back from Schofield TH to the pass — same wildflower valley + summit views, only needs Dolly's round-trip, no van relocation or RFTA bus.",
-   ],
-   lunch="You're in wilderness 6–8 hr with no services — pack a full alpine picnic (dense sandwiches, salami/cheese, 3+ L water per person) and crack a snack at the pass. The reward is the Aspen side: Meat & Cheese (319 E Hopkins) is Aspen's top dog-friendly patio. If you shuttle back instead, it's an Elk Ave dinner in CB.",
-   eat=[
-     ('Camp 4 Coffee', "🚵 Come as you are — iconic CB coffee + pastry before Dolly's pickup (walk-up window).", pin(_q('402 1/2 Elk Ave, Crested Butte, CO 81224'))),
-     ('Butte Bagels', '🚵 Come as you are — CB scratch bagels for the pre-hike fuel / trail food (opens ~7:30, closes ~2pm).', pin(_q('218 Maroon Ave Ste A, Crested Butte, CO 81224'))),
-     ('Meat & Cheese', '🥾 Post-hike OK — Aspen charcuterie + farm-to-table, ~11 dog sidewalk tables; the reward if you finish in Aspen.', pin(_q('319 E Hopkins Ave, Aspen, CO 81611'))),
-     ('White House Tavern', "🥾 Post-hike OK — Aspen miner's-cottage New American, famous fried-chicken sandwich, dog patio (walk-in, expect a wait).", pin(_q('302 E Hopkins Ave, Aspen, CO 81611'))),
-   ],
-   after=[
-     ("Downtown Aspen (Hyman Ave mall)", "If you end in Aspen — free RFTA bus into town, walk the pedestrian mall, ice cream, let Mochi sniff around. Flat + shaded.", pin(_q("Wagner Park, Aspen, CO"))),
-     ("Rio Grande Trail", "Aspen — flat paved riverside path along the Roaring Fork, leashed dogs — a scenic cooldown if legs allow.", pin(_q("Rio Grande Trail, Aspen, CO"))),
-     ("Elk Avenue, CB", "If you shuttle back — dusk stroll on Elk Ave, galleries + ice cream, Mochi alongside.", pin(_q("Elk Avenue, Crested Butte, CO"))),
-   ],
-   # ── folded in from the former standalone 'West Maroon Pass' tab ──
-   wmp_route=[
-     ("🚐", "CRESTED BUTTE — town, ~8,900 ft · morning start. While you hike, Maroon Bells Shuttles drives your car CB→Aspen by road so it's waiting at the finish."),
-     ("↓", "Dolly's Mountain Shuttle · CB → West Maroon Trailhead · ~40 min over Schofield Pass · $55/seat (Mochi needs a seat too)."),
-     ("🥾", "WEST MAROON TRAILHEAD — 10,432 ft · start hiking EARLY (afternoon thunderstorms). Up the valley along the Crystal River through wildflower fields."),
-     ("⛰️", "WEST MAROON PASS — 12,490 ft · HIGH POINT. Last ¼ mi is steep; big views both sides."),
-     ("↓", "Descend (steep + rocky at first) · 3 Maroon Creek crossings · past Crater Lake."),
-     ("🏞️", "MAROON LAKE TRAILHEAD — ~9,580 ft · the Maroon Bells (most-photographed peaks in N. America)."),
-     ("🚌", "Maroon Bells RFTA bus · Maroon Lake → Aspen Highlands · 15 min · $10 'One-Way Return' ticket · last bus down 5:00 PM."),
-     ("🍽️", "ASPEN — pick up your relocated car · dinner downtown."),
-     ("🚗", "Drive back to Crested Butte · ~2.5 hr loop (CO-82 → Carbondale → McClure & Kebler Pass)."),
-     ("🏠", "CRESTED BUTTE — home for the night."),
-   ],
-   wmp_stats=[
-     ("Distance", "~10.5 miles one-way (point to point)"),
-     ("Elevation gain", "2,357 ft of climbing (CB→Aspen direction)"),
-     ("High point", "West Maroon Pass — 12,490 ft"),
-     ("Difficulty", "Strenuous · 6–10 hr on trail (Dolly's quotes ~6 hr avg — you're only as fast as the slowest hiker)"),
-     ("Season", "Passable late June–mid July depending on snow; August is prime + wildflowers"),
-     ("Trailhead access", "West Maroon TH is 13–14 mi / ~40 min from CB over Schofield Pass (past Emerald Lake). 4x4 SUV + tiny lot — this is why you take Dolly's."),
-   ],
-   wmp_services=[
-     ("🟧 Maroon Bells Shuttles — car relocation", "Drives YOUR car CB→Aspen by road while you hike, so it's waiting at the finish (operating since 2012). ~$415. They email final logistics + the exact Aspen drop point. Book well in advance.", "https://maroonbellsshuttles.com"),
-     ("🟦 Dolly's Mountain Shuttle — ride to TH", "Drives the group (+ dog) CB → West Maroon Trailhead, ~40 min. Mochi is welcome but must be leashed AND have its own reserved (paid) seat — count 5 seats. $55/seat. 970-209-9757. Book early (FareHarbor), esp. weekends.", "https://crestedbutteshuttle.com"),
-     ("🟦 Maroon Bells RFTA bus — return", "Bus from Maroon Lake Trailhead down to Aspen Highlands Welcome Center (15 min). Buy the 'One-Way Return Only' ticket, $10/hiker. Last bus down 5:00 PM — don't miss it. Confirm the leashed-dog policy.", "https://visitmaroonbells.com"),
-   ],
-   wmp_reservations=[
-     "1 — Maroon Bells Shuttles (car relocation): book well in advance. They send final logistics + tell you exactly where the bus drops you to meet your car.",
-     "2 — Dolly's Mountain Shuttle (ride to TH): book early, esp. weekends. Reserve 5 seats (4 people + Mochi). Online (FareHarbor) or call 970-209-9757.",
-     "3 — Maroon Bells RFTA bus ('One-Way Return Only'): $10/hiker at visitmaroonbells.com. Pick a departure time; last bus down is 5:00 PM.",
-   ],
-   wmp_mochi=[
-     "Trail: leashed dogs ARE allowed — this is USFS wilderness (Maroon Bells–Snowmass), not a National Park.",
-     "Dolly's van: dog is welcome but needs its own reserved (paid) seat — count Mochi as a 5th seat.",
-     "Maroon Bells RFTA bus: confirm the leashed-dog policy when you book the $10 return ticket.",
-     "Fitness: 10.5 mi / +2,357 ft / 12,490 ft pass is a BIG day for a 2-yr-old golden. Doable for a fit dog — bring extra water + check paws on the rocky descent.",
-   ],
-   wmp_sources=[
-     ("Dolly's Mountain Shuttle — summer / hike info", "https://crestedbutteshuttle.com"),
-     ("Maroon Bells Shuttles — car relocation reservations", "https://maroonbellsshuttles.com"),
-     ("Maroon Bells RFTA shuttle reservations", "https://visitmaroonbells.com"),
-     ("Travel Crested Butte — hike guide (stats + route)", "https://www.travelcrestedbutte.com"),
-   ],
-   q=[
-     "CRITICAL: are Dolly's Shuttle (+ a paid seat for Mochi) AND the Maroon Bells vehicle relocation (~$415) AND the RFTA Maroon Bells bus ($10/pp, last bus 5pm) all reserved? All book up weeks ahead.",
-     "Commit to the full one-way CB→Aspen, or do the simpler out-and-back to the pass from Schofield (same payoff, no van relocation / RFTA)?",
-     "Comfortable handing the Sprinter keys to Maroon Bells Shuttles for relocation (gear/sleep setup, Kebler Pass height)?",
-   ]),
  # ── MAMMOTH (Aug 15–17) — Ian + Mochi only (Anny away at the bach party). ──────────
  # Mochi rule: anything ≤4 hr → Mochi waits in the A/C van (after Jul 30 the van has A/C +
  # Starlink); a full bike-park day / big ride / long drive → dog daycare.
@@ -1086,268 +820,325 @@ FIXED = {
        ("Vail Pass / Continental Divide", "I-70 tops out at Vail Pass (10,662 ft) then the Eisenhower Tunnel (11,158 ft) — pull off at the Vail Pass rest area for alpine views.", pin(_q("Vail Pass Rest Area, CO"))),
      ],
    )),
- "Aug 1 (Sat)": dict(banner="TRAVEL → ARRIVAL", plan="Drive Boulder → Steamboat (+ a short hike — your pick)",
-   wake="Boulder — Airbnb", sleep="Steamboat — Airbnb", miles="165–175", hrs="3.5 + hike", base="1036 Lincoln Ave, Steamboat",
-   checkin=("“Walk to Shops with Hot Tub, Free Parking + Ski Bus” · private room, hosted by Nordic Lodge. "
-            "Check-in after 4:00 PM · checkout by 11:00 AM. Message host to coordinate check-in: +1 954-362-9089. "
-            "Confirmation HMYAS2YFFE. Max 4 guests + Mochi · hot tub + free parking + ski-bus stop + walk to shops. "
-            "⚠️ No carbon-monoxide alarm reported — bring a portable CO detector."),
-   route=[BASE["BLD"], BASE["STM"]],
-   together=("Leave the Boulder Airbnb by 8:30. Eat breakfast OUT in Boulder (no dishes to clean before you go). "
-             "Then it's your call how you get to Steamboat — four routes below, each pairing a different short, "
-             "excellent hike with a different arrival time. Settle into Steamboat, explore downtown: Storm Peak "
-             "Brewing (dogs inside!), Yampa River walk."),
-   notes=("Skipping the Farmers Market this year. The whole drive is ~165–175 mi — well under the van's ~200 mi "
-          "range, so NO fuel stop is needed on a full tank (Sprinter takes clean #2 ULSD only — no biodiesel). "
-          "Arrival times below assume rolling out of Boulder ~9:15 after breakfast."),
-   opp="Steamboat Pro Rodeo (BBQ 6pm, rodeo 7:30, Romick Arena — steamboatprorodeo.com) · Movies on the Mountain (Gondola Sq, sunset, no dogs)",
-   menu_next="STM", dining="Steamboat", daycare="Steamboat",
+ "Aug 1 (Sat)": dict(banner="TRAVEL", plan="Drive home, day 1 — Snowy Range Scenic Byway → Saratoga hot springs",
+   wake="Boulder — Airbnb (checkout 11 AM)", sleep="Saratoga, WY (van)", miles="192", hrs="3.8", base="—",
+   together=("Checkout is 11 AM — breakfast out, then roll straight north. US-287 to Laramie (lunch + fuel), "
+             "then WY-130 over 10,847-ft Snowy Range Pass: Lake Marie leg-stretch at the top (~65°F up there), "
+             "down the west side to Saratoga by ~5:15 PM. Evening soak at the FREE 24/7 Hobo Hot Pool. See DRIVE PLAN."),
+   mochi=("Lake Marie / byway pullouts are USFS — leashed and welcome. In Saratoga he swims the NORTH PLATTE "
+          "(Veterans Island Park or the river access by the pool) — NOT Saratoga Lake (blue-green algae history; "
+          "check WyoHCBs.org before any lake swim)."),
+   notes=("Top off the tank in Boulder before checkout (any name-brand on the 28th St corridor) — first planned fill "
+          "is Laramie. Snowy Range 2026 'Active Vegetation Operations' can cause brief temporary closures — glance at "
+          "the Medicine Bow alerts page day-of. Saratoga August normals 83°F / 50°F."),
+   route=["582 Locust Pl, Boulder, CO 80304","Laramie, WY","Centennial, WY","Ryan Park, WY","Saratoga, WY"],
    drive_plan=dict(
-     summary=("Boulder → Steamboat is ~165–175 mi / ~3.3–3.7 hr of driving depending on the route — well under the "
-              "van's ~200 mi range, so NO fuel stop needed on a full tank. Leave by 8:30, eat breakfast OUT in "
-              "Boulder, then ⚠️ DECIDE how you're getting there: four routes below, each pairs a different short "
-              "hike with a different Steamboat arrival. Tap an option's name to open that exact route in Google "
-              "Maps. ETAs assume rolling out of Boulder ~9:15 after breakfast."),
-     route_url=maps_route([BASE["BLD"], BASE["STM"]]),
-     route_label="Boulder → Steamboat (direct reference — pick a hike route below)",
+     summary=("192 mi · ~3.8 hr driving. Depart at the 11 AM checkout → Saratoga ~5:15 PM with a proper hour on "
+              "top of the Snowy Range. Boulder → Laramie (US-287 through Fort Collins) → Centennial → Snowy Range "
+              "Scenic Byway (WY-130) over the pass → Saratoga. One fuel stop (Laramie) covers today + tomorrow's "
+              "first hop."),
+     route_url=maps_route(["582 Locust Pl, Boulder, CO 80304","Laramie, WY","Centennial, WY","Ryan Park, WY","Saratoga, WY"]),
+     route_label="Boulder → Laramie → Snowy Range Byway → Saratoga",
      rows=[
-       dict(kind="depart", k="🚐 8:30 AM · Depart",
-            v="Roll out of the Boulder Airbnb (582 Locust Pl)."),
-       dict(kind="leg", k="🍳 ~8:30–9:15 · Breakfast in Boulder",
-            v=("Eat out so there are no dishes to clean. Dog-friendly picks: Nopalito (Boulder's 'ultimate "
-               "breakfast burrito,' grab-and-go fuel), Santo (chef-driven, patio), or Lucile's (Creole, dogs at "
-               "outdoor tables). Back on the road by ~9:15."),
-            url=pin(_q("Nopalito Restaurant, Boulder, CO"))),
-     ],
-     route_options=[
-       dict(name="① BERTHOUD PASS  ·  arrive Steamboat ~2:30 PM",
-            url=maps_route([BASE["BLD"], "Berthoud Pass, CO 80438", BASE["STM"]]),
-            note=("ON the US-40 route — zero detour. 11,307-ft pass; walk the Continental Divide Trail "
-                  "out-and-back as far as you like (~45–90 min, flat-to-rolling, turn around whenever). Biggest "
-                  "views for the least effort, right at the mid-drive high point. Dogs: leashed, fine. Heads-up: "
-                  "high + exposed — go before afternoon storms and pack a layer.")),
-       dict(name="② HERMAN GULCH  ·  arrive ~2:00 PM (short) / ~4:30 PM (full lake)",
-            url=maps_route([BASE["BLD"], "Herman Gulch Trailhead, Silver Plume, CO 80476", BASE["STM"]]),
-            note=("Just off I-70 at Bakerville (reroutes via Silverthorne / CO-9). Aug 1 = PEAK wildflowers, one of "
-                  "Colorado's best displays. Full hike 6.5 mi / 1,700 ft to Herman Lake (~3.5–4 hr); or turn around "
-                  "at the meadows for a short version (~1.5 hr). Dogs: leashed, fine. The big-payoff pick if you "
-                  "want a real hike.")),
-       dict(name="③ RABBIT EARS PEAK  ·  arrive Steamboat ~3:30 PM",
-            url=maps_route([BASE["BLD"], "Rabbit Ears Peak Trailhead, Colorado", BASE["STM"]]),
-            note=("Near the END — 32 min from the Airbnb, so you knock out the driving first and hike on fresher "
-                  "legs. ~5–6 mi / 700 ft (shortenable) through meadows to the iconic twin-rock formation. Dogs: "
-                  "leashed, fine. Trailhead access road can be rough — clearance helps.")),
-       dict(name="④ FISH CREEK FALLS  ·  in Steamboat by ~12:30 PM, hike after",
-            url=maps_route([BASE["BLD"], BASE["STM"], "Fish Creek Falls Trailhead, Steamboat Springs, CO 80487"]),
-            note=("No mid-drive stop — drive straight through (~3h16), drop bags, then the falls is 0.5 mi / 5 min "
-                  "from town. 0.25-mi paved overlook of a 280-ft waterfall, or 2.5 mi RT to the upper falls. $5 "
-                  "parking (cash/check). The low-stress / bad-weather fallback — earliest arrival by far. Dogs: "
-                  "leashed.")),
-     ],
-   )),
- "Aug 6 (Thu)": dict(banner="TRAVEL", plan="Drive Steamboat → Twin Lakes (Geotrek meetup)",
-   wake="Steamboat — Airbnb", sleep="Twin Lakes", miles="144", hrs="2.75", base="—",
-   ian="AM trail run: Emerald Mountain system (6–8 mi from Howelsen Hill). Back by lunch, then drive.",
-   anny="AM hike: Red Dirt Trail with Mochi (gentle, creeks, wildflowers).",
-   mochi="With Anny on Red Dirt; in the van for the afternoon drive.",
-   together="Drive to Twin Lakes after the morning activities. Geotrek meetup begins this evening. See DRIVE PLAN.",
-   notes=("Under the van's ~200 mi range — no fuel stop needed on a full tank (optional top-off in Leadville, the "
-          "last fuel before Twin Lakes). Two paved passes: Rabbit Ears (9,426 ft) + Fremont (11,318 ft). Clean #2 "
-          "ULSD only; CO has no biodiesel mandate, so name-brand pumps ≈ #2."),
-   route=["Steamboat Springs, CO","Kremmling, CO","Silverthorne, CO","Leadville, CO","Twin Lakes, CO"],
-   drive_plan=dict(
-     summary=("144 mi · ~2h45m driving. After the morning trail run + lunch, depart Steamboat ~12:30 PM → arrive "
-              "Twin Lakes ~3:15 PM, ahead of the evening Geotrek meetup. US-40 E over Rabbit Ears Pass → CO-9 S "
-              "past Green Mountain Reservoir → Silverthorne → a one-exit I-70 W hop → CO-91 S over Fremont Pass → "
-              "Leadville → US-24/CO-82 to Twin Lakes. Under the ~200 mi range, so NO fuel stop is required on a "
-              "full tank — one driver swap at Silverthorne, optional top-off in Leadville."),
-     route_url=maps_route(["Steamboat Springs, CO","Kremmling, CO","Silverthorne, CO","Leadville, CO","Twin Lakes, CO"]),
-     route_label="Steamboat → Kremmling → Silverthorne → Leadville → Twin Lakes",
-     rows=[
-       dict(kind="depart", k="🚐 ~12:30 PM · Depart",
-            v="Steamboat (after the AM run + lunch), Driver 1, full tank."),
-       dict(kind="leg", k="Leg 1 · 12:30–1:25 PM",
-            v="52 mi · US-40 E over Rabbit Ears Pass (9,426 ft) → down to Kremmling. Driver 1.",
-            url=maps_route(["Steamboat Springs, CO","Kremmling, CO"])),
-       dict(kind="leg", k="Leg 2 · 1:25–2:10 PM",
-            v="37 mi · CO-9 S down the Blue River valley past Green Mountain Reservoir to Silverthorne. Driver 1.",
-            url=maps_route(["Kremmling, CO","Silverthorne, CO"])),
-       dict(kind="stop", k="🔄 SWAP (+ optional ⛽ top-off) · Silverthorne · ~2:10 PM",
-            v="Driver swap at the I-70 / CO-9 junction (full services). Optional clean-#2 top-off if you're low — otherwise press on, you're well inside range.",
-            url=pin(_q("Silverthorne, CO 80498"))),
-       dict(kind="leg", k="Leg 3 · 2:10–2:55 PM",
-            v="36 mi · a one-exit hop on I-70 W → CO-91 S over Fremont Pass (11,318 ft, Climax mine) into Leadville. Driver 2.",
-            url=maps_route(["Silverthorne, CO","Leadville, CO"])),
-       dict(kind="leg", k="Leg 4 · 2:55–3:15 PM",
-            v="19 mi · US-24 S → CO-82 W to Twin Lakes. Driver 2.",
-            url=maps_route(["Leadville, CO","Twin Lakes, CO"])),
-       dict(kind="arrive", k="🏁 ~3:15 PM · Arrive", v="Twin Lakes — settle in before the Geotrek meetup."),
+       dict(kind="depart", k="🌅 11:00 AM · Depart",
+            v="Boulder Airbnb at checkout, Driver A — tank topped off in town, breakfast already eaten out."),
+       dict(kind="leg", k="Leg 1 · 11:00 AM–1:15 PM",
+            v="112 mi · Driver A — Boulder → Laramie on US-287 N through Fort Collins, over the state line at Tie Siding.",
+            url=maps_route(["582 Locust Pl, Boulder, CO 80304","Laramie, WY"])),
+       dict(kind="stop", k="⛽ FUEL + 🍽 LUNCH · Laramie · ~1:15–2:00 PM",
+            v="Pilot Travel Center #308, 1564 N McCue St (I-80 Exit 310 side of town) — 24-hr diesel; Love's #723 at the same exit if lanes are full. Fill here — it covers the rest of today (80 mi) plus tomorrow's first hop to Rawlins.",
+            url=pin(_q("Pilot Travel Center, 1564 N McCue St, Laramie, WY 82072"))),
+       dict(kind="leg", k="Leg 2 · 2:00–2:40 PM",
+            v="33 mi · Driver B — Laramie → Centennial on WY-130 W across the Laramie Plains.",
+            url=maps_route(["Laramie, WY","Centennial, WY"])),
+       dict(kind="leg", k="🏔 2:40–4:15 PM · Snowy Range Pass",
+            v=("Climb WY-130 to 10,847 ft. Park at the Lake Marie pullout: paved lakeshore path under Medicine Bow "
+               "Peak, alpine wildflowers, ~65°F. Libby Flats observation point is 1 mi on. Budget a lazy hour up top.")),
+       dict(kind="leg", k="Leg 3 · 4:15–5:15 PM",
+            v="47 mi · descend the west side through Ryan Park, then WY-130 into Saratoga.",
+            url=maps_route(["Centennial, WY","Ryan Park, WY","Saratoga, WY"])),
+       dict(kind="arrive", k="🏁 ~5:15 PM · Arrive Saratoga",
+            v=("Claim a campsite (candidates below), dinner in town, then the Hobo Hot Pool after dark — free, open "
+               "24/7, town-owned, 311 E Walnut Ave. Pools run 106–119°F.")),
      ],
      fuel_options=[
-       ("Leadville — Shell (optional top-off)", "12655 US Hwy 24 · ~mile 125, 24 hr. The LAST fuel before Twin Lakes (which has none) — fill here if you're arriving low. Confirmed clean #2.", "Shell, 12655 US Highway 24, Leadville, CO 80461"),
-       ("Silverthorne — Conoco (at the swap)", "I-70 & Hwy 9 jct · ~mile 89. Name-brand clean #2 right at the driver-swap point if you'd rather fuel mid-drive.", "Conoco, Silverthorne, CO 80498"),
+       ("Boulder — pre-fill (before checkout)", "Any name-brand on the 28th St corridor. Start the trip full — first planned stop is Laramie, mile 112.", "Conoco, 28th Street, Boulder, CO"),
+       ("Laramie — Pilot #308 (PRIMARY)", "1564 N McCue St · ~mile 112. 24-hr diesel; Love's #723 (1770 McCue St) shares the exit.", "Pilot Travel Center, 1564 N McCue St, Laramie, WY 82072"),
+       ("Rawlins — Flying J #763 (tomorrow AM)", "I-80 Exit 209 (Johnson Rd); TA Rawlins at Exit 214 as backup. First stop of Day 2, mile 42 — no need to fuel again tonight.", "Flying J Travel Center, Johnson Rd, Rawlins, WY 82301"),
      ],
      scenic=[
-       ("Rabbit Ears Pass", "9,426 ft just E of Steamboat — meadow pullouts, a good first leg-stretch.", pin(_q("Rabbit Ears Pass, CO"))),
-       ("Green Mountain Reservoir", "On CO-9 ~20 mi S of Kremmling — lakeside pullouts.", pin(_q("Green Mountain Reservoir, CO"))),
-       ("Fremont Pass / Climax Mine", "11,318 ft on CO-91 — dramatic high-alpine mine basin overlook.", pin(_q("Fremont Pass, CO"))),
-       ("Leadville historic district", "Highest incorporated city in the US (10,150 ft) — Victorian Harrison Ave, coffee before the last leg.", pin(_q("Harrison Avenue, Leadville, CO"))),
+       ("Lake Marie — Snowy Range Pass", "THE stop on WY-130: paved lakeside path beneath Medicine Bow Peak's 12,013-ft wall. Leashed dogs welcome (USFS).", pin(_q("Lake Marie, Snowy Range Scenic Byway, WY"))),
+       ("Libby Flats Observation Point", "Stone lookout at the byway's crest — 360° over the Snowies and (on a clear day) into Colorado.", pin(_q("Libby Flats Observation Point, WY-130, Wyoming"))),
+       ("Veterans Island Park — Saratoga", "Riverside 0.7-mi loop on the North Platte in town — Mochi's evening river dip (leashed).", pin(_q("Veterans Island Park, Saratoga, WY"))),
+     ],
+     sleep_options=[
+       ("Saratoga Lake Campground (town)", "1 mi N of town — FCFS only, 50 electric $25 / 24 dry $15 a night, big open sites. NOTE: dog swims in the RIVER, not the lake (algae advisories some Augusts).", pin(_q("Saratoga Lake Campground, Saratoga, WY"))),
+       ("South Brush Creek CG (USFS)", "~20 mi SE off WY-130 in the trees — reservable on recreation.gov (ID 10156047; 8 sites open for Aug 1 as of Jul 14 — book it now if you want certainty).", pin(_q("South Brush Creek Campground, Saratoga, WY"))),
      ],
    )),
- "Aug 7 (Fri)": dict(banner="FIXED", plan="Geotrek meetup — Twin Lakes",
-   wake="Twin Lakes", sleep="Twin Lakes", miles="0", hrs="0", base="Twin Lakes",
-   together="Geotrek meetup in Twin Lakes.", notes="Group event — agenda set by Geotrek."),
- "Aug 8 (Sat)": dict(banner="FIXED", plan="Geotrek meetup — Twin Lakes",
-   wake="Twin Lakes", sleep="Twin Lakes", miles="0", hrs="0", base="Twin Lakes",
-   together="Geotrek meetup in Twin Lakes.", notes="Group event — agenda set by Geotrek."),
- "Aug 9 (Sun)": dict(banner="TRAVEL → ARRIVAL", plan="Drive Twin Lakes → Crested Butte",
-   wake="Twin Lakes", sleep="Crested Butte — Airbnb", miles="144", hrs="2.5", base="6 Emmons Rd, Mt CB",
-   checkin=("“Pet-Friendly · Hot Tub & Pool · Walk to Slopes” · entire home, hosted by Meredith. "
-            "Check-in after 4:00 PM · checkout by 10:00 AM — self check-in with keypad (get the code from Meredith ahead of arrival). "
-            "Host: +1 850-919-4430. Confirmation HM552YRYMN. Max 4 guests + Mochi · hot tub + pool + walk to slopes · "
-            "CO + smoke alarms + exterior security cameras."),
-   mochi="In the van for the drive; can swim at Emerald Lake on the PM hike.",
-   together="Arrive CB ~noon–1pm. Check in. PM: Emerald Lake hike (1.7 mi, easy, flat — Mochi swims), 10 min from town. Explore Elk Avenue — Butte Bagels (closes ~2pm), dinner at The Breadery or The Public House. See DRIVE PLAN.",
-   notes=("PM orienting hike after settling in. ⚠️ PAVED ROUTE ONLY — do NOT let GPS send you over Cottonwood or "
-          "Kebler Pass (both have long dirt sections unsuitable for the Sprinter); the reliable line is US-50 via "
-          "Gunnison. Under the ~200 mi range — optional top-off in Gunnison before the final CO-135 leg."),
-   backup="Copper Creek / Judd Falls (moderate, dog-friendly) if Emerald Lake is crowded.",
-   route=["Twin Lakes, CO","Buena Vista, CO","Gunnison, CO","Mt. Crested Butte, CO"],
-   menu_next="CB", scenic="Kebler Pass",
+ "Aug 2 (Sun)": dict(banner="TRAVEL", plan="Drive home, day 2 — I-80 west → camp high in the Uinta Mountains",
+   wake="Saratoga, WY (van)", sleep="Uintas — Bear River corridor (van)", miles="284", hrs="4.4", base="—",
+   together=("Optional dawn soak at the Hobo Pool, then the workmanlike I-80 miles: Rawlins → Rock Springs → "
+             "Evanston, and 30 min up UT-150 (Mirror Lake Highway) to a ~8,500–9,000 ft spruce-forest camp on the "
+             "Bear River. In camp by ~3:30 PM — river wade for Mochi, camp dinner, genuinely cold night. See DRIVE PLAN."),
+   mochi=("Bear River corridor camps are USFS — leashed in camp, river access everywhere. Bring his towel: "
+          "the water is snowmelt."),
+   notes=("Mirror Lake Hwy has a $10/3-day amenity fee — your America the Beautiful annual pass covers it (hang it "
+          "from the mirror). NO water taps at the FCFS camps — fill jugs + tanks in Evanston. Stage-1-style fire "
+          "rules: campfires only in developed fire rings. Night lows in the 30s–40s at 9,000 ft — layers."),
+   route=["Saratoga, WY","Rawlins, WY","Rock Springs, WY","Evanston, WY","Bear River Campground, Mirror Lake Scenic Byway, UT"],
    drive_plan=dict(
-     summary=("144 mi · ~2h30m driving. Depart Twin Lakes ~9:45–10:00 AM → arrive Mt. Crested Butte ~12:30 PM, "
-              "ahead of the afternoon orienting hike. PAVED route: CO-82 E → US-24 S to Buena Vista → US-285 S → "
-              "US-50 W to Gunnison → CO-135 N to Crested Butte. ⚠️ Do NOT take Cottonwood or Kebler Pass — both "
-              "have long dirt stretches unsuitable for the van. Under the ~200 mi range, so NO fuel stop is "
-              "required on a full tank — one swap + optional top-off in Gunnison."),
-     route_url=maps_route(["Twin Lakes, CO","Buena Vista, CO","Gunnison, CO","Mt. Crested Butte, CO"]),
-     route_label="Twin Lakes → Buena Vista → Gunnison → Mt. Crested Butte (paved via US-50)",
+     summary=("284 mi · ~4.4 hr driving. Depart 9:00 AM (the by-9 default) → camp ~3:30 PM. Saratoga → I-80 at "
+              "Walcott → Rawlins → Rock Springs → Evanston → UT-150 south into the Uintas. Fuel at Rawlins, Rock "
+              "Springs and Evanston (last services before camp). Optional Flaming Gorge overlook detour decided at "
+              "Green River."),
+     route_url=maps_route(["Saratoga, WY","Rawlins, WY","Rock Springs, WY","Evanston, WY","Bear River Campground, Mirror Lake Scenic Byway, UT"]),
+     route_label="Saratoga → Rawlins → Rock Springs → Evanston → Mirror Lake Hwy",
      rows=[
-       dict(kind="depart", k="🚐 ~9:45 AM · Depart", v="Twin Lakes, Driver 1, full tank."),
-       dict(kind="leg", k="Leg 1 · 9:45–10:25 AM",
-            v="35 mi · CO-82 E → US-24 S down the Arkansas headwaters past the Collegiate Peaks to Buena Vista. Driver 1.",
-            url=maps_route(["Twin Lakes, CO","Buena Vista, CO"])),
-       dict(kind="leg", k="Leg 2 · 10:25–11:45 AM",
-            v="64 mi · US-285 S to Poncha Springs → US-50 W to Gunnison. Driver 1.",
-            url=maps_route(["Buena Vista, CO","Gunnison, CO"])),
-       dict(kind="stop", k="🔄 SWAP (+ optional ⛽ top-off) · Gunnison · ~11:45 AM",
-            v="Driver swap + the natural fuel stop (full services). Top off clean #2 here before the CO-135 leg — Mt. Crested Butte has limited fuel.",
-            url=pin(_q("Gunnison, CO 81230"))),
-       dict(kind="leg", k="Leg 3 · 12:00–12:30 PM",
-            v="30 mi · CO-135 N up the East/Slate River valley (past Almont) to Crested Butte → Mt. Crested Butte base. Driver 2.",
-            url=maps_route(["Gunnison, CO","Mt. Crested Butte, CO"])),
-       dict(kind="arrive", k="🏁 ~12:30 PM · Arrive", v="6 Emmons Rd, Mt. Crested Butte — check in, then the PM Emerald Lake orienting hike."),
+       dict(kind="depart", k="🌅 9:00 AM · Depart",
+            v="Saratoga, Driver A — dawn Hobo Pool soak first if you're up; coffee for the road."),
+       dict(kind="leg", k="Leg 1 · 9:00–9:40 AM",
+            v="42 mi · Driver A — Saratoga → WY-130 N to I-80 at Walcott → Rawlins.",
+            url=maps_route(["Saratoga, WY","Rawlins, WY"])),
+       dict(kind="stop", k="⛽ FUEL + 🛒 GROCERIES · Rawlins · ~9:40–10:15 AM",
+            v="Flying J #763, I-80 Exit 209 (Johnson Rd) — 24-hr lanes; TA at Exit 214 as backup. Fill + grab tonight's camp dinner fixings.",
+            url=pin(_q("Flying J Travel Center, Johnson Rd, Rawlins, WY 82301"))),
+       dict(kind="leg", k="Leg 2 · 10:15–11:55 AM",
+            v="108 mi · Driver B — Rawlins → Rock Springs across the Great Divide Basin (Continental Divide twice).",
+            url=maps_route(["Rawlins, WY","Rock Springs, WY"])),
+       dict(kind="stop", k="⛽ FUEL + 🔄 SWAP + 🍽 LUNCH · Rock Springs · ~11:55 AM–12:40 PM",
+            v="Flying J #764, 650 Stagecoach Blvd (Exit 104). Fuel, swap drivers, lunch (~45 min). Heads-up: there is NO Love's in Rock Springs — this IS the truck stop.",
+            url=pin(_q("Flying J Travel Center, 650 Stagecoach Blvd, Rock Springs, WY 82901"))),
+       dict(kind="leg", k="Leg 3 · 12:40–2:20 PM",
+            v=("104 mi · Driver A — Rock Springs → Evanston. Decision at Green River (~12:55): the Flaming Gorge "
+               "Red Canyon overlook detour (UT-530 → UT-44 → WY-414 back to I-80) adds ~100 mi / ~2 hr — only if "
+               "you're feeling it; camp arrival slips to ~5:30 PM."),
+            url=maps_route(["Rock Springs, WY","Evanston, WY"])),
+       dict(kind="stop", k="⛽ FUEL + 💧 WATER · Evanston · ~2:20–2:50 PM",
+            v="Pilot #141, 289 Bear River Dr (Exit 6) — 24-hr. LAST SERVICES before camp — fill diesel AND every water jug (the FCFS camps up UT-150 have no taps).",
+            url=pin(_q("Pilot Travel Center, 289 Bear River Dr, Evanston, WY 82930"))),
+       dict(kind="leg", k="Leg 4 · 2:50–3:25 PM",
+            v="30 mi · UT-150 (Mirror Lake Hwy) south along the Bear River — camps start ~mile 19 and string south to mile 25.",
+            url=maps_route(["Evanston, WY","Bear River Campground, Mirror Lake Scenic Byway, UT"])),
+       dict(kind="arrive", k="🏁 ~3:25 PM · Arrive — Bear River corridor",
+            v="Pick your camp (candidates below), hang the park pass on the mirror, river time for Mochi, early fire-ring dinner."),
      ],
      fuel_options=[
-       ("Gunnison — Conoco (optional top-off)", "821 W Tomichi Ave · ~mile 99, 24 hr. On US-50 right before the CO-135 turnoff — the last name-brand fuel before the climb to CB. Confirmed clean #2.", "Conoco, 821 W Tomichi Ave, Gunnison, CO 81230"),
-       ("Buena Vista — Loaf 'N Jug (earlier option)", "610 US Hwy 24 S · ~mile 35. Kroger-owned, diesel + C-store, if you'd rather fuel before the long middle leg.", "Loaf N Jug, 610 US Highway 24 S, Buena Vista, CO 81211"),
+       ("Rawlins — Flying J #763", "I-80 Exit 209 (Johnson Rd); TA Rawlins at Exit 214 as backup.", "Flying J Travel Center, Johnson Rd, Rawlins, WY 82301"),
+       ("Rock Springs — Flying J #764", "650 Stagecoach Blvd, Exit 104 · ~mile 150 of the day. Love's #888 is 15 mi on at Green River (Exit 85) if you'd rather fuel at the Flaming Gorge decision point.", "Flying J Travel Center, 650 Stagecoach Blvd, Rock Springs, WY 82901"),
+       ("Evanston — Pilot #141 (LAST before camp)", "289 Bear River Dr, Exit 6 (second Pilot at Exit 3). Nothing up UT-150 until Kamas, 78 mi over the top.", "Pilot Travel Center, 289 Bear River Dr, Evanston, WY 82930"),
      ],
      scenic=[
-       ("Buena Vista riverfront", "Arkansas River whitewater park under the 14er Collegiate Peaks — good first stretch + coffee.", pin(_q("Buena Vista River Park, Buena Vista, CO"))),
-       ("Gunnison", "Western Colorado University college town — full services and the fuel/swap stop.", pin(_q("Gunnison, CO"))),
-       ("CO-135 / Almont", "Taylor + East River confluence ~10 mi N of Gunnison — classic ranch-and-river valley driving up to CB.", pin(_q("Almont, CO"))),
+       ("Flaming Gorge — Red Canyon Overlook", "The optional big detour: 1,700-ft red-rock canyon over the reservoir from the 7,400-ft rim (visitor center + paved rim path, leashed dogs OK). +~100 mi / +2 hr vs direct.", pin(_q("Red Canyon Visitor Center, Dutch John, UT"))),
+       ("Fort Bridger State Historic Site", "Quick I-80 leg-stretch (exit 34): 1840s trading post + parade grounds. Grounds are dog-friendly on leash.", pin(_q("Fort Bridger State Historic Site, WY"))),
+       ("Bear River State Park — Evanston", "Right behind the Evanston rest area: captive bison + elk herds and flat riverside paths — a perfect 20-min Mochi stretch.", pin(_q("Bear River State Park, Evanston, WY"))),
+     ],
+     sleep_options=[
+       ("Sulphur CG — 9,000 ft (RESERVE)", "The pick: high, dark spruce forest on the upper Bear River. recreation.gov ID 233361 — 9 of 21 sites open for Sun Aug 2 as of Jul 14. Book it today.", pin(_q("Sulphur Campground, Mirror Lake Highway, UT"))),
+       ("Stillwater CG — 8,500 ft (reservable)", "Biggest of the corridor camps (21 sites, ID 232105, 17 open for Aug 2) — the easy fallback if Sulphur fills.", pin(_q("Stillwater Campground, Mirror Lake Highway, UT"))),
+       ("East Fork Bear River CG — 8,400 ft", "Small (7 sites, ID 247366) right on the river. Reservable; 6 open for Aug 2 as of Jul 14.", pin(_q("East Fork Bear River Campground, UT"))),
+       ("Bear River / Hayden Fork / Beaver View (FCFS)", "The no-reservation string along UT-150 — roll in and claim; Sundays empty out early afternoon.", pin(_q("Hayden Fork Campground, Mirror Lake Highway, UT"))),
      ],
    )),
- "Aug 12 (Wed)": dict(banner="TRAVEL", plan="Drive CB → SLC via Grand Junction + Colorado National Monument",
-   wake="Crested Butte — Airbnb", sleep="SLC", miles="430", hrs="6.5", base="—",
-   together="The big back-half day — ~430 mi + the Colorado National Monument scenic loop (Rim Rock Drive, 23 mi, ~19 overlooks, leashed dogs at overlooks, $25/vehicle or free w/ park pass) adds ~1.5–2 hr. Evening with the SLC friend. See DRIVE PLAN.",
-   opp="SLC (Wed eve): Twilight Concert Series — check saltlakearts.org · Pepper + Myles Smith at The Lot at The Complex. (Optional — you're also seeing a friend tonight.)",
-   notes=("~430 mi driving + the Monument loop = a full ~9–10 hr day; start at 8:00 AM. ⚠️ At Green River, turn "
-          "NORTH on US-6 — do NOT coast west on I-70 toward Salina (the longest no-services Interstate stretch in "
-          "the US). Three fills: Grand Junction + Green River + a Price top-off. Clean #2 ULSD only — UT/CO have no "
-          "biodiesel mandate, so name-brand truck stops ≈ #2."),
-   route=["Mt. Crested Butte, CO","Gunnison, CO","Grand Junction, CO","Colorado National Monument, CO","Green River, UT","Price, UT","Salt Lake City, UT"],
-   scenic="Colorado Natl Monument",
+ "Aug 3 (Mon)": dict(banner="TRAVEL", plan="Drive home, day 3 — over the High Uintas → Park City lunch → Bonneville → Angel Lake",
+   wake="Uintas (van)", sleep="Angel Lake, NV (van)", miles="286", hrs="5.0", base="—",
+   together=("Morning alpine hike (Ruth Lake, 10,200 ft), crest the byway at Bald Mountain Pass (10,715 ft), "
+             "Provo River Falls pullout, then down to Kamas and a Park City patio lunch. I-80 west past Great Salt "
+             "Lake, 15 minutes ON the Bonneville Salt Flats, and up NV-231 to a cirque-lake camp at 8,380 ft above "
+             "Wells. See DRIVE PLAN."),
+   mochi=("Ruth Lake + the falls pullouts: leashed, USFS, all good. Salt flats: quick photo only — ground can be "
+          "95°F+ at midday, test with your hand. Angel Lake: leashed lakeshore loop, and NO potable water at the "
+          "campground — his jugs got filled in Evanston."),
+   notes=("RESERVE Angel Lake CG (recreation.gov ID 232015, $18): 9 of 25 sites open for Mon Aug 3 as of Jul 14. "
+          "Dog-friendly motel fallbacks in Wells: Motel 6 (I-80 exit 352, pets free) or Sharon Motel. Wendover "
+          "midday ~95°F — an A/C drive-through, not a stop (except the salt)."),
+   route=["Bear River Campground, Mirror Lake Scenic Byway, UT","Kamas, UT","Park City, UT","Bonneville Salt Flats Rest Area, I-80, UT","West Wendover, NV","Wells, NV"],
    drive_plan=dict(
-     summary=("~430 mi · ~6.5 hr driving + a ~1.5–2 hr Colorado National Monument loop — a full ~9–10 hr day. "
-              "Depart Mt. Crested Butte 8:00 AM (earlier than the 9 AM default — long day) → arrive SLC "
-              "~5:30–6:00 PM for the evening with your friend. CO-135 S → US-50 W (Gunnison–Montrose–Delta) to "
-              "Grand Junction → Rim Rock Drive at Colorado National Monument → I-70 W into Utah → US-6 N at Green "
-              "River (over Soldier Summit) → I-15 N to SLC. ⚠️ Turn NORTH on US-6 at Green River. Three stops that "
-              "double as fuel + driver swap."),
-     route_url=maps_route(["Mt. Crested Butte, CO","Gunnison, CO","Grand Junction, CO","Colorado National Monument, CO","Green River, UT","Price, UT","Salt Lake City, UT"]),
-     route_label="Mt. CB → Gunnison → Grand Junction → Colorado NM → Green River → Price → SLC",
+     summary=("286 mi · ~5.0 hr driving. Break camp 8:00 AM → Angel Lake ~5:05 PM. Ruth Lake hike first (TH ~13 mi "
+              "south of camp at mile 35), then Kamas → Park City lunch → I-80 past SLC → salt-flats leg-stretch → "
+              "Wendover fuel → Wells → 12 paved miles up NV-231 to Angel Lake. Fuel at Lake Point + Wendover keeps "
+              "every gap under ~150 mi."),
+     route_url=maps_route(["Bear River Campground, Mirror Lake Scenic Byway, UT","Kamas, UT","Park City, UT","West Wendover, NV","Wells, NV"]),
+     route_label="Uintas → Kamas → Park City → Wendover → Wells → Angel Lake",
      rows=[
-       dict(kind="depart", k="🌅 8:00 AM · Depart",
-            v="Mt. Crested Butte, Driver A. Top off diesel in Gunnison (CB-town fuel is limited) before the long US-50 leg."),
-       dict(kind="leg", k="Leg 1 · 8:00–11:00 AM",
-            v="~150 mi · CO-135 S to Gunnison, then US-50 W through Montrose + Delta to Grand Junction (steady highway over Blue Mesa Reservoir + the Uncompahgre Valley). Driver A.",
-            url=maps_route(["Mt. Crested Butte, CO","Gunnison, CO","Grand Junction, CO"])),
-       dict(kind="stop", k="⛽ FUEL + 🔄 SWAP · Grand Junction · ~11:00–11:35 AM",
-            v="Love's #517, 748 22 Road (I-70 Exit 26), 24 hr, 8 diesel lanes — the big fill. Fuel, swap drivers (Driver B), snack.",
-            url=pin(_q("Love's Travel Stop, 748 22 Road, Grand Junction, CO 81505"))),
-       dict(kind="leg", k="Leg 2 · 11:35 AM–1:30 PM (Monument loop)",
-            v="~33 mi + overlooks · Rim Rock Drive through Colorado National Monument (NPS suggests driving it so your vehicle sits away from the cliff edge). ~1.5–2 hr with overlook stops + lunch. $25/vehicle or free w/ park pass. Driver B.",
-            url=pin(_q("Colorado National Monument Visitor Center, 1750 Rim Rock Drive, Fruita, CO 81521"))),
-       dict(kind="leg", k="Leg 3 · 1:30–3:00 PM",
-            v="~105 mi · back to I-70 W into Utah to Green River (Exit 160). ⚠️ At Green River, turn NORTH on US-6 — do NOT continue W on I-70. Driver B.",
-            url=maps_route(["Colorado National Monument, CO","Green River, UT"])),
-       dict(kind="stop", k="⛽ FUEL + 🔄 SWAP · Green River · ~3:00–3:20 PM",
-            v="Love's #119, 1775 W Main St (I-70 Exit 160), 24 hr — last big truck stop before the US-6 mountain leg. Top off + swap to Driver A.",
-            url=pin(_q("Love's Travel Stop, 1775 W Main Street, Green River, UT 84525"))),
-       dict(kind="leg", k="Leg 4 · 3:20–4:15 PM",
-            v="~65 mi · US-6 N through the desert toward Price.",
-            url=maps_route(["Green River, UT","Price, UT"])),
-       dict(kind="stop", k="⛽ TOP-OFF · Price · ~4:15 PM",
-            v="Maverik #755, 651 S Carbon Ave, 24 hr — a splash here keeps the final SLC leg < 130 mi (with the Soldier Summit climb) safely inside range.",
-            url=pin(_q("Maverik, 651 South Carbon Avenue, Price, UT 84501"))),
-       dict(kind="leg", k="Leg 5 · 4:30–6:00 PM",
-            v="~120 mi · US-6/US-191 N over Soldier Summit (Price Canyon, 7,477 ft) → Spanish Fork → I-15 N into SLC.",
-            url=maps_route(["Price, UT","Salt Lake City, UT"])),
-       dict(kind="arrive", k="🏁 ~5:30–6:00 PM · Arrive SLC", v="Evening with your friend (+ optional Twilight Concert)."),
+       dict(kind="depart", k="🌅 8:00 AM · Break camp",
+            v="Coffee + pack — Ruth Lake trailhead is 13 mi south up the byway (mile marker ~35)."),
+       dict(kind="leg", k="🥾 8:20–10:00 AM · Ruth Lake hike",
+            v=("~2 mi RT, 10,200 ft, gentle — THE classic short Uintas hike. Granite bowls, wildflower meadows, "
+               "leashed Mochi swims. Back on the road with Bald Mountain Pass (10,715 ft) + Provo River Falls "
+               "pullouts in the next 12 miles."),
+            url=pin(_q("Ruth Lake Trailhead, Mirror Lake Highway, UT"))),
+       dict(kind="leg", k="Leg 1 · 10:00–11:05 AM",
+            v="48 mi · Driver A — over the top and down UT-150 to Kamas, then UT-248 into Park City.",
+            url=maps_route(["Ruth Lake Trailhead, Utah","Kamas, UT","Park City, UT"])),
+       dict(kind="stop", k="🍽 LUNCH · Park City · ~11:05 AM–12:15 PM",
+            v=("Main Street stroll + a dog patio: Atticus Coffee & Teahouse (738 Main St) or Este Pizza. "
+               "('Bark City' keeps an official dog-patio list.)"),
+            url=pin(_q("Atticus Coffee Books & Teahouse, 738 Main St, Park City, UT"))),
+       dict(kind="leg", k="Leg 2 · 12:15–1:00 PM",
+            v="~40 mi · Driver B — I-80 W past Salt Lake City to Lake Point (exit 99).",
+            url=maps_route(["Park City, UT","Lake Point, UT"])),
+       dict(kind="stop", k="⛽ FUEL + 🔄 SWAP · Lake Point · ~1:00–1:20 PM",
+            v="Flying J Travel Center, I-80 exit 99 (1605 N Sunset Rd area) — the big truck stop W of SLC. Fill here: it's 110 mi of desert to Wendover.",
+            url=pin(_q("Flying J Travel Center, Lake Point, UT"))),
+       dict(kind="leg", k="Leg 3 · 1:20–3:00 PM",
+            v=("110 mi · Driver A — Great Salt Lake's south shore, then the long white causeway miles. Stop at the "
+               "BONNEVILLE SALT FLATS rest area (~10 mi before Wendover): walk out on the salt, 15 min, hot — "
+               "then done."),
+            url=maps_route(["Lake Point, UT","Bonneville Salt Flats Rest Area, I-80, UT","West Wendover, NV"])),
+       dict(kind="stop", k="⛽ FUEL · West Wendover · ~3:00–3:20 PM",
+            v="Pilot #147, 1200 W Wendover Blvd (Exit 410), West Wendover — splash-and-go, A/C running for Mochi (~91°F out there).",
+            url=pin(_q("Pilot Travel Center, 1200 W Wendover Blvd, West Wendover, NV 89883"))),
+       dict(kind="leg", k="Leg 4 · 3:20–4:20 PM",
+            v="59 mi · Driver B — Wendover → Wells (top up water jugs in town if needed).",
+            url=maps_route(["West Wendover, NV","Wells, NV"])),
+       dict(kind="leg", k="Leg 5 · 4:20–4:50 PM",
+            v="13 mi · NV-231 — paved switchbacks 3,000 ft up the East Humboldt Range to the lake.",
+            url=maps_route(["Wells, NV","Angel Lake, Wells, NV"])),
+       dict(kind="arrive", k="🏁 ~4:50 PM · Arrive Angel Lake (8,380 ft)",
+            v="Glacial cirque lake hanging over the desert. Camp dinner, lakeshore loop with Mochi, sunset + real stars. ~78°F days, low-40s nights."),
      ],
      fuel_options=[
-       ("Grand Junction — Love's #517 (PRIMARY)", "748 22 Road, I-70 Exit 26 · ~mile 150. 8 diesel lanes, 24 hr — your big fill + swap on the CO side. Confirmed clean #2.", "Love's Travel Stop, 748 22 Road, Grand Junction, CO 81505"),
-       ("Green River — Love's #119 (2nd stop)", "1775 W Main St, I-70 Exit 160 · ~mile 280. Last big truck stop before the US-6 mountain leg.", "Love's Travel Stop, 1775 W Main Street, Green River, UT 84525"),
-       ("Price — Maverik #755 (top-off)", "651 S Carbon Ave · ~mile 345, 24 hr. Splash to keep the final SLC leg inside range over Soldier Summit.", "Maverik, 651 South Carbon Avenue, Price, UT 84501"),
-       ("Gunnison — pre-fill", "Top off in Gunnison before US-50 — CB-town diesel is limited; start the long leg full.", "Conoco, 821 W Tomichi Ave, Gunnison, CO 81230"),
+       ("Lake Point — Flying J (PRIMARY)", "I-80 exit 99, W of SLC — fills the Evanston→Wendover gap (244 mi is over the van's range without it).", "Flying J Travel Center, Lake Point, UT"),
+       ("West Wendover — Pilot #147", "1200 W Wendover Blvd, Exit 410 · ~mile 214 of the day.", "Pilot Travel Center, 1200 W Wendover Blvd, West Wendover, NV 89883"),
+       ("Wells — Flying J / Love's (top-off)", "Both at the US-93 interchange (Exit 352): Flying J 156 US-93 S, Love's 157 S US-93 — right at the NV-231 turnoff. Optional — covers tomorrow to Elko with margin.", "Flying J Travel Center, 156 US 93, Wells, NV 89835"),
      ],
      scenic=[
-       ("Colorado National Monument — Rim Rock Drive", "The marquee: 23 mi, ~19 red-rock overlooks ('mini Grand Canyon'). $25/vehicle (or free w/ park pass). Leashed dogs OK at overlooks / paved areas — NOT on trails. Headlights on in the tunnels.", pin(_q("Colorado National Monument Visitor Center, 1750 Rim Rock Drive, Fruita, CO 81521"))),
-       ("Blue Mesa Reservoir / Curecanti", "On US-50 W of Gunnison — pull-offs over Colorado's largest lake, a good early leg-stretch.", pin(_q("Curecanti National Recreation Area, Gunnison, CO"))),
-       ("John Wesley Powell River History Museum", "Right off Main St in Green River — a 20-min stretch at the fuel stop.", pin(_q("John Wesley Powell River History Museum, Green River, UT"))),
-       ("Price Canyon / Soldier Summit", "US-6 scenic mountain pass (7,477 ft) on the final leg into the SLC valley.", pin(_q("Soldier Summit, UT"))),
+       ("Provo River Falls", "Tiered roadside cascades at UT-150 mile ~24 — 5-min pullout, leashed dogs fine.", pin(_q("Provo River Falls Overlook, Mirror Lake Highway, UT"))),
+       ("Bald Mountain Pass — 10,715 ft", "The byway's crest; Mirror Lake shimmers below. Photo pullout.", pin(_q("Bald Mountain Pass, Mirror Lake Highway, UT"))),
+       ("Bonneville Salt Flats rest area", "Free I-80 rest area where you can walk on the salt — the land-speed-record flats. Test the ground before Mochi walks it.", pin(_q("Bonneville Salt Flats Rest Area, Interstate 80, Utah"))),
+     ],
+     sleep_options=[
+       ("Angel Lake CG (RESERVE — the plan)", "recreation.gov ID 232015 · $18 · 8,380 ft · leashed dogs OK · NO potable water. 9 sites open for Mon Aug 3 as of Jul 14 — book now.", pin(_q("Angel Lake Campground, Wells, NV"))),
+       ("Motel 6 Wells (dog fallback)", "I-80 exit 352 — 2 pets stay free. The zero-drama fallback if weather turns up top.", pin(_q("Motel 6, Wells, NV"))),
+       ("Sharon Motel, Wells (dog fallback)", "Best-reviewed motel in town, $15/pet.", pin(_q("Sharon Motel, Wells, NV"))),
      ],
    )),
- "Aug 13 (Thu)": dict(banner="TRAVEL", plan="Drive SLC → Ely",
-   wake="SLC", sleep="Ely, NV", miles="242", hrs="4.0", base="—",
-   together="Drive SLC → Ely — a short, easy day. Plan the Nevada Northern Railway Museum for tomorrow AM before pushing to Mammoth. See DRIVE PLAN.",
-   notes=("NNR Museum (1100 Ave A, Ely) — 1906 steam depot + roundhouse, Mon–Sat ~8am–5pm; excursion train Sat–Sun "
-          "only (not available — arrive Thu). FUEL: fill in SLC, then FILL COMPLETELY at Delta — it's the last "
-          "real fuel before a ~150 mi desert run whose only pump is the Border Inn at the state line. UT no bio "
-          "mandate / NV name-brand 'Diesel' ≈ #2 — both fine."),
-   route=["Salt Lake City, UT","Delta, UT","Ely, NV"], scenic="NNR",
+ "Aug 4 (Tue)": dict(banner="TRAVEL", plan="Drive home, day 4 — Ruby Mountains: Lamoille Canyon + lake hike → Winnemucca",
+   wake="Angel Lake (van)", sleep="Winnemucca, NV (van)", miles="246", hrs="4.4", base="—",
+   together=("The easy day. Coffee over the cirque, roll down to Elko, then 30 mi up NV-227 into LAMOILLE CANYON — "
+             "Nevada's Yosemite, a 12-mi glacial byway into the Ruby Mountains. Hike Lamoille Lake (3 mi RT, "
+             "9,740 ft) from Road's End, picnic, then two easy I-80 hours to Winnemucca by ~4 PM. Laundry, showers, "
+             "resupply — staged for tomorrow's push home. See DRIVE PLAN."),
+   mochi=("Lamoille Canyon trails: leashed dogs welcome; the lake is his. Stage 1 fire restrictions in the Rubies "
+          "(fires only in developed rings — no ground fires at any picnic stop)."),
+   notes=("Canyon road is fully rebuilt + open to Road's End (post-2018-fire repaving done). Elko ~90°F midday, "
+          "canyon far cooler. Winnemucca is hot at street level — Water Canyon Rec Area above town is the cooler, "
+          "prettier sleep."),
+   route=["Angel Lake, Wells, NV","Elko, NV","Lamoille Canyon Scenic Byway, NV","Winnemucca, NV"],
    drive_plan=dict(
-     summary=("242 mi · ~4 hr driving — a short day. Depart SLC ~11:00 AM (no early start needed) → arrive Ely "
-              "~3:45–4:00 PM. I-15 S to Spanish Fork → US-6 W across the West Desert to Delta → US-6/US-50 W ('the "
-              "Loneliest Road') across the UT–NV line at the Border Inn into Ely. Top off in SLC, then FILL "
-              "COMPLETELY at Delta — the last real fuel before the desert (the only pump in the ~150 mi gap is the "
-              "Border Inn). One fuel + swap + lunch stop at Delta."),
-     route_url=maps_route(["Salt Lake City, UT","Delta, UT","Ely, NV"]),
-     route_label="SLC → Delta → (Border Inn) → Ely",
+     summary=("246 mi · ~4.4 hr driving. Depart 8:30 AM → Winnemucca ~4:00 PM with a 2.5-hr canyon window. Angel "
+              "Lake → Elko (fuel) → Lamoille Canyon Road's End → back to I-80 → Battle Mountain → Winnemucca "
+              "(fuel). Longest fuel gap ~186 mi (Elko → Winnemucca incl. the canyon spur) — inside range, but top "
+              "off properly at Elko."),
+     route_url=maps_route(["Angel Lake, Wells, NV","Elko, NV","Lamoille Canyon Scenic Byway, NV","Winnemucca, NV"]),
+     route_label="Angel Lake → Elko → Lamoille Canyon → Winnemucca",
      rows=[
-       dict(kind="depart", k="🌆 ~11:00 AM · Depart", v="SLC, Driver A, topped off."),
-       dict(kind="leg", k="Leg 1 · 11:00 AM–12:55 PM",
-            v="~140 mi · I-15 S to Spanish Fork (Exit 257) → US-6 W through Santaquin + Eureka across the West Desert to Delta. Driver A.",
-            url=maps_route(["Salt Lake City, UT","Delta, UT"])),
-       dict(kind="stop", k="⛽ FUEL + 🔄 SWAP + 🍽 LUNCH · Delta · ~12:55–1:25 PM",
-            v="Maverik #493, 44 N US-6, 24 hr — the last sizable fuel town. FILL TO FULL here; swap to Driver B; lunch (~30 min). It's ~150 mi to Ely with only the Border Inn in between.",
-            url=pin(_q("Maverik, 44 N US Highway 6, Delta, UT 84624"))),
-       dict(kind="leg", k="Leg 2 · 1:25–3:45 PM",
-            v="~102 mi · US-6 W; near the line it merges with US-50 — cross at the Border Inn, over the Snake Range, then US-50/US-93 into Ely. Driver B.",
-            url=maps_route(["Delta, UT","Ely, NV"])),
-       dict(kind="arrive", k="🏁 ~3:45–4:00 PM · Arrive", v="Ely, NV — afternoon to spare; NNR Museum is tomorrow AM."),
+       dict(kind="depart", k="🌅 8:30 AM · Depart",
+            v="Down the NV-231 switchbacks, Driver A — desert floor in 25 minutes."),
+       dict(kind="leg", k="Leg 1 · 8:30–9:35 AM",
+            v="60 mi · Driver A — Angel Lake → Elko on I-80 W along the East Humboldts.",
+            url=maps_route(["Angel Lake, Wells, NV","Elko, NV"])),
+       dict(kind="stop", k="⛽ FUEL + ☕ · Elko · ~9:35–10:00 AM",
+            v="Sinclair truck stop, 1790 Idaho St (Exit 301/303) — Elko has no Pilot/Love's/Flying J; this is the in-town diesel (NV name-brand = standard #2). Alt: Pilot in Carlin, 19 mi W on today's route. FILL FULL — next planned fuel is Winnemucca, 186 mi away including the canyon spur.",
+            url=pin(_q("Sinclair, 1790 Idaho St, Elko, NV 89801"))),
+       dict(kind="leg", k="Leg 2 · 10:00–10:45 AM",
+            v="31 mi · Driver B — NV-227 through Spring Creek, then the Lamoille Canyon Scenic Byway (NF-660): 12 paved miles, 2,000 ft of glacier-carved walls, to Road's End (8,800 ft).",
+            url=maps_route(["Elko, NV","Lamoille Canyon Scenic Byway, NV"])),
+       dict(kind="leg", k="🥾 10:45 AM–1:15 PM · Lamoille Lake + picnic",
+            v=("3 mi RT to the alpine lake at 9,740 ft (first leg of the Ruby Crest Trail) — leashed Mochi swims. "
+               "Shorter option: the Nature Trail loop or Thomas Canyon walk if legs say so. Picnic at Road's End."),
+            url=pin(_q("Lamoille Lake Trailhead, Road's End, Lamoille Canyon, NV"))),
+       dict(kind="leg", k="Leg 3 · 1:15–3:50 PM",
+            v="155 mi · Driver A — back down the canyon, I-80 W past Battle Mountain to Winnemucca. The big empty; podcast country.",
+            url=maps_route(["Lamoille Canyon Scenic Byway, NV","Winnemucca, NV"])),
+       dict(kind="stop", k="⛽ FUEL · Winnemucca · ~3:50–4:10 PM",
+            v="Flying J #770, 1880 W Winnemucca Blvd (Exit 176) — Love's + Pilot cluster the same interchange. Fill TONIGHT — tomorrow departs 7:30 AM for the long push home.",
+            url=pin(_q("Flying J Travel Center, 1880 W Winnemucca Blvd, Winnemucca, NV 89445"))),
+       dict(kind="arrive", k="🏁 ~4:10 PM · Arrive Winnemucca",
+            v="Early arrival on purpose: showers/laundry at an RV park or head up to Water Canyon for a cool, quiet night. Big day tomorrow."),
      ],
      fuel_options=[
-       ("Delta — Maverik #493 (FILL FULL)", "44 N US-6 · ~mile 140, 24 hr. The last real fuel before the desert — leave Delta with a FULL tank. Confirmed clean #2.", "Maverik, 44 N US Highway 6, Delta, UT 84624"),
-       ("Border Inn — Phillips 66 (emergency only)", "US-50 at the UT–NV line (Baker, NV side) · ~mile 240, 24 hr. The ONLY pump in the ~150 mi gap — your safety net, not the plan.", "Border Inn, 3777 E US Highway 50, Baker, NV 89311"),
-       ("Ely — Love's #691 (arrival)", "1701 Great Basin Blvd · 24 hr truck stop. Top off on arrival so you're full for tomorrow's remote Ely→Tonopah leg.", "Love's Travel Stop, 1701 Great Basin Blvd, Ely, NV 89301"),
+       ("Elko — Sinclair, 1790 Idaho St (PRIMARY) (PRIMARY)", "In-town truck stop, Exit 301/303. Backup: Pilot Travel Center, 791 10th St, Carlin (Exit 280, 19 mi W — you drive past it today).", "Sinclair, 1790 Idaho St, Elko, NV 89801"),
+       ("Winnemucca — Flying J #770 (evening fill)", "1880 W Winnemucca Blvd, Exit 176; alternates Love's (3575 W Winnemucca Blvd) + Pilot (Exit 173). Fill on arrival so the 7:30 AM start is wheels-up.", "Flying J Travel Center, 1880 W Winnemucca Blvd, Winnemucca, NV 89445"),
      ],
      scenic=[
-       ("Little Sahara Recreation Area", "Sand dunes off US-6 between Eureka + Delta — a quick photo / leg-stretch.", pin(_q("Little Sahara Recreation Area, UT"))),
-       ("Topaz Museum, Delta", "55 W Main, Delta — WWII Japanese-American incarceration museum, an easy in-town stop at the fuel break.", pin(_q("Topaz Museum, Delta, UT"))),
-       ("Border Inn", "The iconic state-line stop — one foot in each time zone; fuel, food, bathrooms.", pin(_q("Border Inn Casino, Baker, NV"))),
-       ("Sevier Lake / desert basins", "Vast dry-lake desert scenery flanking US-6/50 W of Delta.", pin(_q("Sevier Lake, UT"))),
+       ("Lamoille Canyon Scenic Byway", "The 12-mi drive itself is the sight — 'Nevada's Yosemite.' Multiple pullouts with interpretive signs.", pin(_q("Lamoille Canyon Scenic Byway, NV"))),
+       ("California Trail Interpretive Center", "Free BLM museum right on I-80 W of Elko (exit 292) — a genuinely good 30-min stop if the hike ran short.", pin(_q("California Trail Interpretive Center, Elko, NV"))),
+     ],
+     sleep_options=[
+       ("Water Canyon Recreation Area (BLM)", "6 mi SE above town up Water Canyon Rd — free/cheap sites in the cottonwoods, noticeably cooler than town. Verify current status on iOverlander.", pin(_q("Water Canyon Recreation Area, Winnemucca, NV"))),
+       ("New Frontier RV Park (hookups + showers)", "In-town full-service option — showers + laundry before the final push.", pin(_q("New Frontier RV Park, Winnemucca, NV"))),
+     ],
+   )),
+ "Aug 5 (Wed)": dict(banner="TRAVEL", plan="Drive home, day 5 — the push: Winnemucca → Tahoe dog swim → HOME by evening",
+   wake="Winnemucca (van)", sleep="🏠 HOME — Redwood City (fallback: Truckee)", miles="432", hrs="6.9", base="—",
+   together=("The one long day, front-loaded early to buy slack. Desert I-80 to Sparks (fuel + swap), over Donner "
+             "Summit to Truckee — GO/NO-GO check at 11 AM — then Mochi's victory swim at Kings Beach's Coon Street "
+             "Dog Beach, lunch, and the last 225 mi: Davis fuel stop (the Jul 17 station, reversed) and home to "
+             "Redwood City ~5:30–6:30 PM. See DRIVE PLAN."),
+   mochi=("Coon Street Dog Beach (east end of Kings Beach) is his payoff — designated dog beach, leash rules "
+          "posted. NOT the main Kings Beach sand (no dogs) and NOT Donner's West End Beach (no dogs)."),
+   notes=("FALLBACK IS BUILT IN: if the 11 AM Truckee check says 'tired', stay the night (options below) and be "
+          "home Aug 6 by ~noon — that's still inside the window. ⚠️ Smoke check: the Elephant Fire (~20 mi N of "
+          "Truckee, 12,300 ac on Jul 14, evac orders) — glance at InciWeb/Tahoe NF alerts on Aug 1; if the basin is "
+          "smoky, skip the beach and push straight through. Sacramento Valley ~90–100°F midday = A/C stretch."),
+   route=["Winnemucca, NV","Sparks, NV","Truckee, CA","Kings Beach, CA","1601 Research Park Dr, Davis, CA 95616","Redwood City, CA"],
+   drive_plan=dict(
+     summary=("432 mi · ~6.9 hr driving — the trip's longest day, split by a lake swim. Depart 7:30 AM (not the "
+              "usual 9 — this is the one early start) → home ~5:30–6:30 PM. Winnemucca → Sparks → Truckee "
+              "(GO/NO-GO) → Kings Beach → Davis → Redwood City. Fuel Sparks + Davis; two driver swaps at the "
+              "stops."),
+     route_url=maps_route(["Winnemucca, NV","Sparks, NV","Truckee, CA","Kings Beach, CA","1601 Research Park Dr, Davis, CA 95616","Redwood City, CA"]),
+     route_label="Winnemucca → Sparks → Truckee → Kings Beach → Davis → HOME",
+     rows=[
+       dict(kind="depart", k="🌅 7:30 AM · Depart (early — on purpose)",
+            v="Winnemucca, Driver A, tank already full from last night. Every minute here is beach time later."),
+       dict(kind="leg", k="Leg 1 · 7:30–9:50 AM",
+            v="161 mi · Driver A — Winnemucca → Sparks through Lovelock + Fernley: the fast, empty desert miles, cool morning air.",
+            url=maps_route(["Winnemucca, NV","Sparks, NV"])),
+       dict(kind="stop", k="⛽ FUEL + 🔄 SWAP + ☕ · Sparks · ~9:50–10:15 AM",
+            v="TA Reno, 200 N McCarran Blvd, Sparks (Exit 19) — in NEVADA the truck-stop chains still pump standard #2. Last cheap non-California diesel — fill full.",
+            url=pin(_q("TA Travel Center, 200 N McCarran Blvd, Sparks, NV 89431"))),
+       dict(kind="leg", k="Leg 2 · 10:15–10:55 AM",
+            v="35 mi · Driver B — Sparks → Truckee up the Truckee River canyon and over the state line.",
+            url=maps_route(["Sparks, NV","Truckee, CA"])),
+       dict(kind="stop", k="🧭 ~11:00 AM · TRUCKEE — GO / NO-GO",
+            v=("THE decision point. Fresh + on time → carry on below (home tonight). Dragging, or the basin is "
+               "smoky → flip to the fallback: beach or not, sleep Truckee/Donner (options below), Squeeze In or "
+               "Jax at the Tracks breakfast tomorrow, home Aug 6 by ~noon. Both outcomes are inside the plan.")),
+       dict(kind="leg", k="Leg 3 · 11:00–11:20 AM",
+            v="12 mi · CA-267 over Brockway Summit to Kings Beach.",
+            url=maps_route(["Truckee, CA","Kings Beach, CA"])),
+       dict(kind="leg", k="🐕 11:20 AM–12:45 PM · Coon Street Dog Beach + lunch",
+            v=("Foot of Coon St, east end of Kings Beach — the designated dog beach (picnic tables, restrooms, "
+               "paid parking at the boat launch). Mochi's Tahoe swim, humans' sandwich lunch at the tables — or "
+               "quick patio takeout in town."),
+            url=pin(_q("Coon Street Dog Beach, Kings Beach, CA"))),
+       dict(kind="leg", k="Leg 4 · 12:45–3:05 PM",
+            v="127 mi · Driver B — back over CA-267 to I-80 W, over Donner Summit, down through Sacramento (hot valley, A/C on) to Davis.",
+            url=maps_route(["Kings Beach, CA","1601 Research Park Dr, Davis, CA 95616"])),
+       dict(kind="stop", k="⛽ FUEL + 🔄 SWAP · Davis · ~3:05–3:25 PM",
+            v=("1601 Research Park Dr — the SAME user-confirmed clean-#2 station as the Jul 17 drive out, run in "
+               "reverse. It's the CHEVRON at the Richards Blvd interchange — CA Chevron retail diesel is petroleum CARB ULSD (≤B5), R99 risk LOW. Still glance for a 'Renewable/R99/HPR' pump decal before filling; Chevron 4475 Chiles Rd + Shell 1010 Olive Dr are same-town fallbacks."),
+            url=pin(_q("1601 Research Park Dr, Davis, CA 95616"))),
+       dict(kind="leg", k="Leg 5 · 3:25–5:15 PM",
+            v="97 mi · Driver A (fresh for Bay traffic) — Davis → Redwood City. Add buffer: Bay evening traffic decides the exact landing time.",
+            url=maps_route(["1601 Research Park Dr, Davis, CA 95616","Redwood City, CA"])),
+       dict(kind="arrive", k="🏁 ~5:30–6:30 PM · HOME — Redwood City",
+            v="1,440 mi from Boulder in five days, every night at elevation, zero interstate motels. Unpack tomorrow. 🎉"),
+     ],
+     fuel_options=[
+       ("Sparks — TA Reno / Sparks (PRIMARY) (PRIMARY)", "200 N McCarran Blvd, Exit 19 · ~mile 190. Earlier option: Love's Fernley (Exit 46). ⚠️ In CALIFORNIA avoid Pilot/Flying J/Love's/TA/76/ARCO — many pump R99 renewable there; the van needs petroleum #2.", "TA Travel Center, 200 N McCarran Blvd, Sparks, NV 89431"),
+       ("Davis — 1601 Research Park Dr (PRIMARY, CA)", "The user-confirmed clean-#2 stop from Jul 17, ~mile 335 — leaves 97 mi home. It's a Chevron — CA petroleum ULSD; glance for an R99 decal anyway.", "1601 Research Park Dr, Davis, CA 95616"),
+       ("Auburn — 13405 Lincoln Way (alt)", "The other user-confirmed CA station (~mile 280) — use it if you want the fill before Sacramento instead of after.", "13405 Lincoln Way, Auburn, CA 95603"),
+     ],
+     scenic=[
+       ("Donner Summit / Donner Lake overlook", "Rainbow Bridge + the classic lake-from-above pullout on old US-40, 5 min off I-80 if the day is running easy.", pin(_q("Donner Summit Bridge, Truckee, CA"))),
+     ],
+     sleep_options=[
+       ("FALLBACK — Coachland RV Park, Truckee", "In-town hookups; the easy roll-in if the NO-GO call gets made.", pin(_q("Coachland RV Park, Truckee, CA"))),
+       ("FALLBACK — Donner Memorial SP campground", "Forested state-park camp by the lake — check same-day availability on ReserveCalifornia.", pin(_q("Donner Memorial State Park Campground, Truckee, CA"))),
      ],
    )),
  "Aug 14 (Fri)": dict(banner="TRAVEL", plan="Drive Ely → Mammoth Lakes",
@@ -1523,8 +1314,6 @@ FIXED_ORDER = list(FIXED.keys())
 
 # which calendar dates are flexible (Itinerary date cell -> DAY OPTIONS)
 FLEX_DATES = (["Jul %d" % d for d in range(23,32)] +
-              ["Aug %d" % d for d in range(2,6)] +
-              ["Aug 10","Aug 11"] +
               ["Aug 15","Aug 16","Aug 17"])
 
 # ════════════════════════════════════════════════════════════════════════════════
@@ -1913,11 +1702,13 @@ if __name__=="__main__":
         # Day BLD-E draft / stale __tmp__ tabs from a prior crash) — but NEVER delete a
         # tab a human has edited.
         OLD_RE=re.compile(r'^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \d+ \(\w+\)$')
+        OPT_RE=re.compile(r'^(BLD|STM|CB|MAM)-[A-J]$')
         orphans=[]
         for s in sh.fetch_sheet_metadata()["sheets"]:
             ttl=s["properties"]["title"]
             is_orphan = (ttl.startswith("__tmp__") or ttl.startswith("Day BLD-E")
-                         or (OLD_RE.match(ttl) and ttl not in fixed_gid))
+                         or (OLD_RE.match(ttl) and ttl not in fixed_gid)
+                         or (OPT_RE.match(ttl) and ttl not in opt_gid))
             if not is_orphan: continue
             if not ttl.startswith("__tmp__") and genmeta.is_dirty(sh, ttl, _META):
                 print(f"  ⚠️  KEEP orphan '{ttl}' — manual edits detected.")
