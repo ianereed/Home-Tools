@@ -119,6 +119,22 @@ def bp_category(systolic: float, diastolic: float) -> tuple[str, str]:
     return "Normal", GOOD
 
 
+def add_bp_bands(fig: go.Figure) -> go.Figure:
+    """Overlay AHA systolic-category bands + the diastolic-normal cutoff on a
+    blood-pressure chart. Returns the same figure."""
+    fig.add_hrect(y0=0, y1=120, fillcolor=GOOD, opacity=0.07, line_width=0,
+                  annotation_text="Normal", annotation_position="top left")
+    fig.add_hrect(y0=120, y1=130, fillcolor=WARN, opacity=0.07, line_width=0,
+                  annotation_text="Elevated", annotation_position="top left")
+    fig.add_hrect(y0=130, y1=140, fillcolor="#fb923c", opacity=0.07, line_width=0,
+                  annotation_text="Stage 1", annotation_position="top left")
+    fig.add_hrect(y0=140, y1=180, fillcolor=BAD, opacity=0.07, line_width=0,
+                  annotation_text="Stage 2", annotation_position="top left")
+    fig.add_hline(y=80, line_dash="dot", line_color=GOOD, line_width=1,
+                  annotation_text="diastolic normal <80", annotation_position="bottom right")
+    return fig
+
+
 @st.cache_data(ttl=300)
 def load_df(query: str, params: tuple = ()) -> pd.DataFrame:
     """Cached query against the shared health.db — mirrors app.py::load_data.

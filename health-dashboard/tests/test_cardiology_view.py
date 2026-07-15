@@ -42,3 +42,14 @@ def test_render_cardiology_with_goals(fake_db, fake_clinical, monkeypatch):
 
 def test_render_cardiology_without_goals(fake_db, fake_clinical_no_goals, monkeypatch):
     _render(fake_db, fake_clinical_no_goals, monkeypatch)
+
+
+def test_render_cardiology_on_empty_db(empty_db, fake_clinical, monkeypatch):
+    """Phase 3: a freshly-initialized DB with zero rows anywhere (the day-one,
+    no-scale/no-BP-cuff/no-wearable-history reality) must render every new BP/
+    weight/body-composition section via its empty-state path, not crash."""
+    _render(empty_db, fake_clinical, monkeypatch)
+
+
+def test_render_cardiology_on_empty_db_without_goals(empty_db, fake_clinical_no_goals, monkeypatch):
+    _render(empty_db, fake_clinical_no_goals, monkeypatch)
