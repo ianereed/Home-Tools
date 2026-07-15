@@ -145,14 +145,23 @@ if data:
 print(f"4. Reservations: {len(data)} rows marked ({done} already done).")
 
 # ── 5 · DAY OPTIONS Boulder-evenings Jul 30 row ────────────────────────────────
+# GOTCHA (hit on the first run): evenings rows are merged A:B (label) + C:J (text),
+# so the text cell is the C-column merge ANCHOR. The original version wrote to B —
+# a non-anchor merged cell — and Sheets silently swallowed it (see memory
+# project_colorado_trip_day_tabs "stale horizontal merges"). Fixed to locate the
+# text cell by content instead of assuming a column.
 menu = sh.worksheet("DAY OPTIONS")
 mv = menu.get_all_values()
 r = next(i for i in range(len(mv)) if A(mv, i) == "Thu Jul 30")
-b = A(mv, r, 1)
-if "🎫" in b:
+ci = next(c for c in range(1, len(mv[r]) + 1)
+          if "Killer Queen" in A(mv, r, c) or "🎫" in A(mv, r, c))
+txt = A(mv, r, ci)
+if "🎫" in txt:
     print("5. DAY OPTIONS: ticket note already present — skipping.")
 else:
-    wbatch(menu, [{"range": f"B{r+1}", "values": [[b + " — 🎫 TICKETS IN HAND"]]}])
-    print(f"5. DAY OPTIONS (row {r+1}): appended ticket note.")
+    col = chr(ord("A") + ci)
+    wbatch(menu, [{"range": f"{col}{r+1}",
+                   "values": [[txt + " — 🎫 TICKETS IN HAND"]]}])
+    print(f"5. DAY OPTIONS ({col}{r+1}): appended ticket note.")
 
 print("DONE — outbound one-shot complete. Now splice tabs + run rebuild_trip_tabs.py")
