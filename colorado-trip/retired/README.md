@@ -41,3 +41,10 @@ Superseded one-shot scripts, kept for reference. Not maintained; don't run.
   deleted the STM/CB DAY OPTIONS sections, rewrote Itinerary constraint + Aug 1–13 day
   rows, inserted the OUT-OF-SCOPE divider above Aug 14, marked 15 Reservations rows
   CANCELLED. Ran once before the same-day full rebuild (commit 2899ddd).
+- `update_outbound.py` — one-shot for the 2026-07-14 (evening) outbound rewrite
+  (drop Incline Village/Reno/Moab → Jul 17–22 straight-to-Colorado high-country
+  routing): rewrote Itinerary Jul 17–22 rows + the Jul 17 constraint, marked Killer
+  Queen (Jul 30) tickets PURCHASED in three places, cancelled Tahoe Shakespeare /
+  Truckee-Tahoe Pet Lodge / Wanderlust Mutts. Ran once before the same-day rebuild
+  (commit 75fd1e4). NOTE: carries the merged-cell fix for the DAY OPTIONS evenings
+  rows (text lives at the C-column merge anchor — write there, not col B).

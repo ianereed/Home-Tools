@@ -36,13 +36,10 @@ def fake_db(tmp_path, monkeypatch):
     return str(db_path)
 
 
-@pytest.fixture
-def fake_clinical(monkeypatch):
-    """Install a synthetic clinical_data module under sys.modules['clinical_data'].
-
-    Values are obviously fake (round numbers, placeholder names) — nothing here
-    resembles Ian's real diagnosis, medications, or lab results.
-    """
+def _base_fake_clinical_module():
+    """Fields common to every fake clinical_data variant. Values are obviously
+    fake (round numbers, placeholder names) — nothing here resembles Ian's
+    real diagnosis, medications, or lab results."""
     mod = types.ModuleType("clinical_data")
     mod.PATIENT_NAME = "Test Patient"
     mod.DOB = "1990-01-01"
@@ -56,7 +53,7 @@ def fake_clinical(monkeypatch):
     # (date, statin_dose_mg, fasting, total_chol, trig, hdl, ldl, apob, lpa_nmol_l, note)
     mod.LIPID_PANELS = [
         ("2025-01-15", 0, True, 200, 100, 45, 130, None, None, "fake baseline"),
-        ("2025-07-15", 20, True, 150, 90, 48, 65, None, None, "fake on-therapy"),
+        ("2025-07-15", 20, True, 150, 90, 48, 65, 70, None, "fake on-therapy"),
     ]
     mod.EVENTS = []
     mod.LIFE_EVENTS = []
@@ -66,9 +63,17 @@ def fake_clinical(monkeypatch):
         ("2025-04-01", 20, "fake: titrated to 20 mg"),
     ]
     mod.RISK_MARKERS = []
-    # Fake goals/medications — Appendix B shape (Phase 1 adds the real keys to
-    # the PHI module; this fixture exercises both "present" and future
-    # "absent" cases via the CARDIO_GOALS_MISSING variant below).
+    return mod
+
+
+@pytest.fixture
+def fake_clinical(monkeypatch):
+    """Install a synthetic clinical_data module under sys.modules['clinical_data'],
+    WITH CARDIO_GOALS/MEDICATIONS set (Appendix B shape) — the
+    Phase-1-updated-PHI-file case. See `fake_clinical_no_goals` for the
+    pre-Phase-1 (goals-absent) case.
+    """
+    mod = _base_fake_clinical_module()
     mod.CARDIO_GOALS = {
         "ldl": {"target": 999, "stretch": 999, "unit": "mg/dL"},
         "bp": {"systolic": 999, "diastolic": 999, "unit": "mmHg"},
@@ -84,7 +89,28 @@ def fake_clinical(monkeypatch):
             "prescriber": "Dr. Fake", "purpose": "fixture only",
             "note": "synthetic fixture entry",
         },
+        {
+            "name": "fakolumab", "brand": "Fakepha",
+            "dose": "0 mg/mL", "form": "SC autoinjector (click)",
+            "frequency": "every 2 weeks",
+            "start": None, "status": "prescribed — not yet started",
+            "prescriber": "Dr. Fake", "purpose": "fixture only",
+            "note": "synthetic fixture entry — exercises the no-start-date path",
+        },
     ]
+    monkeypatch.setitem(sys.modules, "clinical_data", mod)
+    return mod
+
+
+@pytest.fixture
+def fake_clinical_no_goals(monkeypatch):
+    """Same synthetic module as `fake_clinical` but WITHOUT CARDIO_GOALS or
+    MEDICATIONS — simulates an un-updated (pre-Phase-1) clinical_data.py so
+    the getattr(CD, "CARDIO_GOALS", None) / getattr(CD, "MEDICATIONS", [])
+    guarded code paths render nothing instead of crashing (Standing rule 2 /
+    Phase 1 spec's backward-compatibility requirement).
+    """
+    mod = _base_fake_clinical_module()
     monkeypatch.setitem(sys.modules, "clinical_data", mod)
     return mod
 

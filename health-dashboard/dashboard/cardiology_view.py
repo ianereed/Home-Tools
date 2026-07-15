@@ -12,6 +12,7 @@ committed to git — it is deployed to the homeserver out of band. app.py only
 wires this page in when `cardiology/clinical_data.py` is present, and the import
 below is lazy, so a checkout without the PHI files simply omits the page.
 """
+import datetime
 import os
 import sqlite3
 import sys
@@ -27,6 +28,7 @@ if _CARDIO_DIR not in sys.path:
 import build_report as br      # noqa: E402  (cardiology/build_report.py)
 import clinical_data as CD     # noqa: E402  (cardiology/clinical_data.py)
 from collectors.db import DB_PATH  # noqa: E402
+from dashboard import lib      # noqa: E402
 
 
 # The report's presentation CSS (cards + clinical tables), scoped so it only
@@ -98,6 +100,109 @@ def _lab_table_html(lip: pd.DataFrame) -> str:
     return f"<table class=lipid><thead><tr>{thead}</tr></thead><tbody>{rows}</tbody></table>"
 
 
+def _goal_card_html(label: str, value: str, sub: str, color: str) -> str:
+    return (f'<div class=card><div class=cardlabel>{label}</div>'
+            f'<div class=cardval style="color:{color}">{value}</div>'
+            f'<div class=cardsub>{sub}</div></div>')
+
+
+def _goals_strip_html(lip: pd.DataFrame) -> str:
+    """Three-card goals strip: LDL vs target, BP category, weight vs goal band.
+
+    Gated on CARDIO_GOALS as a whole — with an un-updated PHI file (no
+    CARDIO_GOALS attribute) this returns "" and the page renders exactly as
+    before Phase 1.
+    """
+    goals = getattr(CD, "CARDIO_GOALS", None)
+    if not goals:
+        return ""
+
+    # --- LDL ---
+    ldl_goal = goals.get("ldl", {})
+    target, stretch, unit = ldl_goal.get("target"), ldl_goal.get("stretch"), ldl_goal.get("unit", "mg/dL")
+    latest_ldl = lip.iloc[-1]["ldl"] if not lip.empty else None
+    if latest_ldl is not None and pd.notna(latest_ldl) and target is not None:
+        if latest_ldl < target:
+            color = lib.GOOD
+        elif latest_ldl < 100:
+            color = lib.WARN
+        else:
+            color = lib.BAD
+        ldl_card = _goal_card_html(
+            "LDL-C", f"{int(latest_ldl)} mg/dL",
+            f"target &lt;{target} · stretch &lt;{stretch} {unit}", color)
+    else:
+        ldl_card = _goal_card_html("LDL-C", "—", "no lipid draw yet", lib.MUTED)
+
+    # --- Blood pressure ---
+    since_14d = (datetime.date.today() - datetime.timedelta(days=14)).isoformat()
+    bp14 = lib.load_df(
+        "SELECT systolic, diastolic FROM blood_pressure WHERE timestamp >= ? ORDER BY timestamp",
+        (since_14d,))
+    if not bp14.empty:
+        sys_m, dia_m = bp14["systolic"].mean(), bp14["diastolic"].mean()
+        cat, color = lib.bp_category(sys_m, dia_m)
+        bp_card = _goal_card_html(
+            "Blood pressure", f"{sys_m:.0f}/{dia_m:.0f}",
+            f"{cat} · 14-day mean ({len(bp14)} readings)", color)
+    else:
+        latest_bp = lib.load_df(
+            "SELECT systolic, diastolic, timestamp FROM blood_pressure "
+            "ORDER BY timestamp DESC LIMIT 1")
+        if not latest_bp.empty:
+            r = latest_bp.iloc[0]
+            cat, color = lib.bp_category(r["systolic"], r["diastolic"])
+            bp_card = _goal_card_html(
+                "Blood pressure", f"{int(r['systolic'])}/{int(r['diastolic'])}",
+                f"{cat} · latest ({str(r['timestamp'])[:10]})", color)
+        else:
+            bp_card = _goal_card_html("Blood pressure", "—", "no readings yet", lib.MUTED)
+
+    # --- Weight ---
+    weight_goal = goals.get("weight", {})
+    baseline_kg = weight_goal.get("baseline_kg")
+    lose_min, lose_max = weight_goal.get("lose_lb_min"), weight_goal.get("lose_lb_max")
+    since_7d = (datetime.date.today() - datetime.timedelta(days=7)).isoformat()
+    w7 = lib.load_df(
+        "SELECT weight_kg FROM body_weight WHERE timestamp >= ? ORDER BY timestamp",
+        (since_7d,))
+    if not w7.empty:
+        mean_lb = w7["weight_kg"].mean() * lib.KG_TO_LB
+        if baseline_kg and lose_min is not None and lose_max is not None:
+            baseline_lb = baseline_kg * lib.KG_TO_LB
+            goal_min_lb, goal_max_lb = baseline_lb - lose_max, baseline_lb - lose_min
+            delta_lb = mean_lb - baseline_lb
+            color = lib.GOOD if mean_lb <= goal_max_lb else lib.WARN
+            sub = f"goal {goal_min_lb:.0f}–{goal_max_lb:.0f} lb · Δ{delta_lb:+.1f} lb vs baseline"
+        else:
+            color, sub = lib.MUTED, "7-day mean"
+        weight_card = _goal_card_html("Weight", f"{mean_lb:.1f} lb", sub, color)
+    else:
+        weight_card = _goal_card_html("Weight", "—", "awaiting scale", lib.MUTED)
+
+    return f'<div class=cards>{ldl_card}{bp_card}{weight_card}</div>'
+
+
+def _medications_html() -> str:
+    """One card per MEDICATIONS entry. Gated on getattr(CD, "MEDICATIONS", [])
+    — empty/absent renders nothing (backward compatible with an un-updated
+    PHI file)."""
+    meds = getattr(CD, "MEDICATIONS", [])
+    if not meds:
+        return ""
+    cards = []
+    for m in meds:
+        started = m.get("start")
+        status = m.get("status", "")
+        started_line = f"Started {started} ({status})" if started else f"<b>{status}</b>"
+        sub = (f'{m.get("form", "")} · {m.get("frequency", "")}<br>'
+               f'{started_line}<br>'
+               f'{m.get("prescriber", "")} · {m.get("purpose", "")}')
+        label = f'{m.get("name", "")} ({m.get("brand", "")})' if m.get("brand") else m.get("name", "")
+        cards.append(_goal_card_html(label, m.get("dose", "—"), sub, lib.INK))
+    return f'<div class=cards>{"".join(cards)}</div>'
+
+
 def render_cardiology():
     st.markdown(_CARD_CSS, unsafe_allow_html=True)
     st.markdown("# Cardiology")
@@ -116,6 +221,23 @@ def render_cardiology():
                "from LabCorp panels; verify against originals before any clinical decision.")
     st.markdown(f'<div class="cardio summary"><b>Clinical picture.</b> {CD.CLINICAL_SUMMARY}</div>',
                 unsafe_allow_html=True)
+
+    # ---- Cardiology goals -------------------------------------------------
+    goals_html = _goals_strip_html(lip)
+    if goals_html:
+        st.markdown("## Goals")
+        st.markdown(goals_html, unsafe_allow_html=True)
+
+    # ---- Medications -------------------------------------------------------
+    meds_html = _medications_html()
+    if meds_html:
+        st.markdown("## Medications")
+        st.markdown(meds_html, unsafe_allow_html=True)
+        statin_events = br.statin_events_df()
+        if not statin_events.empty:
+            with st.expander("Statin dose history"):
+                st.dataframe(statin_events, use_container_width=True, hide_index=True)
+
     st.markdown(br.stat_cards_html(lip), unsafe_allow_html=True)
 
     # ---- headline overlay ------------------------------------------------

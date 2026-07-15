@@ -253,6 +253,64 @@ Elevation 8,865ft. August highs ~67-75F, lows ~high 30s. Median single-family ~$
 
 ---
 
+# OUTBOUND REVISED (JUL 17–22) — STRAIGHT TO THE COLORADO HIGH COUNTRY  ★ added 2026-07-14
+
+Replaces the original Incline Village / Reno / Moab outbound. Rule: **sleep cool, never
+a desert-valley floor** — every night is 5,900–11,000 ft. Killer Queen @ Red Rocks
+Thu Jul 30: **tickets purchased** ✓. All leg times Directions-API-verified 2026-07-14;
+day tabs Jul 17–22 carry leg-by-leg plans. **Every forest unit on this route is under
+Stage 1–2 fire restrictions: no campfires (Stage 2 = not even in campgrounds); gas
+stove only + free CA campfire permit for the CA nights.**
+
+## Days
+
+| Day | Route | Mi / hrs | Night (elev) |
+|---|---|---|---|
+| Jul 17 | Surgery appt → Davis (fuel) → I-80 → Truckee | ~230 / 4 (+Fri traffic) | CA-89 N dispersed: Prosser Hill OHV / Sagehen / Kyburz Flat (~5,900–6,400 ft) |
+| Jul 18 | I-80 → Fernley (fuel) → US-50: Fallon → Austin → Ely → Great Basin | ~410 / 6.5 | Sacramento Pass BLM (7,150 ft, free FCFS) — Wheeler Peak CG (9,886 ft) on a cancellation |
+| Jul 19 | Delta (fuel) → I-70 → pick-your-push | 354–537 / 6–8 | A: La Sal Geyser Pass dispersed (~9,500–10,600) · B★: Grand Mesa (Island Lake CG 10,300 / dispersed) · C: Shrine Pass dispersed (10,700–11,100) |
+| Jul 20 | Converge on Vail Pass / Camp Hale (layover if C) | 0–272 / 0–5 | Camp Hale Memorial CG (9,200, reservable) / Shrine Pass free / Homestake $20 designated |
+| Jul 21 | Layover OR hop to Boulder's backyard | 0 or ~80–110 | Same camp OR West Magnolia / Gordon Gulch (free designated FCFS, ~8,800–9,000 ft) |
+| Jul 22 | Boulder: groceries + Chautauqua + 3 PM check-in | ~22 (or ~97) | Boulder Airbnb (582 Locust Pl) |
+
+## Verified facts (2026-07-14/15 research — details in journals 204 + agent reports)
+
+- **Elephant Fire** (N of Truckee): 42% contained, evacs LIFTED, spreading NE away
+  from Truckee, est. containment Jul 22. CA-89 open; closure block NE of Loyalton
+  only. Friday reservable CGs: ALL FULL → dispersed (Prosser Hill OHV best bet).
+  Tahoe Basin + Mt Rose corridor dispersed = BANNED (Mt Rose CG has 10 FCFS sites
+  as bail-out). Smoke: low–moderate, trending better; check fire.airnow.gov day-of.
+- **Great Basin Sat 7/18:** Wheeler Peak CG SOLD OUT (36/36; rec.gov 10088563) +
+  Upper Lehman/Grey Cliffs full → **Sacramento Pass BLM** primary (10 sites, ramadas,
+  free); cancellation watch on Wheeler. Van (<24 ft) is legal on the scenic drive.
+  Park Stage II. Dogs: roads + campgrounds only.
+- **Jul 19 options:** La Sals OPEN (Babylon Fire 45–60 mi S; haze possible; Warner
+  Lake CG full Sun + 20-ft limit → dispersed Geyser Pass). Grand Mesa CLEAR — Island
+  Lake 233387 (9 open Sun), Cobbett 233936 (8), Jumbo 233189 (2) + legal dispersed.
+  Shrine Pass FR-709 dispersed legal, van-OK dry.
+- **Camp Hale/Homestake CHANGED Jun 15, 2026:** FR-703/704 = designated-sites-only,
+  $20/night kiosk, all FCFS this year (44 sites). Camp Hale Memorial CG 232274: 16
+  open Mon 7/20 — the reserve-now move. ⚠️ **Willow Fire 6 mi W of Leadville** —
+  closure west of town, US-24 open: NO camps west of Leadville.
+- **Boulder backyard:** West Magnolia + Gordon Gulch = free designated-numbered
+  FCFS (Tuesday easy). Kelly Dahl 232280 (12 open Tue) / Golden Gate SP (cpwshop)
+  reservable fallbacks. ARP Stage 2; Caribou Rd closed (doesn't affect West Mag).
+- **Fuel:** Davis Chevron (confirmed #2) → **Fernley Love's REQUIRED** (Davis→Fallon
+  = 208 mi > range) → Austin/Eureka Chevrons → Ely → Delta Maverik → Salina Flying J
+  → Green River Pilot (A) / GJ Love's #517 (B/C) / Glenwood Sinclair (C).
+- **July lows:** Truckee 40–42 · Sacramento Pass ~55 · Grand Mesa ~40 · Shrine 35–38
+  · Camp Hale 38–42 · Nederland 46–48.
+
+## Book-now checklist (availability = Jul 15 snapshot)
+
+1. Cancellation watch: Wheeler Peak CG (10088563) for Sat 7/18.
+2. If option B: Island Lake CG (233387) for Sun 7/19.
+3. Camp Hale Memorial CG (232274) for Mon 7/20 — 16 open, zero-drama.
+4. Free CA campfire permit (stove use) — readyforwildfire.org, 2 min.
+5. Day-of checks: fire.airnow.gov + InciWeb (Elephant, Willow, Babylon), GMUG alerts.
+
+---
+
 # DRIVE HOME (AUG 1–5) — I-80 NORTH  ★ added 2026-07-14
 
 Replaces the cancelled Steamboat / Twin Lakes / Crested Butte / SLC / Ely back half.
