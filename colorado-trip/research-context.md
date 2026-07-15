@@ -140,7 +140,11 @@ Ian & Anny bring all their own gear. Bouldering = solo OK. Ropes = both must be 
 
 ---
 
-# STEAMBOAT SPRINGS, COLORADO (Aug 1-6)
+# STEAMBOAT SPRINGS, COLORADO (Aug 1-6) — ❌ CANCELLED Jul 2026
+
+> **2026-07-14: This leg was cancelled** (Airbnb cancelled too), along with Twin Lakes,
+> Crested Butte, SLC and Ely. The trip now drives Boulder → Redwood City Aug 1–5 —
+> see "DRIVE HOME (AUG 1–5)" below. Section kept for reference / a future trip.
 
 ## Hiking — From Town
 
@@ -207,7 +211,10 @@ Elevation 6,866ft. August highs ~75F, lows ~45F. Median home ~$1.0-1.4M. Ski: la
 
 ---
 
-# CRESTED BUTTE, COLORADO (Aug 7-11)
+# CRESTED BUTTE, COLORADO (Aug 7-11) — ❌ CANCELLED Jul 2026
+
+> **2026-07-14: This leg was cancelled** (Airbnb cancelled too). See "DRIVE HOME
+> (AUG 1–5)" below. Section kept for reference / a future trip.
 
 ## Hiking — Dog-Friendly
 
@@ -246,6 +253,90 @@ Elevation 8,865ft. August highs ~67-75F, lows ~high 30s. Median single-family ~$
 
 ---
 
+# DRIVE HOME (AUG 1–5) — I-80 NORTH  ★ added 2026-07-14
+
+Replaces the cancelled Steamboat / Twin Lakes / Crested Butte / SLC / Ely back half.
+Boulder → Redwood City in 5 days / 4 van nights, ~1,440 mi with detours. Every night at
+elevation (6,800–9,000 ft) to dodge August heat; hot basins (Wendover, Winnemucca,
+Sacramento Valley) are midday A/C drive-throughs. All leg times verified with the
+Directions API 2026-07-14; day tabs "Aug 1 (Sat)".."Aug 5 (Wed)" carry the leg-by-leg
+plans. Target: HOME Aug 5 evening; built-in fallback = Truckee night → home Aug 6 ~noon.
+
+## Days
+
+| Day | Route | Mi / drive hrs | Night (elev) |
+|---|---|---|---|
+| Aug 1 | Boulder → US-287 → Laramie → WY-130 Snowy Range Pass (10,847 ft, Lake Marie) → Saratoga | 192 / 3.8 | Saratoga, WY (6,790 ft) |
+| Aug 2 | I-80 W (Rawlins → Rock Springs → Evanston) → UT-150 into Uintas | 284 / 4.4 | Bear River corridor USFS camp (8,400–9,000 ft) |
+| Aug 3 | Ruth Lake hike → Bald Mtn Pass (10,715 ft) → Park City lunch → Bonneville Salt Flats → Wells | 286 / 5.0 | Angel Lake CG, NV (8,380 ft) |
+| Aug 4 | Elko → Lamoille Canyon + Lamoille Lake hike (Ruby Mtns) → Winnemucca | 246 / 4.4 | Winnemucca (Water Canyon BLM = cooler) |
+| Aug 5 | 7:30 AM start → Sparks → Truckee GO/NO-GO → Coon St Dog Beach swim → Davis → HOME | 432 / 6.9 | 🏠 Redwood City (~5:30–6:30 PM) |
+
+## Verified stop facts (researched 2026-07-14 — sources in journals 202/203)
+
+- **Snowy Range Byway (WY-130):** open for season; "Active Vegetation Operations 2026"
+  may cause brief closures — check Medicine Bow alerts day-of. Lake Marie paved path,
+  leashed dogs OK.
+- **Saratoga:** Hobo Hot Pool FREE, 24/7, 311 E Walnut Ave (106–119°F). Mochi swims the
+  NORTH PLATTE (Veterans Island Park) — NOT Saratoga Lake (blue-green algae history;
+  WyoHCBs.org). Camp: Saratoga Lake CG (FCFS, $25 elec / $15 dry) or South Brush Creek
+  USFS (rec.gov 10156047 — 8 sites open for Aug 1 as of 7/14).
+- **Mirror Lake Hwy (UT-150):** $10/3-day amenity fee — America the Beautiful annual
+  pass honored (hang on mirror). Ruth Lake: ~2 mi RT, 10,200 ft, dogs OK. Camps
+  (rec.gov, Sun 8/2 snapshot): Sulphur 233361 (9,000 ft, 9 open — the pick), Stillwater
+  232105 (17 open), East Fork Bear River 247366 (6 open), Christmas Meadows 232029
+  (needs booking ≥5 days ahead); Bear River / Hayden Fork / Beaver View = FCFS. NO
+  water taps at FCFS camps — fill jugs in Evanston.
+- **Angel Lake (NV-231 above Wells):** CG reservable, rec.gov 232015, $18, 9 of 25
+  open for Mon 8/3 (as of 7/14), leashed dogs, NO potable water. Fallback dog motels
+  in Wells: Motel 6 (pets free) / Sharon Motel ($15/pet).
+- **Lamoille Canyon (Ruby Mtns):** byway fully rebuilt post-2018 fire, open to Road's
+  End; Lamoille Lake 3 mi RT (9,740 ft), leashed dogs. Thomas Canyon CG 232112 backup.
+  Stage 1 fire restrictions (fires in developed rings only) through 10/31.
+- **Tahoe finish:** Coon Street Dog Beach (foot of Coon St, east Kings Beach) is the
+  designated dog beach — leash rules posted. Donner West End Beach = NO dogs. Truckee
+  dog-patio meals: Squeeze In, Jax at the Tracks.
+- **Park City lunch:** Atticus Coffee (738 Main St) or Este Pizza (dog patios).
+- **⚠️ Fire snapshot 7/14:** Elephant Fire 20 mi N of Truckee (12,303 ac, 5%) — no
+  I-80 impact yet, smoke possible; RECHECK InciWeb/Tahoe NF ~Aug 1. 18 Mile Fire NE of
+  Wells (off-corridor). No closures on Medicine Bow WY / Uinta corridor / Rubies stops.
+
+## Diesel plan (clean #2 ULSD only; ~200 mi range; no gap > ~150 mi unplanned)
+
+| Mile-ish | Stop | Station |
+|---|---|---|
+| 0 | Boulder (pre-fill before checkout) | any name-brand, 28th St corridor |
+| 112 | Laramie | Pilot #308, 1564 N McCue St (Love's #723 same exit) |
+| D2-42 | Rawlins | Flying J #763, I-80 Exit 209 (TA Exit 214 alt) |
+| D2-150 | Rock Springs | Flying J #764, 650 Stagecoach Blvd (NO Love's in town) |
+| D2-254 | Evanston (last before camp; fill WATER too) | Pilot #141, 289 Bear River Dr |
+| D3-~100 | Lake Point, UT (plugs 244-mi Evanston→Wendover gap) | Flying J #742, 1605 E Saddleback Blvd, Exit 99 |
+| D3-214 | West Wendover | Pilot #147, 1200 W Wendover Blvd |
+| D3-273 | Wells (top-off at NV-231 turnoff) | Flying J 156 US-93 S / Love's across |
+| D4-60 | Elko (no majors in town) | Sinclair, 1790 Idaho St (alt: Pilot Carlin, Exit 280) |
+| D4-246 | Winnemucca (fill on arrival for the 7:30 start) | Flying J #770, 1880 W Winnemucca Blvd |
+| D5-161 | Sparks — last cheap non-CA diesel | TA Reno, 200 N McCarran Blvd, Exit 19 |
+| D5-335 | Davis, CA | **Chevron**, 1601 Research Park Dr (user-confirmed clean #2; R99 risk LOW — still glance for decal) |
+
+**California R99 rule:** avoid Pilot / Flying J / Love's / TA / 76 / ARCO in CA — many
+pump R99 renewable exclusively; the Sprinter needs petroleum #2 (≤B5). Chevron/Shell
+retail = petroleum CARB ULSD. Auburn 13405 Lincoln Way = other user-confirmed CA stop.
+
+## August normals (high/low °F)
+
+Saratoga 83/50 · Evanston 80/46 · Uintas 9k ~70/38 (frost possible — pack layers) ·
+SLC 89–93/67 · Wendover 91/64 · Wells 90/48 · Angel Lake ~78/42 · Elko 90/51 ·
+Winnemucca 91/49 · Reno 91/56 · Truckee 80/42 · Sacramento 91/58.
+
+## Book-now checklist (as of 7/14 — availability was a snapshot)
+
+1. Sulphur CG (or Stillwater) for Sun Aug 2 — recreation.gov 233361 / 232105
+2. Angel Lake CG for Mon Aug 3 — recreation.gov 232015 ($18)
+3. Optional: South Brush Creek CG for Sat Aug 1 — rec.gov 10156047 (else Saratoga Lake FCFS)
+4. ~Aug 1: recheck Elephant Fire (InciWeb) + Medicine Bow vegetation-ops alerts + HAB advisory for Saratoga Lake
+
+---
+
 # BLACK CANYON OF THE GUNNISON NP
 
 - ~1.5hrs from Crested Butte, ~94mi
@@ -278,11 +369,11 @@ For reference if revisiting:
 | 2 | Tahoe → Great Basin NP | 270 | 5-5:30 | US-50 "Loneliest Road." Fill gas at every opportunity. Remote desert. |
 | 3 | Great Basin → Moab | 320-350 | 5:00 | Via US-50 → I-70. Gorgeous canyon country. |
 | 4 | Moab → Boulder | 366 | 5:45-6:00 | I-70 through Glenwood Canyon (stunning). Longer day. |
-| 5 | Boulder → Steamboat | 170 | 3:00 | Via I-70. Easy. |
-| 6 | Steamboat → Crested Butte | 200 | 5:00 | NOT a day trip. Full driving day. |
-| 7 | CB → SLC | 380 | 6:30 | Via Grand Junction/I-70. Push day. |
-| 8 | SLC → Ely, NV | 242 | 3:30-4:00 | Western Utah desert. |
-| 9 | Ely → Mammoth Lakes | 295 | 4:30-5:00 | Via US-6/Tonopah/US-395. No gas Ely→Tonopah (170mi). |
+| 5 | ❌ Boulder → Steamboat | 170 | 3:00 | CANCELLED 2026-07-14. |
+| 6 | ❌ Steamboat → Crested Butte | 200 | 5:00 | CANCELLED 2026-07-14. |
+| 7 | ❌ CB → SLC | 380 | 6:30 | CANCELLED 2026-07-14. |
+| 8 | ❌ SLC → Ely, NV | 242 | 3:30-4:00 | CANCELLED 2026-07-14. |
+| 9 | ❌ Ely → Mammoth Lakes | 295 | 4:30-5:00 | CANCELLED — Mammoth still happens, but from home (outside this plan). |
 | 10 | Mammoth → Fresno (Tioga Pass) | 190 | 4:30-5:00 | Through Yosemite ($35 entrance). Stunning. |
 | 11 | Fresno → Roads End (Kings Canyon) | 86 | 2-2:30 | Last 36mi winding. Sprinter van OK. |
 
