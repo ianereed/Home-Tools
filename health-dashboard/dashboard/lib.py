@@ -9,9 +9,14 @@ from __future__ import annotations
 
 import json
 import os
+import sqlite3
 from datetime import date, datetime
 
+import pandas as pd
 import plotly.graph_objects as go
+import streamlit as st
+
+from collectors.db import DB_PATH
 
 # --- Palette ---------------------------------------------------------------
 # One source of truth for series colors so every chart looks like a set.
@@ -93,3 +98,38 @@ def write_last_seen(when: datetime) -> None:
             json.dump({"last_seen": when.isoformat()}, fh)
     except OSError:
         pass
+
+
+# --- Cardiology helpers ------------------------------------------------------
+
+KG_TO_LB = 2.2046226218
+
+
+def bp_category(systolic: float, diastolic: float) -> tuple[str, str]:
+    """AHA blood-pressure category for a single reading. Worst of the two
+    numbers governs (e.g. 118/85 is Stage 1, not Normal)."""
+    if systolic > 180 or diastolic > 120:
+        return "Hypertensive Crisis", BAD
+    if systolic >= 140 or diastolic >= 90:
+        return "Stage 2", BAD
+    if systolic >= 130 or diastolic >= 80:
+        return "Stage 1", WARN
+    if systolic >= 120:
+        return "Elevated", WARN
+    return "Normal", GOOD
+
+
+@st.cache_data(ttl=300)
+def load_df(query: str, params: tuple = ()) -> pd.DataFrame:
+    """Cached query against the shared health.db — mirrors app.py::load_data.
+
+    Lives here (not app.py) so cardiology_view.py can use it without an
+    app<->cardiology_view circular import.
+    """
+    if not os.path.exists(DB_PATH):
+        return pd.DataFrame()
+    conn = sqlite3.connect(DB_PATH)
+    try:
+        return pd.read_sql_query(query, conn, params=params)
+    finally:
+        conn.close()
