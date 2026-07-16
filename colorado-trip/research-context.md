@@ -395,6 +395,87 @@ Winnemucca 91/49 · Reno 91/56 · Truckee 80/42 · Sacramento 91/58.
 
 ---
 
+# VAN AT GEOTREK (JUL 27–29) — CAR-FREE BOULDER (researched 2026-07-15, journals 205–207)
+
+Van goes to **Geotrek Vans, 6420 Odell Pl, Boulder 80301 (Gunbarrel)** for the A/C +
+Starlink install. Main (720) 640-6001 · sales (720) 432-7512 · **Mon–Fri 8–5, CLOSED
+Sat/Sun** (⚠️ Itinerary constraint said "drop Sun Jul 26 evening" — shop is closed
+Sundays; unless a key-drop was arranged, real drop = Mon 8 AM). ~6.4 mi bike from the
+Airbnb; the shop sits right off the LoBo corridor, 0.4 mi from Avery Brewing.
+**Drop-off play: bikes in the van Mon 8 AM, pedal home; reverse Thu.** Mochi can't ride
+RTD (small-pets-in-carriers rule) — **Uber Pet operates in Boulder, no size/breed
+limits** = her motorized fallback. Boulder BCycle: $7.63/30 min or $18.60 day pass, but
+nearest dock is N Boulder Rec Ctr (1.5 mi) — weak fallback.
+
+Sheet artifacts: DAY OPTIONS "🚐 VAN AT GEOTREK" sub-section (rows 26–30) → option tabs
+**BLD-K/L/M/N**; Itinerary Jul 27–29 notes point there; Camp Bow Wow interview row in
+Reservations (r47). One-shot: retired/add_vanfree_menu.py.
+
+## The four options (all start on bikes/feet at 582 Locust Pl)
+
+| ID | Day shape | Core | Key numbers (Directions API, bicycling) |
+|----|-----------|------|------------------------------------------|
+| BLD-K | Together, flat | Creek path + Eben G. Fine splash + Pearl patio + pool | 13th St to Pearl 3.3 mi/17 min; Eben G. Fine 3.6 mi; Scott Carpenter Pool 5.0 mi |
+| BLD-L | Separate | Ian Valmont or Betasso-by-bike / Anny+Mochi Wonderland; Rayback regroup | Valmont 4.6 mi/22 min; Betasso TH 8.3 mi/~68 min (~1,300 ft); Wonderland 0.6 mi walk; Rayback 3.6 mi |
+| BLD-M | On foot | Sanitas or Chautauqua hike + teahouse lunch | Sanitas TH 3.1 mi bike / 3.0 mi walk; Chautauqua 4.8 mi/34 min |
+| BLD-N | Big ride | LoBo → Niwot (or Longmont/Left Hand); alt = BVR gravel | Niwot 10.0 mi/48 min; Niwot→Left Hand 6.0 mi/31 min (~32 mi RT); BVR Eagle TH 3.3 mi |
+
+## Verified facts that drive the plans (sources in journals 205/206/207)
+
+- **Pearl St Mall: dogs banned AT ALL TIMES** (city rule) — Bands on the Bricks +
+  Farmers Market are humans-only. Bordering patios are fine.
+- **Bands on the Bricks 2026: Wednesdays Jun 10–Jul 29 → Wed Jul 29 = season finale**
+  (Sempar); garden 5:30, opener 6, headliner 7–9. Farmers Mkt Wed 3:30–7:30, 13th&Canyon.
+- **Pools**: one drop-in (adult $15 / youth $11) covers BOTH city outdoor pools same
+  day. Scott Carpenter (1505 30th) is ON the creek path — lazy river, slides from 11 AM,
+  M–F 6–8. Spruce (2102 Spruce) = closest to Pearl; Tue opens 10 AM. No dogs past gates.
+- **Boulder Creek Path**: 5.5 paved mi (Eben G. Fine ↔ Stazio), leash + 15 mph, no 2026
+  closures posted; Eben G. Fine creek wading legal/accepted (skip 48 h after rain —
+  E. coli signage; mudsnail closure applies only downstream of Valmont Rd).
+- **Valmont Bike Park**: free, 5 AM–11 PM, closes when wet (status: facebook.com/
+  ValmontBikePark or the city's new opt-in texts). Helmets recommended not required.
+  NO dogs in the bike park; **Valmont Dog Park** (NE corner, ~5300 Valmont lot) =
+  fenced ~3-acre off-leash, dawn–dusk, water spigot.
+- **Betasso (Boulder COUNTY)**: loops closed to bikes **Wed + Sat**; direction flips
+  monthly (mid-Jul posting: Canyon CW / Benjamin CCW — obey trailhead signs); e-bikes
+  prohibited; dogs leash-OK. **Betasso Link = 1.2 mi black climb, ~600 ft @ avg 10%
+  (max 22%)** from Boulder Canyon; reach via creek path → Boulder Canyon Trail (one
+  bridge temporarily narrowed to 6 ft — single-file) → short shoulder stretch.
+- **Rayback Collective**: open Mon 8–8 (Tue–Fri to 10), DOGS WELCOME pup zone, food
+  trucks (lunch 12–4); Mon Jul 27 Arts & Crafts on Tap 5–8, Tue Jul 28 trivia 6:30–8:30.
+  **Avery closed Mondays** (Tue–Sat 11:30–9, Sun to 8).
+- **Wonderland/North Sky**: dogs PROHIBITED on North Sky Trail May 1–Jul 31 (seasonal);
+  Wonderland loop itself = leash, stay on trail.
+- **BVR gravel**: bikes on Eagle/Sage/North Rim/Cobalt/Left Hand only in 2026 (Hidden
+  Valley + Degge closed for re-route until year-end; **Mesa Reservoir Trail permanently
+  closed**). Sage-via-Eagle 3.8 mi/206 ft; +Left Hand ext ≈7–8 mi. Rattlesnakes; closes
+  when muddy; zero shade.
+- **LoBo Trail**: ~12-mi county system, primarily soft-surface/crushed stone + paved
+  bits; Boulder-end terminus at Spine Rd (Gunbarrel); reach via Cottonwood Trail →
+  **Jay/Spine ON-STREET gap** (county missing-link construction "expected to begin
+  2026" — may be active); seasonal restrooms Niwot + Lefthand Valley Grange.
+- **Niwot dog lunches (verified)**: Garden Gate Cafe, Cimmini's, Farow (BringFido);
+  WiNot Coffee + The Wheel House bike bar current. Niwot Tavern dog patio UNVERIFIED;
+  Powder Keg Brewing closed 2018; Santiago's Niwot is now Raza Fresa.
+- **Left Hand Brewing dogs**: NO dogs inside; West Patio only (operates Thu–Sun); The
+  Garden next door closed Mon–Tue, opens 4 PM Wed–Fri → **Mon–Wed lunch with the dog
+  doesn't work** — dog lunch = Niwot; Longmont pull = dog-free day.
+- **Camp Bow Wow Boulder**: 3631 Pearl St, (720) 605-4733; **free Interview Day
+  required before first visit** + spay/neuter + vaccs (Bordetella ≤6 mo); day camp
+  M–F 6:30a–7p, ~$41; drop-in once passed → book interview Jul 23–24.
+- **Dog trailer for a 65-lb golden (user is shopping)**: Burley Tail Wagon (75 lb) is
+  too SMALL by height (23" max pet height) — right class = **Burley Bark Ranger XL
+  (100 lb / 34")** or Schwinn Rascal Plus (100 lb; plain Rascal = 50 lb). 12 mm
+  thru-axle MTB needs a trailer thru-axle (Burley / Robert Axle Project, match spec).
+  AVMA heat rules: cooler hours, frequent breaks, water; mesh ventilation ≠ midday-safe.
+- **Climate/conditions**: late-July normals 84–86/59–60; monsoon storms build early
+  afternoon; **Stage 2 fire restrictions + heat advisories active mid-Jul 2026 — check
+  air quality day-of** (fire.airnow.gov).
+- Museum of Boulder $12 (Mon 12–8, CLOSED Tue, W–Sun 9–5); BMoCA Tue–Sun 11–5
+  pay-what-you-wish — the storm bailouts.
+
+---
+
 # BLACK CANYON OF THE GUNNISON NP
 
 - ~1.5hrs from Crested Butte, ~94mi

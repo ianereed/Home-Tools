@@ -52,3 +52,10 @@ Superseded one-shot scripts, kept for reference. Not maintained; don't run.
   Grand Mesa (option B) on the Itinerary + added the Island Lake CG booking row
   to Reservations; the Jul 19/20 day tabs were rebuilt via the single-tab
   workshop path (build_fixed ×2 + date-cell link rewire + save_genmeta).
+- `add_vanfree_menu.py` — one-shot for the 2026-07-15 van-service days (van at
+  Geotrek, Gunbarrel, Jul 27–29 for the A/C + Starlink install): inserted the
+  "🚐 VAN AT GEOTREK" sub-section + BLD-K..N rows into the Boulder DAY OPTIONS
+  menu (below BLD-J; unmerge-before-write; checkbox validation), pointed the
+  Jul 27–29 Itinerary notes at the new options, and added the Camp Bow Wow
+  Interview-Day row to Reservations (r47). Ran once before the same-day full
+  rebuild (commit aa2a164); PHASE 3 wired the BLD-K..N menu links.

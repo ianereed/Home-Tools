@@ -23,11 +23,10 @@ import gspread
 gc = gspread.service_account(filename=config.CREDENTIALS_FILE)
 sh = gc.open_by_key(config.SPREADSHEET_ID)
 
-_orig = gspread.Client.request
-def _throttled(self, *a, **k):
+def W(fn, *a, **k):
+    """Throttled write — ~2 s between mutations (60 writes/min quota)."""
     time.sleep(2.0)
-    return _orig(self, *a, **k)
-gspread.Client.request = _throttled
+    return fn(*a, **k)
 
 m = sh.worksheet("DAY OPTIONS")
 sid = m.id
@@ -81,7 +80,7 @@ assert bldj is not None, "BLD-J row not found in DAY OPTIONS — layout changed,
 NROWS = 2 + len(OPTS)   # spacer + sub-header + 4 option rows
 if existing is None:
     start = bldj + 1     # 0-based row index where the block starts (right below BLD-J)
-    sh.batch_update({"requests": [{"insertDimension": {
+    W(sh.batch_update, {"requests": [{"insertDimension": {
         "range": {"sheetId": sid, "dimension": "ROWS",
                   "startIndex": start, "endIndex": start + NROWS},
         "inheritFromBefore": False}}]})
@@ -94,11 +93,11 @@ PAD = lambda r: (r + [""] * (10 - len(r)))[:10]
 block = [PAD([""]), PAD([SUBHDR])] + [PAD(o) for o in OPTS]
 
 # defensive unmerge across the block before writing values (merged-cell swallow gotcha)
-sh.batch_update({"requests": [{"unmergeCells": {"range": {"sheetId": sid,
+W(sh.batch_update, {"requests": [{"unmergeCells": {"range": {"sheetId": sid,
     "startRowIndex": start, "endRowIndex": start + NROWS,
     "startColumnIndex": 0, "endColumnIndex": 10}}}]})
 
-m.update(range_name=f"A{start+1}", values=block, value_input_option="USER_ENTERED")
+W(m.update, range_name=f"A{start+1}", values=block, value_input_option="USER_ENTERED")
 
 i_hdr, i_opt0 = start + 1, start + 2
 reqs = [
@@ -122,7 +121,7 @@ reqs = [
         "endRowIndex": i_opt0+len(OPTS), "startColumnIndex": 0, "endColumnIndex": 1},
         "rule": {"condition": {"type": "BOOLEAN"}}}},
 ]
-sh.batch_update({"requests": reqs})
+W(sh.batch_update, {"requests": reqs})
 print(f"Menu block written: sub-header row {i_hdr+1}, BLD-K..N rows {i_opt0+1}–{i_opt0+len(OPTS)}.")
 
 # ── Itinerary: point the Jul 27–29 notes at the new options ──────────────────────
@@ -138,7 +137,7 @@ for date in ("Jul 27", "Jul 28", "Jul 29"):
         print(f"{date}: note already updated — skip.")
         continue
     assert cur == "" or "Geotrek" in cur, f"{date}: unexpected Notes text {cur!r} — aborting before overwrite."
-    it.update_cell(ri + 1, notes_col + 1, NEW_NOTE)
+    W(it.update_cell, ri + 1, notes_col + 1, NEW_NOTE)
     print(f"{date}: Notes (r{ri+1} c{notes_col+1}) -> {NEW_NOTE!r}")
 
 # ── Reservations: Camp Bow Wow Interview Day row (enables dog-free van-days) ──────
@@ -158,8 +157,8 @@ else:
            "first daycare day; spay/neuter + current vaccinations incl. Bordetella within "
            "6 months — bring records. Day camp M–F 6:30 AM–7 PM, ~$41/day, drop-in once "
            "passed. Enables the dog-free 🚐 BLD-N big ride while the van's at Geotrek."]
-    res.update(range_name=f"A{empty+1}:F{empty+1}", values=[row],
-               value_input_option="USER_ENTERED")
+    W(res.update, range_name=f"A{empty+1}:F{empty+1}", values=[row],
+      value_input_option="USER_ENTERED")
     print(f"Reservations: Camp Bow Wow interview row written at r{empty+1}.")
 
 print("DONE.")
