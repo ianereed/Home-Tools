@@ -59,3 +59,24 @@ Superseded one-shot scripts, kept for reference. Not maintained; don't run.
   Jul 27–29 Itinerary notes at the new options, and added the Camp Bow Wow
   Interview-Day row to Reservations (r47). Ran once before the same-day full
   rebuild (commit aa2a164); PHASE 3 wired the BLD-K..N menu links.
+- `move_eldorado_todo.py` — one-shot (2026-07-15, later): Eldorado became OPTIONAL
+  ("may not do it at all") and its booking todo sat on a van-free day — cleared the
+  Jul 27 Itinerary todo, added the OPTIONAL-framed version to the Jul 23 row
+  (weekdays need NO timed entry; weekend Jul 25/26 does), and prefixed the
+  Reservations Eldorado row ⬜ OPTIONAL (its old note targeted "Jul 26–28", stale).
+- `extend_daycare_boulder.py` — one-shot (2026-07-15, later): added the 8 newly
+  researched Boulder rows to the (hand-maintained) Dog Daycare Options tab —
+  🥇 Bowhaus (6560 O'Dell Pl, ~500 ft from Geotrek; $99 30-day promo), Hike Doggie
+  (pack hikes, picks up at the Airbnb), Updog (Sundays), Dogtopia Lafayette, The Pet
+  Spot (ex-"Dog Spot", rebranded), Gunbarrel Vet (walk-in), Leader of the Pack, and
+  a locals-only-skip note — refreshed the Boulder BOOKING PRIORITY row to the
+  Bowhaus-first plan, marked the Steamboat/Truckee/Moab priority rows + section
+  headers ❌ LEG CANCELLED, extended the vaccine reminder (canine influenza / lepto /
+  48-h / spay-neuter), and added the Bowhaus Trial-Day row to Reservations (r48;
+  Camp Bow Wow r47 → 2nd choice). Facts: journal-208.md.
+- `add_dog_daycare_sheet.py` — the original seeder of the `Dog Daycare Options` tab
+  (moved here 2026-07-15). **⚠️ DO NOT RE-RUN**: its section 2 rewrites Itinerary
+  columns J–R/Q at hardcoded row numbers for the pre-2026-05-31 layout (those
+  columns were deleted and rows shifted) — running it would corrupt the current
+  Itinerary. The tab is hand-maintained ("seeded once; live tab is authoritative");
+  edit it via content-located one-shots like `extend_daycare_boulder.py`.

@@ -79,7 +79,7 @@ are document-wide link maintenance; `rebuild_trip_tabs.py` builds the day/option
 | `Dining Guide` | `add_dining_guide.py` |
 | `Activities — Hikes, Runs & MTB` | `update_activities_mtb.py` (+ `restyle_activities.py`, `activities_links.py`, `mtb_tab.py`, `sheet_style.py`); hikes/runs seeded by legacy `add_activities.py` |
 | `Trailhead Distances` | `add_trailhead_distances.py` |
-| `Dog Daycare Options` / `Scenic Stops & Drives` / `MTB Shuttles & Guides` | `add_dog_daycare_sheet.py` / `add_scenic_stops.py` / `add_shuttle_sheet.py` (seeded once; live tab is authoritative) |
+| `Dog Daycare Options` / `Scenic Stops & Drives` / `MTB Shuttles & Guides` | `retired/add_dog_daycare_sheet.py` (⚠️ do not re-run — see retired/README) / `add_scenic_stops.py` / `add_shuttle_sheet.py` (seeded once; live tab is authoritative) |
 | `Reservations` (single tracker) | hand-maintained; seeded by `consolidate_reservations.py` (retired). Reconcile with Todoist by hand. |
 | `_genmeta` (hidden) | `genmeta.py` bookkeeping — do not edit |
 

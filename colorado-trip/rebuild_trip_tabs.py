@@ -711,14 +711,15 @@ OPTIONS = [
        "at Niwot (~20 mi RT) — Left Hand's dog areas don't operate Mon–Wed at lunch (see beta).",
    anny="Same route at cruiser pace — flat the whole way; the Niwot turnaround is the graceful out.",
    mochi="Trailer day (shade + water stops every 30–40 min, rolling by 8 AM — see the trailer-fit note in the questions), "
-         "OR a Camp Bow Wow day: 3631 Pearl St, ~$41, M–F 6:30 AM–7 PM — requires the FREE Interview Day on an earlier "
-         "date (book it for Jul 23–24; Reservations row added).",
+         "OR a daycare day: 🥇 Bowhaus (6560 O'Dell Pl — 500 ft from Geotrek; $40/day or the $99 first-30-days promo; "
+         "free Trial Day required first) or Camp Bow Wow (3631 Pearl St, ~$41, interview first). Book the trial for Jul 22–23.",
    together="Lunch is the destination: Niwot's verified dog patios (Garden Gate, Cimmini's) — or dog-free at Left Hand. "
             "Then a tailwind-hunting cruise home before the afternoon build-ups.",
    acts=["bvr_gravel"],
    route_stops=["Niwot, CO", "Left Hand Brewing Company, 1265 Boston Ave, Longmont, CO"],
-   res="Ride: none. Dog-free variant: Camp Bow Wow needs the free Interview Day FIRST — spay/neuter + current vaccs incl. "
-       "Bordetella within 6 months (bring records); (720) 605-4733.",
+   res="Ride: none. Dog-free variant: daycare needs its FREE trial/interview day done on an EARLIER date — Bowhaus "
+       "(720) 961-7466 (records ≥48 h ahead; canine influenza required) or Camp Bow Wow (720) 605-4733 (Bordetella "
+       "≤6 mo). Spay/neuter required at both. Full daycare menu → Dog Daycare Options tab.",
    backup="Hot or windy → Boulder Valley Ranch gravel from the door (Sage-via-Eagle 3.8 mi + Left Hand Trail ext ≈7–8 mi, "
           "done by 10 AM), or flip to BLD-K.",
    evening="Home by mid-afternoon. Wed = Bands on the Bricks finale downtown (no dogs on the mall); otherwise a recovery night in.",
@@ -730,7 +731,8 @@ OPTIONS = [
      "LoBo through Gunbarrel → Niwot. ~10 mi, ~50 min easy, verified by the bike router.",
      "Shop-run chaining (Mon/Thu): Geotrek (6420 Odell Pl) is in Gunbarrel right off this corridor — drop the van at 8 AM and "
      "START the ride from the shop (Niwot is ~4–5 mi on); Thursday pickup runs it in reverse. Avery Brewing is 0.4 mi from "
-     "Geotrek but CLOSED Mondays.",
+     "Geotrek but CLOSED Mondays. 🥇 Bowhaus daycare is on the SAME corner (6560 O'Dell Pl) — Monday one-stop: drop the van "
+     "AND Mochi, then ride from the shop.",
      "Left Hand dog reality-check: no dogs inside the tasting room — dogs go to the West Patio (operates Thu–Sun) or The Garden "
      "next door (closed Mon–Tue, opens 4 PM Wed–Fri). A Mon–Wed LUNCH with Mochi doesn't work there: dog along → lunch in "
      "Niwot; dog-free → Left Hand + the on-site food truck.",
@@ -752,11 +754,11 @@ OPTIONS = [
    after=[
      ("Boulder Valley Ranch (Foothills TH)", "The backup gravel loop ~2 mi from the door — prairie-dog towns + raptors; leash on, snake-aware.", pin(_q("Foothills Trailhead, Boulder, CO"))),
      ("East Boulder Dog Park", "Post-ride Mochi decompression — fenced off-leash with a wadeable pond.", pin(_q("East Boulder Community Dog Park, Boulder, CO"))),
-     ("Camp Bow Wow Boulder", "The dog-free-ride enabler — 3631 Pearl St, (720) 605-4733; free required Interview Day first (book early in the Boulder week).", pin(_q("Camp Bow Wow, 3631 Pearl St, Boulder, CO"))),
+     ("Bowhaus Boulder (daycare)", "The dog-free-ride enabler — 6560 O'Dell Pl, 500 ft from Geotrek; (720) 961-7466; free Trial Day required first (book Jul 22–23). Camp Bow Wow (3631 Pearl St) is the backup.", pin(_q("Bowhaus Boulder, 6560 O'Dell Pl, Boulder, CO"))),
    ],
    q=[
      "Turnaround: Niwot (~20 mi RT, dog-friendly lunch) or the full Left Hand pull (~32 mi RT, dog-free)? Decide over WiNot coffee.",
-     "Mochi: trailer or Camp Bow Wow? If daycare, the free Interview Day must happen on an earlier day — book it for Jul 23–24.",
+     "Mochi: trailer or daycare? If daycare, Bowhaus's free Trial Day (or Camp Bow Wow's interview) must happen on an earlier day — book it for Jul 22–23.",
      "TRAILER SHOPPING NOTE (before the trip): a 65-lb golden outgrows the classic Burley Tail Wagon (75-lb rating but only a 23-inch max pet height) — you want the Bark Ranger XL class (100 lb, 34-inch height) or Schwinn Rascal Plus, PLUS a trailer thru-axle (Burley or Robert Axle Project, matched to the MTB's 12 mm axle) if that bike tows. Confirm fit + hitch before leaving home.",
      "Chain it with the shop run? Mon drop / Thu pickup both start or end at Geotrek, which sits right on this corridor.",
    ]),

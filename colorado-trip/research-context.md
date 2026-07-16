@@ -474,6 +474,46 @@ Reservations (r47). One-shot: retired/add_vanfree_menu.py.
 - Museum of Boulder $12 (Mon 12–8, CLOSED Tue, W–Sun 9–5); BMoCA Tue–Sun 11–5
   pay-what-you-wish — the storm bailouts.
 
+## Boulder dog daycare bench (researched 2026-07-15 — journal-208.md; tab updated)
+
+Full details in the Dog Daycare Options tab (Boulder section, now 12 rows). Ranked:
+
+1. **🥇 Bowhaus Boulder, 6560 O'Dell Pl (Gunbarrel)** — ~500 ft from Geotrek; (720)
+   961-7466; M–F 6:30–7, Sat–Sun 9–5; $40/$32; **first-30-days-unlimited $99 summer
+   promo**; FREE Trial Day required first; records ≥48 h ahead; requires CANINE
+   INFLUENZA; spay/neuter >12 mo. Out-of-town clients verified OK.
+2. **Hike Doggie (Boulder Flatirons)** — the PUP-Hiking analog: van pickup AT the
+   Airbnb (80304 in service area), leashed pack trail hikes $110/hike; Calendly
+   inquiry → 30-min in-home meet&greet → "as early as this week"; requires influenza
+   + LEPTOSPIROSIS.
+3. **Updog, 5155 Arapahoe** — the only verified SUNDAY daycare; $42/$34; Gingr +
+   trial day, ~1-week trial wait (start pre-arrival).
+4. **Dogtopia of Lafayette** (no Boulder Dogtopia exists) — $45/$35; 20–30-min
+   meet&greet; webcams.
+5. **The Pet Spot, 3640 Walnut** — IS the old "Dog Spot Boulder" (rebrand, not
+   closed); meet&greet required; rates unpublished — call (720) 564-6280.
+6. **Gunbarrel Vet daycare, 4636 55th St** — WALK-IN, zero lead time (on-the-spot
+   intro, no interview day); M–F only 7:45–5:45; $53.49; Bordetella ≤6 months.
+7. **Leader of the Pack (packwalking.com)** — $36 90-min pack hikes / $24 leashed
+   walks, M–F; off-leash tier needs the visitor Voice & Sight tag ($75, free course,
+   ~2 weeks lead); short-term acceptance unverified (contact form only).
+
+Locals-only — skip (require living in Boulder city limits + V&S tag): Boulder Doggie
+Adventures, Off Leash Dog Walks. Stale-search traps: Doggie Depot's site still looks
+alive (declined new clients Jun 2026); "Rocky Mountain K9" hits are a Utah chain.
+
+⚠️ **Universal gotchas**: every facility requires spay/neuter at Mochi's age;
+new-client vaccinations must be ≥48 h before the first visit → any missing
+influenza/lepto shot has to happen BEFORE the Jul 17 departure. Sheet artifacts:
+Reservations r48 = Bowhaus Trial-Day booking (due ~Jul 16!), r47 Camp Bow Wow now
+2nd choice; BLD-N rebuilt Bowhaus-first (gid 1570412213); daycare tab priority rows
++ section headers for the cancelled Steamboat/Truckee/Moab legs marked ❌.
+One-shots: retired/extend_daycare_boulder.py, retired/move_eldorado_todo.py.
+
+**Eldorado update (2026-07-15):** now OPTIONAL (user may skip entirely). Booking todo
+moved off van-free Jul 27 → Jul 23 with the nuance that WEEKDAYS require no timed
+entry (only summer weekends/holidays); if it happens, easiest Jul 30–31.
+
 ---
 
 # BLACK CANYON OF THE GUNNISON NP
