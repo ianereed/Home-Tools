@@ -2,6 +2,7 @@ imports/
 cardiology/out/
 cardiology/*.db
 cardiology/clinical_data.py
+cardiology/dexa_scans.csv
 # Cardio project plan — contains PHI (physician, meds, goal values); scp only
 CARDIO_PLAN.md
 cardiology/*.bak
