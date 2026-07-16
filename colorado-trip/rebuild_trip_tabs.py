@@ -146,6 +146,24 @@ ACT = {
    stats="7.8 mi loop · ~1,510 ft · 🔴 Black", drive="~25 min W", dog="Leash",
    note="MUST-RIDE: best descent in the area; marquee technical day.",
    nearhike="Meyers Homestead Trail (same lot — Anny's dog hike)"),
+ # Boulder car-free (van at Geotrek Jul 27–29 — ride/walk from the Airbnb)
+ "creek_path": dict(name="Boulder Creek Path — town cruise", th="Eben G. Fine Park (west end, 3rd & Arapahoe)",
+   pin=pin(_q("Eben G Fine Park, Boulder, CO")),
+   stats="~5.5 mi one-way · paved · flat", drive="🚲 in town — it IS the ride",
+   dog="Leash; creek splash access at Eben G. Fine",
+   note="Shaded creekside spine of the car-free days: Boulder Canyon mouth → downtown → east Boulder. Busy at commute hours; trailer-friendly."),
+ "betasso_ride": dict(name="Betasso Preserve — Canyon + Benjamin loops (Ian, MTB)", th="Betasso TH (Sugarloaf Rd) — or pedal up the Betasso Link",
+   pin=pin(_q("Betasso Preserve Trailhead, Boulder, CO")),
+   link="https://www.trailforks.com/region/betasso-preserve/", linklabel="Trailforks ▸ Betasso Preserve",
+   stats="7.4 mi loops · ~830 ft · 🔵 Blue (directional / one-way)",
+   drive="🚲 8.3 mi / ~1,300 ft up via creek path + Link", dog="Leash",
+   note="⚠️ CLOSED TO BIKES WED + SAT (OSMP rule); riding direction alternates by day — obey the signs at the gate."),
+ "bvr_gravel": dict(name="Boulder Valley Ranch — gravel/doubletrack loop", th="Foothills TH (N Broadway) or Eagle TH (Longhorn Rd)",
+   pin=pin(_q("Boulder Valley Ranch Trailhead, Boulder, CO")),
+   link="https://www.trailforks.com/region/boulder-valley-ranch--boulder-reservoir/", linklabel="Trailforks ▸ Boulder Valley Ranch",
+   stats="Sage-via-Eagle loop 3.8 mi · ~206 ft · 🟢 Green (+Left Hand Trail ext ≈7–8 mi)", drive="🚲 ~2–3.3 mi from the door",
+   dog="Leash (visiting dogs; North Sky Trail = NO dogs)",
+   note="Bikes OK on Eagle/Sage/North Rim/Cobalt/Left Hand. ⚠️ 2026: Hidden Valley + Degge closed to bikes until end of year (re-route construction); Mesa Reservoir Trail permanently closed. Rattlesnake country; closes when muddy."),
  # Steamboat
  "fish_creek": dict(name="Fish Creek Falls", th="Fish Creek Falls TH",
    pin=pin("Fish%20Creek%20Falls%20TH%2C%20Steamboat%2C%20CO"), stats="lower 0.5 mi / upper 5 mi RT · ~900 ft",
@@ -271,7 +289,7 @@ OPTIONS = [
    ],
    after=[
      ("Pearl Street Mall", "Street performers, shops, patios. Dogs aren't allowed on the brick mall itself but the bordering patios welcome them.", pin(_q("Pearl Street Mall, Boulder, CO"))),
-     ("Bands on the Bricks", "Free Wednesday concert on the Pearl St bricks (beer garden 5:30, headliner 7–9). Mochi OK on the mall, clear of the beer garden.", pin(_q("Pearl Street Mall, Boulder, CO"))),
+     ("Bands on the Bricks", "Free Wednesday concert on the Pearl St bricks (beer garden 5:30, headliner 7–9). ⚠️ Dogs are banned from the mall at ALL times (city rule) — Mochi watches from a bordering patio table or sits it out.", pin(_q("Pearl Street Mall, Boulder, CO"))),
      ("Boulder Creek Path", "Flat, shaded creekside walk — easy afternoon leg-stretch, dog-friendly.", pin(_q("Boulder Creek Path, Boulder, CO"))),
      ("Trident Booksellers & Cafe", "Anny's stop — employee-owned indie bookstore + coffee on Pearl, dogs welcome.", pin(_q("Trident Booksellers and Cafe, Boulder, CO"))),
    ],
@@ -531,6 +549,216 @@ OPTIONS = [
    ],
    q=[
      "BLD-J was built around a Boulder Reservoir off-leash swim, but the swim beach bans dogs mid-May–Labor Day. OK to swap to East Boulder Dog Park's pond? (Or I can check Coot Lake's current dog hours.)",
+   ]),
+
+ # ── BOULDER VAN-FREE (Jul 27–29 — van at Geotrek, Gunbarrel, for the A/C + Starlink
+ # install; back Thu Jul 30). No van these days: every option starts on bikes or feet
+ # at the Airbnb. Geotrek: 6420 Odell Pl, (720) 640-6001, Mon–Fri 8–5 (closed
+ # weekends) — ~6.4 mi pedal from the Airbnb, right off the LoBo corridor, 0.4 mi from
+ # Avery. Facts verified 2026-07-15 (journals 205–207 + Directions-API bike legs). ────
+ dict(id="BLD-K", type="VAN-FREE · TOWN BY BIKE", bike=True, travelmode="bicycling",
+   drive="🚲 ~9–12 mi total · flat",
+   oneliner="Van-free classic: Boulder Creek Path cruise + Pearl St patio + a pool afternoon",
+   ctx="The van's at Geotrek, so today stays flat and two-wheeled: pedal the 13th St route downtown (3.3 mi, "
+       "~17 min), cruise the shaded Boulder Creek Path west to Eben G. Fine Park (Mochi wades the creek), "
+       "patio lunch, then a pool afternoon. The Wednesday version stacks the Farmers Market + Bands on the "
+       "Bricks season finale onto the same evening.",
+   ian="Same easy spin — it's a together day. If legs itch, tack Valmont laps onto the ride home (the park is right off the Goose Creek Path).",
+   anny="Same. The creek path is car-free, 15 mph limit, and shaded most of its 5.5 miles.",
+   mochi="Rides the trailer or trots the path on leash. Creek wading at Eben G. Fine is the cool-down (skip within 48 hrs of "
+         "a storm — E. coli advisories post at the access points); patio naps at lunch; water + bowl along. No dogs inside the "
+         "pool grounds — pool happens while she siestas at the Airbnb, or you tag-team.",
+   together="Everything — the classic no-car Boulder day.",
+   acts=["creek_path"],
+   route_stops=["Eben G Fine Park, Boulder, CO", "Pearl Street Mall, Boulder, CO",
+                "Scott Carpenter Pool, 1505 30th St, Boulder, CO"],
+   res="None. Pool drop-in: adult $15 / youth $11 — one wristband covers BOTH city outdoor pools the same day.",
+   backup="Heat: swim early, patios after. Storm: Museum of Boulder ($12 — Mon open till 8, CLOSED Tue) or BMoCA (Tue–Sun, pay-what-you-wish) + Trident Books.",
+   evening="Wed Jul 29 = Bands on the Bricks SEASON FINALE (1300 block of Pearl — beer garden 5:30, opener 6, headliner Sempar 7–9). "
+           "⚠️ Dogs are banned from the mall at all times — Mochi sits the concert out at the Airbnb (cool by then). Bring bike lights.",
+   beta=[
+     "Boulder Creek Path: 5.5 paved miles, Boulder Canyon mouth (Eben G. Fine) east to Stazio — no cars, trailer-friendly, "
+     "leash + 15 mph rules, busy with commuters 8–9 AM. No construction closures posted on the main path as of mid-July 2026.",
+     "Eben G. Fine Park is the classic creek splash: listed water access, shallow wading by the kayak entrance at the west end. "
+     "Leash on; no glass/alcohol; skip the dip within 48 hrs of rain or if the water's cloudy (E. coli signs post on site).",
+     "Pools, verified: Scott Carpenter (1505 30th St) sits DIRECTLY on the creek path — 50 m lap pool + lazy river, slides from "
+     "11 AM, M–F 6 AM–8 PM. Spruce Pool (2102 Spruce St) is the 1948 neighborhood pool 4 blocks off Pearl — Tue opens late (10 AM). "
+     "One drop-in ($15/$11) covers both pools same-day. Dogs can't come past the gate at either.",
+     "Wednesday stack (Jul 29): Farmers Market 13th & Canyon 3:30–7:30 PM (no pets — tag-team it), then Bands on the Bricks "
+     "finale two blocks north. The mall itself is dog-free by law ALL the time — patios bordering it are fine.",
+     "Downtown bike parking: racks on every Pearl-area block; one lock for both bikes. July plan: rolling by 8:30 AM keeps the "
+     "ride shaded + cool; pool or patio 2–4 PM; check air quality day-of (Stage 2 fire restrictions + heat advisories active this July).",
+   ],
+   lunch="Make lunch the anchor: Dushanbe Teahouse's north patio (dogs OK, creekside — order at the bar) is steps off the path, "
+         "or Postino on Pearl. Picnic version: deli sandwiches at Eben G. Fine while Mochi wades.",
+   eat=[
+     ("Dushanbe Teahouse", "🥾 Come as you are — creekside Tajik teahouse ON the path; dogs on the grapevine-shaded north patio (order at the bar).", pin(_q("1770 13th St, Boulder, CO 80302"))),
+     ("Postino Boulder", "🥾 Come as you are (it's a bike day) — Pearl St wine bar, bruschetta boards, dog patio.", pin(_q("1468 Pearl St Ste 110, Boulder, CO 80302"))),
+     ("Sweet Cow", "🚲 Boulder scoop shop — the pedal-home treat.", pin(_q("Sweet Cow Ice Cream, Boulder, CO"))),
+     ("River and Woods", "🚿 Shower first — New American in a miner's cabin, leafy dog backyard; the nicer dinner.", pin(_q("2328 Pearl St, Boulder, CO 80302"))),
+   ],
+   after=[
+     ("Scott Carpenter Pool", "Right ON the creek path at 30th/Arapahoe — lazy river + slides; the fun-pool afternoon (no dogs past the gate).", pin(_q("Scott Carpenter Pool, 1505 30th St, Boulder, CO"))),
+     ("Spruce Pool", "Historic 1948 pool 4 blocks off Pearl — the closest-to-downtown swim (Tue opens 10 AM).", pin(_q("Spruce Pool, 2102 Spruce St, Boulder, CO"))),
+     ("Museum of Boulder", "The storm/heat bailout 2 blocks north of Pearl — $12; Mon open to 8 PM, CLOSED Tue.", pin(_q("Museum of Boulder, 2205 Broadway, Boulder, CO"))),
+     ("Boulder Farmers Market (Wed PM)", "13th & Canyon, 3:30–7:30 PM Wednesdays — dinner-from-stalls before the concert. No pets: one of you strolls Mochi on the creek path.", pin(_q("Boulder County Farmers Market, 13th St, Boulder, CO"))),
+   ],
+   q=[
+     "Which day? Wednesday (Jul 29) stacks the Farmers Market + Bands on the Bricks finale — but both are no-dog zones, so Mochi's evening is an Airbnb one. Monday pairs with the Museum's late night instead.",
+     "Trailer or trot for Mochi? The full loop is ~9–12 mi — trailer if she's along all day, on-paw if you're only doing the creek stretch.",
+     "Scott Carpenter (on the path, lazy river) or Spruce (old-school, nearest Pearl)? The $15 wristband covers both — you could literally do both.",
+   ]),
+ dict(id="BLD-L", type="VAN-FREE · SEPARATE", travelmode="bicycling",
+   drive="🚲 Ian ~9 mi (Valmont) or ~17 mi (Betasso) · Anny + Mochi on foot",
+   oneliner="Van-free separate: Ian pedals to Valmont (or earns Betasso) / Anny + Mochi Wonderland from the door",
+   ctx="Split morning, no car needed: Ian rides out the door to Valmont Bike Park (4.6 mi) — or earns Betasso's "
+       "singletrack by pedaling up the canyon (Mon/Tue only — the loops close to bikes Wed + Sat). Anny + Mochi "
+       "walk to Wonderland Lake, 0.6 mi from the front door. Regroup for a food-truck lunch at Rayback.",
+   ian="Valmont session (free, 42 acres — pump tracks, dirt-jump lines S→XL, slalom; 22-min pedal via Goose Creek Path), "
+       "OR the earn-it option: creek path → Boulder Canyon Trail → Betasso Link (1.2 mi BLACK climb, ~600 ft at 10–22% — "
+       "walking a section is normal) → Canyon + Benjamin loops → descend the Link. ~17 mi RT, ~1,300 ft total.",
+   anny="Wonderland Lake loop + Foothills stretch from the door (1.3–2.5 mi, flat). ⚠️ Skip the North Sky Trail with "
+        "Mochi — dogs prohibited on it through Jul 31 (seasonal wildlife closure). Coffee in N Boulder after.",
+   mochi="Morning with Anny on leash (Wonderland is a protected area — stay on trail, off North Sky). Midday: Rayback's "
+         "pup zone at the regroup, or she siestas at the Airbnb.",
+   together="Regroup ~12:30 at Rayback Collective (food trucks 12–4, full bar, DOGS WELCOME pup zone — and open Mondays, "
+            "unlike Avery). Easy pedal home before the afternoon build-ups.",
+   acts=["valmont", "betasso_ride", "wonderland"],
+   route_stops=["Valmont Bike Park, Boulder, CO", "The Rayback Collective, 2775 Valmont Rd, Boulder, CO"],
+   res="None — Valmont is free (helmets recommended, not required; no rentals). Check the wet-closure the morning of: "
+       "facebook.com/ValmontBikePark, or the city's new opt-in text alerts (bouldercolorado.gov/services/parks-and-recreation-texts).",
+   backup="Valmont wet → Movement climbing gym day pass (~$29, 2845 Valmont Rd, ~3.6 mi pedal) or swap the day to BLD-K. "
+          "Betasso plans on a Wed/Sat → Valmont instead (Link is open daily but the loops aren't).",
+   evening="Mon Jul 27: Rayback 'Arts & Crafts on Tap' 5–8 PM · Tue Jul 28: free Rayback trivia 6:30–8:30 — or a quiet Santo dinner in N Boulder.",
+   beta=[
+     "Valmont Bike Park: free city park, 5 AM–11 PM (ride dawn–dusk), natural surface — closes whenever it's wet, same-day "
+     "status on the Facebook page + park signage. NO dogs anywhere in the bike park (and tying one up is illegal).",
+     "Valmont Dog Park sits at the NE corner of the same city park (~5300 Valmont Rd lot): fenced ~3-acre big-dog yard, "
+     "free, dawn–dusk, seasonal water spigot — if Anny + Mochi pedal/walk over for the regroup, Mochi gets an off-leash run.",
+     "Betasso by bike is the local rite of passage: Boulder Creek Path → Boulder Canyon Trail (bikes OK; one bridge is "
+     "temporarily narrowed to 6 ft over a sinkhole repair — single-file) → short highway-shoulder stretch → Betasso Link. "
+     "The Link climbs ~600 ft in 1.2 mi (black; avg 10%, max 22%) — most riders walk a piece of it, and it descends great.",
+     "Betasso rules 2026: loops are one-way (direction flips MONTHLY — mid-July posting: Canyon clockwise, Benjamin "
+     "counterclockwise; follow the trailhead arrows), bikes prohibited Wed + Sat, e-bikes prohibited entirely, dogs on leash OK.",
+     "Goose Creek Path connects N Boulder toward Valmont with almost no traffic — cross Broadway once and you're on it.",
+   ],
+   lunch="Rayback Collective: rotating food trucks (lunch truck 12–4), big shaded yard, dedicated pup zone — built for exactly "
+         "this regroup, and open Mondays 8 AM–8 PM. Tue–Sat, Avery's bigger beer garden (5.6 mi, Gunbarrel) works too.",
+   eat=[
+     ("The Rayback Collective", "🚵 Come as you are — food-truck park + pup zone; THE Monday regroup (Avery is closed Mondays). Happy hour 3–5.", pin(_q("2775 Valmont Rd, Boulder, CO 80304"))),
+     ("Avery Brewing Co.", "🚵 Come as you are — huge dog beer garden + full menu. CLOSED MON; Tue–Sat 11:30–9.", pin(_q("4910 Nautilus Ct N, Boulder, CO 80301"))),
+     ("Santo", "🥾 Post-ride OK — Hosea Rosenberg's N Boulder spot, Hatch green chile, dog patio; closest real dinner to the Airbnb.", pin(_q("1265 Alpine Ave, Boulder, CO 80304"))),
+     ("Postino Boulder", "🚿 Shower first — Pearl St wine bar + boards, dog patio; downtown evening option.", pin(_q("1468 Pearl St Ste 110, Boulder, CO 80302"))),
+   ],
+   after=[
+     ("Valmont Dog Park", "Fenced off-leash yard at the NE corner of Valmont City Park — Mochi's run while Ian gets bonus laps.", pin(_q("Valmont Dog Park, 5300 Valmont Rd, Boulder, CO"))),
+     ("Wonderland Lake (golden hour)", "The from-the-door second lap — west light on the foothills, prairie dogs out. Dogs leashed; North Sky stays off-limits thru Jul 31.", pin(_q("Wonderland Lake Trailhead, Boulder, CO"))),
+     ("Boulder Creek Path", "Flat shaded cool-down spin or stroll through downtown.", pin(_q("Boulder Creek Path, Boulder, CO"))),
+   ],
+   q=[
+     "Ian: Valmont skills day or the Betasso earn? Weekday decides — Betasso loops are closed to bikes Wed + Sat, so it's Mon 7/27 or Tue 7/28.",
+     "Evening add-on: Rayback's Monday Arts & Crafts on Tap (5–8) or Tuesday trivia (6:30–8:30)?",
+     "Does Mochi join the regroup (walk/trailer with Anny + dog-park stop) or siesta at the Airbnb?",
+   ]),
+ dict(id="BLD-M", type="VAN-FREE · ON FOOT", travelmode="bicycling",
+   drive="🚲 ~6–10 mi pedaling — or walk to Sanitas and skip bikes entirely",
+   oneliner="Van-free on foot: Sanitas (or Chautauqua Flatirons) hike + teahouse lunch",
+   ctx="Proof you don't need the van for the mountains here: Mt Sanitas' trailhead is a 19-minute pedal (or hour's walk) "
+       "from the Airbnb, Chautauqua is 4.8 mi. Hike the morning, lock the bikes, long teahouse lunch, easy afternoon.",
+   ian="Sanitas loop (3.2 mi, 1,270 ft — up the rocky ridge, down the valley), or pedal to Chautauqua and take the "
+       "First/Second Flatiron loop (~2.5 mi, ~1,400 ft) for the bigger view.",
+   anny="Sanitas Valley Trail (2 mi, gentle, same trailhead as Ian's loop) — or the Chautauqua meadow + Ranger-cottage "
+        "porch if you chose the Flatirons side.",
+   mochi="Hikes along on leash (OSMP) — no trailer needed today. Rocky + exposed by late morning: start ~8, carry 2 L + a bowl.",
+   together="Meet back at the trailhead, roll downhill to Dushanbe's north patio (creekside) or the Chautauqua Dining Hall "
+            "porch, then a lazy Pearl-adjacent hour before the easy pedal home.",
+   acts=["sanitas_run", "sanitas_valley", "chautauqua"],
+   route_stops=["Mount Sanitas Trailhead, Boulder, CO", "Dushanbe Teahouse, 1770 13th St, Boulder, CO"],
+   res="None — and no OSMP parking fee either: the $5 permit is for parking a car, and you're arriving by bike/foot.",
+   backup="Heat → flip to BLD-K (creek + pool). Morning storm → hike after it clears; Sanitas drains fast.",
+   evening="Colorado Music Festival at Chautauqua pairs perfectly if you did the Flatirons side (no dogs in the Auditorium — one of you strolls Mochi in the meadow).",
+   beta=[
+     "Arriving by bike beats the parking scrum: the tiny Mapleton lots fill by 8 AM but racks/signposts don't. Bring one lock.",
+     "Sanitas by 8 AM = shaded west-side climbing and a cool dog; the ridge is fully exposed by 10.",
+     "Chautauqua option: the pedal up Baseline finishes steep — granny gear or walk the last block; the meadow + porch are the reward.",
+     "OSMP is leash-only for visitors (voice-and-sight tags are resident-only) — leash on both trails, water for everyone.",
+   ],
+   lunch="Dushanbe Teahouse north patio (dogs, creekside, walk-in) if you did Sanitas; Chautauqua Dining Hall porch if you "
+         "did the Flatirons. Either way it's downhill from trail to table.",
+   eat=[
+     ("Dushanbe Teahouse", "🥾 Come as you are — creekside Tajik teahouse; dogs on the north patio (order at the bar).", pin(_q("1770 13th St, Boulder, CO 80302"))),
+     ("Chautauqua Dining Hall", "🥾 Post-hike OK — 1898 lodge porch under the Flatirons, dog-friendly; reserve summer weekends.", pin(_q("900 Baseline Rd, Boulder, CO 80302"))),
+     ("Moe's Broadway Bagel", "🚵 Grab-and-go breakfast on the pedal to Sanitas — hot bagels, order to go.", pin(_q("3267 28th St, Boulder, CO 80304"))),
+     ("River and Woods", "🚿 Shower first — New American, leafy dog backyard; the sit-down dinner.", pin(_q("2328 Pearl St, Boulder, CO 80302"))),
+   ],
+   after=[
+     ("Pearl Street patios", "Post-lunch hour — performers + shops from a bordering patio table (the brick mall itself is a no-dog zone, always).", pin(_q("Pearl Street Mall, Boulder, CO"))),
+     ("Boulder Creek Path", "The flat, shaded pedal home from downtown — cool Mochi at the creek on the way.", pin(_q("Boulder Creek Path, Boulder, CO"))),
+     ("Chautauqua Meadow (evening)", "If it's a CMF night: golden-hour meadow stroll with Mochi before the concert.", pin(_q("Chautauqua Park, Boulder, CO"))),
+   ],
+   q=[
+     "Sanitas (closer, harder underfoot) or Chautauqua Flatirons (longer pedal, bigger payoff + the CMF evening)?",
+     "Is there a Colorado Music Festival concert tonight worth building the day around? coloradomusicfestival.org.",
+     "Walk-to-Sanitas variant (skip bikes, ~1 hr each way): worth it for a zero-logistics day?",
+   ]),
+ dict(id="BLD-N", type="VAN-FREE · BIG RIDE", bike=True, travelmode="bicycling",
+   drive="🚲 ~20 mi RT (Niwot) / ~32 mi RT (Longmont) · flat path + crushed stone",
+   oneliner="Van-free big ride: LoBo Trail to Niwot (or Longmont) — or the Boulder Valley Ranch gravel loop",
+   ctx="The distance day: roll north via the Cottonwood Trail onto the LoBo Trail corridor to Niwot (~10 mi) for a "
+       "dog-patio lunch — and, if everyone's rolling and Mochi's at daycare, push to Left Hand Brewing in Longmont "
+       "(+6 mi). Mostly car-free path + crushed stone. Short alternative: Boulder Valley Ranch gravel, ~2 mi from the door.",
+   ian="Full pull: LoBo → Left Hand Greenway → Left Hand Brewing (~16 mi one-way, ~32 RT). With Mochi along, call it "
+       "at Niwot (~20 mi RT) — Left Hand's dog areas don't operate Mon–Wed at lunch (see beta).",
+   anny="Same route at cruiser pace — flat the whole way; the Niwot turnaround is the graceful out.",
+   mochi="Trailer day (shade + water stops every 30–40 min, rolling by 8 AM — see the trailer-fit note in the questions), "
+         "OR a Camp Bow Wow day: 3631 Pearl St, ~$41, M–F 6:30 AM–7 PM — requires the FREE Interview Day on an earlier "
+         "date (book it for Jul 23–24; Reservations row added).",
+   together="Lunch is the destination: Niwot's verified dog patios (Garden Gate, Cimmini's) — or dog-free at Left Hand. "
+            "Then a tailwind-hunting cruise home before the afternoon build-ups.",
+   acts=["bvr_gravel"],
+   route_stops=["Niwot, CO", "Left Hand Brewing Company, 1265 Boston Ave, Longmont, CO"],
+   res="Ride: none. Dog-free variant: Camp Bow Wow needs the free Interview Day FIRST — spay/neuter + current vaccs incl. "
+       "Bordetella within 6 months (bring records); (720) 605-4733.",
+   backup="Hot or windy → Boulder Valley Ranch gravel from the door (Sage-via-Eagle 3.8 mi + Left Hand Trail ext ≈7–8 mi, "
+          "done by 10 AM), or flip to BLD-K.",
+   evening="Home by mid-afternoon. Wed = Bands on the Bricks finale downtown (no dogs on the mall); otherwise a recovery night in.",
+   beta=[
+     "LoBo Trail (Boulder County): ~12-mile regional trail through Gunbarrel + Niwot — primarily soft-surface/crushed stone "
+     "with paved stretches; bikes/e-bikes/leashed dogs OK; seasonal restrooms at Niwot + Lefthand Valley Grange. Trailer-fine surface.",
+     "Routing from the Airbnb: neighborhood streets → Cottonwood Trail → Jay Rd, then an ON-STREET gap on Jay/Spine to the "
+     "LoBo terminus at Spine Rd (the county's missing-link connector may be under construction in 2026 — follow signage) → "
+     "LoBo through Gunbarrel → Niwot. ~10 mi, ~50 min easy, verified by the bike router.",
+     "Shop-run chaining (Mon/Thu): Geotrek (6420 Odell Pl) is in Gunbarrel right off this corridor — drop the van at 8 AM and "
+     "START the ride from the shop (Niwot is ~4–5 mi on); Thursday pickup runs it in reverse. Avery Brewing is 0.4 mi from "
+     "Geotrek but CLOSED Mondays.",
+     "Left Hand dog reality-check: no dogs inside the tasting room — dogs go to the West Patio (operates Thu–Sun) or The Garden "
+     "next door (closed Mon–Tue, opens 4 PM Wed–Fri). A Mon–Wed LUNCH with Mochi doesn't work there: dog along → lunch in "
+     "Niwot; dog-free → Left Hand + the on-site food truck.",
+     "Boulder Valley Ranch alternative: ranch doubletrack/gravel — bikes on Eagle/Sage/North Rim/Cobalt/Left Hand (Hidden "
+     "Valley + Degge are closed to bikes until end of 2026; Mesa Reservoir Trail is gone for good). Leash Mochi; rattlesnake "
+     "country; zero shade — early only.",
+     "Late-July normals: 84–86°F highs, monsoon thunderheads over the foothills by early afternoon — rolling by 8 AM, pointed "
+     "home by ~1 PM. Check air quality day-of (Stage 2 fire restrictions active in western Boulder County this July).",
+   ],
+   lunch="Niwot (~10 mi): Garden Gate Cafe (breakfast/lunch, dogs at the outdoor tables) or Cimmini's (Italian, pet patio with "
+         "umbrellas) — plus WiNot Coffee for a short-stop turnaround. Longmont (~16 mi): Left Hand is the DOG-FREE lunch (see "
+         "beta); with Mochi, eat in Niwot and make Longmont a water-stop.",
+   eat=[
+     ("The Garden Gate Cafe (Niwot)", "🚵 Come as you are — breakfast/lunch café; dogs welcome at the outdoor tables. The ride anchor.", pin(_q("Garden Gate Cafe, Niwot, CO"))),
+     ("Cimmini's (Niwot)", "🚵 Come as you are — Italian with a pet-friendly patio (heaters + umbrellas).", pin(_q("Cimmini's, Niwot, CO"))),
+     ("WiNot Coffee (Niwot)", "🚵 The short-stop turnaround — coffee + pastry; The Wheel House bike-shop bar is the on-theme pint next door.", pin(_q("WiNot Coffee, Niwot, CO"))),
+     ("Left Hand Brewing (Longmont)", "🚵 The full-pull reward on the St. Vrain — dog-free at Mon–Wed lunch (dogs: West Patio Thu–Sun, Garden from 4 PM Wed–Fri).", pin(_q("Left Hand Brewing Company, 1265 Boston Ave, Longmont, CO"))),
+   ],
+   after=[
+     ("Boulder Valley Ranch (Foothills TH)", "The backup gravel loop ~2 mi from the door — prairie-dog towns + raptors; leash on, snake-aware.", pin(_q("Foothills Trailhead, Boulder, CO"))),
+     ("East Boulder Dog Park", "Post-ride Mochi decompression — fenced off-leash with a wadeable pond.", pin(_q("East Boulder Community Dog Park, Boulder, CO"))),
+     ("Camp Bow Wow Boulder", "The dog-free-ride enabler — 3631 Pearl St, (720) 605-4733; free required Interview Day first (book early in the Boulder week).", pin(_q("Camp Bow Wow, 3631 Pearl St, Boulder, CO"))),
+   ],
+   q=[
+     "Turnaround: Niwot (~20 mi RT, dog-friendly lunch) or the full Left Hand pull (~32 mi RT, dog-free)? Decide over WiNot coffee.",
+     "Mochi: trailer or Camp Bow Wow? If daycare, the free Interview Day must happen on an earlier day — book it for Jul 23–24.",
+     "TRAILER SHOPPING NOTE (before the trip): a 65-lb golden outgrows the classic Burley Tail Wagon (75-lb rating but only a 23-inch max pet height) — you want the Bark Ranger XL class (100 lb, 34-inch height) or Schwinn Rascal Plus, PLUS a trailer thru-axle (Burley or Robert Axle Project, matched to the MTB's 12 mm axle) if that bike tows. Confirm fit + hitch before leaving home.",
+     "Chain it with the shop run? Mon drop / Thu pickup both start or end at Geotrek, which sits right on this corridor.",
    ]),
 
  # ── MAMMOTH (Aug 15–17) — Ian + Mochi only (Anny away at the bach party). ──────────
@@ -1540,12 +1768,13 @@ def flush(title, tab):
     genmeta.record(sh, title, meta)
     return sid
 
-def day_route(hub, stops):
-    """Multi-stop driving route: Airbnb -> stops... -> Airbnb (Google Maps directions)."""
+def day_route(hub, stops, mode="driving"):
+    """Multi-stop route: Airbnb -> stops... -> Airbnb (Google Maps directions).
+    mode: "driving" (default) or "bicycling" — the van-free BLD-K..N days pedal."""
     pts = [_q(s) for s in ([BASE[hub]] + stops + [BASE[hub]])]
     return ("https://www.google.com/maps/dir/?api=1"
             f"&origin={pts[0]}&destination={pts[-1]}"
-            f"&waypoints={'%7C'.join(pts[1:-1])}&travelmode=driving")
+            f"&waypoints={'%7C'.join(pts[1:-1])}&travelmode={mode}")
 
 # ── build option tab ─────────────────────────────────────────────────────────────
 def build_option(o):
@@ -1553,14 +1782,20 @@ def build_option(o):
     t.title(f"{o['id']}  ·  {o['type']}")
     t.subtitle(o["oneliner"])
     t.ctx(o["ctx"])
+    _bikeday = o.get("travelmode") == "bicycling"
     if o.get("route_stops"):
-        t.maplink("🗺  Open today's route in Google Maps  ·  Airbnb → trailhead → food → home",
-                  day_route(hub, o["route_stops"]))
+        t.maplink("🗺  Open today's PEDAL route in Google Maps  ·  Airbnb → stops → home" if _bikeday
+                  else "🗺  Open today's route in Google Maps  ·  Airbnb → trailhead → food → home",
+                  day_route(hub, o["route_stops"], o.get("travelmode", "driving")))
     t.spacer(6)
     t.section("AT A GLANCE")
     t.kv("Home base", BASE[hub])
-    _dnote = "  (full day route — tap the 🗺 link up top for live traffic)" if o.get("route_stops") else "  (round-trip estimate)"
-    t.kv("Total drive", o["drive"]+_dnote)
+    if o.get("route_stops"):
+        _dnote = ("  (full day pedal — tap the 🗺 link up top for the live route)" if _bikeday
+                  else "  (full day route — tap the 🗺 link up top for live traffic)")
+    else:
+        _dnote = "  (round-trip estimate)"
+    t.kv("Total pedal" if _bikeday else "Total drive", o["drive"]+_dnote)
     t.kv("Reservations", o["res"])
     t.kv("Mochi", o["mochi"], bg=MOCHI_BG)
     t.kv("Weather backup", o["backup"])
@@ -1782,7 +2017,7 @@ if __name__=="__main__":
         # Day BLD-E draft / stale __tmp__ tabs from a prior crash) — but NEVER delete a
         # tab a human has edited.
         OLD_RE=re.compile(r'^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) \d+ \(\w+\)$')
-        OPT_RE=re.compile(r'^(BLD|STM|CB|MAM)-[A-J]$')
+        OPT_RE=re.compile(r'^(BLD|STM|CB|MAM)-[A-Z]$')
         orphans=[]
         for s in sh.fetch_sheet_metadata()["sheets"]:
             ttl=s["properties"]["title"]
