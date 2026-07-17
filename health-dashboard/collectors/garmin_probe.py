@@ -6,6 +6,13 @@ Does NOT write to the DB. Run on homeserver where the token store lives:
 --cardio mode probes the blood-pressure / weigh-in / body-composition endpoints
 that back the cardio project (see health-dashboard/CARDIO_PLAN.md Appendix D) —
 it never writes to the DB either, just reports payload shapes.
+
+--nutrition mode probes the Connect+ nutrition food-log endpoints (unofficial,
+reverse-engineered — added to python-garminconnect in 0.2.39) and scans the
+payload for the nutrient fields nutrition_daily needs. First run live
+2026-07-16 (journal-224): per-meal mealNutritionContent carries sodium,
+potassium, fiber, saturatedFat, sugar/addedSugars and more — all watchlist
+nutrients present. Like _shape(), it prints structure only, never leaf values.
 """
 import argparse
 import datetime
@@ -22,6 +29,23 @@ PROBE_DATES = ["2019-06-15", "2020-06-15", "2021-06-15", "2022-06-15",
 
 CARDIO_METHODS = ["get_blood_pressure", "get_weigh_ins", "get_daily_weigh_ins",
                    "get_body_composition"]
+
+NUTRITION_METHODS = ["get_nutrition_daily_food_log", "get_nutrition_daily_meals",
+                      "get_nutrition_daily_settings"]
+
+# Nutrient-presence watchlist for --nutrition. sodium is the dealbreaker for
+# the DASH use case; the rest map onto the remaining nutrition_daily columns.
+NUTRIENT_WATCHLIST = {
+    "sodium":    ["sodium"],
+    "potassium": ["potassium"],
+    "fiber":     ["fiber", "fibre"],
+    "sat_fat":   ["saturated", "satfat", "fatsaturated"],
+    "sugar":     ["sugar"],
+    "calories":  ["calorie", "energy", "kcal"],
+    "protein":   ["protein"],
+    "carbs":     ["carb"],
+    "fat_total": ["fat"],
+}
 
 
 def _shape(value, depth=0, max_depth=6):
@@ -85,6 +109,102 @@ def safe(label, fn):
         return f"ERR({type(e).__name__}: {str(e)[:60]})"
 
 
+def _walk(value, path=""):
+    """Yield (key_path, key, value) for every dict entry, walking ALL list items.
+
+    _shape() only descends into list[0]; different foods can carry different
+    nutrient fields, so the watchlist scan must see every element.
+    """
+    if isinstance(value, dict):
+        for k, v in value.items():
+            p = f"{path}.{k}" if path else k
+            yield p, k, v
+            yield from _walk(v, p)
+    elif isinstance(value, list):
+        for item in value:
+            yield from _walk(item, path + "[]")
+
+
+def _nutrient_scan(payload):
+    """Which watchlist nutrients appear as KEY names, and are any non-null?
+
+    Reports key paths + presence booleans only — never values (PHI posture
+    identical to _shape). Also flags watchlist words inside string VALUES, in
+    case an API models nutrients as {"nutrient": "SODIUM", "amount": ...}.
+    """
+    hits = {name: {"key_paths": set(), "nonnull": False, "as_value": False}
+            for name in NUTRIENT_WATCHLIST}
+    for path, key, val in _walk(payload):
+        kl = key.lower()
+        for name, pats in NUTRIENT_WATCHLIST.items():
+            if any(p in kl for p in pats):
+                hits[name]["key_paths"].add(path)
+                if val is not None and not isinstance(val, (dict, list)):
+                    hits[name]["nonnull"] = True
+        if isinstance(val, str):
+            vl = val.lower()
+            for name, pats in NUTRIENT_WATCHLIST.items():
+                if any(p in vl for p in pats):
+                    hits[name]["as_value"] = True
+    return hits
+
+
+def nutrition_main(probe_date=None):
+    date_s = probe_date or datetime.date.today().isoformat()
+    try:
+        version = importlib.metadata.version("garminconnect")
+    except importlib.metadata.PackageNotFoundError:
+        version = "UNKNOWN"
+    print(f"garminconnect version: {version}")
+    print(f"probe date: {date_s}")
+
+    c = _get_garmin_client()
+    print("LOGIN OK")
+
+    print("\nhasattr checks:")
+    for m in NUTRITION_METHODS:
+        print(f"  {m}: {hasattr(c, m)}")
+
+    payloads = []
+    for m in NUTRITION_METHODS:
+        print(f"\n=== {m}({date_s}) ===")
+        result = safe(m, lambda m=m: getattr(c, m)(date_s))
+        if isinstance(result, str) and result.startswith("ERR("):
+            print(" ", result)
+        else:
+            payloads.append(result)
+            print("shape:", _shape(result, max_depth=8))
+
+    print("\n=== NUTRIENT KEY SCAN (all payloads, all list items) ===")
+    hits = _nutrient_scan(payloads)
+    for name, h in hits.items():
+        status = "FOUND" if h["key_paths"] else ("value-only?" if h["as_value"] else "ABSENT")
+        nn = " non-null=YES" if h["nonnull"] else (" non-null=no" if h["key_paths"] else "")
+        print(f"  {name:10s} {status:11s}{nn}")
+        for p in sorted(h["key_paths"])[:8]:
+            print(f"      key path: {p}")
+
+    print("\n=== VERDICT ===")
+    # An empty day (no logged foods) proves nothing either way — say so
+    # instead of printing a premature dealbreaker (journal-224 lesson).
+    food_log = payloads[0] if payloads else {}
+    meals = (food_log or {}).get("mealDetails") or []
+    if not meals:
+        print("No logged foods on this date — inconclusive. Log a barcode-scanned")
+        print("packaged food (full label) and re-run with --date for that day.")
+        return
+    s = hits["sodium"]
+    if s["key_paths"] and s["nonnull"]:
+        print("SODIUM PRESENT with data -> Garmin nutrition can serve the DASH")
+        print("sodium target via collect_nutrition (collectors/garmin_collector.py).")
+    elif s["key_paths"]:
+        print("sodium key exists but all null on this day's log -> log a")
+        print("barcode-scanned packaged food (full label) and re-run.")
+    else:
+        print("NO sodium field despite logged foods -> dealbreaker for the DASH")
+        print("use case; the FoodNoms -> Apple Health path is the fallback.")
+
+
 def main():
     c = _get_garmin_client()
     print("LOGIN OK")
@@ -131,8 +251,14 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--cardio", action="store_true",
                          help="probe BP / weigh-in / body-composition endpoints")
+    parser.add_argument("--nutrition", action="store_true",
+                         help="probe Connect+ nutrition food-log endpoints")
+    parser.add_argument("--date", default=None,
+                         help="YYYY-MM-DD for --nutrition (default: today)")
     args = parser.parse_args()
     if args.cardio:
         cardio_main()
+    elif args.nutrition:
+        nutrition_main(args.date)
     else:
         main()

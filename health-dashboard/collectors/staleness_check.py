@@ -17,6 +17,11 @@ BP_STALE_DAYS = 14
 BP_DORMANT_DAYS = 60
 WEIGHT_STALE_DAYS = 10
 WEIGHT_DORMANT_DAYS = 45
+# Nutrition: meal logging is daily-cadence once the habit exists, but a missed
+# weekend shouldn't page — stale at 4 days. If logging is abandoned (the known
+# risk with any food tracker), go dormant after 30 days and stop nagging.
+NUTRITION_STALE_DAYS = 4
+NUTRITION_DORMANT_DAYS = 30
 
 # Heartbeat log. The health_staleness huey kind uses this file's mtime as its
 # migration baseline metric (file-mtime:logs/health-staleness.log), so every run
@@ -54,8 +59,9 @@ def _sparse_metric_alert(
     dormant_days: int,
     label: str,
     now: datetime,
+    ts_column: str = "timestamp",
 ) -> str | None:
-    """Armed / stale / dormant staleness for a sparse metric (BP, weight).
+    """Armed / stale / dormant staleness for a sparse metric (BP, weight, nutrition).
 
     A metric that has never produced a (filtered) row is *unarmed* — no device
     exists yet, so there's nothing to nag about (e.g. weight arms only on
@@ -64,15 +70,17 @@ def _sparse_metric_alert(
     it again (habit abandoned — stop nagging); an alert fires only in the
     stale_days..dormant_days window. Queries are wrapped so a pre-migration DB
     (missing the cardio tables) degrades to "not armed" instead of crashing the
-    whole staleness check.
+    whole staleness check. `ts_column` covers date-keyed tables like
+    nutrition_daily (a bare YYYY-MM-DD parses as midnight, which is fine at
+    multi-day thresholds).
     """
     try:
         if source_filter is not None:
             row = conn.execute(
-                f"SELECT MAX(timestamp) FROM {table} WHERE source = ?", (source_filter,)
+                f"SELECT MAX({ts_column}) FROM {table} WHERE source = ?", (source_filter,)
             ).fetchone()
         else:
-            row = conn.execute(f"SELECT MAX(timestamp) FROM {table}").fetchone()
+            row = conn.execute(f"SELECT MAX({ts_column}) FROM {table}").fetchone()
     except sqlite3.OperationalError:
         return None
 
@@ -139,6 +147,15 @@ def check_staleness(now: datetime | None = None) -> list[str]:
     )
     if weight_alert:
         stale.append(weight_alert)
+
+    # Nutrition — arms only on source='garmin' rows (the Connect+ food log),
+    # so a hypothetical future Apple-path backfill can't arm it prematurely.
+    nutrition_alert = _sparse_metric_alert(
+        conn, "nutrition_daily", "garmin", NUTRITION_STALE_DAYS,
+        NUTRITION_DORMANT_DAYS, "Nutrition log", now, ts_column="date",
+    )
+    if nutrition_alert:
+        stale.append(nutrition_alert)
 
     conn.close()
     return stale
