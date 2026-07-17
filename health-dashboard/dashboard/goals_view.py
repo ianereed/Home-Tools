@@ -457,8 +457,10 @@ def _ldl_figure(lip, goals, today):
     _time_marker(fig, today, "today", lib.MUTED, "dot", opacity=0.5,
                  xanchor="right")
     if deadline is not None:
+        # right-anchored: the deadline sits near the plot's right edge, so the
+        # label must extend left of the line or it clips off-plot
         _time_marker(fig, deadline, f"goal · {deadline:%b %Y}", lib.GOOD, "dash",
-                     opacity=0.8, xanchor="left")
+                     opacity=0.8, xanchor="right")
 
     # -- expected-response band (public trial range, never a promise) --
     latest_ldl = lip["ldl"].dropna().iloc[-1] if lip["ldl"].notna().any() else None
