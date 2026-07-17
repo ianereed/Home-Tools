@@ -76,6 +76,21 @@ ssh -t homeserver@homeserver \
 Enter the MFA code Garmin sends. (The `KEYCHAIN_PATH` env is required — the keychain
 shim only activates when it's set.)
 
+## DEXA workflow (quarterly)
+
+DEXA scans aren't API-connected — after each quarterly scan:
+
+1. Append a row to `cardiology/dexa_scans.csv` (gitignored; header + format in
+   `CARDIO_PLAN.md` Appendix C — lb units, matching the US DEXA report). If the
+   file doesn't exist yet, create it first: `python3 cardiology/import_dexa.py --init`.
+2. `scp cardiology/dexa_scans.csv homeserver@homeserver:~/Home-Tools/health-dashboard/cardiology/`
+3. On the mini: `ssh homeserver@homeserver 'cd ~/Home-Tools/health-dashboard && .venv/bin/python3 cardiology/import_dexa.py'`
+
+The importer converts lb→kg and writes `body_composition` (full DEXA snapshot)
+and `body_weight` (source `'dexa'`) so the scan lines up with Garmin/Apple weight
+on the Cardiology page. Re-running the importer is safe (idempotent, keyed on
+`UNIQUE(timestamp, source)`) — fix a typo'd row and re-run to converge.
+
 ## Audience
 
 Single-user (you). Hosted on the Mac mini and reachable over Tailscale. Not designed for multi-user, public deployment, or HIPAA workloads.

@@ -21,6 +21,7 @@ from collectors.db import DB_PATH                                  # noqa: E402
 from recovery.engine import get_full_recovery_report              # noqa: E402
 from recovery.advisor import get_overview                         # noqa: E402
 from dashboard import lib                                         # noqa: E402
+from dashboard import diet_view                                    # noqa: E402
 
 st.set_page_config(page_title="Health", layout="wide", page_icon="❤️")
 
@@ -106,7 +107,7 @@ if "since_iso" not in st.session_state:
 
 # --- navigation ------------------------------------------------------------
 
-PAGES = ["Overview", "Sleep", "Heart & HRV", "Fitness", "Activity", "Wellness"]
+PAGES = ["Overview", "Sleep", "Heart & HRV", "Fitness", "Activity", "Wellness", "Diet"]
 # Cardiology page carries PHI (lipid panels) and is deployed out of git; only
 # offer it when the clinical-data module is actually present on this host.
 HAS_CARDIO = os.path.exists(os.path.join(
@@ -511,8 +512,6 @@ def render_wellness():
         fig.update_yaxes(range=[85, 101])
         st.plotly_chart(lib.apply_theme(fig, 200), use_container_width=True, key="we_spo2")
 
-    st.caption("Weight & body composition are on the roadmap.")
-
 
 # --- dispatch --------------------------------------------------------------
 dispatch = {
@@ -522,6 +521,7 @@ dispatch = {
     "Fitness": render_fitness,
     "Activity": render_activity,
     "Wellness": render_wellness,
+    "Diet": lambda: diet_view.render_diet(load_data, days),
 }
 if HAS_CARDIO:
     try:
