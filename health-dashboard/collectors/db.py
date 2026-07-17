@@ -134,6 +134,21 @@ def init_db():
             source TEXT NOT NULL,           -- 'apple' (HAE receiver) | 'garmin' | 'manual'
             PRIMARY KEY (date, source)
         );
+
+        -- Garmin Connect Lifestyle Logging (launched 2025): tagged daily
+        -- behaviors (Alcohol, etc.) with a per-subtype quantity. One row per
+        -- (date, behavior, subtype). Alcohol subtypes: BEER | WINE | SPIRIT,
+        -- amount = serving count (not ABV-weighted units). subtype '' for
+        -- behaviors with no subtype (kept non-NULL so the PK dedupes — SQLite
+        -- treats NULLs as distinct in a PK).
+        CREATE TABLE IF NOT EXISTS lifestyle_log (
+            date TEXT NOT NULL,             -- local calendar date 'YYYY-MM-DD'
+            name TEXT NOT NULL,             -- behavior label, e.g. 'Alcohol'
+            subtype TEXT NOT NULL DEFAULT '',
+            amount REAL,                    -- serving count / quantity
+            source TEXT NOT NULL,           -- 'garmin' | 'manual'
+            PRIMARY KEY (date, name, subtype, source)
+        );
     """)
     _migrate(conn)
     conn.commit()

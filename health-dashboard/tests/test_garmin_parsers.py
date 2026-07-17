@@ -317,3 +317,65 @@ def test_nutrition_row_meal_shells_without_foods_do_not_count():
     # not a zero-intake day — writing zeros would fake a perfect-sodium day.
     shell = _meal_detail(_meal_content(), n_foods=0)
     assert _nutrition_row(_nutrition_payload([shell])) is None
+
+
+# --- Lifestyle mapper (shape verified live 2026-07-16, journal-224 probe) ---
+
+from collectors.garmin_collector import _lifestyle_rows
+
+
+def _alcohol_log(cdate, details):
+    return {
+        "behaviourId": 1, "measurementType": "QUANTITY", "calendarDate": cdate,
+        "name": "Alcohol", "logStatus": "YES", "category": "LIFESTYLE",
+        "details": [{"subTypeId": i, "subTypeName": st, "amount": amt}
+                    for i, (st, amt) in enumerate(details)],
+        "sleepRelated": True,
+    }
+
+
+def _lifestyle_payload(logs):
+    return {"dailyLogsReport": logs,
+            "completionStats": [{"calendarDate": "2026-07-16",
+                                 "totalTracking": 7, "completedTracking": 5}]}
+
+
+def test_lifestyle_rows_splits_subtypes():
+    payload = _lifestyle_payload([
+        _alcohol_log("2026-07-16", [("BEER", 2), ("WINE", 1)]),
+    ])
+    rows = _lifestyle_rows(payload)
+    assert set(rows) == {
+        ("2026-07-16", "Alcohol", "BEER", 2.0, "garmin"),
+        ("2026-07-16", "Alcohol", "WINE", 1.0, "garmin"),
+    }
+
+
+def test_lifestyle_rows_skips_amountless_and_empty():
+    # A tracking-only behavior with a null amount produces no row.
+    payload = _lifestyle_payload([
+        {"name": "Reading", "calendarDate": "2026-07-16",
+         "details": [{"subTypeName": "BOOK", "amount": None}]},
+    ])
+    assert _lifestyle_rows(payload) == []
+    assert _lifestyle_rows({"dailyLogsReport": []}) == []
+    assert _lifestyle_rows(None) == []
+
+
+def test_lifestyle_rows_subtype_falls_back_to_empty_string():
+    payload = _lifestyle_payload([
+        {"name": "Caffeine", "calendarDate": "2026-07-16",
+         "details": [{"subTypeName": None, "amount": 3}]},
+    ])
+    rows = _lifestyle_rows(payload)
+    assert rows == [("2026-07-16", "Caffeine", "", 3.0, "garmin")]
+
+
+def test_lifestyle_rows_requires_name_and_date():
+    payload = _lifestyle_payload([
+        {"name": None, "calendarDate": "2026-07-16",
+         "details": [{"subTypeName": "BEER", "amount": 1}]},
+        {"name": "Alcohol", "calendarDate": None,
+         "details": [{"subTypeName": "BEER", "amount": 1}]},
+    ])
+    assert _lifestyle_rows(payload) == []

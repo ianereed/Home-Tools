@@ -467,6 +467,67 @@ def collect_nutrition(client, target_date: str):
         conn.close()
 
 
+def _lifestyle_rows(payload: dict | None) -> list[tuple]:
+    """Map a get_lifestyle_logging_data(date) payload into lifestyle_log rows.
+
+    Real shape (journal-224 probe): dailyLogsReport[] entries each carry a
+    behavior `name` (e.g. 'Alcohol'), a `calendarDate`, and `details[]` with a
+    per-subtype `amount` (Alcohol subtypes BEER/WINE/SPIRIT, amount = serving
+    count). Only quantity-bearing details produce rows — binary/tracking-only
+    behaviors (no amount) are skipped. subtype falls back to '' so the
+    lifestyle_log PK dedupes reliably.
+    """
+    rows = []
+    for log in (payload or {}).get("dailyLogsReport") or []:
+        name = log.get("name")
+        cdate = log.get("calendarDate")
+        if not name or not cdate:
+            continue
+        for det in log.get("details") or []:
+            amount = det.get("amount")
+            if amount is None:
+                continue
+            subtype = det.get("subTypeName") or ""
+            rows.append((cdate, name, subtype, float(amount), "garmin"))
+    return rows
+
+
+def collect_lifestyle(client, target_date: str):
+    """Collect Garmin Lifestyle Logging (alcohol etc.) for one day.
+
+    Per-day like nutrition (the lifestylelogging-service is date-keyed). A day
+    with the payload present is treated as the authoritative snapshot for that
+    date: existing garmin rows for the date are cleared then rewritten, so an
+    edited amount converges and a removed subtype disappears. Empty payload =
+    silent INFO return (Standing rule 6) and NO delete, so a transient API blip
+    can't wipe a previously-collected day. (A day where every behavior was
+    deleted in Garmin will keep its old rows until re-logged — acceptable.)
+    """
+    conn = get_connection()
+    try:
+        payload = client.get_lifestyle_logging_data(target_date)
+        rows = _lifestyle_rows(payload)
+        if not rows:
+            logger.info(f"No Garmin lifestyle logs for {target_date}")
+            return
+
+        conn.execute(
+            "DELETE FROM lifestyle_log WHERE date = ? AND source = 'garmin'",
+            (target_date,),
+        )
+        conn.executemany(
+            """INSERT OR REPLACE INTO lifestyle_log
+               (date, name, subtype, amount, source) VALUES (?, ?, ?, ?, ?)""",
+            rows,
+        )
+        conn.commit()
+        logger.info(f"Saved {len(rows)} Garmin lifestyle entries for {target_date}")
+    except Exception as e:
+        logger.error(f"Error collecting Garmin lifestyle for {target_date}: {e}")
+    finally:
+        conn.close()
+
+
 def collect_blood_pressure(client, start_date: str, end_date: str):
     """Collect blood-pressure readings for a date range (single range call)."""
     conn = get_connection()
@@ -543,6 +604,7 @@ def collect_all(days_back: int = 7):
         collect_heart_rate(client, d)
         collect_wellness(client, d)
         collect_nutrition(client, d)
+        collect_lifestyle(client, d)
 
     collect_activities(client, start.isoformat(), today.isoformat())
     collect_hr_streams(client, days_back)

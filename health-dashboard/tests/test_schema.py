@@ -9,6 +9,7 @@ import collectors.db as db
 EXPECTED_TABLES = {
     "sleep", "heart_rate", "activities", "wellness", "activity_streams",
     "blood_pressure", "body_weight", "body_composition", "nutrition_daily",
+    "lifestyle_log",
 }
 
 
@@ -148,6 +149,26 @@ def test_nutrition_daily_primary_key_is_date_source(fake_db):
         except sqlite3.IntegrityError:
             raised = True
         assert raised, "duplicate (date, source) should violate the PRIMARY KEY"
+    finally:
+        conn.close()
+
+
+def test_lifestyle_log_pk_dedups_by_date_name_subtype_source(fake_db):
+    conn = sqlite3.connect(fake_db)
+    try:
+        # INSERT OR REPLACE on the same (date, name, subtype, source) converges
+        # to the latest amount rather than duplicating.
+        for amt in (2, 3):
+            conn.execute(
+                "INSERT OR REPLACE INTO lifestyle_log "
+                "(date, name, subtype, amount, source) VALUES (?,?,?,?,?)",
+                ("2026-02-01", "Alcohol", "BEER", amt, "garmin"))
+        conn.commit()
+        rows = conn.execute(
+            "SELECT amount FROM lifestyle_log WHERE date='2026-02-01' "
+            "AND name='Alcohol' AND subtype='BEER' AND source='garmin'").fetchall()
+        assert len(rows) == 1
+        assert rows[0][0] == 3
     finally:
         conn.close()
 
