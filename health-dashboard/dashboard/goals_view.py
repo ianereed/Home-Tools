@@ -411,6 +411,22 @@ def _rgba(hex_color, alpha):
     return f"rgba({r},{g},{b},{alpha:.2f})"
 
 
+def _time_marker(fig, x, text, color, dash, opacity=0.5, xanchor="left"):
+    """Full-height vertical time marker (today / deadline).
+
+    Not add_vline: with an annotation on a date x-axis, plotly's axis-spanning-
+    shape machinery averages the shape's Timestamps (shapeannotation._mean),
+    which raises on some plotly/pandas combinations — crashed live on the mini
+    while the laptop's versions tolerated it. A plain shape plus a paper-ref
+    annotation renders identically and avoids that code path on every version.
+    """
+    fig.add_shape(type="line", x0=x, x1=x, y0=0, y1=1, xref="x", yref="paper",
+                  line=dict(color=color, dash=dash, width=1), opacity=opacity)
+    fig.add_annotation(x=x, y=1.0, xref="x", yref="paper", yanchor="bottom",
+                       text=text, showarrow=False, xanchor=xanchor,
+                       font=dict(size=10, color=color))
+
+
 def _ldl_figure(lip, goals, today):
     deadline = None
     if goals and goals.get("deadline"):
@@ -438,14 +454,11 @@ def _ldl_figure(lip, goals, today):
     br.add_ldl_goal_lines(fig, row=1, col=1)
 
     # -- today + deadline verticals --
-    fig.add_vline(x=today, line_dash="dot", line_color=lib.INK, opacity=0.4,
-                  annotation_text="today", annotation_position="top",
-                  annotation_font_size=10, annotation_font_color=lib.MUTED)
+    _time_marker(fig, today, "today", lib.MUTED, "dot", opacity=0.5,
+                 xanchor="right")
     if deadline is not None:
-        fig.add_vline(x=deadline, line_dash="dash", line_color=lib.GOOD, opacity=0.8,
-                      annotation_text=f"goal · {deadline:%b %Y}",
-                      annotation_position="top left",
-                      annotation_font_size=10, annotation_font_color=lib.GOOD)
+        _time_marker(fig, deadline, f"goal · {deadline:%b %Y}", lib.GOOD, "dash",
+                     opacity=0.8, xanchor="left")
 
     # -- expected-response band (public trial range, never a promise) --
     latest_ldl = lip["ldl"].dropna().iloc[-1] if lip["ldl"].notna().any() else None
