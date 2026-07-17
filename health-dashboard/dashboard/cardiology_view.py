@@ -395,6 +395,66 @@ def _render_body_composition_section():
                 use_container_width=True, hide_index=True)
 
 
+# US Dietary Guidelines: ≤2 drinks/day for men → 14/week. A public reference
+# number (like the DASH sodium targets), not a personal/physician-set value.
+_ALCOHOL_WEEKLY_GUIDELINE = 14
+
+
+def _render_lifestyle_section():
+    """Alcohol from Garmin Lifestyle Logging: current-week + 4-week-avg metrics,
+    a weekly units table (beer/wine/spirit/total), and a weekly-total bar chart
+    against the public guideline line. Empty-safe.
+
+    'Units' here = Garmin's summed serving counts (it logs drinks per category,
+    not ABV-weighted units) — surfaced in the caption so the number isn't
+    over-read as standardized UK units.
+    """
+    st.markdown("## Lifestyle — alcohol")
+    df = lib.load_df(
+        "SELECT date, subtype, amount FROM lifestyle_log "
+        "WHERE name = 'Alcohol' AND source = 'garmin' ORDER BY date")
+    if df.empty:
+        st.caption("No alcohol logged yet — tracked via Garmin Connect Lifestyle "
+                   "Logging (log drinks on the watch or in Garmin Connect).")
+        return
+
+    df["date"] = pd.to_datetime(df["date"])
+    # Weeks start Monday; label each row by its Monday date.
+    df["week"] = df["date"].dt.to_period("W-SUN").dt.start_time
+    weekly_total = df.groupby("week")["amount"].sum()
+
+    this_week = df["date"].max().to_period("W-SUN").start_time
+    current = weekly_total.get(this_week, 0)
+    prior4 = weekly_total[weekly_total.index < this_week].tail(4)
+    avg4 = prior4.mean() if not prior4.empty else None
+
+    c = st.columns(3)
+    c[0].metric("This week (drinks)", f"{current:.0f}")
+    c[1].metric("Prior 4-wk avg", f"{avg4:.1f}" if avg4 is not None else "—")
+    c[2].metric("Guideline", f"≤{_ALCOHOL_WEEKLY_GUIDELINE}/wk")
+    st.caption("Garmin logs a serving count per category (beer/wine/spirit); "
+               "\"units\" here is the weekly sum of those counts, not ABV-weighted. "
+               f"Reference line = US Dietary Guidelines ≤{_ALCOHOL_WEEKLY_GUIDELINE} "
+               "drinks/week (men).")
+
+    fig = go.Figure()
+    fig.add_trace(go.Bar(x=weekly_total.index, y=weekly_total.values,
+                         marker_color=lib.ACCENT, opacity=0.75))
+    fig.add_hline(y=_ALCOHOL_WEEKLY_GUIDELINE, line_dash="dot", line_color=lib.WARN,
+                  annotation_text=f"guideline ≤{_ALCOHOL_WEEKLY_GUIDELINE}/wk",
+                  annotation_position="top left")
+    st.plotly_chart(lib.apply_theme(fig, 220), use_container_width=True, key="cardio_alcohol")
+
+    with st.expander("Weekly units table", expanded=True):
+        pivot = (df.pivot_table(index="week", columns="subtype", values="amount",
+                                aggfunc="sum", fill_value=0)
+                 .sort_index(ascending=False))
+        pivot["Total"] = pivot.sum(axis=1)
+        pivot.index = pivot.index.strftime("Week of %Y-%m-%d")
+        pivot.columns = [str(col).title() for col in pivot.columns]
+        st.dataframe(pivot, use_container_width=True)
+
+
 def render_cardiology():
     st.markdown(_CARD_CSS, unsafe_allow_html=True)
     st.markdown("# Cardiology")
@@ -443,6 +503,7 @@ def render_cardiology():
     _render_bp_section()
     _render_weight_section()
     _render_body_composition_section()
+    _render_lifestyle_section()
 
     st.markdown(br.stat_cards_html(lip), unsafe_allow_html=True)
 

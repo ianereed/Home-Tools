@@ -202,6 +202,20 @@ def _seed_synthetic(db_path):
              "fake DEXA scan", "dexa"),
         )
         # nutrition_daily left empty on purpose (Phase 7 populates it).
+
+        # A few weeks of synthetic Garmin lifestyle alcohol logs so the
+        # Cardiology lifestyle section renders its populated path in the smoke
+        # test (synthetic counts only — never real values).
+        for offset, (beer, wine) in enumerate([(2, 0), (0, 1), (1, 1), (0, 0)]):
+            d = (days[0] - datetime.timedelta(days=offset * 3)).isoformat()
+            if beer:
+                conn.execute(
+                    "INSERT OR REPLACE INTO lifestyle_log (date, name, subtype, amount, source) "
+                    "VALUES (?, 'Alcohol', 'BEER', ?, 'garmin')", (d, beer))
+            if wine:
+                conn.execute(
+                    "INSERT OR REPLACE INTO lifestyle_log (date, name, subtype, amount, source) "
+                    "VALUES (?, 'Alcohol', 'WINE', ?, 'garmin')", (d, wine))
         conn.commit()
     finally:
         conn.close()
