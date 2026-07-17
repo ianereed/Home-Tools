@@ -88,6 +88,7 @@ def fake_clinical(monkeypatch):
         "ldl": {"target": 999, "stretch": 999, "unit": "mg/dL"},
         "bp": {"systolic": 999, "diastolic": 999, "unit": "mmHg"},
         "weight": {"baseline_kg": 0.0, "lose_lb_min": 0, "lose_lb_max": 0},
+        "deadline": "2099-12-31",   # synthetic far-future deadline (Goals page)
         "set_by": "Dr. Fake (fixture)",
         "set_on": "2025-01",
     }
@@ -106,6 +107,23 @@ def fake_clinical(monkeypatch):
             "start": None, "status": "prescribed — not yet started",
             "prescriber": "Dr. Fake", "purpose": "fixture only",
             "note": "synthetic fixture entry — exercises the no-start-date path",
+        },
+        {
+            "name": "fakocumab", "brand": "Fakepatha",
+            "dose": "0 mg/mL", "form": "SC autoinjector (click)",
+            "frequency": "every 2 weeks",
+            "start": "2025-06-01", "status": "active",
+            "prescriber": "Dr. Fake", "purpose": "fixture only (PCSK9 inhibitor)",
+            "note": "synthetic — exercises the Goals projection band + "
+                    "next-injection math",
+        },
+        {
+            "name": "fakezet", "brand": "Fakezetia",
+            "dose": "0 mg", "form": "oral tablet", "frequency": "daily",
+            "start": "2025-03-01", "stop": "2025-06-01",
+            "status": "discontinued 2025-06-01",
+            "prescriber": "Dr. Fake", "purpose": "fixture only",
+            "note": "synthetic — exercises the stopped-medication lane path",
         },
     ]
     monkeypatch.setitem(sys.modules, "clinical_data", mod)
