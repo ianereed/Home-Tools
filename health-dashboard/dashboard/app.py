@@ -108,11 +108,12 @@ if "since_iso" not in st.session_state:
 # --- navigation ------------------------------------------------------------
 
 PAGES = ["Overview", "Sleep", "Heart & HRV", "Fitness", "Activity", "Wellness", "Diet"]
-# Cardiology page carries PHI (lipid panels) and is deployed out of git; only
-# offer it when the clinical-data module is actually present on this host.
+# Goals + Cardiology pages carry PHI (lipid panels, goals, medications) and
+# are gated on the out-of-git clinical-data module being present on this host.
 HAS_CARDIO = os.path.exists(os.path.join(
     os.path.dirname(os.path.dirname(__file__)), "cardiology", "clinical_data.py"))
 if HAS_CARDIO:
+    PAGES.append("Goals")
     PAGES.append("Cardiology")
 if "page" not in st.session_state:
     st.session_state.page = 0
@@ -529,4 +530,9 @@ if HAS_CARDIO:
         dispatch["Cardiology"] = render_cardiology
     except Exception as _e:  # keep the rest of the dashboard alive on any import error
         dispatch["Cardiology"] = lambda _e=_e: st.error(f"Cardiology page unavailable: {_e}")
+    try:
+        from dashboard.goals_view import render_goals             # noqa: E402
+        dispatch["Goals"] = render_goals
+    except Exception as _e:
+        dispatch["Goals"] = lambda _e=_e: st.error(f"Goals page unavailable: {_e}")
 dispatch[page]()
