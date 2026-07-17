@@ -160,3 +160,58 @@ def test_check_staleness_alerts_once_armed_and_stale(cardio_db):
     stale = check_staleness(now=NOW)
     assert any("Blood pressure" in s for s in stale)
     assert any("Weight" in s for s in stale)
+
+
+def _insert_nutrition(conn, d, source="garmin"):
+    conn.execute(
+        "INSERT INTO nutrition_daily (date, calories_kcal, sodium_mg, source) "
+        "VALUES (?, 2100, 1800, ?)",
+        (d, source),
+    )
+    conn.commit()
+
+
+class TestNutrition:
+    """nutrition_daily is date-keyed (no time-of-day), so these exercise the
+    ts_column='date' path of _sparse_metric_alert."""
+
+    def _alert(self, conn):
+        return _sparse_metric_alert(
+            conn, "nutrition_daily", "garmin",
+            staleness_check.NUTRITION_STALE_DAYS,
+            staleness_check.NUTRITION_DORMANT_DAYS,
+            "Nutrition log", NOW, ts_column="date",
+        )
+
+    def test_unarmed_when_never_logged(self, cardio_db):
+        assert self._alert(cardio_db) is None
+
+    def test_fresh_no_alert(self, cardio_db):
+        _insert_nutrition(cardio_db, _days_ago(1)[:10])
+        assert self._alert(cardio_db) is None
+
+    def test_missed_weekend_no_alert(self, cardio_db):
+        # 3 days quiet < NUTRITION_STALE_DAYS (4) — a skipped weekend must not page.
+        _insert_nutrition(cardio_db, _days_ago(3)[:10])
+        assert self._alert(cardio_db) is None
+
+    def test_stale_window_alerts(self, cardio_db):
+        _insert_nutrition(cardio_db, _days_ago(staleness_check.NUTRITION_STALE_DAYS + 1)[:10])
+        alert = self._alert(cardio_db)
+        assert alert is not None
+        assert "Nutrition log" in alert
+
+    def test_dormant_silences_alarm(self, cardio_db):
+        # Habit abandoned — stop nagging (the known food-tracker failure mode).
+        _insert_nutrition(cardio_db, _days_ago(staleness_check.NUTRITION_DORMANT_DAYS + 1)[:10])
+        assert self._alert(cardio_db) is None
+
+    def test_non_garmin_rows_do_not_arm(self, cardio_db):
+        # A hypothetical Apple-path backfill must never arm the Garmin-log alarm.
+        _insert_nutrition(cardio_db, _days_ago(10)[:10], source="apple")
+        assert self._alert(cardio_db) is None
+
+    def test_check_staleness_includes_nutrition(self, cardio_db):
+        _insert_nutrition(cardio_db, _days_ago(staleness_check.NUTRITION_STALE_DAYS + 2)[:10])
+        stale = check_staleness(now=NOW)
+        assert any("Nutrition log" in s for s in stale)

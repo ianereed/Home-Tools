@@ -382,6 +382,91 @@ def _weight_rows(payload: dict | None) -> tuple[list[tuple], list[tuple]]:
     return weight_rows, comp_rows
 
 
+# mealNutritionContent field -> nutrition_daily column, in insert order after
+# `date`. Shape verified live 2026-07-16 (journal-224; garmin_probe --nutrition).
+_NUTRITION_FIELD_MAP = [
+    ("calories", "calories_kcal"),
+    ("protein", "protein_g"),
+    ("carbs", "carbs_g"),
+    ("fat", "fat_g"),
+    ("saturatedFat", "saturated_fat_g"),
+    ("fiber", "fiber_g"),
+    ("sugar", "sugar_g"),
+    ("sodium", "sodium_mg"),
+    ("potassium", "potassium_mg"),
+]
+
+
+def _nutrition_row(payload: dict | None) -> tuple | None:
+    """Map a get_nutrition_daily_food_log(date) payload into one nutrition_daily row.
+
+    Real shape (journal-224 probe): per-meal pre-aggregated rollups live at
+    mealDetails[*].mealNutritionContent (sodium/potassium/fiber/saturatedFat and
+    the rest all present there); the top-level dailyNutritionContent rollup
+    carries ONLY calories/carbs/fat/protein, so daily sodium etc. must be summed
+    here across meals. None-aware sum: a nutrient absent from every meal stays
+    NULL (unknown), not 0 — zero-filling would fake a perfect-sodium day.
+
+    Returns (date, *nutrients, 'garmin') or None for an empty day — Garmin
+    returns an empty-mealDetails shell (not an error) when nothing is logged,
+    including for days before Connect+ nutrition was enabled.
+    """
+    mdate = (payload or {}).get("mealDate")
+    if not mdate:
+        return None
+    meal_contents = [
+        md["mealNutritionContent"]
+        for md in (payload or {}).get("mealDetails") or []
+        if md.get("mealNutritionContent")
+    ]
+    # A meal shell with no logged foods reports an all-zero/None rollup; only
+    # meals that actually contain loggedFoods count toward "day has data".
+    has_foods = any(
+        md.get("loggedFoods")
+        for md in (payload or {}).get("mealDetails") or []
+    )
+    if not meal_contents or not has_foods:
+        return None
+
+    sums = []
+    for src_field, _col in _NUTRITION_FIELD_MAP:
+        vals = [mc.get(src_field) for mc in meal_contents if mc.get(src_field) is not None]
+        sums.append(round(sum(vals), 2) if vals else None)
+    if all(v is None for v in sums):
+        return None
+    return (mdate, *sums, "garmin")
+
+
+def collect_nutrition(client, target_date: str):
+    """Collect Connect+ nutrition for one day into nutrition_daily.
+
+    Per-day because the (unofficial) nutrition-service has no range endpoint —
+    collect_all's per-day loop makes this days_back+1 extra API calls per run.
+    Empty day (nothing logged / feature not yet enabled) = silent INFO return
+    per Standing rule 6. INSERT OR REPLACE on PK(date, source) means a day
+    re-collected after more meals are logged converges to the latest totals.
+    """
+    conn = get_connection()
+    try:
+        payload = client.get_nutrition_daily_food_log(target_date)
+        row = _nutrition_row(payload)
+        if row is None:
+            logger.info(f"No Garmin nutrition logged for {target_date}")
+            return
+
+        cols = ", ".join(["date"] + [col for _f, col in _NUTRITION_FIELD_MAP] + ["source"])
+        marks = ", ".join("?" for _ in range(len(_NUTRITION_FIELD_MAP) + 2))
+        conn.execute(
+            f"INSERT OR REPLACE INTO nutrition_daily ({cols}) VALUES ({marks})", row
+        )
+        conn.commit()
+        logger.info(f"Saved Garmin nutrition for {target_date}")
+    except Exception as e:
+        logger.error(f"Error collecting Garmin nutrition for {target_date}: {e}")
+    finally:
+        conn.close()
+
+
 def collect_blood_pressure(client, start_date: str, end_date: str):
     """Collect blood-pressure readings for a date range (single range call)."""
     conn = get_connection()
@@ -457,6 +542,7 @@ def collect_all(days_back: int = 7):
         collect_sleep(client, d)
         collect_heart_rate(client, d)
         collect_wellness(client, d)
+        collect_nutrition(client, d)
 
     collect_activities(client, start.isoformat(), today.isoformat())
     collect_hr_streams(client, days_back)

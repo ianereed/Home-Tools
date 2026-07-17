@@ -152,3 +152,58 @@ FoodNoms' lack of a cross-platform API/web dashboard, which would normally count
 - [FoodNoms vs. MyFitnessPal](https://foodnoms.com/vs/myfitnesspal)
 - [FoodNoms+ pricing](https://foodnoms.com/plus)
 - Assorted 2026 third-party pricing/review roundups for MyFitnessPal, Cronometer, MacroFactor, Lose It!, FoodNoms, Lifesum, YAZIO, and Cal AI (nutriscan.app, nutrola.app, fitbudd.com, amyfoodjournal.com, caloriappdirectory.com, and similar) — used only for cross-checking cost figures and friction/UX claims already corroborated by first-party sources above.
+
+---
+
+## Addendum (2026-07-17): Garmin nutrition payload empirically verified — recommendation revised for this deployment
+
+The evaluation above scored apps on one axis: **Apple-Health-write cleanliness**, because
+that rode the existing Health Auto Export → `:8095` receiver with zero new code. On that
+axis, Garmin's verdict ("dead end") was and remains correct — it writes nothing to Apple
+Health. After this memo shipped, the decision axis changed: the dashboard owner prefers a
+**direct Garmin integration** (single ecosystem, no phone-side middleman) and accepts the
+Connect+ subscription. The MyFitnessPal-sync breakage is irrelevant here (MFP is not used).
+
+A **read-only, structure-only probe** (run live against Garmin Connect via the same
+`python-garminconnect` auth this project's collectors already use — field *names* only,
+no values retained) established what no vendor documentation states:
+
+**`get_nutrition_daily_food_log(date)` returns, per logged food AND pre-aggregated per
+meal (`mealDetails[].mealNutritionContent`), all of:** `calories`, `carbs`, `protein`,
+`fat`, `fiber`, `sugar`, `addedSugars`, `saturatedFat`, `monounsaturatedFat`,
+`polyunsaturatedFat`, `transFat`, `cholesterol`, **`sodium`**, **`potassium`**,
+`vitaminD`, `calcium`, `iron` — plus serving unit/quantity and food provenance
+(`foodMetaData`: name, brand, database source, region).
+
+That is a **superset of every `nutrition_daily` column**, including the DASH-critical
+sodium and potassium fields the comparison table above could not confirm for most apps.
+Notable structural findings:
+
+- Garmin's *daily* rollup (`dailyNutritionContent`) carries only calories/carbs/fat/
+  protein — **no daily sodium rollup exists** (consistent with the DC Rainmaker review's
+  "no sodium summary" complaint about the UI). The dashboard sums per-meal rollups
+  itself, which is exactly what `nutrition_daily` is for.
+- An empty day returns an empty-`mealDetails` shell (not an error), so the collector's
+  silent-on-empty convention applies cleanly.
+- Units are *presumed* label-standard (mg for sodium/potassium, g for macros) pending a
+  one-time spot-check of a packaged food against its label — flagged as an open
+  verification item before trend data is treated as authoritative.
+
+**Revised recommendation for THIS deployment: Garmin Connect nutrition (Connect+),**
+collected via `get_nutrition_daily_food_log` into `nutrition_daily` (`source='garmin'`),
+riding the same token store, library, and collector pattern as the project's existing
+BP/weight collection. Accepted trade-offs: subscription cost; unofficial
+reverse-engineered endpoints (the same fragility class as every other Garmin Connect
+call this project already makes); a v1 logger UX (photo-AI portions default to 100 g —
+prefer barcode/manual entry).
+
+**FoodNoms remains the documented recommendation on the original Apple-Health axis** and
+the fallback path if the Garmin logger doesn't stick: the receiver-side integration path
+in section 6 stays valid, unbuilt, and ready.
+
+Additional sources for this addendum:
+
+- [DC Rainmaker: Garmin Connect+ nutrition logging review, Jan 2026](https://www.dcrainmaker.com/2026/01/garmin-connect-nutrition-logging-connect.html)
+- [cyberjunky/python-garminconnect — nutrition endpoints](https://github.com/cyberjunky/python-garminconnect)
+- [sirredbeard/garmin-data-export — independent confirmation the nutrition log is pullable](https://github.com/sirredbeard/garmin-data-export)
+- [Garmin support: How Do I Export Data Out of Garmin Connect?](https://support.garmin.com/en-US/?faq=W1TvTPW8JZ6LfJSfK512Q8)

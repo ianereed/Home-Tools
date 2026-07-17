@@ -184,52 +184,60 @@ SECTIONS = [
     },
 ]
 
-# App recommendation, distilled from diet_app_recommendation.md section 5-6.
+# App recommendation — Garmin Connect nutrition, per the 2026-07-17 addendum to
+# diet_app_recommendation.md: the original memo scored on Apple-Health-write
+# cleanliness (where FoodNoms won and remains the documented fallback), but the
+# chosen axis is a direct Garmin integration, and a live structure-only probe
+# verified Garmin's food-log payload carries every nutrient this page charts.
 RECOMMENDATION = {
-    "app": "FoodNoms",
-    "tagline": "Recommended diet-tracking app — writes cleanly to Apple Health",
+    "app": "Garmin Connect nutrition (Connect+)",
+    "tagline": "Chosen tracker — logs flow straight into this dashboard's "
+               "existing Garmin collector, no phone-side middleman",
     "why": [
-        "Writes only the nutrients each entry actually has to Apple Health — no "
-        "zero-filling of absent fields, unlike several competitors.",
-        "Correctly preserves food names and timestamps in HealthKit — a "
-        "documented advantage over MyFitnessPal's lossy writes.",
-        "Free with unlimited tracking and a free (never-paywalled) barcode "
-        "scanner; optional $39.99/yr Plus tier adds AI photo logging.",
-        "Every other app evaluated (MyFitnessPal, Cronometer, MacroFactor, "
-        "Lose It!) had either an undocumented or a documented-lossy Apple "
-        "Health write. Garmin Connect's native nutrition feature doesn't write "
-        "to Apple Health at all and was disqualified outright.",
+        "Direct integration: this dashboard already authenticates to Garmin "
+        "Connect for BP, weight, sleep, and activities — nutrition rides the "
+        "same token store, library, and nightly collector pattern with no "
+        "Apple Health hop and no extra export app to configure.",
+        "Empirically verified (live structure-only probe, 2026-07-16): the "
+        "per-meal payload carries calories, carbs, protein, fat, saturated "
+        "fat, fiber, sugar + added sugars, cholesterol, sodium, potassium, "
+        "and more — a superset of every nutrition column this page charts.",
+        "Sodium and potassium — the DASH-critical fields — are present per "
+        "food and per meal even though Garmin's own UI shows no daily sodium "
+        "rollup; the collector does its own daily summing.",
+        "Barcode scanning (under a second in DC Rainmaker's testing) plus AI "
+        "photo recognition, in the same app the training data already lives in.",
     ],
     "caveat": (
-        "FoodNoms' food database is adequate but not as encyclopedic as "
-        "MyFitnessPal's (14M items) or Cronometer's research-grade 84-nutrient "
-        "depth — an accepted trade-off given integration cleanliness was "
-        "weighted above app features."
+        "Trade-offs accepted: Connect+ subscription ($6.99/mo); the endpoints "
+        "are unofficial/reverse-engineered (the same fragility class as every "
+        "other Garmin Connect call this dashboard makes); the logger is a v1 "
+        "(AI-photo portions default to 100 g — prefer barcode or manual entry); "
+        "enabling it severs MyFitnessPal sync (not used here). FoodNoms + Apple "
+        "Health remains the documented fallback path if the Garmin logger "
+        "doesn't stick — see the memo addendum."
     ),
     "integration_path": [
-        "Log a meal in FoodNoms (barcode, manual entry, or AI photo) — it "
-        "writes the entry's present nutrient fields to Apple Health "
-        "immediately.",
-        "Apple Health (HealthKit) now holds new nutrition samples under "
-        "Apple's documented identifiers (DietaryEnergyConsumed, "
-        "DietaryProtein, DietaryCarbohydrates, DietaryFatTotal, "
-        "DietaryFatSaturated, DietaryFiber, DietarySugar, DietarySodium, "
-        "DietaryPotassium).",
-        "Health Auto Export (already installed, already POSTing to this "
-        "dashboard's :8095 receiver every 6h) gets the nutrition metrics added "
-        "to its existing REST API automation's metric selection.",
-        "The existing :8095 receiver (collectors/apple_health_server.py) gets "
-        "a new elif branch to sum same-day nutrition samples per metric and "
-        "upsert one row per (date, source) into nutrition_daily — this is "
-        "Phase 7, not implemented yet.",
+        "Log meals in Garmin Connect (barcode scan, search, or AI photo) — "
+        "Connect+ subscription required.",
+        "The nightly Garmin collector calls get_nutrition_daily_food_log for "
+        "each day in its lookback window — same auth and library as the BP "
+        "and weight collection already running.",
+        "Per-meal rollups (mealNutritionContent) are summed None-aware into "
+        "one row per day and upserted into nutrition_daily (source='garmin'); "
+        "re-collection after more meals are logged converges to the latest "
+        "totals.",
+        "The charts below read nutrition_daily and light up automatically — "
+        "sodium vs. the DASH ceiling, saturated-fat % of calories, fiber, and "
+        "potassium.",
     ],
     "sources": [
-        ("FoodNoms: writing to Apple Health",
-         "https://foodnoms.com/help/writing-to-health/"),
-        ("Apple Developer: Nutrition Type Identifiers",
-         "https://developer.apple.com/documentation/healthkit/nutrition-type-identifiers"),
-        ("Health Auto Export: Supported Data and Metrics",
-         "https://help.healthyapps.dev/en/health-auto-export/getting-started/supported-data/"),
+        ("DC Rainmaker: Garmin Connect+ nutrition logging review (Jan 2026)",
+         "https://www.dcrainmaker.com/2026/01/garmin-connect-nutrition-logging-connect.html"),
+        ("python-garminconnect — nutrition endpoints",
+         "https://github.com/cyberjunky/python-garminconnect"),
+        ("Garmin: Connect+ nutrition announcement",
+         "https://www.garmin.com/en-US/newsroom/press-release/sports-fitness/stay-on-top-of-nutrition-goals-in-garmin-connect/"),
     ],
 }
 
