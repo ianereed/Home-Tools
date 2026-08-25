@@ -185,10 +185,14 @@ def _goals_strip_html(lip: pd.DataFrame) -> str:
 
 
 def _medications_html() -> str:
-    """One card per MEDICATIONS entry. Gated on getattr(CD, "MEDICATIONS", [])
-    — empty/absent renders nothing (backward compatible with an un-updated
-    PHI file)."""
-    meds = getattr(CD, "MEDICATIONS", [])
+    """One card per current-regimen MEDICATIONS entry. Gated on
+    getattr(CD, "MEDICATIONS", []) — empty/absent renders nothing (backward
+    compatible with an un-updated PHI file). Discontinued therapies stay in
+    MEDICATIONS for the Goals-tab regimen lanes and LDL projection but don't
+    render a card here; prescribed-not-yet-started meds still do."""
+    meds = [m for m in getattr(CD, "MEDICATIONS", [])
+            if not m.get("stop")
+            and not (m.get("status") or "").lower().startswith("discontinued")]
     if not meds:
         return ""
     cards = []
