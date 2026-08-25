@@ -53,3 +53,18 @@ def test_render_cardiology_on_empty_db(empty_db, fake_clinical, monkeypatch):
 
 def test_render_cardiology_on_empty_db_without_goals(empty_db, fake_clinical_no_goals, monkeypatch):
     _render(empty_db, fake_clinical_no_goals, monkeypatch)
+
+
+def test_stat_cards_apob_none_on_latest_and_nadir(fake_clinical, monkeypatch):
+    """A lipid-only draw (LDL present, ApoB not ordered) can be BOTH the latest
+    row and the LDL nadir. stat_cards_html must render an em-dash for the
+    missing ApoB instead of crashing on int(NaN)."""
+    import build_report
+
+    monkeypatch.setattr(build_report, "CD", fake_clinical)
+    fake_clinical.LIPID_PANELS = fake_clinical.LIPID_PANELS + [
+        ("2025-09-15", 20, None, 90, 100, 45, 40, None, None, "fake lipid-only draw"),
+    ]
+    html = build_report.stat_cards_html(build_report.lipids_df())
+    assert "—" in html
+    assert "40" in html

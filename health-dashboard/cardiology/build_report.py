@@ -642,15 +642,20 @@ def stat_cards_html(lip: pd.DataFrame) -> str:
         arrow, cls = ("▲", "up") if d > 0 else ("▼", "dn")
         return f' <span class="delta {cls}">{arrow}{abs(d)}</span>'
 
+    def fmt_val(v):
+        # A draw can land LDL-first (verbal result / lipid-only panel), so
+        # apob may be NaN on the latest or nadir row.
+        return "—" if pd.isna(v) else f"{int(v)}"
+
     cards = [
         ("LDL-C (mg/dL)",
          f'{int(latest["ldl"])}{delta_tag(latest["ldl"], nadir["ldl"])}',
          f'{latest["date"]:%Y-%m-%d} · nadir {int(nadir["ldl"])} ({nadir["date"]:%b %Y})',
          latest["ldl"] > 99),
         ("ApoB (mg/dL)",
-         f'{int(latest["apob"])}{delta_tag(latest["apob"], nadir["apob"])}',
-         f'{latest["date"]:%Y-%m-%d} · nadir {int(nadir["apob"])} ({nadir["date"]:%b %Y})',
-         latest["apob"] >= 90),
+         f'{fmt_val(latest["apob"])}{delta_tag(latest["apob"], nadir["apob"])}',
+         f'{latest["date"]:%Y-%m-%d} · nadir {fmt_val(nadir["apob"])} ({nadir["date"]:%b %Y})',
+         pd.notna(latest["apob"]) and latest["apob"] >= 90),
         ("Lp(a)", "218.5",
          "nmol/L (2025-04) · ref &lt;75 · genetic, statin-independent", True),
         ("CAC score", "1.41",
