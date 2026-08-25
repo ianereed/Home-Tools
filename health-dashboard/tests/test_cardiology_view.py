@@ -55,6 +55,20 @@ def test_render_cardiology_on_empty_db_without_goals(empty_db, fake_clinical_no_
     _render(empty_db, fake_clinical_no_goals, monkeypatch)
 
 
+def test_medications_html_hides_discontinued(fake_clinical, monkeypatch):
+    """The Cardiology "Medications" header shows the current regimen only:
+    a discontinued med (has "stop" / "discontinued …" status) stays in
+    MEDICATIONS for the Goals-tab regimen lanes but must not render a card;
+    active and prescribed-not-yet-started meds still do."""
+    import dashboard.cardiology_view as cardiology_view
+
+    monkeypatch.setattr(cardiology_view, "CD", fake_clinical)
+    html = cardiology_view._medications_html()
+    assert "Fakezor" in html
+    assert "Fakepha" in html
+    assert "Fakezetia" not in html
+
+
 def test_stat_cards_apob_none_on_latest_and_nadir(fake_clinical, monkeypatch):
     """A lipid-only draw (LDL present, ApoB not ordered) can be BOTH the latest
     row and the LDL nadir. stat_cards_html must render an em-dash for the
