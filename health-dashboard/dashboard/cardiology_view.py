@@ -294,29 +294,41 @@ def _med_markers(fig, med_starts):
                            font=dict(size=10, color=lib.GOOD), row=1, col=1)
 
 
-def _bp_history_fig(bp: pd.DataFrame, med_starts) -> "go.Figure":
-    """The section's headline chart: every reading + 7-day rolling mean, as
+def _bp_daily_smooth(bp: pd.DataFrame, window_days: int) -> pd.DataFrame:
+    """Daily means smoothed with a trailing calendar-day window. Day-first so
+    a 5-reading morning weighs the same as a single-reading day, and
+    calendar-based so the old count-based window (7 *readings* ≈ anywhere
+    from 2 days to 3 weeks of wall time) can't wiggle per cuff press or
+    average across a data gap."""
+    daily = (bp.set_index("timestamp")
+               .resample("D")[["systolic", "diastolic"]]
+               .mean().dropna(how="all"))
+    return daily.rolling(f"{window_days}D", min_periods=1).mean()
+
+
+def _bp_history_fig(bp: pd.DataFrame, med_starts, window_days: int = 3) -> "go.Figure":
+    """The section's headline chart: every reading + a running average, as
     stacked SYSTOLIC/DIASTOLIC panels with data-clamped axes, one goal line
     each, and a stage-2 reference instead of the full band overlay (which
     pinned the old axis to 0). Pure figure builder (no Streamlit)."""
     from plotly.subplots import make_subplots
 
     d = bp.copy()
-    d["sys_roll"] = d["systolic"].rolling(7, min_periods=1).mean()
-    d["dia_roll"] = d["diastolic"].rolling(7, min_periods=1).mean()
+    smooth = _bp_daily_smooth(d, window_days)
 
     fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.16)
-    for row, col_, roll, color, stage2 in ((1, "systolic", "sys_roll", lib.ACCENT, 140),
-                                           (2, "diastolic", "dia_roll", lib.HRV, 90)):
+    for row, col_, color, stage2 in ((1, "systolic", lib.ACCENT, 140),
+                                     (2, "diastolic", lib.HRV, 90)):
         fig.add_trace(go.Scatter(
             x=d["timestamp"], y=d[col_], mode="markers", showlegend=False,
             marker=dict(color=color, size=7, opacity=0.55,
                         line=dict(color="rgba(0,0,0,0.5)", width=1)),
             hovertemplate="%{y} mmHg<extra></extra>"), row=row, col=1)
         fig.add_trace(go.Scatter(
-            x=d["timestamp"], y=d[roll], mode="lines", showlegend=False,
+            x=smooth.index, y=smooth[col_], mode="lines", showlegend=False,
             line=dict(color=color, width=2.5),
-            hovertemplate="7d mean %{y:.0f}<extra></extra>"), row=row, col=1)
+            hovertemplate=f"{window_days}d mean %{{y:.0f}}<extra></extra>"),
+            row=row, col=1)
         fig.add_hline(y=stage2, line_dash="dot", line_color=lib.BAD,
                       line_width=1, opacity=0.6, row=row, col=1)
         fig.add_annotation(text=f"stage 2 ≥{stage2}", x=0, xref="x domain",
@@ -509,8 +521,8 @@ def _render_bp_section():
 
     st.plotly_chart(_bp_history_fig(bp, _bp_med_starts()), use_container_width=True,
                     key="cardio_bp")
-    st.caption("Dots are readings, the line is the 7-day rolling mean. "
-               "Dashed green = goal; dotted red = AHA stage 2.")
+    st.caption("Dots are readings, the line is a 3-day running average of "
+               "daily means. Dashed green = goal; dotted red = AHA stage 2.")
 
     _render_bp_am_pm(bp)
 

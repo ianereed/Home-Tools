@@ -168,6 +168,29 @@ def test_daypart_figures_build_and_clamp_axes(fake_clinical):
     assert not stale.data                             # >90d old: empty figure
 
 
+def test_bp_daily_smooth_day_weighted_and_calendar_windowed(fake_clinical):
+    """The running average is day-first (a 3-reading morning weighs the same
+    as a single-reading day) and calendar-windowed (a long gap is not
+    averaged across — the window holds only days inside it)."""
+    import pandas as pd
+
+    import dashboard.cardiology_view as cardiology_view
+
+    bp = pd.DataFrame({
+        "timestamp": pd.to_datetime([
+            "2025-06-01 07:00", "2025-06-01 08:00", "2025-06-01 09:00",
+            "2025-06-02 07:00",
+            "2025-06-20 07:00",
+        ]),
+        "systolic": [140, 130, 120, 110, 100],
+        "diastolic": [90, 88, 86, 80, 70],
+    })
+    s = cardiology_view._bp_daily_smooth(bp, 3)
+    assert s.loc["2025-06-01", "systolic"] == 130   # day mean of 3 readings
+    assert s.loc["2025-06-02", "systolic"] == 120   # (130 + 110) / 2, day-weighted
+    assert s.loc["2025-06-20", "systolic"] == 100   # gap: window holds itself only
+
+
 def test_bp_history_fig_clamps_and_annotates(fake_clinical):
     """The headline BP chart, restyled: split panels with data-clamped axes
     (the old AHA band overlay pinned the axis to 0), per-panel goal and
