@@ -95,6 +95,26 @@ def test_bp_daypart_stats_one_sided(fake_clinical):
     assert s["am"]["n"] == 2 and s["pm"] is None and s["gap"] is None
 
 
+def test_mornings_after_excludes_start_day(fake_clinical):
+    """A bedtime-dosed med's start-day morning predates the first dose: only
+    mornings from the NEXT day count, and PM readings never do."""
+    import pandas as pd
+
+    import dashboard.cardiology_view as cardiology_view
+
+    bp = pd.DataFrame({
+        "timestamp": pd.to_datetime([
+            "2025-05-01 07:00",   # start-day morning — pre-dose, excluded
+            "2025-05-02 06:30",   # first morning after — included
+            "2025-05-02 14:00",   # afternoon — excluded
+        ]),
+        "systolic": [140, 118, 125], "diastolic": [90, 78, 82],
+    })
+    post = cardiology_view._mornings_after(bp, pd.Timestamp("2025-05-01"))
+    assert len(post) == 1
+    assert post.iloc[0]["systolic"] == 118
+
+
 def test_bp_med_starts_filters_on_purpose(fake_clinical, monkeypatch):
     """Only medications whose purpose says blood pressure produce markers;
     the fixture's lipid meds (purpose 'fixture only') must not."""
