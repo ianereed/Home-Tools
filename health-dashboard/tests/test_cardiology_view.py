@@ -129,7 +129,43 @@ def test_bp_med_starts_filters_on_purpose(fake_clinical, monkeypatch):
          "note": "synthetic fixture entry"},
     ]
     starts = cardiology_view._bp_med_starts()
-    assert [(str(d.date()), n) for d, n in starts] == [("2025-05-01", "Fakenicar")]
+    assert [(str(d.date()), n, f) for d, n, f in starts] == [
+        ("2025-05-01", "Fakenicar", "daily at bedtime")]
+
+
+def test_daypart_figures_build_and_clamp_axes(fake_clinical):
+    """The redesigned split-panel figures: axes clamp to the data (never from
+    0 — the old charts buried a 70-150 mmHg signal in the top third), goal
+    lines are annotated per panel, and a med start draws a labeled marker.
+    Pure builders — no Streamlit runtime needed."""
+    import pandas as pd
+
+    import dashboard.cardiology_view as cardiology_view
+
+    bp = pd.DataFrame({
+        "timestamp": pd.to_datetime([
+            "2025-06-01 07:00", "2025-06-08 08:00", "2025-06-15 07:30",
+            "2025-06-01 20:00", "2025-06-08 21:00", "2025-06-15 19:00",
+        ]),
+        "systolic": [140, 138, 130, 126, 124, 120],
+        "diastolic": [92, 90, 88, 84, 82, 80],
+    })
+    med_starts = [(pd.Timestamp("2025-06-10"), "Fakenicar", "daily at bedtime")]
+
+    weekly = cardiology_view._daypart_weekly_fig(bp, med_starts)
+    assert len(weekly.data) == 4                      # 2 cohorts x 2 panels
+    assert weekly.layout.yaxis.range[0] > 50          # clamped, not from 0
+    assert weekly.layout.yaxis2.range[0] > 50
+    texts = [a.text for a in weekly.layout.annotations]
+    assert "goal <120" in texts and "goal <80" in texts
+    assert "Fakenicar (bedtime)" in texts
+
+    clock = cardiology_view._daypart_clock_fig(bp, now=pd.Timestamp("2025-06-30"))
+    assert "3-hour mean" in [t.name for t in clock.data]
+    assert clock.layout.yaxis.range[0] > 50
+
+    stale = cardiology_view._daypart_clock_fig(bp, now=pd.Timestamp("2026-06-30"))
+    assert not stale.data                             # >90d old: empty figure
 
 
 def test_medications_html_hides_discontinued(fake_clinical, monkeypatch):
