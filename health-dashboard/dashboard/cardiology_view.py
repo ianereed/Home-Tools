@@ -230,12 +230,16 @@ def _bp_daypart_stats(bp: pd.DataFrame, window_days: int = 90,
 
 def _bp_med_starts() -> list[tuple[pd.Timestamp, str, str]]:
     """(start, display name, frequency) of BP-purpose medications, ascending.
-    Read from CD at runtime — committed code carries no med-name literals."""
+    Read from CD at runtime — committed code carries no med-name literals.
+    The start carries a clock time when the PHI file records one (optional
+    "start_time" key): a bedtime regimen can begin after midnight, which
+    changes which mornings count as post-med."""
     starts = []
     for m in getattr(CD, "MEDICATIONS", []):
         purpose = (m.get("purpose") or "").lower()
         if ("blood-pressure" in purpose or "blood pressure" in purpose) and m.get("start"):
-            starts.append((pd.Timestamp(m["start"]), m.get("brand") or m.get("name", ""),
+            ts = pd.Timestamp(f'{m["start"]} {m.get("start_time") or "00:00"}')
+            starts.append((ts, m.get("brand") or m.get("name", ""),
                            (m.get("frequency") or "").lower()))
     return sorted(starts)
 
@@ -437,11 +441,15 @@ def _daypart_clock_fig(bp: pd.DataFrame, now: pd.Timestamp | None = None) -> "go
 
 
 def _mornings_after(bp: pd.DataFrame, start: pd.Timestamp) -> pd.DataFrame:
-    """AM readings from the first morning AFTER the med-start date. A
-    bedtime-dosed med's start-day morning predates its first dose, so
-    day-of readings must not count as "since" the med."""
-    return bp[(bp["timestamp"] >= start + pd.Timedelta(days=1))
-              & (bp["timestamp"].dt.hour < 12)]
+    """AM readings attributable to a med. When the first-dose clock time is
+    known (start carries a non-midnight time), count strictly from that
+    moment — an after-midnight first dose makes the same day's mornings
+    post-med. With a date-only start, count from the first morning AFTER the
+    start date: a bedtime-dosed med's start-day morning predates its first
+    dose, so day-of readings must not count as "since" the med."""
+    boundary = (start if start.time() != datetime.time(0)
+                else start + pd.Timedelta(days=1))
+    return bp[(bp["timestamp"] >= boundary) & (bp["timestamp"].dt.hour < 12)]
 
 
 def _render_bp_am_pm(bp: pd.DataFrame):
@@ -468,12 +476,15 @@ def _render_bp_am_pm(bp: pd.DataFrame):
     if med_starts:
         start, name, _freq = med_starts[-1]
         post = _mornings_after(bp, start)
+        when = (f"the first dose ({start:%Y-%m-%d %H:%M})"
+                if start.time() != datetime.time(0)
+                else f"the morning after the {start.date()} start (start-day "
+                     "mornings predate a bedtime first dose)")
         c[3].metric(f"Mornings since {name} · n={len(post)}",
                     f"{post['systolic'].mean():.0f}/{post['diastolic'].mean():.0f}"
                     if len(post) else "—",
-                    help=f"AM readings from the first morning after the "
-                         f"{start.date()} start (start-day mornings predate a "
-                         "bedtime first dose) — the number the med should move")
+                    help=f"AM readings from {when} — the number the med "
+                         "should move")
     else:
         c[3].metric("Mornings since BP med", "—",
                     help="No BP-directed medication recorded yet")
