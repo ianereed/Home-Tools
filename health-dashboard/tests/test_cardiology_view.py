@@ -55,6 +55,63 @@ def test_render_cardiology_on_empty_db_without_goals(empty_db, fake_clinical_no_
     _render(empty_db, fake_clinical_no_goals, monkeypatch)
 
 
+def test_bp_daypart_stats_split_and_window(fake_clinical):
+    """AM/PM split at noon, means per cohort, gap = AM minus PM, and readings
+    older than the window are excluded."""
+    import pandas as pd
+
+    import dashboard.cardiology_view as cardiology_view
+
+    bp = pd.DataFrame({
+        "timestamp": pd.to_datetime([
+            "2025-06-01 07:00", "2025-06-02 08:30",   # AM cohort
+            "2025-06-01 20:00", "2025-06-02 12:00",   # PM cohort (noon counts)
+            "2024-01-01 07:00",                        # outside 90-day window
+        ]),
+        "systolic": [140, 150, 120, 130, 199],
+        "diastolic": [90, 100, 80, 90, 99],
+    })
+    s = cardiology_view._bp_daypart_stats(
+        bp, window_days=90, now=pd.Timestamp("2025-06-30 12:00"))
+    assert s["n"] == 4
+    assert s["am"] == {"n": 2, "sys": 145, "dia": 95}
+    assert s["pm"] == {"n": 2, "sys": 125, "dia": 85}
+    assert s["gap"] == (20, 10)
+
+
+def test_bp_daypart_stats_one_sided(fake_clinical):
+    """A window with only-morning readings yields pm=None and gap=None (the
+    synthetic fixture DB is all-08:00, so the render path hits this too)."""
+    import pandas as pd
+
+    import dashboard.cardiology_view as cardiology_view
+
+    bp = pd.DataFrame({
+        "timestamp": pd.to_datetime(["2025-06-01 07:00", "2025-06-02 08:00"]),
+        "systolic": [140, 150], "diastolic": [90, 100],
+    })
+    s = cardiology_view._bp_daypart_stats(
+        bp, window_days=90, now=pd.Timestamp("2025-06-30 12:00"))
+    assert s["am"]["n"] == 2 and s["pm"] is None and s["gap"] is None
+
+
+def test_bp_med_starts_filters_on_purpose(fake_clinical, monkeypatch):
+    """Only medications whose purpose says blood pressure produce markers;
+    the fixture's lipid meds (purpose 'fixture only') must not."""
+    import dashboard.cardiology_view as cardiology_view
+
+    monkeypatch.setattr(cardiology_view, "CD", fake_clinical)
+    fake_clinical.MEDICATIONS = fake_clinical.MEDICATIONS + [
+        {"name": "fakesartan", "brand": "Fakenicar", "dose": "0 mg",
+         "form": "oral tablet", "frequency": "daily at bedtime",
+         "start": "2025-05-01", "status": "active",
+         "prescriber": "Dr. Fake", "purpose": "blood-pressure lowering (ARB)",
+         "note": "synthetic fixture entry"},
+    ]
+    starts = cardiology_view._bp_med_starts()
+    assert [(str(d.date()), n) for d, n in starts] == [("2025-05-01", "Fakenicar")]
+
+
 def test_medications_html_hides_discontinued(fake_clinical, monkeypatch):
     """The Cardiology "Medications" header shows the current regimen only:
     a discontinued med (has "stop" / "discontinued …" status) stays in

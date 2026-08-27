@@ -208,9 +208,128 @@ def _medications_html() -> str:
     return f'<div class=cards>{"".join(cards)}</div>'
 
 
+def _bp_daypart_stats(bp: pd.DataFrame, window_days: int = 90,
+                      now: pd.Timestamp | None = None) -> dict:
+    """Morning (before noon) vs afternoon/evening (noon on) means over the
+    trailing window. Returns {"n", "am", "pm", "gap"}; a cohort with zero
+    readings in the window is None, and "gap" (AM minus PM, per component)
+    needs both. Pure function so the split logic tests without Streamlit."""
+    now = now if now is not None else pd.Timestamp.now()
+    win = bp[bp["timestamp"] >= now - pd.Timedelta(days=window_days)]
+    out = {"n": len(win)}
+    for key, sub in (("am", win[win["timestamp"].dt.hour < 12]),
+                     ("pm", win[win["timestamp"].dt.hour >= 12])):
+        out[key] = (None if sub.empty else
+                    {"n": len(sub), "sys": sub["systolic"].mean(),
+                     "dia": sub["diastolic"].mean()})
+    out["gap"] = ((out["am"]["sys"] - out["pm"]["sys"],
+                   out["am"]["dia"] - out["pm"]["dia"])
+                  if out["am"] and out["pm"] else None)
+    return out
+
+
+def _bp_med_starts() -> list[tuple[pd.Timestamp, str]]:
+    """(start, display name) of BP-purpose medications, ascending. Read from
+    CD at runtime — committed code carries no med-name literals."""
+    starts = []
+    for m in getattr(CD, "MEDICATIONS", []):
+        purpose = (m.get("purpose") or "").lower()
+        if ("blood-pressure" in purpose or "blood pressure" in purpose) and m.get("start"):
+            starts.append((pd.Timestamp(m["start"]), m.get("brand") or m.get("name", "")))
+    return sorted(starts)
+
+
+def _render_bp_am_pm(bp: pd.DataFrame):
+    """Morning-vs-evening split: daypart metrics (trailing 90 days), weekly
+    AM/PM mean trends with BP-medication start markers, and a reading-by-
+    clock-time scatter. Motivated by the morning-surge pattern (readings
+    before noon run ~9/5 mmHg higher) and a bedtime-dosed BP med whose effect
+    should show in the mornings first."""
+    st.markdown("### Morning vs evening")
+    stats = _bp_daypart_stats(bp)
+    med_starts = _bp_med_starts()
+
+    def _mmhg(d):
+        return f"{d['sys']:.0f}/{d['dia']:.0f}" if d else "—"
+
+    c = st.columns(4)
+    c[0].metric(f"Morning mean · n={stats['am']['n'] if stats['am'] else 0}",
+                _mmhg(stats["am"]), help="Readings before noon, trailing 90 days")
+    c[1].metric(f"Afternoon/evening · n={stats['pm']['n'] if stats['pm'] else 0}",
+                _mmhg(stats["pm"]), help="Readings from noon on, trailing 90 days")
+    c[2].metric("Morning minus evening",
+                f"{stats['gap'][0]:+.0f}/{stats['gap'][1]:+.0f}" if stats["gap"] else "—",
+                help="Positive = mornings run higher (trailing 90 days)")
+    if med_starts:
+        start, name = med_starts[-1]
+        post = bp[(bp["timestamp"] >= start) & (bp["timestamp"].dt.hour < 12)]
+        c[3].metric(f"Mornings since {name} · n={len(post)}",
+                    f"{post['systolic'].mean():.0f}/{post['diastolic'].mean():.0f}"
+                    if len(post) else "—",
+                    help=f"AM readings since the {start.date()} start of the "
+                         "bedtime BP medication — the number the med should move")
+    else:
+        c[3].metric("Mornings since BP med", "—",
+                    help="No BP-directed medication recorded yet")
+
+    wk = bp.copy()
+    wk["week"] = wk["timestamp"].dt.to_period("W-SUN").dt.start_time
+    wk["daypart"] = (wk["timestamp"].dt.hour < 12).map({True: "am", False: "pm"})
+    g = (wk.groupby(["week", "daypart"])[["systolic", "diastolic"]]
+           .mean().reset_index())
+    fig = go.Figure()
+    for part, color, label in (("am", lib.WARN, "Morning"),
+                               ("pm", lib.ACCENT, "Afternoon/evening")):
+        sub = g[g["daypart"] == part]
+        if sub.empty:
+            continue
+        fig.add_trace(go.Scatter(x=sub["week"], y=sub["systolic"],
+                                 mode="lines+markers", name=f"{label} systolic",
+                                 line=dict(color=color, width=2), marker=dict(size=5)))
+        fig.add_trace(go.Scatter(x=sub["week"], y=sub["diastolic"],
+                                 mode="lines+markers", name=f"{label} diastolic",
+                                 line=dict(color=color, width=2, dash="dot"),
+                                 marker=dict(size=5)))
+    lib.add_bp_bands(fig)
+    from dashboard.goals_view import _time_marker
+    for start, name in med_starts:
+        _time_marker(fig, start, name, lib.GOOD, "dash")
+    st.plotly_chart(lib.apply_theme(fig, 260, legend=True), use_container_width=True,
+                    key="cardio_bp_daypart_weekly")
+    st.caption("Weekly means, split at noon — dotted lines are diastolic. "
+               "Green marker: BP-medication start.")
+
+    win = bp[bp["timestamp"] >= pd.Timestamp.now() - pd.Timedelta(days=90)].copy()
+    if not win.empty:
+        win["clock"] = win["timestamp"].dt.hour + win["timestamp"].dt.minute / 60
+        win["daypart"] = (win["timestamp"].dt.hour < 12).map(
+            {True: "Morning", False: "Afternoon/evening"})
+        fig2 = go.Figure()
+        for part, color in (("Morning", lib.WARN), ("Afternoon/evening", lib.ACCENT)):
+            sub = win[win["daypart"] == part]
+            if sub.empty:
+                continue
+            fig2.add_trace(go.Scatter(x=sub["clock"], y=sub["systolic"], mode="markers",
+                                      name=f"{part} systolic",
+                                      marker=dict(color=color, size=7)))
+            fig2.add_trace(go.Scatter(x=sub["clock"], y=sub["diastolic"], mode="markers",
+                                      name=f"{part} diastolic",
+                                      marker=dict(color=color, size=7,
+                                                  symbol="diamond-open")))
+        lib.add_bp_bands(fig2)
+        fig2.update_xaxes(range=[0, 24], tickvals=[0, 3, 6, 9, 12, 15, 18, 21, 24],
+                          ticktext=["12am", "3am", "6am", "9am", "noon",
+                                    "3pm", "6pm", "9pm", "12am"])
+        st.plotly_chart(lib.apply_theme(fig2, 240, legend=True),
+                        use_container_width=True, key="cardio_bp_clock")
+        st.caption("Each reading by clock time, trailing 90 days — "
+                   "open diamonds are diastolic.")
+
+
 def _render_bp_section():
     """Blood pressure: metrics row, systolic/diastolic scatter + 7-day rolling
-    means with AHA bands, recent-readings table. Empty-safe."""
+    means with AHA bands, morning-vs-evening split, recent-readings table.
+    Empty-safe."""
     st.markdown("## Blood pressure")
     bp = lib.load_df(
         "SELECT timestamp, systolic, diastolic, pulse FROM blood_pressure ORDER BY timestamp")
@@ -250,6 +369,8 @@ def _render_bp_section():
     lib.add_bp_bands(fig)
     st.plotly_chart(lib.apply_theme(fig, 260, legend=True), use_container_width=True,
                     key="cardio_bp")
+
+    _render_bp_am_pm(bp)
 
     with st.expander("Recent readings"):
         table = bp.copy()
