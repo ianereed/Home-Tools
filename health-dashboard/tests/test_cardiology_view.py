@@ -115,6 +115,27 @@ def test_mornings_after_excludes_start_day(fake_clinical):
     assert post.iloc[0]["systolic"] == 118
 
 
+def test_mornings_after_uses_dose_time_when_known(fake_clinical):
+    """An after-midnight first dose (start carries a clock time) makes the
+    SAME day's later mornings post-med; readings before the dose moment and
+    afternoon readings never count."""
+    import pandas as pd
+
+    import dashboard.cardiology_view as cardiology_view
+
+    bp = pd.DataFrame({
+        "timestamp": pd.to_datetime([
+            "2025-05-01 00:30",   # same night, but before the 01:00 dose
+            "2025-05-01 06:30",   # hours after the dose — counts
+            "2025-05-01 14:00",   # afternoon — never counts
+            "2025-05-02 07:00",   # next morning — counts
+        ]),
+        "systolic": [140, 118, 125, 116], "diastolic": [90, 78, 82, 76],
+    })
+    post = cardiology_view._mornings_after(bp, pd.Timestamp("2025-05-01 01:00"))
+    assert list(post["systolic"]) == [118, 116]
+
+
 def test_bp_med_starts_filters_on_purpose(fake_clinical, monkeypatch):
     """Only medications whose purpose says blood pressure produce markers;
     the fixture's lipid meds (purpose 'fixture only') must not."""
@@ -124,13 +145,20 @@ def test_bp_med_starts_filters_on_purpose(fake_clinical, monkeypatch):
     fake_clinical.MEDICATIONS = fake_clinical.MEDICATIONS + [
         {"name": "fakesartan", "brand": "Fakenicar", "dose": "0 mg",
          "form": "oral tablet", "frequency": "daily at bedtime",
-         "start": "2025-05-01", "status": "active",
+         "start": "2025-05-01", "start_time": "01:00", "status": "active",
          "prescriber": "Dr. Fake", "purpose": "blood-pressure lowering (ARB)",
          "note": "synthetic fixture entry"},
+        {"name": "fakepril", "brand": "Fakeace", "dose": "0 mg",
+         "form": "oral tablet", "frequency": "daily",
+         "start": "2025-04-01", "status": "active",
+         "prescriber": "Dr. Fake", "purpose": "blood pressure lowering",
+         "note": "synthetic fixture entry — no start_time key"},
     ]
     starts = cardiology_view._bp_med_starts()
-    assert [(str(d.date()), n, f) for d, n, f in starts] == [
-        ("2025-05-01", "Fakenicar", "daily at bedtime")]
+    assert [(str(d), n) for d, n, _f in starts] == [
+        ("2025-04-01 00:00:00", "Fakeace"),       # date-only start → midnight
+        ("2025-05-01 01:00:00", "Fakenicar"),     # start_time honored
+    ]
 
 
 def test_daypart_figures_build_and_clamp_axes(fake_clinical):
