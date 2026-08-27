@@ -278,6 +278,63 @@ def _daypart_theme(fig, height):
 _DAYPARTS = (("am", lib.WARN, "Morning"), ("pm", lib.ACCENT, "Afternoon & evening"))
 
 
+def _med_markers(fig, med_starts):
+    """Dotted start marker in both panels per BP med, labeled (bedtime-aware)
+    in the top panel. Shape + annotation, never add_vline (date-axis crash)."""
+    for start, name, freq in med_starts:
+        for row in (1, 2):
+            fig.add_shape(type="line", x0=start, x1=start, y0=0, y1=1,
+                          xref="x", yref="y domain",
+                          line=dict(color=lib.GOOD, dash="dot", width=1.5),
+                          opacity=0.9, row=row, col=1)
+        label = name + (" (bedtime)" if "bedtime" in freq else "")
+        fig.add_annotation(x=start, y=1, yref="y domain", yanchor="bottom",
+                           yshift=14, text=label, showarrow=False,
+                           xanchor="right", xshift=-4,
+                           font=dict(size=10, color=lib.GOOD), row=1, col=1)
+
+
+def _bp_history_fig(bp: pd.DataFrame, med_starts) -> "go.Figure":
+    """The section's headline chart: every reading + 7-day rolling mean, as
+    stacked SYSTOLIC/DIASTOLIC panels with data-clamped axes, one goal line
+    each, and a stage-2 reference instead of the full band overlay (which
+    pinned the old axis to 0). Pure figure builder (no Streamlit)."""
+    from plotly.subplots import make_subplots
+
+    d = bp.copy()
+    d["sys_roll"] = d["systolic"].rolling(7, min_periods=1).mean()
+    d["dia_roll"] = d["diastolic"].rolling(7, min_periods=1).mean()
+
+    fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.16)
+    for row, col_, roll, color, stage2 in ((1, "systolic", "sys_roll", lib.ACCENT, 140),
+                                           (2, "diastolic", "dia_roll", lib.HRV, 90)):
+        fig.add_trace(go.Scatter(
+            x=d["timestamp"], y=d[col_], mode="markers", showlegend=False,
+            marker=dict(color=color, size=7, opacity=0.55,
+                        line=dict(color="rgba(0,0,0,0.5)", width=1)),
+            hovertemplate="%{y} mmHg<extra></extra>"), row=row, col=1)
+        fig.add_trace(go.Scatter(
+            x=d["timestamp"], y=d[roll], mode="lines", showlegend=False,
+            line=dict(color=color, width=2.5),
+            hovertemplate="7d mean %{y:.0f}<extra></extra>"), row=row, col=1)
+        fig.add_hline(y=stage2, line_dash="dot", line_color=lib.BAD,
+                      line_width=1, opacity=0.6, row=row, col=1)
+        fig.add_annotation(text=f"stage 2 ≥{stage2}", x=0, xref="x domain",
+                           xanchor="left", y=stage2, yanchor="bottom", yshift=2,
+                           showarrow=False, font=dict(size=10, color=lib.BAD),
+                           opacity=0.8, row=row, col=1)
+
+    slo, shi = _yrange([d["systolic"]], 120)
+    dlo, dhi = _yrange([d["diastolic"]], 80)
+    _panel_chrome(fig, 1, "SYSTOLIC — mmHg", 120, slo, shi)
+    _panel_chrome(fig, 2, "DIASTOLIC — mmHg", 80, dlo, dhi)
+    _med_markers(fig, med_starts)
+    fig.update_layout(hovermode="x unified")
+    fig = _daypart_theme(fig, 430)
+    fig.update_layout(showlegend=False)
+    return fig
+
+
 def _daypart_weekly_fig(bp: pd.DataFrame, med_starts) -> "go.Figure":
     """Weekly AM/PM means as stacked SYSTOLIC/DIASTOLIC panels, each with its
     own data-clamped axis and goal line, plus BP-med start markers. Pure
@@ -307,17 +364,7 @@ def _daypart_weekly_fig(bp: pd.DataFrame, med_starts) -> "go.Figure":
     dlo, dhi = _yrange([am["diastolic"], pm["diastolic"]], 80)
     _panel_chrome(fig, 1, "SYSTOLIC — weekly mean, mmHg", 120, slo, shi)
     _panel_chrome(fig, 2, "DIASTOLIC — weekly mean, mmHg", 80, dlo, dhi)
-    for start, name, freq in med_starts:
-        for row in (1, 2):
-            fig.add_shape(type="line", x0=start, x1=start, y0=0, y1=1,
-                          xref="x", yref="y domain",
-                          line=dict(color=lib.GOOD, dash="dot", width=1.5),
-                          opacity=0.9, row=row, col=1)
-        label = name + (" (bedtime)" if "bedtime" in freq else "")
-        fig.add_annotation(x=start, y=1, yref="y domain", yanchor="bottom",
-                           yshift=14, text=label, showarrow=False,
-                           xanchor="right", xshift=-4,
-                           font=dict(size=10, color=lib.GOOD), row=1, col=1)
+    _med_markers(fig, med_starts)
     fig.update_layout(hovermode="x unified")
     return _daypart_theme(fig, 430)
 
@@ -460,20 +507,10 @@ def _render_bp_section():
     c[2].metric("Readings in range", f"{len(bp)}")
     c[3].metric("Last reading", f"{days_ago} day{'s' if days_ago != 1 else ''} ago")
 
-    bp["sys_roll"] = bp["systolic"].rolling(7, min_periods=1).mean()
-    bp["dia_roll"] = bp["diastolic"].rolling(7, min_periods=1).mean()
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(x=bp["timestamp"], y=bp["systolic"], mode="markers",
-                              name="Systolic", marker=dict(color=lib.ACCENT, size=6)))
-    fig.add_trace(go.Scatter(x=bp["timestamp"], y=bp["diastolic"], mode="markers",
-                              name="Diastolic", marker=dict(color=lib.HRV, size=6)))
-    fig.add_trace(go.Scatter(x=bp["timestamp"], y=bp["sys_roll"], mode="lines",
-                              name="Systolic 7d mean", line=dict(color=lib.ACCENT, width=2)))
-    fig.add_trace(go.Scatter(x=bp["timestamp"], y=bp["dia_roll"], mode="lines",
-                              name="Diastolic 7d mean", line=dict(color=lib.HRV, width=2)))
-    lib.add_bp_bands(fig)
-    st.plotly_chart(lib.apply_theme(fig, 260, legend=True), use_container_width=True,
+    st.plotly_chart(_bp_history_fig(bp, _bp_med_starts()), use_container_width=True,
                     key="cardio_bp")
+    st.caption("Dots are readings, the line is the 7-day rolling mean. "
+               "Dashed green = goal; dotted red = AHA stage 2.")
 
     _render_bp_am_pm(bp)
 

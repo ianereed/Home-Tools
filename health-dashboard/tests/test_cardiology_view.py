@@ -168,6 +168,34 @@ def test_daypart_figures_build_and_clamp_axes(fake_clinical):
     assert not stale.data                             # >90d old: empty figure
 
 
+def test_bp_history_fig_clamps_and_annotates(fake_clinical):
+    """The headline BP chart, restyled: split panels with data-clamped axes
+    (the old AHA band overlay pinned the axis to 0), per-panel goal and
+    stage-2 references, and labeled med markers."""
+    import pandas as pd
+
+    import dashboard.cardiology_view as cardiology_view
+
+    bp = pd.DataFrame({
+        "timestamp": pd.to_datetime([
+            "2025-06-01 07:00", "2025-06-05 20:00", "2025-06-09 08:00",
+            "2025-06-13 21:00", "2025-06-17 07:30",
+        ]),
+        "systolic": [142, 130, 128, 124, 118],
+        "diastolic": [94, 88, 86, 82, 78],
+    })
+    med_starts = [(pd.Timestamp("2025-06-10"), "Fakenicar", "daily at bedtime")]
+
+    fig = cardiology_view._bp_history_fig(bp, med_starts)
+    assert len(fig.data) == 4                         # dots + 7d mean, x2 panels
+    assert fig.layout.yaxis.range[0] > 50             # clamped, not from 0
+    assert fig.layout.yaxis2.range[0] > 50
+    texts = [a.text for a in fig.layout.annotations]
+    assert "goal <120" in texts and "goal <80" in texts
+    assert "stage 2 ≥140" in texts and "stage 2 ≥90" in texts
+    assert "Fakenicar (bedtime)" in texts
+
+
 def test_medications_html_hides_discontinued(fake_clinical, monkeypatch):
     """The Cardiology "Medications" header shows the current regimen only:
     a discontinued med (has "stop" / "discontinued …" status) stays in
