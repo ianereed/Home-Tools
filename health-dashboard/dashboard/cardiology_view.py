@@ -228,15 +228,153 @@ def _bp_daypart_stats(bp: pd.DataFrame, window_days: int = 90,
     return out
 
 
-def _bp_med_starts() -> list[tuple[pd.Timestamp, str]]:
-    """(start, display name) of BP-purpose medications, ascending. Read from
-    CD at runtime — committed code carries no med-name literals."""
+def _bp_med_starts() -> list[tuple[pd.Timestamp, str, str]]:
+    """(start, display name, frequency) of BP-purpose medications, ascending.
+    Read from CD at runtime — committed code carries no med-name literals."""
     starts = []
     for m in getattr(CD, "MEDICATIONS", []):
         purpose = (m.get("purpose") or "").lower()
         if ("blood-pressure" in purpose or "blood pressure" in purpose) and m.get("start"):
-            starts.append((pd.Timestamp(m["start"]), m.get("brand") or m.get("name", "")))
+            starts.append((pd.Timestamp(m["start"]), m.get("brand") or m.get("name", ""),
+                           (m.get("frequency") or "").lower()))
     return sorted(starts)
+
+
+def _panel_chrome(fig, row, label, goal, y_lo, y_hi):
+    """Split-panel dressing: y-range clamped to the data (the whole point —
+    BP lives in 70-150, an axis from 0 buries the signal), a faint target
+    tint below the goal, one dashed goal line with an in-panel label, and a
+    muted panel title."""
+    fig.update_yaxes(range=[y_lo, y_hi], row=row, col=1)
+    fig.add_hrect(y0=y_lo, y1=goal, fillcolor=lib.GOOD, opacity=0.05,
+                  line_width=0, row=row, col=1)
+    fig.add_hline(y=goal, line_dash="dash", line_color=lib.GOOD, line_width=1.5,
+                  row=row, col=1)
+    fig.add_annotation(text=f"goal <{goal}", x=1, xref="x domain", xanchor="right",
+                       y=goal, yanchor="top", yshift=-2, showarrow=False,
+                       font=dict(size=10, color=lib.GOOD), row=row, col=1)
+    fig.add_annotation(text=label, x=0, xref="x domain", xanchor="left",
+                       y=1, yref="y domain", yanchor="bottom", yshift=2,
+                       showarrow=False, font=dict(size=11, color=lib.MUTED),
+                       row=row, col=1)
+
+
+def _yrange(series_list, goal, pad=4):
+    """Data-clamped axis range that always keeps the goal line in view."""
+    vals = pd.concat([s for s in series_list if not s.empty])
+    return min(vals.min(), goal) - pad, max(vals.max(), goal) + pad
+
+
+def _daypart_theme(fig, height):
+    """House theme + the split-panel specifics the demo approved: legend on
+    top (two cohort entries) and headroom for the in-panel annotations."""
+    lib.apply_theme(fig, height, legend=True)
+    fig.update_layout(
+        margin=dict(l=8, r=8, t=30, b=8),
+        legend=dict(orientation="h", y=1.13, x=0, font=dict(size=11)))
+    return fig
+
+
+_DAYPARTS = (("am", lib.WARN, "Morning"), ("pm", lib.ACCENT, "Afternoon & evening"))
+
+
+def _daypart_weekly_fig(bp: pd.DataFrame, med_starts) -> "go.Figure":
+    """Weekly AM/PM means as stacked SYSTOLIC/DIASTOLIC panels, each with its
+    own data-clamped axis and goal line, plus BP-med start markers. Pure
+    figure builder (no Streamlit) so tests and the mini can run it headless."""
+    from plotly.subplots import make_subplots
+
+    wk = bp.copy()
+    wk["week"] = wk["timestamp"].dt.to_period("W-SUN").dt.start_time
+    wk["daypart"] = (wk["timestamp"].dt.hour < 12).map({True: "am", False: "pm"})
+    g = (wk.groupby(["week", "daypart"])[["systolic", "diastolic"]]
+           .mean().reset_index())
+    am, pm = g[g["daypart"] == "am"], g[g["daypart"] == "pm"]
+
+    fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.16)
+    for row, col_ in ((1, "systolic"), (2, "diastolic")):
+        for sub, (_, color, name) in zip((am, pm), _DAYPARTS):
+            if sub.empty:
+                continue
+            fig.add_trace(go.Scatter(
+                x=sub["week"], y=sub[col_], mode="lines+markers", name=name,
+                line=dict(color=color, width=2.5), marker=dict(size=6),
+                showlegend=(row == 1), legendgroup=name,
+                hovertemplate="%{y:.0f}<extra>" + name + "</extra>"),
+                row=row, col=1)
+
+    slo, shi = _yrange([am["systolic"], pm["systolic"]], 120)
+    dlo, dhi = _yrange([am["diastolic"], pm["diastolic"]], 80)
+    _panel_chrome(fig, 1, "SYSTOLIC — weekly mean, mmHg", 120, slo, shi)
+    _panel_chrome(fig, 2, "DIASTOLIC — weekly mean, mmHg", 80, dlo, dhi)
+    for start, name, freq in med_starts:
+        for row in (1, 2):
+            fig.add_shape(type="line", x0=start, x1=start, y0=0, y1=1,
+                          xref="x", yref="y domain",
+                          line=dict(color=lib.GOOD, dash="dot", width=1.5),
+                          opacity=0.9, row=row, col=1)
+        label = name + (" (bedtime)" if "bedtime" in freq else "")
+        fig.add_annotation(x=start, y=1, yref="y domain", yanchor="bottom",
+                           yshift=14, text=label, showarrow=False,
+                           xanchor="right", xshift=-4,
+                           font=dict(size=10, color=lib.GOOD), row=1, col=1)
+    fig.update_layout(hovermode="x unified")
+    return _daypart_theme(fig, 430)
+
+
+def _daypart_clock_fig(bp: pd.DataFrame, now: pd.Timestamp | None = None) -> "go.Figure":
+    """Trailing-90-day readings by clock time as stacked SYSTOLIC/DIASTOLIC
+    panels with a 3-hour mean line (the diurnal shape) and a noon divider.
+    Pure figure builder (no Streamlit)."""
+    from plotly.subplots import make_subplots
+
+    now = now if now is not None else pd.Timestamp.now()
+    win = bp[bp["timestamp"] >= now - pd.Timedelta(days=90)].copy()
+    if win.empty:
+        return go.Figure()
+    win["clock"] = win["timestamp"].dt.hour + win["timestamp"].dt.minute / 60
+    win["daypart"] = (win["timestamp"].dt.hour < 12).map({True: "am", False: "pm"})
+    win["label"] = win["timestamp"].dt.strftime("%b %d · %H:%M")
+
+    fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.16)
+    for row, col_ in ((1, "systolic"), (2, "diastolic")):
+        for part, color, name in _DAYPARTS:
+            sub = win[win["daypart"] == part]
+            if sub.empty:
+                continue
+            fig.add_trace(go.Scatter(
+                x=sub["clock"], y=sub[col_], mode="markers", name=name,
+                marker=dict(color=color, size=9, opacity=0.75,
+                            line=dict(color="rgba(0,0,0,0.5)", width=1)),
+                showlegend=(row == 1), legendgroup=name, customdata=sub["label"],
+                hovertemplate="%{customdata} — %{y} mmHg<extra></extra>"),
+                row=row, col=1)
+        b3 = win.copy()
+        b3["bin"] = (b3["clock"] // 3) * 3 + 1.5
+        m3 = b3.groupby("bin")[col_].mean().reset_index()
+        fig.add_trace(go.Scatter(
+            x=m3["bin"], y=m3[col_], mode="lines", name="3-hour mean",
+            line=dict(color=lib.INK, width=2), opacity=0.45,
+            showlegend=(row == 1), legendgroup="mean",
+            hovertemplate="3h mean %{y:.0f}<extra></extra>"), row=row, col=1)
+
+    slo, shi = _yrange([win["systolic"]], 120)
+    dlo, dhi = _yrange([win["diastolic"]], 80)
+    _panel_chrome(fig, 1, "SYSTOLIC — each reading, trailing 90 days", 120, slo, shi)
+    _panel_chrome(fig, 2, "DIASTOLIC — each reading, trailing 90 days", 80, dlo, dhi)
+    for row in (1, 2):
+        fig.add_shape(type="line", x0=12, x1=12, y0=0, y1=1, xref="x",
+                      yref="y domain",
+                      line=dict(color=lib.MUTED, dash="dot", width=1),
+                      opacity=0.6, row=row, col=1)
+    fig.add_annotation(x=12, y=1, yref="y domain", yanchor="bottom", yshift=14,
+                       text="noon", showarrow=False,
+                       font=dict(size=10, color=lib.MUTED), row=1, col=1)
+    fig.update_xaxes(range=[5, 24], tickvals=[6, 9, 12, 15, 18, 21, 24],
+                     ticktext=["6am", "9am", "noon", "3pm", "6pm", "9pm", "12am"])
+    fig = _daypart_theme(fig, 400)
+    fig.update_layout(hovermode="closest")
+    return fig
 
 
 def _mornings_after(bp: pd.DataFrame, start: pd.Timestamp) -> pd.DataFrame:
@@ -269,7 +407,7 @@ def _render_bp_am_pm(bp: pd.DataFrame):
                 f"{stats['gap'][0]:+.0f}/{stats['gap'][1]:+.0f}" if stats["gap"] else "—",
                 help="Positive = mornings run higher (trailing 90 days)")
     if med_starts:
-        start, name = med_starts[-1]
+        start, name, _freq = med_starts[-1]
         post = _mornings_after(bp, start)
         c[3].metric(f"Mornings since {name} · n={len(post)}",
                     f"{post['systolic'].mean():.0f}/{post['diastolic'].mean():.0f}"
@@ -281,58 +419,16 @@ def _render_bp_am_pm(bp: pd.DataFrame):
         c[3].metric("Mornings since BP med", "—",
                     help="No BP-directed medication recorded yet")
 
-    wk = bp.copy()
-    wk["week"] = wk["timestamp"].dt.to_period("W-SUN").dt.start_time
-    wk["daypart"] = (wk["timestamp"].dt.hour < 12).map({True: "am", False: "pm"})
-    g = (wk.groupby(["week", "daypart"])[["systolic", "diastolic"]]
-           .mean().reset_index())
-    fig = go.Figure()
-    for part, color, label in (("am", lib.WARN, "Morning"),
-                               ("pm", lib.ACCENT, "Afternoon/evening")):
-        sub = g[g["daypart"] == part]
-        if sub.empty:
-            continue
-        fig.add_trace(go.Scatter(x=sub["week"], y=sub["systolic"],
-                                 mode="lines+markers", name=f"{label} systolic",
-                                 line=dict(color=color, width=2), marker=dict(size=5)))
-        fig.add_trace(go.Scatter(x=sub["week"], y=sub["diastolic"],
-                                 mode="lines+markers", name=f"{label} diastolic",
-                                 line=dict(color=color, width=2, dash="dot"),
-                                 marker=dict(size=5)))
-    lib.add_bp_bands(fig)
-    from dashboard.goals_view import _time_marker
-    for start, name in med_starts:
-        _time_marker(fig, start, name, lib.GOOD, "dash")
-    st.plotly_chart(lib.apply_theme(fig, 260, legend=True), use_container_width=True,
+    st.plotly_chart(_daypart_weekly_fig(bp, med_starts), use_container_width=True,
                     key="cardio_bp_daypart_weekly")
-    st.caption("Weekly means, split at noon — dotted lines are diastolic. "
-               "Green marker: BP-medication start.")
+    st.caption("Weekly means, split at noon — systolic and diastolic each get "
+               "their own axis and goal line. Green marker: BP-medication start.")
 
-    win = bp[bp["timestamp"] >= pd.Timestamp.now() - pd.Timedelta(days=90)].copy()
-    if not win.empty:
-        win["clock"] = win["timestamp"].dt.hour + win["timestamp"].dt.minute / 60
-        win["daypart"] = (win["timestamp"].dt.hour < 12).map(
-            {True: "Morning", False: "Afternoon/evening"})
-        fig2 = go.Figure()
-        for part, color in (("Morning", lib.WARN), ("Afternoon/evening", lib.ACCENT)):
-            sub = win[win["daypart"] == part]
-            if sub.empty:
-                continue
-            fig2.add_trace(go.Scatter(x=sub["clock"], y=sub["systolic"], mode="markers",
-                                      name=f"{part} systolic",
-                                      marker=dict(color=color, size=7)))
-            fig2.add_trace(go.Scatter(x=sub["clock"], y=sub["diastolic"], mode="markers",
-                                      name=f"{part} diastolic",
-                                      marker=dict(color=color, size=7,
-                                                  symbol="diamond-open")))
-        lib.add_bp_bands(fig2)
-        fig2.update_xaxes(range=[0, 24], tickvals=[0, 3, 6, 9, 12, 15, 18, 21, 24],
-                          ticktext=["12am", "3am", "6am", "9am", "noon",
-                                    "3pm", "6pm", "9pm", "12am"])
-        st.plotly_chart(lib.apply_theme(fig2, 240, legend=True),
-                        use_container_width=True, key="cardio_bp_clock")
-        st.caption("Each reading by clock time, trailing 90 days — "
-                   "open diamonds are diastolic.")
+    fig_clock = _daypart_clock_fig(bp)
+    if fig_clock.data:
+        st.plotly_chart(fig_clock, use_container_width=True, key="cardio_bp_clock")
+        st.caption("Each reading by clock time, trailing 90 days — the gray "
+                   "line is the 3-hour average, the shape of your day.")
 
 
 def _render_bp_section():
