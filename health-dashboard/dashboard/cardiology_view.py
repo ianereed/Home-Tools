@@ -239,6 +239,14 @@ def _bp_med_starts() -> list[tuple[pd.Timestamp, str]]:
     return sorted(starts)
 
 
+def _mornings_after(bp: pd.DataFrame, start: pd.Timestamp) -> pd.DataFrame:
+    """AM readings from the first morning AFTER the med-start date. A
+    bedtime-dosed med's start-day morning predates its first dose, so
+    day-of readings must not count as "since" the med."""
+    return bp[(bp["timestamp"] >= start + pd.Timedelta(days=1))
+              & (bp["timestamp"].dt.hour < 12)]
+
+
 def _render_bp_am_pm(bp: pd.DataFrame):
     """Morning-vs-evening split: daypart metrics (trailing 90 days), weekly
     AM/PM mean trends with BP-medication start markers, and a reading-by-
@@ -262,12 +270,13 @@ def _render_bp_am_pm(bp: pd.DataFrame):
                 help="Positive = mornings run higher (trailing 90 days)")
     if med_starts:
         start, name = med_starts[-1]
-        post = bp[(bp["timestamp"] >= start) & (bp["timestamp"].dt.hour < 12)]
+        post = _mornings_after(bp, start)
         c[3].metric(f"Mornings since {name} · n={len(post)}",
                     f"{post['systolic'].mean():.0f}/{post['diastolic'].mean():.0f}"
                     if len(post) else "—",
-                    help=f"AM readings since the {start.date()} start of the "
-                         "bedtime BP medication — the number the med should move")
+                    help=f"AM readings from the first morning after the "
+                         f"{start.date()} start (start-day mornings predate a "
+                         "bedtime first dose) — the number the med should move")
     else:
         c[3].metric("Mornings since BP med", "—",
                     help="No BP-directed medication recorded yet")
