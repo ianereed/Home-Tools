@@ -379,3 +379,43 @@ def test_lifestyle_rows_requires_name_and_date():
          "details": [{"subTypeName": "BEER", "amount": 1}]},
     ])
     assert _lifestyle_rows(payload) == []
+
+
+def _binary_log(cdate, name, status):
+    # Shape of measurementType NONE behaviors (journal-109 probe 2026-09-07):
+    # no details[], logged-ness carried only by logStatus.
+    return {"behaviourId": 41, "measurementType": "NONE", "calendarDate": cdate,
+            "name": name, "logStatus": status, "category": "LIFE_STATUS",
+            "sleepRelated": False}
+
+
+def test_lifestyle_rows_binary_yes_stored_as_amount_one():
+    payload = _lifestyle_payload([
+        _binary_log("2026-07-16", "Travel", "YES"),
+        _binary_log("2026-07-16", "Illness", "NO"),
+    ])
+    assert _lifestyle_rows(payload) == [
+        ("2026-07-16", "Travel", "", 1.0, "garmin"),
+    ]
+
+
+def test_lifestyle_rows_mixed_quantity_and_binary():
+    payload = _lifestyle_payload([
+        _alcohol_log("2026-07-16", [("BEER", 2)]),
+        _binary_log("2026-07-16", "Travel", "YES"),
+    ])
+    assert set(_lifestyle_rows(payload)) == {
+        ("2026-07-16", "Alcohol", "BEER", 2.0, "garmin"),
+        ("2026-07-16", "Travel", "", 1.0, "garmin"),
+    }
+
+
+def test_lifestyle_rows_binary_no_row_without_none_measurement():
+    # A quantity behavior whose details all lack amounts must NOT fall back
+    # to the binary 1.0 row — logStatus YES alone isn't a served quantity.
+    payload = _lifestyle_payload([
+        {"name": "Alcohol", "calendarDate": "2026-07-16",
+         "measurementType": "QUANTITY", "logStatus": "YES",
+         "details": [{"subTypeName": "BEER", "amount": None}]},
+    ])
+    assert _lifestyle_rows(payload) == []

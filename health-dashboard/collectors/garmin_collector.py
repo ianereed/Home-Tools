@@ -470,12 +470,18 @@ def collect_nutrition(client, target_date: str):
 def _lifestyle_rows(payload: dict | None) -> list[tuple]:
     """Map a get_lifestyle_logging_data(date) payload into lifestyle_log rows.
 
-    Real shape (journal-224 probe): dailyLogsReport[] entries each carry a
-    behavior `name` (e.g. 'Alcohol'), a `calendarDate`, and `details[]` with a
-    per-subtype `amount` (Alcohol subtypes BEER/WINE/SPIRIT, amount = serving
-    count). Only quantity-bearing details produce rows — binary/tracking-only
-    behaviors (no amount) are skipped. subtype falls back to '' so the
-    lifestyle_log PK dedupes reliably.
+    Real shape (journal-224 probe; binary shape journal-109 probe 2026-09-07):
+    dailyLogsReport[] entries each carry a behavior `name` (e.g. 'Alcohol'),
+    a `calendarDate`, and either
+      - quantity behaviors (measurementType QUANTITY): `details[]` with a
+        per-subtype `amount` (Alcohol subtypes BEER/WINE/SPIRIT, amount =
+        serving count) — one row per amount-bearing detail, or
+      - binary behaviors (measurementType NONE, e.g. Traveling/Vacation,
+        Illness, custom types): no details, just `logStatus` YES/NO — a YES
+        day is stored as one row with amount 1.0 (a NO day stores nothing;
+        the per-day snapshot rewrite in collect_lifestyle removes a
+        previously-stored YES that later flips to NO).
+    subtype falls back to '' so the lifestyle_log PK dedupes reliably.
     """
     rows = []
     for log in (payload or {}).get("dailyLogsReport") or []:
@@ -483,12 +489,17 @@ def _lifestyle_rows(payload: dict | None) -> list[tuple]:
         cdate = log.get("calendarDate")
         if not name or not cdate:
             continue
+        emitted = False
         for det in log.get("details") or []:
             amount = det.get("amount")
             if amount is None:
                 continue
             subtype = det.get("subTypeName") or ""
             rows.append((cdate, name, subtype, float(amount), "garmin"))
+            emitted = True
+        if (not emitted and log.get("measurementType") == "NONE"
+                and log.get("logStatus") == "YES"):
+            rows.append((cdate, name, "", 1.0, "garmin"))
     return rows
 
 
