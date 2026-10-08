@@ -539,6 +539,49 @@ def collect_lifestyle(client, target_date: str):
         conn.close()
 
 
+def _vo2max_row(payload: dict | None) -> tuple | None:
+    """Map get_training_status(date)["mostRecentVO2Max"] to a vo2max row.
+
+    Real shape (probe 2026-10-08): {"generic": {"calendarDate", "vo2MaxPreciseValue",
+    "vo2MaxValue", ...}, "cycling": {same keys} | None, ...}. generic is
+    Garmin's headline value; cycling is the fallback for a ride-only stretch
+    where generic hasn't been set. Row date is the estimate's own calendarDate
+    (when Garmin last updated it), not the query date.
+    """
+    for key in ("generic", "cycling"):
+        m = (payload or {}).get(key) or {}
+        vo2 = m.get("vo2MaxPreciseValue") or m.get("vo2MaxValue")
+        if vo2 and m.get("calendarDate"):
+            return (m["calendarDate"], float(vo2), "garmin")
+    return None
+
+
+def collect_vo2max(client, target_date: str):
+    """Collect the latest VO2max estimate as of target_date.
+
+    get_max_metrics(date) is sparse — it returns [] on every day the estimate
+    didn't change — so the weekly-sampled backfill silently missed values and
+    the daily run never collected VO2max at all (gap 2026-06-09 → 10-08).
+    training_status carries mostRecentVO2Max regardless of the query day.
+    """
+    conn = get_connection()
+    try:
+        status = client.get_training_status(target_date) or {}
+        row = _vo2max_row(status.get("mostRecentVO2Max"))
+        if not row:
+            logger.info(f"No Garmin VO2max as of {target_date}")
+            return
+        conn.execute(
+            "INSERT OR REPLACE INTO vo2max (date, vo2max, source) VALUES (?, ?, ?)", row
+        )
+        conn.commit()
+        logger.info(f"Saved Garmin VO2max {row[1]} for {row[0]}")
+    except Exception as e:
+        logger.error(f"Error collecting Garmin VO2max for {target_date}: {e}")
+    finally:
+        conn.close()
+
+
 def collect_blood_pressure(client, start_date: str, end_date: str):
     """Collect blood-pressure readings for a date range (single range call)."""
     conn = get_connection()
@@ -621,4 +664,5 @@ def collect_all(days_back: int = 7):
     collect_hr_streams(client, days_back)
     collect_blood_pressure(client, start.isoformat(), today.isoformat())
     collect_body_composition(client, start.isoformat(), today.isoformat())
+    collect_vo2max(client, today.isoformat())
     logger.info("Garmin collection complete.")

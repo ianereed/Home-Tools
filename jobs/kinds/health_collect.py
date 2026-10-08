@@ -2,7 +2,7 @@
 
 The original plist runs `python3 -m collectors.collect_all` from the
 health-dashboard project directory using its own venv. We invoke that same
-venv-python so dependencies (garmin/strava libs) come from the right place.
+venv-python so dependencies (garmin libs) come from the right place.
 """
 from __future__ import annotations
 

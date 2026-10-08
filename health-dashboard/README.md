@@ -2,7 +2,7 @@
 
 Personal health metrics dashboard for HRV, sleep, heart rate, and training load.
 A Streamlit UI + a collector pipeline that pulls from Apple Health (iPhone Auto
-Export), Strava, and Garmin into a single SQLite database.
+Export) and Garmin into a single SQLite database.
 
 **Information-only, historical view.** Garmin owns day-to-day training guidance;
 this dashboard is for the long view — holistic, historical tracking you check in
@@ -14,7 +14,7 @@ There are deliberately no "train hard / rest today" prescriptions.
 
 ```
   iPhone Health Auto Export ──HTTP POST──▶ receiver:8095 ──▶ data/health.db
-  Strava + Garmin APIs ──poll──▶ collectors ──▶ data/health.db
+  Garmin API ──poll──▶ collectors ──▶ data/health.db
                                                               │
                                                               ▼
                                                      Streamlit dashboard :8501
@@ -33,9 +33,12 @@ Receiver is on `:8095`. Streamlit UI is on `:8501`. Both reachable over Tailscal
   They live in `../jobs/kinds/health_*.py` and subprocess into this project's `.venv`.
   After changing a kind: `launchctl kickstart -kp gui/$(id -u)/com.home-tools.jobs-consumer`.
 
-**Data sources:** Strava (activities), Garmin (sleep, resting HR, wellness — HRV /
-sleep score / steps), Apple Health (sleep, HRV, resting HR via the iPhone receiver).
+**Data sources:** Garmin (activities, sleep, resting HR, wellness — HRV / sleep
+score / steps, BP, weight, VO2max), Apple Health (sleep, HRV, resting HR via the iPhone receiver).
 Suunto/Intervals.icu was retired 2026-05-30 (device gone); Garmin now owns wellness.
+Strava was turned off 2026-10-08 — it only mirrored Garmin workouts and its API app
+had gone Inactive (403). Historical strava rows stay in the DB (de-duped against
+Garmin); `collectors/strava_collector.py` + `strava_setup.py` remain for a re-enable.
 
 ## Dashboard pages
 
@@ -99,7 +102,7 @@ Single-user (you). Hosted on the Mac mini and reachable over Tailscale. Not desi
 
 - **Keychain shim**: `collectors/__init__.py` monkey-patches `keyring.get_password` to shell out to `security` with `KEYCHAIN_PATH`. This is the canonical pattern reused by other Mac-mini projects — see `~/.claude/projects/.../memory/project_mac_mini_keychain_shim.md`.
 - **Apple Health automation**: see [`APPLE_HEALTH_AUTOMATION.md`](APPLE_HEALTH_AUTOMATION.md) in this directory.
-- **Keychain entries**: `health-dashboard-strava`, `health-dashboard-garmin` (`email`/`password`) × `{client_id, client_secret, tokens, ...}`
+- **Keychain entries**: `health-dashboard-garmin`, `health-dashboard-strava` (dormant) (`email`/`password`) × `{client_id, client_secret, tokens, ...}`
 - **Staleness**: `health_staleness` flags sleep/HRV/resting-HR stale after 24h and sends an ntfy.sh push (topic `ian-health-dashboard`) with a diagnosis (receiver up? iPhone online on Tailscale? → app-side steps). Every run also appends to `logs/health-staleness.log` — that file's mtime is the kind's migration baseline, so it must always be written. Diagnosis subprocess calls (`tailscale`, `lsof`) degrade gracefully if the binary isn't on `PATH`.
 - **Collection alerting**: `health_collect` persists each run to `logs/collect.log` and, on a non-zero exit, pushes an ntfy alert and raises (so huey records the failure). This is the primary "something broke" signal now the dashboard isn't watched daily. Collectors use a 30s socket timeout + one bounded retry each.
 - **Streamlit on `:8501`** runs as `com.health-dashboard.streamlit`.
