@@ -149,6 +149,16 @@ def init_db():
             source TEXT NOT NULL,           -- 'garmin' | 'manual'
             PRIMARY KEY (date, name, subtype, source)
         );
+
+        -- VO2max estimate, one row per day Garmin updated it. Same shape the
+        -- historical backfill (garmin_backfill.ensure_vo2_table) created, so
+        -- this is a no-op on DBs that already have it.
+        CREATE TABLE IF NOT EXISTS vo2max (
+            date TEXT NOT NULL,             -- Garmin calendarDate of the estimate
+            vo2max REAL,                    -- ml/kg/min (vo2MaxPreciseValue)
+            source TEXT NOT NULL,
+            PRIMARY KEY (date, source)
+        );
     """)
     _migrate(conn)
     conn.commit()

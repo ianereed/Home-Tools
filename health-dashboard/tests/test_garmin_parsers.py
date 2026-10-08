@@ -419,3 +419,34 @@ def test_lifestyle_rows_binary_no_row_without_none_measurement():
          "details": [{"subTypeName": "BEER", "amount": None}]},
     ])
     assert _lifestyle_rows(payload) == []
+
+
+# ---------------------------------------------------------------------------
+# _vo2max_row — get_training_status(date)["mostRecentVO2Max"] (probe 2026-10-08)
+# ---------------------------------------------------------------------------
+from collectors.garmin_collector import _vo2max_row
+
+
+def test_vo2max_row_prefers_generic():
+    payload = {
+        "generic": {"calendarDate": "2026-10-06", "vo2MaxPreciseValue": 50.6, "vo2MaxValue": 51.0},
+        "cycling": {"calendarDate": "2026-10-05", "vo2MaxPreciseValue": 49.0},
+    }
+    assert _vo2max_row(payload) == ("2026-10-06", 50.6, "garmin")
+
+
+def test_vo2max_row_falls_back_to_cycling():
+    payload = {"generic": None,
+               "cycling": {"calendarDate": "2026-10-06", "vo2MaxPreciseValue": 50.6}}
+    assert _vo2max_row(payload) == ("2026-10-06", 50.6, "garmin")
+
+
+def test_vo2max_row_uses_rounded_value_when_precise_missing():
+    payload = {"generic": {"calendarDate": "2026-10-06", "vo2MaxValue": 51.0}}
+    assert _vo2max_row(payload) == ("2026-10-06", 51.0, "garmin")
+
+
+def test_vo2max_row_empty_or_dateless_returns_none():
+    assert _vo2max_row(None) is None
+    assert _vo2max_row({}) is None
+    assert _vo2max_row({"generic": {"vo2MaxPreciseValue": 50.6}}) is None

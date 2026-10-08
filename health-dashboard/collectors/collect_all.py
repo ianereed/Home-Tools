@@ -14,7 +14,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Garmin/Strava client libs wrap `requests` with no per-call timeout, so a hung
+# Garmin client libs wrap `requests` with no per-call timeout, so a hung
 # connection would block until the job's 900s ceiling. A process-wide socket
 # timeout bounds every network call.
 NETWORK_TIMEOUT_SECONDS = 30
@@ -43,16 +43,19 @@ def main(days_back: int = 7):
     socket.setdefaulttimeout(NETWORK_TIMEOUT_SECONDS)
     init_db()
 
-    from . import garmin_collector, strava_collector, apple_health
+    from . import garmin_collector, apple_health
     _collect_with_retry("Garmin", garmin_collector.collect_all, days_back)
-    _collect_with_retry("Strava", strava_collector.collect_all, days_back)
     _collect_with_retry("Apple Health", apple_health.collect_all, days_back)
 
     # NOTE: Suunto (via Intervals.icu) was retired 2026-05-30 — device gone.
     # Wellness/HRV/sleep-score data now comes from Garmin.
+    # NOTE: Strava collection was turned off 2026-10-08 — it only ever mirrored
+    # Garmin workouts, and its API app had gone Inactive (403) since ~06-29.
+    # strava_collector.py / strava_setup.py stay for a possible re-enable;
+    # historical strava rows stay in health.db.
 
-    # Strava mirrors every Garmin workout, so the same session lands twice.
-    # Mark the cross-source duplicates (keeping the recording device's copy) so
+    # Historical Strava rows mirror Garmin workouts, so the same session can
+    # exist twice. Mark the cross-source duplicates (keeping the recording device's copy) so
     # totals, weekly load and TRIMP don't double-count. Cheap, local, idempotent.
     from . import dedupe
     _collect_with_retry("De-dup", dedupe.dedupe_activities)

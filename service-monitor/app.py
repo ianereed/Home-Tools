@@ -404,7 +404,7 @@ the next interval. Only worry if the last exit is non-zero.
 |---|---|---|
 | `event-agg / fetch` | every 10 min | Polls Gmail/Slack/Discord, enqueues messages |
 | `finance-monitor / watcher` | every 5 min | Syncs YNAB API, scans intake/ folder |
-| `hd / collect` | 7:00 + 7:20 AM | Pulls Garmin/Strava data |
+| `hd / collect` | 7:00 + 7:20 AM | Pulls Garmin data |
 | `hd / intervals-poll` | every 5 min | Syncs Intervals.icu (Suunto) data |
 | `hd / staleness` | 7:00 AM + 9:00 PM | Alerts if health data is stale |
 
@@ -477,7 +477,7 @@ Gmail / iMsg / Slack → event-agg/fetch → state.json (queues)
                                                            → Slack replies
 
 iPhone Health        → hd/receiver  ┐
-Strava / Garmin      → hd/collect   ├─→ health.db → Streamlit :8501
+Garmin               → hd/collect   ├─→ health.db → Streamlit :8501
 Intervals.icu        → hd/intervals ┘
 
 YNAB API + intake/   → fin/watcher → finance.db

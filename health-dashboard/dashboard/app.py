@@ -139,7 +139,7 @@ RANGES = {"30 days": 30, "90 days": 90, "6 months": 180, "1 year": 365, "All": 1
 st.sidebar.header("View")
 range_label = st.sidebar.selectbox("Time range", list(RANGES), index=1)
 days = RANGES[range_label]
-st.sidebar.caption("Data flows in from Garmin, Strava and Apple Health. "
+st.sidebar.caption("Data flows in from Garmin and Apple Health. "
                    "Training guidance lives on your Garmin — this is the long view.")
 
 
