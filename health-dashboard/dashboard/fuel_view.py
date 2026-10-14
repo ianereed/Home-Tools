@@ -257,6 +257,7 @@ def _goals(p: dict):
                          "deficit delivered": f"{100 * got / want:.0f}%" if want else "—",
                          "≈ lb/wk": round(got / 3500 / len(en) * 7, 2), "key-day carbs g/kg": round(min(key), 1) if key else None})
     st.dataframe(pd.DataFrame(cmp_rows), hide_index=True, use_container_width=True)
+    _baseline(p)
     st.markdown("## Calibration")
     wt = _query("SELECT date(timestamp) AS d, AVG(weight_kg) AS kg FROM body_weight WHERE timestamp >= date('now','-28 days') "
                 "GROUP BY d ORDER BY d")
@@ -270,6 +271,59 @@ def _goals(p: dict):
     else:
         st.caption(f"Needs ≥10 weigh-ins and ≥10 logged days in the last 4 weeks (now {len(wt)} and {len(logged)}). "
                    "Until then maintenance is the formula estimate (±200–300 kcal/day).")
+
+
+def baseline_summary(intake: dict, retro: list[dict], today: str, kg: float | None) -> dict | None:
+    """Averages over fully past logged days: what you actually eat vs the plan's targets/limits."""
+    tgt = {r["date"]: r for r in retro}
+    days = sorted(d for d, v in intake.items() if d < today and v.get("calories_kcal"))
+    if not days:
+        return None
+
+    def avg(key, src=intake):
+        vals = [src[d].get(key) for d in days if src.get(d, {}).get(key) is not None]
+        return sum(vals) / len(vals) if vals else None
+    kcal = avg("calories_kcal")
+    p, c, f = avg("protein_g"), avg("carbs_g"), avg("fat_g")
+    tdays = [d for d in days if d in tgt]
+    t = {k: (sum(tgt[d][k] for d in tdays) / len(tdays) if tdays else None)
+         for k in ("kcal", "tdee", "protein_g", "carb_g", "fat_g")}
+    split = None
+    if p is not None and c is not None and f is not None and kcal:
+        e = 4 * p + 4 * c + 9 * f
+        split = (round(100 * 4 * c / e), round(100 * 4 * p / e), round(100 * 9 * f / e))
+    return {"n": len(days), "first": days[0], "last": days[-1], "kcal": kcal, "protein": p, "carbs": c, "fat": f,
+            "sat": avg("saturated_fat_g"), "fiber": avg("fiber_g"), "sodium": avg("sodium_mg"),
+            "chol": avg("cholesterol_mg"), "protein_per_kg": p / kg if p and kg else None, "split_cpf": split,
+            "target": t, "days_over_sodium": sum(1 for d in days if (intake[d].get("sodium_mg") or 0) > 2300),
+            "days_over_chol": sum(1 for d in days if (intake[d].get("cholesterol_mg") or 0) > 300)}
+
+
+def _baseline(p: dict):
+    st.markdown("## Baseline: what you eat now")
+    retro = ((p.get("history") or {}).get("retro") or {}).get("plan") or []
+    kg = p.get("weight_kg") or (p.get("dexa") or {}).get("total_mass_kg")
+    b = baseline_summary(p.get("intake") or {}, retro, date.today().isoformat(), kg)
+    if not b:
+        st.caption("No complete logged days yet. Log everything you eat in MyFitnessPal; averages appear here from tomorrow.")
+        return
+    t = b["target"]
+
+    def fmt(v, unit="", nd=0):
+        return "—" if v is None else f"{v:,.{nd}f}{unit}"
+    rows = [("Calories", fmt(b["kcal"]), fmt(t["kcal"]), f"burn ≈ {fmt(t['tdee'])}"),
+            ("Protein", fmt(b["protein"], " g"), fmt(t["protein_g"], " g"), f"{fmt(b['protein_per_kg'], ' g/kg', 1)}"),
+            ("Carbs", fmt(b["carbs"], " g"), fmt(t["carb_g"], " g"), ""),
+            ("Fat", fmt(b["fat"], " g"), fmt(t["fat_g"], " g"), f"sat {fmt(b['sat'], ' g')}"),
+            ("Fiber", fmt(b["fiber"], " g"), "≥ 25 g", ""),
+            ("Sodium", fmt(b["sodium"], " mg"), "≤ 2,300 mg", f"{b['days_over_sodium']} of {b['n']} days over"),
+            ("Cholesterol", fmt(b["chol"], " mg"), "≤ 300 mg", f"{b['days_over_chol']} of {b['n']} days over")]
+    st.dataframe(pd.DataFrame(rows, columns=["daily average", "you", "plan", "note"]), hide_index=True,
+                 use_container_width=True)
+    split = b["split_cpf"]
+    st.caption(f"{b['n']} logged day(s), {H.fdate(b['first'], '%b %-d')}–{H.fdate(b['last'], '%b %-d')}"
+               + (f" · carbs/protein/fat split {split[0]}/{split[1]}/{split[2]} % of calories" if split else "")
+               + ". Today is excluded until it's over. Days with nothing logged don't count.")
 
 
 def _last(p: dict):
