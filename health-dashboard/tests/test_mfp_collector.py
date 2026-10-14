@@ -73,3 +73,54 @@ def test_intake_precedence(empty_db):
     assert got["2026-10-14"]["source"] == "mfp" and got["2026-10-14"]["calories_kcal"] == 2100
     assert got["2026-10-13"]["source"] == "garmin"
     assert got["2026-10-12"] == {**got["2026-10-12"], "source": "garmin_consumed", "calories_kcal": 1800, "sodium_mg": None}
+
+
+def test_goal_payload_sets_macros_and_only_existing_extras():
+    from collectors import mfp_goal as MG
+    cur = {"items": [{"valid_from": "2022-03-01", "valid_to": "2100-01-01", "default_group_id": 1, "updated_at": "x",
+                      "default_goal": {"energy": {"value": 1910, "unit": "calories"}, "carbohydrates": 200, "protein": 100,
+                                       "fat": 60, "sodium": 2300, "fiber": 30, "meal_goals": [{"x": 1}], "group_id": 0},
+                      "daily_goals": [{"day_of_week": "monday", "energy": {"value": 1910, "unit": "calories"},
+                                       "carbohydrates": 200, "protein": 100, "fat": 60, "sodium": 2300, "group_id": 0}]}]}
+    p = MG.build_payload(cur, "2026-10-15", 2701.4, 330.2, 169.6, 70.1, {"sodium": 2300, "cholesterol": 300, "fiber": 38})
+    it = p["item"]
+    assert it["valid_from"] == "2026-10-15" and "valid_to" not in it and "default_group_id" not in it
+    g = it["default_goal"]
+    assert g["energy"] == {"value": 2701, "unit": "calories"} and (g["carbohydrates"], g["protein"], g["fat"]) == (330, 170, 70)
+    assert g["sodium"] == 2300 and g["fiber"] == 38 and "cholesterol" not in g and g["meal_goals"] == []
+    assert it["daily_goals"][0]["energy"]["value"] == 2701 and "group_id" not in it["daily_goals"][0]
+
+
+def test_push_goal_unchanged_is_not_resent(empty_db, monkeypatch):
+    from nutrition import refresh as R
+    from nutrition import store
+    calls = []
+    monkeypatch.setattr(M, "push_goal", lambda **g: calls.append(g) or {"ok": True})
+    res = {"plans": {"plan": {"energy": [{"date": "2026-10-15", "kcal": 2700, "carb_g": 330, "protein_g": 170, "fat_g": 70,
+                                          "sodium_max_mg": 2300, "chol_max_mg": 300, "fiber_target": 38}]}}}
+    conn = sqlite3.connect(empty_db)
+    try:
+        from datetime import date
+        assert R.push_mfp_goal(conn, res, date(2026, 10, 15)) == "pushed"
+        assert R.push_mfp_goal(conn, res, date(2026, 10, 15)) == "unchanged"
+        res["plans"]["plan"]["energy"][0]["kcal"] = 2900
+        assert R.push_mfp_goal(conn, res, date(2026, 10, 15)) == "pushed"
+        assert store.get_state(conn, "mfp_goal_pushed")["kcal"] == 2900
+    finally:
+        conn.close()
+    assert len(calls) == 2
+
+
+def test_push_goal_auth_expired_reported(empty_db, monkeypatch):
+    from datetime import date
+    from nutrition import refresh as R
+
+    def boom(**g):
+        raise M.MFPAuthError("expired")
+    monkeypatch.setattr(M, "push_goal", boom)
+    res = {"plans": {"plan": {"energy": [{"date": "2026-10-15", "kcal": 2700, "carb_g": 330, "protein_g": 170, "fat_g": 70}]}}}
+    conn = sqlite3.connect(empty_db)
+    try:
+        assert R.push_mfp_goal(conn, res, date(2026, 10, 15)) == "auth_expired"
+    finally:
+        conn.close()

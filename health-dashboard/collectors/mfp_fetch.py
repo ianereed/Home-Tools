@@ -57,6 +57,19 @@ def main(argv=None) -> int:
     except Exception as e:
         print(json.dumps({"ok": False, "error": f"mfp-mcp not importable: {e}", "auth": False}))
         return 2
+    for attempt in (1, 2):
+        rc, out, retry = _fetch(start, end, get_client, is_auth_error, attempt == 1)
+        if not retry:
+            print(json.dumps(out))
+            return rc
+        from myfitnesspal_mcp import refresh  # noqa
+        refresh.refresh_session()   # MFP rotated the session: renew it in the headless profile, retry once
+    print(json.dumps(out))
+    return rc
+
+
+def _fetch(start, end, get_client, is_auth_error, can_retry):
+    """-> (rc, json_out, retry_after_refresh)"""
     try:
         client = get_client()
         counts = {}
@@ -74,16 +87,21 @@ def main(argv=None) -> int:
                 reports[name] = {str(k): v for k, v in rep.items()}
             except Exception as e:  # one nutrient failing shouldn't lose the day
                 errors[name] = f"{type(e).__name__}: {str(e)[:120]}"
-        print(json.dumps({"ok": True, "days": build_days(reports, counts), "report_errors": errors}))
-        return 0
+        return 0, {"ok": True, "days": build_days(reports, counts), "report_errors": errors}, False
     except Exception as e:
-        auth = False
+        auth = "NotConnected" in type(e).__name__
         try:
-            auth = bool(is_auth_error(e))
+            auth = auth or bool(is_auth_error(e))
         except Exception:
             pass
-        print(json.dumps({"ok": False, "error": f"{type(e).__name__}: {str(e)[:200]}", "auth": auth}))
-        return 2
+        if auth and can_retry:
+            try:
+                from myfitnesspal_mcp import refresh  # noqa
+                if refresh.available() and refresh.profile_seeded():
+                    return 2, None, True
+            except Exception:
+                pass
+        return 2, {"ok": False, "error": f"{type(e).__name__}: {str(e)[:200]}", "auth": auth}, False
 
 
 if __name__ == "__main__":

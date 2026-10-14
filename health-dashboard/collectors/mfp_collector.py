@@ -78,3 +78,28 @@ def collect_mfp(days_back: int = 7):
     if out.get("report_errors"):
         logger.warning("MFP report errors: %s", out["report_errors"])
     logger.info("Saved MFP nutrition: %d day(s) written, %d removed", written, deleted)
+
+
+GOAL_SCRIPT = Path(__file__).with_name("mfp_goal.py")
+
+
+def push_goal(day: str, kcal: float, carbs: float, protein: float, fat: float, sodium: float | None = None,
+              cholesterol: float | None = None, fiber: float | None = None, timeout: int = 180) -> dict:
+    """Set MFP's goal (valid from `day`) to the plan's targets. Raises MFPAuthError on an expired session."""
+    if not mfp_python().exists():
+        return {"ok": False, "skipped": "mfp venv not installed"}
+    args = [str(mfp_python()), "-I", str(GOAL_SCRIPT), "--date", day, "--kcal", f"{kcal:.0f}", "--carbs", f"{carbs:.0f}",
+            "--protein", f"{protein:.0f}", "--fat", f"{fat:.0f}"]
+    for flag, v in (("--sodium", sodium), ("--cholesterol", cholesterol), ("--fiber", fiber)):
+        if v is not None:
+            args += [flag, f"{v:.0f}"]
+    proc = subprocess.run(args, capture_output=True, text=True, timeout=timeout)
+    lines = [ln for ln in proc.stdout.splitlines() if ln.startswith("{")]
+    if not lines:
+        raise RuntimeError(f"mfp_goal printed no JSON (rc={proc.returncode}): {proc.stderr[-300:]}")
+    out = json.loads(lines[-1])
+    if not out.get("ok") and out.get("auth"):
+        raise MFPAuthError(out.get("error", "MFP session expired"))
+    if not out.get("ok"):
+        raise RuntimeError(out.get("error", "mfp_goal failed"))
+    return out
