@@ -219,7 +219,7 @@ def ride_session(w: dict, ftp: float, projected: bool = False) -> dict:
         "minutes": minutes, "kj": kj, "avg_w": avg_w, "if_avg": avg_w / ftp, "gross_kcal": gross,
         "cho_frac": CHO_FRACTION.get(t, 0.55), "category": cat, "projected": projected,
         "on_bike_carb_g": gph * minutes / 60, "on_bike_gph": gph, "assumption": w.get("assumption"),
-        "te": w.get("te"),
+        "te": w.get("te"), "steps": w.get("steps"),
     }
 
 

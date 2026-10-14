@@ -139,3 +139,60 @@ def generate(start: date, end: date, ftp: float, available: list[str], long_days
         out += [w for w in generate_week(monday, idx, ftp, available, long_days) if start.isoformat() <= w["date"] <= end.isoformat()]
         monday += timedelta(days=7)
     return out
+
+
+# ------------------------------------------------------------------ Garmin sync
+def desired_rides(days: list[dict]) -> list[dict]:
+    """Planner-generated rides (no active Coach plan) as sync specs. Coach/projected rides are never pushed."""
+    import hashlib
+    import json
+
+    out = []
+    for d in days:
+        if d.get("source") != "generated":
+            continue
+        for s in d["sessions"]:
+            if s.get("kind") != "ride" or s.get("completed") or not s.get("steps"):
+                continue
+            body = {"name": s["name"], "type": s["type"], "steps": s["steps"]}
+            h = hashlib.sha1(json.dumps(body, sort_keys=True).encode()).hexdigest()[:10]
+            out.append({"plan_key": f"ride-{d['date']}", "kind": "ride", "date": d["date"], "spec_hash": h,
+                        "name": f"FP · {s['name']} {round(s['minutes'])} min", "description": s.get("description", ""),
+                        "steps": s["steps"], "minutes": s["minutes"], "type": s["type"], "reasons": [s.get("description", "")]})
+    return out
+
+
+def _gstep(order: int, dur: float, lo: float, hi: float, key: str) -> dict:
+    ids = {"warmup": 1, "cooldown": 2, "interval": 3, "recovery": 4}
+    step = {"type": "ExecutableStepDTO", "stepOrder": order, "stepType": {"stepTypeId": ids[key], "stepTypeKey": key},
+            "endCondition": {"conditionTypeId": 2, "conditionTypeKey": "time"}, "endConditionValue": float(dur)}
+    if hi:
+        step |= {"targetType": {"workoutTargetTypeId": 2, "workoutTargetTypeKey": "power.zone"},
+                 "targetValueOne": float(lo), "targetValueTwo": float(hi)}
+    else:
+        step |= {"targetType": {"workoutTargetTypeId": 1, "workoutTargetTypeKey": "no.target"}}
+    return step
+
+
+def to_garmin_json(spec: dict) -> dict:
+    """Garmin Connect cycling workout DTO with absolute power targets (W), like Coach's own workouts."""
+    sport = {"sportTypeId": 2, "sportTypeKey": "cycling"}
+    steps, order = [], 1
+    top = spec["steps"]
+    for i, s in enumerate(top):
+        if isinstance(s, dict):
+            grp_order = order
+            order += 1
+            inner = []
+            for j, x in enumerate(s["steps"]):
+                inner.append(_gstep(order, x[0], x[1], x[2], "interval" if j == 0 else "recovery"))
+                order += 1
+            steps.append({"type": "RepeatGroupDTO", "stepOrder": grp_order, "stepType": {"stepTypeId": 6, "stepTypeKey": "repeat"},
+                          "numberOfIterations": s["repeat"], "smartRepeat": False, "workoutSteps": inner})
+        else:
+            key = "warmup" if i == 0 and len(top) > 1 else "cooldown" if i == len(top) - 1 and len(top) > 1 else "interval"
+            steps.append(_gstep(order, s[0], s[1], s[2], key))
+            order += 1
+    return {"workoutName": spec["name"][:80], "sportType": sport, "estimatedDurationInSecs": int(spec["minutes"] * 60),
+            "description": f"fuel-planner:{spec['plan_key']}:{spec['spec_hash']} · {spec.get('description', '')}"[:500],
+            "workoutSegments": [{"segmentOrder": 1, "sportType": sport, "workoutSteps": steps}]}

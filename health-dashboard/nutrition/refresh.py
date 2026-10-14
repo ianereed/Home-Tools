@@ -204,12 +204,15 @@ def run_refresh(reason: str, trigger: str = "manual", collect: bool = True, cale
         # 6) strength plan (placed around the scheduled rides), then the engine with those lifts
         lifts, strength_info = plan_strength(conn, snap, settings, today, acts)
         res = E.run(snap, paces, lift_plan=lifts, meal_paces=["plan"])
+        from . import rides as RD
+        gen_rides = RD.desired_rides(res["days"])  # only when no Coach plan covers those days
         store.set_state(conn, "lift_plan_last", [{"date": x["date"], "plan_key": x["plan_key"], "template": x["template"]}
                                                  for x in lifts])
         mode = settings.get("garmin_write_mode", "off")
         try:
-            strength_info["sync"] = garmin_sync.reconcile(client, conn, lifts, mode, today,
+            strength_info["sync"] = garmin_sync.reconcile(client, conn, lifts + gen_rides, mode, today,
                                                           int(settings.get("strength_sync_days", 10)))
+            strength_info["generated_rides"] = len(gen_rides)
             sources["garmin_sync"] = mode
         except Exception as e:
             log.warning("garmin sync failed: %s", e)
