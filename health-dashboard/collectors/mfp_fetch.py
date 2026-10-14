@@ -90,10 +90,11 @@ def _fetch(start, end, get_client, is_auth_error, can_retry):
         return 0, {"ok": True, "days": build_days(reports, counts), "report_errors": errors}, False
     except Exception as e:
         auth = "NotConnected" in type(e).__name__
-        try:
-            auth = auth or bool(is_auth_error(e))
-        except Exception:
-            pass
+        if not isinstance(e, (TypeError, AttributeError, KeyError, ValueError, NameError)):
+            try:
+                auth = auth or bool(is_auth_error(e))
+            except Exception:
+                pass
         if auth and can_retry:
             try:
                 from myfitnesspal_mcp import refresh  # noqa

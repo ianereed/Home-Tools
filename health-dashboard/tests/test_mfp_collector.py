@@ -124,3 +124,10 @@ def test_push_goal_auth_expired_reported(empty_db, monkeypatch):
         assert R.push_mfp_goal(conn, res, date(2026, 10, 15)) == "auth_expired"
     finally:
         conn.close()
+
+
+def test_programming_errors_are_not_reported_as_expired_login():
+    from collectors import mfp_goal as MG
+    always = lambda e: True  # mfp-mcp's is_auth_error is broad
+    assert MG._is_auth(TypeError("x"), always) is False
+    assert MG._is_auth(PermissionError("403"), lambda e: False) is True
