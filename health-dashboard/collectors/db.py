@@ -239,6 +239,35 @@ def init_db():
             context_json TEXT
         );
 
+        -- Planner-owned workouts on the Garmin calendar (lifts; generated rides) + an audit log of
+        -- every write the planner performs (or would perform, in dry_run).
+        CREATE TABLE IF NOT EXISTS fuel_garmin_workouts (
+            plan_key TEXT PRIMARY KEY,
+            kind TEXT NOT NULL,             -- lift | ride
+            date TEXT NOT NULL,
+            spec_hash TEXT,
+            name TEXT,
+            garmin_workout_id INTEGER,
+            garmin_schedule_id INTEGER,
+            status TEXT NOT NULL,           -- creating | synced | moved_by_user | user_removed | removed | error
+            reasons_json TEXT,
+            created_at TEXT,
+            updated_at TEXT
+        );
+        CREATE TABLE IF NOT EXISTS fuel_garmin_ops (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            ts TEXT NOT NULL,
+            run_id INTEGER,
+            mode TEXT NOT NULL,
+            op TEXT NOT NULL,
+            plan_key TEXT,
+            workout_id INTEGER,
+            schedule_id INTEGER,
+            date TEXT,
+            ok INTEGER NOT NULL,
+            detail TEXT
+        );
+
         CREATE TABLE IF NOT EXISTS vo2max (
             date TEXT NOT NULL,             -- Garmin calendarDate of the estimate
             vo2max REAL,                    -- ml/kg/min (vo2MaxPreciseValue)

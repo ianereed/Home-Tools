@@ -11,7 +11,7 @@ from . import calendar_source, projection
 from .intake import intake_by_date
 
 ACTIVITY_SQL = """SELECT date, start_time, name, type, duration_s, moving_s, calories, bmr_kcal, avg_power_w, np_w,
-                         avg_hr, source_id FROM activities
+                         avg_hr, source_id, training_load FROM activities
                   WHERE source = 'garmin' AND date BETWEEN ? AND ? ORDER BY start_time"""
 
 
@@ -23,7 +23,7 @@ def db_activities(conn, start: str, end: str) -> list[dict]:
             continue  # manual entries without a duration (e.g. gear mileage)
         out.append({"date": r[0], "start": (r[1] or "")[11:16] or "12:00", "name": r[2] or r[3], "type": r[3],
                     "duration_s": dur, "moving_s": r[5] or dur, "kcal": r[6] or 0, "bmr_kcal": r[7] or 0,
-                    "avg_power_w": r[8], "np_w": r[9], "avg_hr": r[10], "id": r[11]})
+                    "avg_power_w": r[8], "np_w": r[9], "avg_hr": r[10], "id": r[11], "training_load": r[12]})
     return [a for a in out if a["type"] != "incident_detected"]
 
 

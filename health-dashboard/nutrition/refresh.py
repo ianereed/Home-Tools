@@ -19,7 +19,7 @@ from pathlib import Path
 
 from collectors.db import get_connection, init_db
 
-from . import calendar_source, coach, engine as E, snapshot as S, store
+from . import calendar_source, coach, engine as E, garmin_sync, snapshot as S, store, strength
 from .intake import intake_by_date
 from .settings import ROOT, load_constraints, load_settings
 
@@ -49,6 +49,45 @@ def _cached(conn, key, ttl_s, fetch):
     except Exception as e:
         log.warning("%s fetch failed: %s", key, e)
         return (hit or {}).get("value"), f"stale ({type(e).__name__})"
+
+
+def plan_strength(conn, snap: dict, settings: dict, today: date, acts: list[dict]) -> tuple[list[dict], dict]:
+    """Desired lifts for the horizon + context for the dashboard."""
+    cfg = E.config(snap)
+    kg = snap.get("weight_kg") or snap["dexa"]["total_mass_kg"]
+    days = E.build_days(snap)
+    E.schedule(days, kg, cfg, place_lifts=False)
+    previous = store.get_state(conn, "lift_plan_last") or []
+    led = garmin_sync.ledger(conn)
+    for p in previous:  # lifts Ian moved by hand in Garmin Connect stay where he put them
+        L = led.get(p.get("plan_key"))
+        if L and L["status"] == "moved_by_user":
+            p["date"], p["pinned"] = L["date"], True
+    prev_by_date = {p["date"]: p for p in previous}
+    week_start = (today - timedelta(days=today.weekday() + 7)).isoformat()
+    completed = []
+    for a in acts:
+        if "strength" in (a.get("type") or "") and a["date"] >= week_start:
+            completed.append({"date": a["date"], "id": a.get("id"),
+                              "template": (prev_by_date.get(a["date"]) or {}).get("template")})
+    # progression: count each completed planner lift once
+    progress = store.get_state(conn, "strength_progress") or {"A": 0, "B": 0, "counted": []}
+    for c in completed:
+        if c["template"] and c["id"] not in progress["counted"]:
+            progress[c["template"]] = progress.get(c["template"], 0) + 1
+            progress["counted"].append(c["id"])
+    store.set_state(conn, "strength_progress", progress)
+    hist = S.db_activities(conn, (today - timedelta(days=29)).isoformat(), today.isoformat())
+    load = strength.daily_load(hist, snap["athlete"]["ftp_w"])
+    row = conn.execute("SELECT readiness FROM wellness WHERE date = ?", (today.isoformat(),)).fetchone()
+    readiness = row[0] if row and row[0] is not None else None
+    lifts = strength.plan_lifts(days, today=today, cfg=cfg, settings=settings,
+                                completed=completed,
+                                previous=previous, load=load, readiness=readiness, progress=progress)
+    info = {"lifts": lifts, "acwr": strength.acwr(load, today), "readiness": readiness,
+            "progress": {k: v for k, v in progress.items() if k != "counted"},
+            "completed": completed, "upper_body_cleared": bool(settings.get("upper_body_cleared"))}
+    return lifts, info
 
 
 def run_refresh(reason: str, trigger: str = "manual", collect: bool = True, calendar: bool = True,
@@ -151,9 +190,21 @@ def run_refresh(reason: str, trigger: str = "manual", collect: bool = True, cale
             hist = E.history(snap, ["plan"])
             snap["week_to_date"] = S.week_to_date(snap, hist["retro"]["plan"])
 
-        # 6) engine
-        res = E.run(snap, paces, meal_paces=["plan"])
-        payload = {**res, "sources": sources, "reason": reason, "trigger": trigger,
+        # 6) strength plan (placed around the scheduled rides), then the engine with those lifts
+        lifts, strength_info = plan_strength(conn, snap, settings, today, acts)
+        res = E.run(snap, paces, lift_plan=lifts, meal_paces=["plan"])
+        store.set_state(conn, "lift_plan_last", [{"date": x["date"], "plan_key": x["plan_key"], "template": x["template"]}
+                                                 for x in lifts])
+        mode = settings.get("garmin_write_mode", "off")
+        try:
+            strength_info["sync"] = garmin_sync.reconcile(client, conn, lifts, mode, today,
+                                                          int(settings.get("strength_sync_days", 10)))
+            sources["garmin_sync"] = mode
+        except Exception as e:
+            log.warning("garmin sync failed: %s", e)
+            strength_info["sync"] = {"mode": mode, "error": f"{type(e).__name__}: {e}"}
+            sources["garmin_sync"] = f"error ({type(e).__name__})"
+        payload = {**res, "sources": sources, "reason": reason, "trigger": trigger, "strength": strength_info,
                    "pace_schedule": settings.get("pace_schedule"), "intake": intake,
                    "coach": {"plan": plan, "window": workouts}, "dexa": dexa, "weight_kg": weight,
                    "athlete": {k: v for k, v in athlete.items() if k not in ("birth_date",)}}

@@ -67,15 +67,18 @@ def unit_hint(name: str, grams: float) -> str:
     return f"~{(str(whole) if whole else '') + frac.get(part, '') or '0'} {unit}"
 
 
+def _hm(m) -> str:
+    return f"{int(m) // 60:02d}:{int(m) % 60:02d}"
+
+
 def session_chip(s: dict) -> str:
-    def hm(m):
-        return f"{int(m) // 60:02d}:{int(m) % 60:02d}"
+    hm = _hm
     t = f"{hm(s['start'])}–{hm(s['end'])}" if s.get("start") is not None else "time TBD"
     if s.get("completed"):
         return (f'<span class="fuel-chip done">✓ {esc(s["name"])} · {round(s["minutes"])} min · '
                 f'{g(s.get("active_kcal", 0))} active kcal</span>')
     if s["kind"] == "strength":
-        return f'<span class="fuel-chip lift">Strength · {t}</span>'
+        return f'<span class="fuel-chip lift">{esc(s.get("name", "Strength"))} · {t}</span>'
     tag = {"projected": " · projected", "generated": " · planner ride"}.get(s.get("source", ""), "")
     return f'<span class="fuel-chip">{esc(s["name"])} · {round(s["minutes"])} min · {t}{tag}</span>'
 
