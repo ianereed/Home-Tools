@@ -21,9 +21,23 @@ def main(argv=None) -> int:
     ap.add_argument("--start", required=True)
     ap.add_argument("--end", required=True)
     a = ap.parse_args(argv)
+    import socket
+    import time
+
+    socket.setdefaulttimeout(15)  # a hung token refresh / API call fails fast and gets one retry
     ea = Path(os.environ.get("EVENT_AGGREGATOR_DIR", Path(__file__).resolve().parents[2] / "event-aggregator"))
     sys.path.insert(0, str(ea))
     os.chdir(ea)
+    for attempt in (1, 2):
+        rc = _fetch(a, attempt == 2)
+        if rc is not None:
+            return rc
+        time.sleep(2)
+    return 2
+
+
+def _fetch(a, last: bool):
+    """Returns an exit code, or None to retry after a network timeout."""
     try:
         import config as ea_config  # noqa
         from connectors.google_auth import get_credentials  # noqa
@@ -52,6 +66,11 @@ def main(argv=None) -> int:
                     break
         print(json.dumps({"ok": True, "events": events}))
         return 0
+    except (TimeoutError, OSError) as e:
+        if not last:
+            return None
+        print(json.dumps({"ok": False, "error": f"{type(e).__name__}: {str(e)[:200]}"}))
+        return 2
     except Exception as e:
         print(json.dumps({"ok": False, "error": f"{type(e).__name__}: {str(e)[:200]}"}))
         return 2

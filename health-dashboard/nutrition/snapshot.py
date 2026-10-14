@@ -45,13 +45,13 @@ def db_body(conn) -> tuple[dict | None, float | None]:
         fat = row[4] if row[4] is not None else max(0.0, total - lean - bone)
         dexa = {"date": row[0][:10], "total_mass_kg": total, "lean_mass_kg": lean, "bone_mass_kg": bone,
                 "fat_mass_kg": fat, "tissue_fat_pct": row[2], "source": row[6]}
-    wrows = conn.execute("SELECT timestamp, weight_kg FROM body_weight WHERE weight_kg IS NOT NULL "
-                         "ORDER BY timestamp DESC LIMIT 7").fetchall()
+    newest = conn.execute("SELECT MAX(timestamp) FROM body_weight WHERE weight_kg IS NOT NULL").fetchone()[0]
     weight = None
-    if wrows and dexa:
-        newest = date.fromisoformat(wrows[0][0][:10])
-        if (date.today() - newest).days <= 10:
-            weight = sum(w for _, w in wrows) / len(wrows)
+    if newest and dexa and (date.today() - date.fromisoformat(newest[:10])).days <= 10:
+        since = (date.fromisoformat(newest[:10]) - timedelta(days=6)).isoformat()
+        wrows = conn.execute("SELECT weight_kg FROM body_weight WHERE weight_kg IS NOT NULL AND timestamp >= ?",
+                             (since,)).fetchall()
+        weight = sum(w for (w,) in wrows) / len(wrows)
     return dexa, weight
 
 

@@ -325,6 +325,15 @@ def build_days(snap: dict) -> list[dict]:
         actual = actual_days(snap.get("activities_plan_window", []), [ds], snap)[0]["sessions"]
         if actual:
             done_kinds = {s["kind"] for s in actual}
+            planned_ride = next((s for s in sessions if s["kind"] == "ride"), None)
+            if planned_ride and planned_ride["category"] in ("key", "long"):
+                # A completed ride that is clearly the planned session keeps the plan's intent: short sprint
+                # work has a modest IF but is still a key day (fueling, deficit weight, lift spacing).
+                main = max((a for a in actual if a["kind"] == "ride"), key=lambda a: a["minutes"], default=None)
+                if main and main["minutes"] >= 0.6 * planned_ride["minutes"] and (main.get("if_np") or 0) >= 0.75:
+                    main["category"] = planned_ride["category"]
+                    main["cho_frac"] = max(main["cho_frac"], planned_ride["cho_frac"])
+                    main["planned_as"] = planned_ride["name"]
             sessions = [s for s in sessions if s["kind"] not in done_kinds] + actual
             source = "actual"
             for a in actual:
