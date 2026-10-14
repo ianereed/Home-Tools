@@ -60,7 +60,8 @@ def _fetch(a, last: bool):
                                    "all_day": "date" in st, "location": e.get("location"),
                                    "transparency": e.get("transparency", "opaque"),
                                    "self_status": me.get("responseStatus") if me else None,
-                                   "event_type": e.get("eventType")})
+                                   "event_type": e.get("eventType"),
+                                   "source_tag": ((e.get("extendedProperties") or {}).get("private") or {}).get("source")})
                 token = resp.get("nextPageToken")
                 if not token:
                     break

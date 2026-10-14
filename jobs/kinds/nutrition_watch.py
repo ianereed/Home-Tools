@@ -13,6 +13,7 @@ from huey import crontab
 
 from jobs import huey, requires
 from jobs.kinds.nutrition_refresh import PROJECT, VENV_PYTHON, local_now, nutrition_refresh
+from jobs.kinds.garmin_gcal_sync import garmin_gcal_sync
 
 logger = logging.getLogger(__name__)
 
@@ -39,5 +40,6 @@ def nutrition_watch() -> dict:
     if out.get("changed"):
         _run(["--mark-enqueued"], timeout=30)
         nutrition_refresh(out.get("reason", "watch"), "watch")
+        garmin_gcal_sync("watch")  # Coach re-plans after a ride; mirror it to Google Calendar too
         out["enqueued"] = True
     return out

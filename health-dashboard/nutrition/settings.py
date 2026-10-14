@@ -44,6 +44,14 @@ DEFAULTS = {
     "lift_equipment": "gym",                 # gym | home (bodyweight)
     "lift_equipment_by_date": {},            # {"YYYY-MM-DD": "home"} one-off overrides
     "athlete_fallback": {},                  # used only if Garmin profile fields are missing
+    "gcal_sync": {                           # Garmin calendar -> Google Calendar (python -m nutrition.gcal_workouts)
+        "mode": "live",                      # off | dry_run | live
+        "calendar_id": "primary",            # resolved by the mini's Google token (= personal gmail)
+        "window_days": 45,
+        "start_times": {"strength_training": "17:00", "default": "10:00"},   # cycling falls back to preferred_ride
+        "default_minutes": {"cycling": 60, "strength_training": 45, "default": 60},
+        "include_rest_days": True,
+    },
 }
 
 
