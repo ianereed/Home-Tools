@@ -115,6 +115,8 @@ HAS_CARDIO = os.path.exists(os.path.join(
 if HAS_CARDIO:
     PAGES.append("Goals")
     PAGES.append("Cardiology")
+# Fuel (nutrition planner) goes last so existing ?p=<index> links keep pointing at the same pages.
+PAGES.append("Fuel")
 if "page" not in st.session_state:
     st.session_state.page = 0
 if "p" in st.query_params:
@@ -124,6 +126,11 @@ if "p" in st.query_params:
             st.session_state.page = i
     except ValueError:
         pass
+if "page" in st.query_params:  # stable slug links, e.g. ?page=fuel
+    _slug = st.query_params["page"].lower().replace(" ", "").replace("&", "")
+    for _i, _name in enumerate(PAGES):
+        if _name.lower().replace(" ", "").replace("&", "") == _slug:
+            st.session_state.page = _i
 
 nav_cols = st.columns(len(PAGES))
 for i, col in enumerate(nav_cols):
@@ -132,6 +139,8 @@ for i, col in enumerate(nav_cols):
                      type="primary" if i == st.session_state.page else "secondary"):
             st.session_state.page = i
             st.query_params["p"] = str(i)
+            if "page" in st.query_params:
+                del st.query_params["page"]
             st.rerun()
 page = PAGES[st.session_state.page]
 
@@ -535,4 +544,9 @@ if HAS_CARDIO:
         dispatch["Goals"] = render_goals
     except Exception as _e:
         dispatch["Goals"] = lambda _e=_e: st.error(f"Goals page unavailable: {_e}")
+try:
+    from dashboard.fuel_view import render_fuel                     # noqa: E402
+    dispatch["Fuel"] = render_fuel
+except Exception as _e:
+    dispatch["Fuel"] = lambda _e=_e: st.error(f"Fuel page unavailable: {_e}")
 dispatch[page]()
