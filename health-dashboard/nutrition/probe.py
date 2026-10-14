@@ -173,7 +173,7 @@ def upload_test(delete: bool = False, workout_id: int | None = None):
         out("deleted", {"workout_id": workout_id})
         return
     lift = {"plan_key": "lift-test", "kind": "lift", "date": date.today().isoformat(), "minutes": 45,
-            **{"template": "A", "level": 1, "variant": "normal", "deload": False, "upper": False},
+            **{"template": "A", "level": 1, "variant": "normal", "deload": False, "upper": False, "equipment": "gym"},
             "exercises": strength.prescription("A", 1, "normal", False, False), "reasons": ["upload test"],
             "name": "FP · TEST Lift A1 · Lower+Core"}
     lift["spec_hash"] = strength.spec_hash(lift)

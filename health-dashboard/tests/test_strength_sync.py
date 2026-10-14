@@ -244,3 +244,21 @@ def test_apply_write_cap(empty_db, monkeypatch):
         assert res["stopped"] == "write cap" and res["done"] == 1
     finally:
         conn.close()
+
+
+def test_home_bodyweight_override_for_a_date():
+    days, cfg = _days(WEEK)
+    first = _plan(days, cfg)[0]
+    lifts = _plan(days, cfg, settings={"lift_equipment_by_date": {first["date"]: "home"}, "upper_body_cleared": True})
+    home = next(l for l in lifts if l["date"] == first["date"])
+    assert home["equipment"] == "home" and "Home bodyweight" in home["name"]
+    names = [x["exercise"] for x in home["exercises"]]
+    assert "PUSH_UP" in names and "AIR_SQUAT" in names
+    assert all(x["sets"] >= 2 and (x["reps"] or x["seconds"]) for x in home["exercises"])
+    j = ST.to_garmin_json(home)
+    cats = {s["workoutSteps"][0]["category"] for s in j["workoutSegments"][0]["workoutSteps"] if s["type"] == "RepeatGroupDTO"}
+    assert {"SQUAT", "PUSH_UP", "LUNGE", "HIP_RAISE"} <= cats
+    other = [l for l in lifts if l["date"] != first["date"]]
+    assert all(l["equipment"] == "gym" for l in other)
+    assert any(x["exercise"] == "DUMBBELL_BENCH_PRESS" for l in other if l["template"] == "A" for x in l["exercises"]) or \
+        any(x["exercise"] == "DUMBBELL_ROW" for l in other for x in l["exercises"])

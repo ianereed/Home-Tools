@@ -40,6 +40,8 @@ DEFAULTS = {
     "garmin_write_mode": "off",              # off | dry_run | live  (strength/ride sync, Phase 6+)
     "strength_sync_days": 10,
     "upper_body_cleared": False,
+    "lift_equipment": "gym",                 # gym | home (bodyweight)
+    "lift_equipment_by_date": {},            # {"YYYY-MM-DD": "home"} one-off overrides
     "athlete_fallback": {},                  # used only if Garmin profile fields are missing
 }
 
