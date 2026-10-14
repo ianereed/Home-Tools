@@ -1,0 +1,75 @@
+"""MyFitnessPal collector: report/diary merge, upsert semantics, subprocess error handling."""
+import json
+import sqlite3
+import subprocess
+
+import pytest
+
+from collectors import mfp_collector as M
+from collectors import mfp_fetch as F
+from nutrition.intake import intake_by_date
+
+
+def test_build_days_unlogged_days_are_not_zero_days():
+    reports = {"Calories": {"2026-10-13": 0, "2026-10-14": 258}, "Sodium": {"2026-10-13": 0, "2026-10-14": 370},
+               "Potassium": {"2026-10-13": 0, "2026-10-14": 0}, "Cholesterol": {"2026-10-14": 120}}
+    days = F.build_days(reports, {"2026-10-13": 0, "2026-10-14": 2})
+    assert days["2026-10-13"] == {"logged": False, "entries": 0}
+    d = days["2026-10-14"]
+    assert d["calories_kcal"] == 258 and d["sodium_mg"] == 370 and d["cholesterol_mg"] == 120
+    assert d["potassium_mg"] is None          # 0 potassium = foods lack the data
+    assert d["fiber_g"] is None               # report missing entirely -> unknown
+
+
+def test_upsert_writes_logged_and_removes_unlogged(empty_db):
+    conn = sqlite3.connect(empty_db)
+    try:
+        conn.execute("INSERT INTO nutrition_daily (date, calories_kcal, source) VALUES ('2026-10-12', 999, 'mfp')")
+        days = {"2026-10-12": {"logged": False, "entries": 0},
+                "2026-10-14": {"logged": True, "entries": 2, "calories_kcal": 258.0, "sodium_mg": 370.0}}
+        assert M.upsert(conn, days, now="2026-10-14T12:00:00") == (1, 1)
+        rows = conn.execute("SELECT date, calories_kcal, sodium_mg, protein_g, updated_at FROM nutrition_daily "
+                            "WHERE source='mfp'").fetchall()
+    finally:
+        conn.close()
+    assert rows == [("2026-10-14", 258.0, 370.0, None, "2026-10-14T12:00:00")]
+
+
+def _fake_run(stdout, rc=0):
+    def run(*a, **k):
+        return subprocess.CompletedProcess(a, rc, stdout=stdout, stderr="")
+    return run
+
+
+def test_fetch_auth_error_raises_mfp_auth_error(monkeypatch):
+    monkeypatch.setattr(M.subprocess, "run", _fake_run(json.dumps({"ok": False, "error": "expired", "auth": True}), 2))
+    with pytest.raises(M.MFPAuthError):
+        M.fetch("2026-10-13", "2026-10-14")
+
+
+def test_fetch_ignores_log_noise_before_json(monkeypatch):
+    out = "WARNING something\n" + json.dumps({"ok": True, "days": {}, "report_errors": {}})
+    monkeypatch.setattr(M.subprocess, "run", _fake_run(out))
+    assert M.fetch("2026-10-13", "2026-10-14")["ok"]
+
+
+def test_collect_mfp_noop_without_venv(monkeypatch, tmp_path):
+    monkeypatch.setenv("FUEL_MFP_PYTHON", str(tmp_path / "missing" / "python"))
+    monkeypatch.setattr(M.subprocess, "run", lambda *a, **k: pytest.fail("must not run"))
+    M.collect_mfp(3)
+
+
+def test_intake_precedence(empty_db):
+    conn = sqlite3.connect(empty_db)
+    try:
+        conn.executemany("INSERT INTO nutrition_daily (date, calories_kcal, sodium_mg, source) VALUES (?,?,?,?)",
+                         [("2026-10-14", 2000, 1500, "garmin"), ("2026-10-14", 2100, 1600, "mfp"),
+                          ("2026-10-13", 1900, 1400, "garmin")])
+        conn.execute("INSERT INTO daily_energy (date, total_kcal, consumed_kcal, source) VALUES "
+                     "('2026-10-12', 2500, 1800, 'garmin')")
+        got = intake_by_date(conn, "2026-10-12", "2026-10-14")
+    finally:
+        conn.close()
+    assert got["2026-10-14"]["source"] == "mfp" and got["2026-10-14"]["calories_kcal"] == 2100
+    assert got["2026-10-13"]["source"] == "garmin"
+    assert got["2026-10-12"] == {**got["2026-10-12"], "source": "garmin_consumed", "calories_kcal": 1800, "sodium_mg": None}

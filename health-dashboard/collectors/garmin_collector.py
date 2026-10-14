@@ -174,6 +174,45 @@ def collect_wellness(client, target_date: str):
         conn.close()
 
 
+_ACTIVITY_COLS = ("date", "type", "duration_minutes", "distance_km", "avg_hr", "max_hr", "calories",
+                  "source", "source_id", "start_time", "name", "duration_s", "moving_s", "avg_power_w",
+                  "np_w", "bmr_kcal", "training_load", "aerobic_te")
+
+
+def _activity_row(act: dict) -> tuple | None:
+    """Map one get_activities_by_date summary to an activities row (see _ACTIVITY_COLS).
+
+    Power fields are only present on rides recorded with a power meter; they
+    stay NULL otherwise (the fuel planner then falls back to calories - bmr).
+    """
+    activity_id = str(act.get("activityId", "") or "")
+    if not activity_id:
+        return None
+    duration_secs = act.get("duration") or 0
+    distance_m = act.get("distance") or 0
+    start_local = act.get("startTimeLocal", "") or ""
+    return (
+        start_local[:10],
+        (act.get("activityType") or {}).get("typeKey", "unknown"),
+        round(duration_secs / 60, 1) if duration_secs else 0,
+        round(distance_m / 1000, 2) if distance_m else 0,
+        act.get("averageHR"),
+        act.get("maxHR"),
+        act.get("calories"),
+        "garmin",
+        activity_id,
+        start_local or None,
+        act.get("activityName"),
+        duration_secs or None,
+        act.get("movingDuration"),
+        act.get("avgPower"),
+        act.get("normPower"),
+        act.get("bmrCalories"),
+        act.get("activityTrainingLoad"),
+        act.get("aerobicTrainingEffect"),
+    )
+
+
 def collect_activities(client, start_date: str, end_date: str):
     """Collect activities between two dates."""
     conn = get_connection()
@@ -183,37 +222,52 @@ def collect_activities(client, start_date: str, end_date: str):
             logger.info(f"No Garmin activities from {start_date} to {end_date}")
             return
 
+        cols = ", ".join(_ACTIVITY_COLS)
+        marks = ", ".join("?" for _ in _ACTIVITY_COLS)
+        saved = 0
         for act in activities:
-            activity_id = str(act.get("activityId", ""))
-            if not activity_id:
+            row = _activity_row(act)
+            if row is None:
                 continue
-
-            duration_secs = act.get("duration", 0)
-            distance_m = act.get("distance", 0)
-
-            start_local = act.get("startTimeLocal", "")
-            conn.execute(
-                """INSERT OR REPLACE INTO activities
-                   (date, type, duration_minutes, distance_km, avg_hr, max_hr, calories, source, source_id, start_time)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                (
-                    start_local[:10],
-                    act.get("activityType", {}).get("typeKey", "unknown"),
-                    round(duration_secs / 60, 1) if duration_secs else 0,
-                    round(distance_m / 1000, 2) if distance_m else 0,
-                    act.get("averageHR"),
-                    act.get("maxHR"),
-                    act.get("calories"),
-                    "garmin",
-                    activity_id,
-                    start_local or None,
-                ),
-            )
+            conn.execute(f"INSERT OR REPLACE INTO activities ({cols}) VALUES ({marks})", row)
+            saved += 1
 
         conn.commit()
-        logger.info(f"Saved {len(activities)} Garmin activities")
+        logger.info(f"Saved {saved} Garmin activities")
     except Exception as e:
         logger.error(f"Error collecting Garmin activities: {e}")
+    finally:
+        conn.close()
+
+
+def _daily_energy_row(stats: dict | None, target_date: str) -> tuple | None:
+    """Map get_stats(date) to a daily_energy row; None when Garmin has no total yet."""
+    if not stats or stats.get("totalKilocalories") is None:
+        return None
+    return (
+        target_date,
+        stats.get("totalKilocalories"),
+        stats.get("activeKilocalories"),
+        stats.get("bmrKilocalories"),
+        stats.get("consumedKilocalories"),  # NULL unless a food app is linked to Garmin
+        "garmin",
+    )
+
+
+def collect_daily_energy(client, target_date: str):
+    """Collect Garmin's all-day energy totals for one day into daily_energy."""
+    conn = get_connection()
+    try:
+        row = _daily_energy_row(client.get_stats(target_date), target_date)
+        if row is None:
+            logger.info(f"No Garmin energy totals for {target_date}")
+            return
+        conn.execute(
+            "INSERT OR REPLACE INTO daily_energy (date, total_kcal, active_kcal, bmr_kcal, consumed_kcal, source) "
+            "VALUES (?, ?, ?, ?, ?, ?)", row)
+        conn.commit()
+    except Exception as e:
+        logger.error(f"Error collecting Garmin daily energy for {target_date}: {e}")
     finally:
         conn.close()
 
@@ -394,6 +448,7 @@ _NUTRITION_FIELD_MAP = [
     ("sugar", "sugar_g"),
     ("sodium", "sodium_mg"),
     ("potassium", "potassium_mg"),
+    ("cholesterol", "cholesterol_mg"),
 ]
 
 
@@ -659,6 +714,7 @@ def collect_all(days_back: int = 7):
         collect_wellness(client, d)
         collect_nutrition(client, d)
         collect_lifestyle(client, d)
+        collect_daily_energy(client, d)
 
     collect_activities(client, start.isoformat(), today.isoformat())
     collect_hr_streams(client, days_back)

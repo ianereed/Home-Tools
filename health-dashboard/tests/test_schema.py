@@ -9,7 +9,7 @@ import collectors.db as db
 EXPECTED_TABLES = {
     "sleep", "heart_rate", "activities", "wellness", "activity_streams",
     "blood_pressure", "body_weight", "body_composition", "nutrition_daily",
-    "lifestyle_log",
+    "lifestyle_log", "daily_energy", "fuel_state",
 }
 
 
@@ -180,3 +180,38 @@ def test_fake_clinical_installs_without_importing_real_module(fake_clinical):
     assert fake_clinical.PATIENT_NAME == "Test Patient"
     assert hasattr(fake_clinical, "CARDIO_GOALS")
     assert hasattr(fake_clinical, "MEDICATIONS")
+
+
+def test_fuel_columns_present(fake_db):
+    conn = sqlite3.connect(fake_db)
+    try:
+        acols = {r[1] for r in conn.execute("PRAGMA table_info(activities)")}
+        ncols = {r[1] for r in conn.execute("PRAGMA table_info(nutrition_daily)")}
+    finally:
+        conn.close()
+    assert {c for c, _ in db.ACTIVITY_FUEL_COLUMNS} <= acols
+    assert {"cholesterol_mg", "updated_at"} <= ncols
+
+
+def test_migrate_adds_fuel_columns_to_old_db(tmp_path, monkeypatch):
+    # A pre-fuel DB (old activities/nutrition_daily shapes) gains the columns on init_db().
+    path = tmp_path / "old.db"
+    conn = sqlite3.connect(path)
+    conn.executescript("""
+        CREATE TABLE activities (id INTEGER PRIMARY KEY, date TEXT, type TEXT, duration_minutes REAL,
+          distance_km REAL, avg_hr REAL, max_hr REAL, calories REAL, source TEXT, source_id TEXT,
+          UNIQUE(source, source_id));
+        CREATE TABLE nutrition_daily (date TEXT NOT NULL, calories_kcal REAL, sodium_mg REAL,
+          source TEXT NOT NULL, PRIMARY KEY (date, source));
+    """)
+    conn.close()
+    monkeypatch.setattr(db, "DB_PATH", str(path))
+    db.init_db()
+    conn = sqlite3.connect(path)
+    try:
+        acols = {r[1] for r in conn.execute("PRAGMA table_info(activities)")}
+        ncols = {r[1] for r in conn.execute("PRAGMA table_info(nutrition_daily)")}
+    finally:
+        conn.close()
+    assert "avg_power_w" in acols and "bmr_kcal" in acols and "start_time" in acols
+    assert "cholesterol_mg" in ncols

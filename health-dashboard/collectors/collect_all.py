@@ -46,6 +46,9 @@ def main(days_back: int = 7):
     from . import garmin_collector, apple_health
     _collect_with_retry("Garmin", garmin_collector.collect_all, days_back)
     _collect_with_retry("Apple Health", apple_health.collect_all, days_back)
+    # MyFitnessPal food log (own venv; silent no-op when not installed).
+    from . import mfp_collector
+    _collect_with_retry("MyFitnessPal", mfp_collector.collect_mfp, days_back)
 
     # NOTE: Suunto (via Intervals.icu) was retired 2026-05-30 — device gone.
     # Wellness/HRV/sleep-score data now comes from Garmin.
