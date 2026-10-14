@@ -176,6 +176,69 @@ def init_db():
             updated_at TEXT
         );
 
+        -- Fuel planner runs: full JSON payload for the dashboard + the snapshot
+        -- that produced it (reproducible), one row per refresh.
+        CREATE TABLE IF NOT EXISTS fuel_plan_runs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            created_at TEXT NOT NULL,
+            trigger TEXT,
+            reason TEXT,
+            plan_start TEXT,
+            plan_end TEXT,
+            engine_version TEXT,
+            status TEXT NOT NULL,           -- ok | error
+            error TEXT,
+            duration_ms INTEGER,
+            payload_json TEXT,
+            snapshot_json TEXT
+        );
+
+        -- Daily targets per run (cheap SQL joins against intake).
+        CREATE TABLE IF NOT EXISTS fuel_plan_days (
+            run_id INTEGER NOT NULL,
+            date TEXT NOT NULL,
+            pace TEXT NOT NULL,
+            category TEXT,
+            source TEXT,
+            tdee REAL, kcal REAL, protein_g REAL, carb_g REAL, fat_g REAL,
+            sodium_max_mg REAL, chol_max_mg REAL, satfat_max_g REAL, deficit REAL,
+            PRIMARY KEY (run_id, date, pace)
+        );
+
+        -- Garmin Coach window as fetched (deduped by digest) + per-workout versions
+        -- and detected changes, for projection and the Coach-adaptation experiment.
+        CREATE TABLE IF NOT EXISTS coach_snapshots (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            fetched_at TEXT NOT NULL,
+            plan_id INTEGER,
+            window_start TEXT,
+            window_end TEXT,
+            digest TEXT UNIQUE,
+            payload_json TEXT
+        );
+        CREATE TABLE IF NOT EXISTS coach_workout_versions (
+            date TEXT NOT NULL,
+            workout_uuid TEXT NOT NULL,
+            digest TEXT NOT NULL,
+            name TEXT,
+            type TEXT,
+            duration_s REAL,
+            planned_kj REAL,
+            workout_json TEXT,
+            first_seen TEXT,
+            last_seen TEXT,
+            PRIMARY KEY (date, workout_uuid, digest)
+        );
+        CREATE TABLE IF NOT EXISTS coach_diffs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            detected_at TEXT NOT NULL,
+            date TEXT NOT NULL,
+            change TEXT NOT NULL,           -- added | removed | changed
+            before_json TEXT,
+            after_json TEXT,
+            context_json TEXT
+        );
+
         CREATE TABLE IF NOT EXISTS vo2max (
             date TEXT NOT NULL,             -- Garmin calendarDate of the estimate
             vo2max REAL,                    -- ml/kg/min (vo2MaxPreciseValue)
