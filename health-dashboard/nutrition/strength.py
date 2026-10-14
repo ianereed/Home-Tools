@@ -31,6 +31,26 @@ TEMPLATES = {
 UPPER = {"A": [("Dumbbell bench press", "BENCH_PRESS", "DUMBBELL_BENCH_PRESS", "accessory")],
          "B": [("Dumbbell row", "ROW", "DUMBBELL_ROW", "accessory")]}
 
+# Home / bodyweight versions (no equipment): (label, category, exerciseName, reps, seconds).
+# Push-ups are in both (Ian is cleared for them); there is no pull without a bar, so the superman /
+# floor Y-raise cover the upper back.
+HOME_TEMPLATES = {
+    "A": [("Air squat", "SQUAT", "AIR_SQUAT", 15, None),
+          ("Push-up", "PUSH_UP", "PUSH_UP", 10, None),
+          ("Reverse lunge (each leg)", "LUNGE", "LUNGE", 10, None),
+          ("Single-leg glute bridge (each leg)", "HIP_RAISE", "SINGLE_LEG_HIP_RAISE", 12, None),
+          ("Single-leg calf raise (each leg)", "CALF_RAISE", "SINGLE_LEG_STANDING_CALF_RAISE", 15, None),
+          ("Superman", "HYPEREXTENSION", "SUPERMAN_FROM_FLOOR", 12, None),
+          ("Dead bug (each side)", "HIP_STABILITY", "DEAD_BUG", 10, None)],
+    "B": [("Walking lunge (each leg)", "LUNGE", "WALKING_LUNGE", 10, None),
+          ("Decline push-up (feet on a chair)", "PUSH_UP", "DECLINE_PUSH_UP", 8, None),
+          ("Glute bridge", "HIP_RAISE", "HIP_RAISE", 15, None),
+          ("Wall sit", "SQUAT", "BODY_WEIGHT_WALL_SQUAT", None, 45),
+          ("Single-leg calf raise (each leg)", "CALF_RAISE", "SINGLE_LEG_STANDING_CALF_RAISE", 15, None),
+          ("Floor Y-raise", "SHOULDER_STABILITY", "FLOOR_Y_RAISE", 12, None),
+          ("Side plank (each side)", "PLANK", "SIDE_PLANK", None, 30)],
+}
+
 # level -> (sets, reps) for main lifts; accessories run one more rep, core is fixed
 LEVELS = {1: (2, 10), 2: (3, 10), 3: (3, 8), 4: (4, 8), 5: (4, 6), 6: (4, 5)}
 RIR = {1: 3, 2: 3, 3: 2, 4: 2, 5: 2, 6: 1}
@@ -38,12 +58,20 @@ LIFT_MIN = 45
 REST_S = {"main": 120, "accessory": 75, "core": 45}
 
 
-def prescription(template: str, level: int, variant: str, deload: bool, upper: bool) -> list[dict]:
+def prescription(template: str, level: int, variant: str, deload: bool, upper: bool,
+                 equipment: str = "gym") -> list[dict]:
     sets, reps = LEVELS[max(1, min(6, level))]
     rir = RIR[max(1, min(6, level))]
     if deload or variant == "light":
         sets, rir = max(2, sets - 1), rir + 1
     out = []
+    if equipment == "home":
+        bump = (max(1, min(6, level)) - 1) * 2   # +2 reps / +10 s per level
+        for label, cat, name, r, sec in HOME_TEMPLATES[template]:
+            out.append({"label": label, "category": cat, "exercise": name, "sets": sets,
+                        "reps": r + bump if r else None, "seconds": sec + 5 * bump if sec else None,
+                        "rir": rir if r else None, "rest_s": 60})
+        return out
     for label, cat, name, kind in TEMPLATES[template] + (UPPER[template] if upper else []):
         if kind == "core":
             out.append({"label": label, "category": cat, "exercise": name, "sets": 2 if variant == "light" else 3,
@@ -56,7 +84,7 @@ def prescription(template: str, level: int, variant: str, deload: bool, upper: b
 
 
 def spec_hash(spec: dict) -> str:
-    keep = {k: spec[k] for k in ("template", "level", "variant", "deload", "upper", "exercises")}
+    keep = {k: spec.get(k) for k in ("template", "level", "variant", "deload", "upper", "equipment", "exercises")}
     return hashlib.sha1(json.dumps(keep, sort_keys=True).encode()).hexdigest()[:10]
 
 
@@ -190,13 +218,17 @@ def plan_lifts(days: list[dict], *, today: date, cfg: dict, settings: dict, comp
             if ds == t and readiness is not None and readiness < 25:
                 variant = "light"
                 reasons.append(f"Garmin readiness {readiness:.0f} < 25: light session")
-            ex = prescription(template, level, variant, deload, upper)
+            equipment = (settings.get("lift_equipment_by_date") or {}).get(ds) or settings.get("lift_equipment", "gym")
+            if equipment == "home":
+                reasons.append("bodyweight session at home")
+            ex = prescription(template, level, variant, deload, upper, equipment)
             spec = {"template": template, "level": level, "variant": variant, "deload": deload, "upper": upper,
-                    "exercises": ex}
+                    "equipment": equipment, "exercises": ex}
             out.append({"plan_key": key or next(free), "kind": "lift", "date": ds, "start": st, "end": st + LIFT_MIN,
                         "minutes": LIFT_MIN, **spec, "spec_hash": spec_hash(spec), "reasons": reasons,
                         "name": f"FP · Lift {template}{level}{' light' if variant == 'light' else ''}"
-                                f"{' deload' if deload else ''} · {'Full body' if upper else 'Lower+Core'}"})
+                                f"{' deload' if deload else ''} · "
+                                f"{'Home bodyweight' if equipment == 'home' else 'Full body' if upper else 'Lower+Core'}"})
             taken.append(i)
     return out
 
