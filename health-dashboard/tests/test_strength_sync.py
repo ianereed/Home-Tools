@@ -75,6 +75,12 @@ def test_pinned_date_is_kept_even_if_planner_would_not_choose_it():
     assert any(l["date"] == friday and l["plan_key"] == "lift-x" for l in lifts)
 
 
+def test_load_ratio_needs_three_weeks_of_history():
+    short = {(TODAY - timedelta(days=i)).isoformat(): 100 for i in range(1, 10)}
+    assert ST.acwr(short, TODAY) is None
+    assert ST.daily_load([{"date": "2026-10-01", "duration_s": 3600}], 250) == {}   # pre-load-field rows: unknown
+
+
 def test_high_load_ratio_drops_to_one_lift_and_light():
     days, cfg = _days(WEEK)
     load = {(TODAY - timedelta(days=i)).isoformat(): (150 if i <= 7 else 30) for i in range(1, 29)}

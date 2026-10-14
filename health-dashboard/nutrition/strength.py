@@ -66,6 +66,8 @@ def daily_load(activities: list[dict], ftp: float) -> dict[str, float]:
     out: dict[str, float] = {}
     for a in activities:
         hours = (a.get("duration_s") or 0) / 3600
+        if not a.get("np_w") and a.get("training_load") is None:
+            continue  # rows collected before load fields existed: unknown, not zero
         if a.get("np_w") and ftp:
             ifv = a["np_w"] / ftp
             tss = hours * ifv * ifv * 100
@@ -75,7 +77,12 @@ def daily_load(activities: list[dict], ftp: float) -> dict[str, float]:
     return out
 
 
-def acwr(load: dict[str, float], today: date) -> float | None:
+def acwr(load: dict[str, float], today: date, min_history_days: int = 21) -> float | None:
+    """7-day : 28-day mean daily load. None until load data reaches back `min_history_days` (otherwise
+    the chronic side is mostly empty days and the ratio is wildly high)."""
+    if not load or (today - date.fromisoformat(min(load))).days < min_history_days:
+        return None
+
     def mean(n):
         return sum(load.get((today - timedelta(days=i)).isoformat(), 0.0) for i in range(1, n + 1)) / n
     chronic = mean(28)
