@@ -51,6 +51,17 @@ def _cached(conn, key, ttl_s, fetch):
         return (hit or {}).get("value"), f"stale ({type(e).__name__})"
 
 
+def _coach_context(conn, today: date) -> dict:
+    """What happened in the 48 h before a Coach change: the experiment's explanatory variables."""
+    since = (today - timedelta(days=2)).isoformat()
+    rows = conn.execute("SELECT date, type, name, duration_s, np_w, training_load FROM activities WHERE source='garmin' "
+                        "AND date >= ? ORDER BY start_time", (since,)).fetchall()
+    acts = [{"date": r[0], "type": r[1], "name": r[2], "minutes": round((r[3] or 0) / 60), "np_w": r[4], "load": r[5]}
+            for r in rows]
+    return {"activities_48h": acts, "lift_48h": any("strength" in (a["type"] or "") for a in acts),
+            "planned_lifts": [x["date"] for x in (store.get_state(conn, "lift_plan_last") or [])][:4]}
+
+
 def plan_strength(conn, snap: dict, settings: dict, today: date, acts: list[dict]) -> tuple[list[dict], dict]:
     """Desired lifts for the horizon + context for the dashboard."""
     cfg = E.config(snap)
@@ -137,7 +148,7 @@ def run_refresh(reason: str, trigger: str = "manual", collect: bool = True, cale
                 workouts = coach.fetch_window(client, plan["id"], lambda u: store.cached_coach_detail(conn, u))
                 for w in workouts:
                     w["planned_kj"] = round(sum(d * p for d, p in E.flatten_steps(w["steps"])) / 1000) if w.get("steps") else None
-                store.save_coach_window(conn, plan, workouts)
+                store.save_coach_window(conn, plan, workouts, context=_coach_context(conn, today))
             sources["coach"] = "ok" if plan else "no active plan"
         except Exception as e:
             log.warning("Coach fetch failed: %s", e)
