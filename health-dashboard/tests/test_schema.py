@@ -10,7 +10,7 @@ EXPECTED_TABLES = {
     "sleep", "heart_rate", "activities", "wellness", "activity_streams",
     "blood_pressure", "body_weight", "body_composition", "nutrition_daily",
     "lifestyle_log", "daily_energy", "fuel_state", "fuel_plan_runs", "fuel_plan_days",
-    "coach_snapshots", "coach_workout_versions", "coach_diffs",
+    "coach_snapshots", "coach_workout_versions", "coach_diffs", "fuel_garmin_workouts", "fuel_garmin_ops",
 }
 
 

@@ -170,9 +170,35 @@ def _today(p: dict):
             src = s.get("energy_source", "")
             extra = f" · NP {s['np_w']:.0f} W (IF {s['if_np']:.2f})" if s.get("np_w") and s.get("if_np") else ""
             st.caption(f"{s['name']}: {H.g(s['active_kcal'])} active kcal from {src}{extra}. Targets above already use it.")
+    lift = next((x for x in (p.get("strength") or {}).get("lifts", []) if x["date"] == today), None)
+    if lift:
+        _lift_block(lift, p)
     st.markdown("## Meals")
     if meals:
         st.html(H.meals_html(meals))
+
+
+def _sync_status(lift: dict, p: dict) -> str:
+    sync = (p.get("strength") or {}).get("sync") or {}
+    mode = sync.get("mode", "off")
+    op = next((o for o in sync.get("ops", []) if o["plan_key"] == lift["plan_key"]), None)
+    if mode == "off":
+        return "Garmin sync is off."
+    if mode == "dry_run":
+        return f"Dry run: would {op['op']} on Garmin." if op else "Dry run: already in sync."
+    return f"On your Garmin calendar ({op['op']} this refresh)." if op else "On your Garmin calendar."
+
+
+def _lift_block(lift: dict, p: dict):
+    st.markdown("## Strength")
+    rows = "".join(f"<li><span>{H.esc(x['label'])}</span><span class='q'>{x['sets']} × "
+                   f"{(str(x['reps']) + ' reps') if x.get('reps') else (str(x['seconds']) + ' s')}"
+                   f"{(' · ' + str(x['rir']) + ' RIR') if x.get('rir') else ''} · rest {x['rest_s']} s</span></li>"
+                   for x in lift["exercises"])
+    reasons = "".join(f"<li>{H.esc(r)}</li>" for r in lift.get("reasons", []))
+    st.html(f"<div class='fuel-card'><div class='fuel-name'>{H.esc(lift['name'])} · {H._hm(lift['start'])}"
+            f"</div><ul class='fuel-ing'>{rows}</ul><ul class='fuel-notes'>{reasons}</ul>"
+            f"<div class='fuel-tgt'>{H.esc(_sync_status(lift, p))}</div></div>")
 
 
 def _next(p: dict):
@@ -279,6 +305,16 @@ def _last(p: dict):
         st.dataframe(pd.DataFrame([{"seen": r.detected_at[:16], "day": r.date, "change": r.change,
                                     "before": _name(r.before_json), "after": _name(r.after_json)} for r in diffs.itertuples()]),
                      hide_index=True, use_container_width=True)
+    stg = p.get("strength") or {}
+    if stg:
+        st.markdown("## Strength")
+        ratio = stg.get("acwr")
+        st.caption(f"7-day : 28-day load ratio {ratio:.2f}" if ratio else "Load ratio needs 4 weeks of rides.")
+        st.caption("Completed lifts this and last week: " + (", ".join(c["date"] for c in stg.get("completed", [])) or "none")
+                   + " · progress " + ", ".join(f"{k}: {v}" for k, v in (stg.get("progress") or {}).items()))
+        ops = _query("SELECT ts, mode, op, date, ok, detail FROM fuel_garmin_ops ORDER BY id DESC LIMIT 20")
+        if not ops.empty:
+            st.dataframe(ops, hide_index=True, use_container_width=True)
     st.markdown("## Data issues")
     issues = [f"{r['date']} {r['name']}: no power recorded (Garmin estimate used)" for r in hist.get("no_power", [])]
     src = p.get("sources", {})
