@@ -12,8 +12,25 @@ kettle, food processor, immersion blender; no countertop blender, no air
 fryer) are respected in the method text.
 """
 
+from typing import NamedTuple
+
+
+class Food(NamedTuple):
+    kcal: float
+    p: float
+    c: float
+    f: float
+    fiber: float
+    sat: float
+    na: float      # sodium mg
+    k: float       # potassium mg
+    unit: str
+    g_per_unit: float
+    chol: float = 0.0  # dietary cholesterol mg
+
+
 # name: (kcal, protein, carb, fat, fiber, sat_fat, sodium_mg, potassium_mg, unit_label, grams_per_unit)
-FOODS = {
+_FOODS = {
     "rolled oats (dry)":            (379, 13.2, 67.7, 6.5, 10.1, 1.1, 6, 362, "cup", 80),
     "nonfat Greek yogurt":          (59, 10.2, 3.6, 0.4, 0.0, 0.1, 36, 141, "cup", 245),
     "blueberries (frozen ok)":      (57, 0.7, 14.5, 0.3, 2.4, 0.0, 1, 77, "cup", 148),
@@ -62,7 +79,26 @@ FOODS = {
     "hummus (homemade)":            (166, 7.9, 14.3, 9.6, 6.0, 1.4, 240, 228, "tbsp", 15),
     "low-sodium soy sauce":         (53, 8.0, 5.0, 0.0, 0.8, 0.0, 3600, 200, "tsp", 6),
     "sports drink mix":             (380, 0.0, 95.0, 0.0, 0.0, 0.0, 500, 150, "scoop", 22),
+    "green beans":                  (31, 1.8, 7.0, 0.2, 2.7, 0.0, 6, 211, "cup", 125),
+    "zucchini":                     (17, 1.2, 3.1, 0.3, 1.0, 0.1, 8, 261, "medium", 196),
+    "mushrooms":                    (22, 3.1, 3.3, 0.3, 1.0, 0.0, 5, 318, "cup", 70),
+    "frozen corn":                  (96, 3.4, 21.0, 1.5, 2.4, 0.2, 1, 218, "cup", 145),
+    "kale (raw)":                   (35, 2.9, 4.4, 1.5, 4.1, 0.2, 53, 348, "cup", 21),
+    "whole-wheat pita":             (266, 9.8, 55.0, 2.6, 7.4, 0.4, 340, 170, "pita", 64),
 }
+
+# Dietary cholesterol, mg per 100 g (USDA FDC, approximate). Plant foods are 0.
+_CHOL = {
+    "nonfat Greek yogurt": 5, "whole egg": 372, "chicken breast (cooked)": 85, "salmon fillet (cooked)": 63,
+    "cod (cooked)": 55, "shrimp (cooked)": 189, "93% lean ground turkey (cooked)": 103,
+    "tuna in water, no salt added": 30, "protein powder (whey isolate)": 15, "skim milk": 2,
+}
+
+FOODS = {name: Food(*vals, chol=_CHOL.get(name, 0.0)) for name, vals in _FOODS.items()}
+
+# Lower-cholesterol stand-ins used when a day goes over the cholesterol limit.
+CHOL_SUBS = {"whole egg": "liquid egg whites", "shrimp (cooked)": "cod (cooked)",
+             "93% lean ground turkey (cooked)": "chicken breast (cooked)"}
 
 UNIT_PLURAL = {"medium": "medium", "oz": "oz", "cup": "cup", "tbsp": "tbsp", "tsp": "tsp"}
 
@@ -84,14 +120,16 @@ GROCERY_HINTS = {
 
 GROCERY_SECTION = {
     "Produce": ["banana", "apple", "orange", "avocado", "broccoli (cooked)", "spinach / greens (raw)", "bell pepper",
-                "carrots", "onion", "russet potato (baked, skin on)", "sweet potato (baked)", "Medjool dates"],
+                "carrots", "onion", "russet potato (baked, skin on)", "sweet potato (baked)", "Medjool dates",
+                "green beans", "zucchini", "mushrooms", "kale (raw)"],
     "Protein": ["chicken breast (cooked)", "salmon fillet (cooked)", "cod (cooked)", "shrimp (cooked)",
                 "93% lean ground turkey (cooked)", "extra-firm tofu", "whole egg", "liquid egg whites",
                 "tuna in water, no salt added"],
     "Dairy": ["nonfat Greek yogurt", "skim milk"],
-    "Frozen": ["blueberries (frozen ok)", "raspberries (frozen ok)", "frozen stir-fry vegetables", "edamame (shelled, cooked)"],
+    "Frozen": ["blueberries (frozen ok)", "raspberries (frozen ok)", "frozen stir-fry vegetables", "edamame (shelled, cooked)",
+               "frozen corn"],
     "Pantry & grains": ["rolled oats (dry)", "brown rice (cooked)", "jasmine rice (cooked)", "quinoa (cooked)",
-                        "whole-wheat pasta (cooked)", "100% whole-wheat bread", "corn tortillas",
+                        "whole-wheat pasta (cooked)", "100% whole-wheat bread", "corn tortillas", "whole-wheat pita",
                         "lentils (cooked)", "black beans (no salt, drained)", "chickpeas (no salt, drained)",
                         "crushed tomatoes, no salt added", "hummus (homemade)", "low-sodium soy sauce", "honey"],
     "Nuts, seeds & oils": ["almonds", "walnuts", "natural peanut butter (no salt)", "chia seeds", "extra-virgin olive oil"],
@@ -119,9 +157,9 @@ MEALS = [
      "levers": {"p": "nonfat Greek yogurt", "c": "rolled oats (dry)", "f": "walnuts"},
      "method": "Pour boiling kettle water over the oats (2:1), cover 5 min (or microwave 2 min). Top with berries, chia, yogurt, chopped walnuts. Pre-ride: skip the chia and walnuts."},
     {"id": "scramble", "slot": "B", "name": "Veggie egg scramble on toast with avocado", "pre_ok": False, "portable": False,
-     "fixed": {"whole egg": 100, "spinach / greens (raw)": 60, "bell pepper": 60},
+     "fixed": {"whole egg": 50, "spinach / greens (raw)": 60, "bell pepper": 60},
      "levers": {"p": "liquid egg whites", "c": "100% whole-wheat bread", "f": "avocado"},
-     "method": "Gas range, nonstick pan: wilt the spinach and pepper, add 2 eggs plus the whites, soft-scramble. Toast the bread; mash the avocado on top."},
+     "method": "Gas range, nonstick pan: wilt the spinach and pepper, add 1 egg plus the whites, soft-scramble. Toast the bread; mash the avocado on top."},
     {"id": "smoothie", "slot": "B", "name": "Banana-berry protein smoothie + toast", "pre_ok": True, "portable": True,
      "fixed": {"skim milk": 300, "raspberries (frozen ok)": 100, "spinach / greens (raw)": 30},
      "levers": {"p": "protein powder (whey isolate)", "c": "banana", "f": "natural peanut butter (no salt)"},
@@ -193,11 +231,64 @@ MEALS = [
      "method": "Dutch oven on the gas range: onion, pepper, chili powder, and cumin, then the tomatoes, beans, and diced chicken; simmer 30 min. Microwave the potato 8 min. Top with avocado. Batch: 4 portions."},
 ]
 
+MEALS += [
+    # ---------------- more breakfasts ----------------
+    {"id": "pb_toast", "slot": "B", "name": "Peanut-butter banana toast + skim latte", "pre_ok": True, "portable": False,
+     "fixed": {"skim milk": 250},
+     "levers": {"p": "protein powder (whey isolate)", "c": "100% whole-wheat bread", "f": "natural peanut butter (no salt)"},
+     "c_extra": {"banana": 1.0},
+     "method": "Toast the bread, spread peanut butter, slice banana on top. Kettle-hot water + espresso or instant coffee and steamed (microwaved) milk; stir a scoop of protein into the milk before heating."},
+    {"id": "chia_pudding", "slot": "B", "name": "Overnight chia-oat pudding with berries", "pre_ok": False, "portable": True,
+     "fixed": {"chia seeds": 15, "raspberries (frozen ok)": 100, "skim milk": 200},
+     "levers": {"p": "nonfat Greek yogurt", "c": "rolled oats (dry)", "f": "almonds"},
+     "method": "The night before: stir oats, chia, milk, and yogurt in a jar; refrigerate. Top with berries and almonds in the morning."},
+    # ---------------- more lunches ----------------
+    {"id": "chickpea_pita", "slot": "L", "name": "Smashed chickpea + chicken pita with greens", "pre_ok": False, "portable": True,
+     "fixed": {"chickpeas (no salt, drained)": 90, "spinach / greens (raw)": 40, "bell pepper": 60},
+     "levers": {"p": "chicken breast (cooked)", "c": "whole-wheat pita", "f": "avocado"},
+     "method": "Smash the chickpeas with lemon and the avocado (food processor pulse or fork), fold in chopped chicken and peppers, stuff the pita with greens."},
+    {"id": "bean_bowl", "slot": "L", "name": "Black bean, corn and brown rice bowl", "pre_ok": False, "portable": True,
+     "fixed": {"black beans (no salt, drained)": 120, "frozen corn": 70, "bell pepper": 60, "spinach / greens (raw)": 30},
+     "levers": {"p": "chicken breast (cooked)", "c": "brown rice (cooked)", "f": "avocado"},
+     "method": "Microwave the corn and beans with cumin and lime; serve over brown rice with chicken, peppers, and sliced avocado. Salsa fresca instead of jarred salsa keeps the sodium down."},
+    {"id": "salmon_quinoa", "slot": "L", "name": "Leftover salmon over quinoa and kale", "pre_ok": False, "portable": True,
+     "fixed": {"kale (raw)": 40, "zucchini": 100},
+     "levers": {"p": "salmon fillet (cooked)", "c": "quinoa (cooked)", "f": "extra-virgin olive oil"},
+     "method": "Cook a double salmon portion at dinner the night before. Massage the kale with lemon and oil, add quinoa, sautéed zucchini, and flaked salmon."},
+    # ---------------- more snacks ----------------
+    {"id": "edamame_snack", "slot": "S", "name": "Edamame + orange + almonds", "pre_ok": False, "portable": True,
+     "fixed": {"edamame (shelled, cooked)": 100},
+     "levers": {"p": "nonfat Greek yogurt", "c": "orange", "f": "almonds"},
+     "method": "Microwave frozen edamame 2 min (no added salt; lemon + chili flakes instead). Orange on the side."},
+    {"id": "recovery_milk", "slot": "S", "name": "Recovery shake: milk, protein, banana, oats", "pre_ok": True, "portable": True,
+     "fixed": {"skim milk": 300},
+     "levers": {"p": "protein powder (whey isolate)", "c": "banana", "f": "natural peanut butter (no salt)"},
+     "c_extra": {"rolled oats (dry)": 0.3},
+     "method": "Tall jar + immersion blender, 30 s. Drink within 30 min of the ride or lift."},
+    # ---------------- more dinners ----------------
+    {"id": "cod_beans", "slot": "D", "name": "Baked cod, roasted potatoes and green beans", "pre_ok": False, "portable": False,
+     "fixed": {"green beans": 200},
+     "levers": {"p": "cod (cooked)", "c": "russet potato (baked, skin on)", "f": "extra-virgin olive oil"},
+     "method": "425°F: potato wedges in a little oil for 20 min, then add the cod (lemon, garlic, paprika) and green beans for 12 min more."},
+    {"id": "fajita_sheet", "slot": "D", "name": "Sheet-pan chicken fajitas", "pre_ok": False, "portable": True,
+     "fixed": {"bell pepper": 160, "onion": 80, "black beans (no salt, drained)": 80},
+     "levers": {"p": "chicken breast (cooked)", "c": "corn tortillas", "f": "avocado"},
+     "method": "Toss the chicken strips, peppers, and onion in oil, cumin, chili powder, and lime; roast at 425°F for 20 min. Warm the tortillas over the gas burner."},
+    {"id": "lentil_curry", "slot": "D", "name": "Red lentil + spinach curry over brown rice", "pre_ok": False, "portable": True,
+     "fixed": {"lentils (cooked)": 150, "crushed tomatoes, no salt added": 150, "spinach / greens (raw)": 60, "onion": 60},
+     "levers": {"p": "nonfat Greek yogurt", "c": "brown rice (cooked)", "f": "extra-virgin olive oil"},
+     "method": "Sweat the onion with garlic, ginger, and curry powder in oil; add lentils and tomatoes, simmer 15 min, wilt in spinach. Serve with a big spoon of Greek yogurt. Batch-friendly."},
+    {"id": "primavera", "slot": "D", "name": "Chicken + vegetable whole-wheat pasta primavera", "pre_ok": False, "portable": True,
+     "fixed": {"zucchini": 120, "mushrooms": 80, "spinach / greens (raw)": 40, "crushed tomatoes, no salt added": 100},
+     "levers": {"p": "chicken breast (cooked)", "c": "whole-wheat pasta (cooked)", "f": "extra-virgin olive oil"},
+     "method": "Sauté the zucchini and mushrooms in oil and garlic, add the tomatoes and spinach, toss with the pasta and sliced chicken. Lemon zest + black pepper instead of salt and parmesan."},
+]
+
 LEVER_MAX = {
     "extra-virgin olive oil": 25, "walnuts": 40, "almonds": 40, "natural peanut butter (no salt)": 32,
     "avocado": 75, "hummus (homemade)": 90, "protein powder (whey isolate)": 60, "nonfat Greek yogurt": 400,
     "liquid egg whites": 300, "Medjool dates": 96, "banana": 240, "rolled oats (dry)": 120,
-    "100% whole-wheat bread": 86, "corn tortillas": 156, "extra-firm tofu": 300,
+    "100% whole-wheat bread": 86, "corn tortillas": 156, "extra-firm tofu": 300, "whole-wheat pita": 128,
     "sweet potato (baked)": 400, "russet potato (baked, skin on)": 400,
 }
 
