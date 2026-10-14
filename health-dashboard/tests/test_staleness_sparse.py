@@ -212,6 +212,13 @@ class TestNutrition:
         assert self._alert(cardio_db) is None
 
     def test_check_staleness_includes_nutrition(self, cardio_db):
-        _insert_nutrition(cardio_db, _days_ago(staleness_check.NUTRITION_STALE_DAYS + 2)[:10])
+        _insert_nutrition(cardio_db, _days_ago(staleness_check.NUTRITION_STALE_DAYS + 2)[:10],
+                          source=staleness_check.NUTRITION_SOURCE)
         stale = check_staleness(now=NOW)
         assert any("Nutrition log" in s for s in stale)
+
+
+    def test_check_staleness_ignores_dormant_garmin_log(self, cardio_db):
+        # The old Garmin Connect+ log no longer arms the check once MFP is the food log.
+        _insert_nutrition(cardio_db, _days_ago(staleness_check.NUTRITION_STALE_DAYS + 2)[:10], source="garmin")
+        assert not any("Nutrition log" in s for s in check_staleness(now=NOW))

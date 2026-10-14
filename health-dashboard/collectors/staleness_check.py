@@ -21,6 +21,7 @@ WEIGHT_DORMANT_DAYS = 45
 # weekend shouldn't page — stale at 4 days. If logging is abandoned (the known
 # risk with any food tracker), go dormant after 30 days and stop nagging.
 NUTRITION_STALE_DAYS = 4
+NUTRITION_SOURCE = "mfp"
 NUTRITION_DORMANT_DAYS = 30
 
 # Heartbeat log. The health_staleness huey kind uses this file's mtime as its
@@ -148,10 +149,11 @@ def check_staleness(now: datetime | None = None) -> list[str]:
     if weight_alert:
         stale.append(weight_alert)
 
-    # Nutrition — arms only on source='garmin' rows (the Connect+ food log),
-    # so a hypothetical future Apple-path backfill can't arm it prematurely.
+    # Nutrition — arms only on the food log Ian actually uses (MyFitnessPal since
+    # 2026-10-14; the Garmin Connect+ log went dormant in July), so another
+    # source's backfill can't arm it prematurely.
     nutrition_alert = _sparse_metric_alert(
-        conn, "nutrition_daily", "garmin", NUTRITION_STALE_DAYS,
+        conn, "nutrition_daily", NUTRITION_SOURCE, NUTRITION_STALE_DAYS,
         NUTRITION_DORMANT_DAYS, "Nutrition log", now, ts_column="date",
     )
     if nutrition_alert:

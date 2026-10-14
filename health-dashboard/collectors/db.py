@@ -131,7 +131,9 @@ def init_db():
             sugar_g REAL,
             sodium_mg REAL,
             potassium_mg REAL,
-            source TEXT NOT NULL,           -- 'apple' (HAE receiver) | 'garmin' | 'manual'
+            cholesterol_mg REAL,
+            source TEXT NOT NULL,           -- 'mfp' (MyFitnessPal) | 'apple' (HAE receiver) | 'garmin' | 'manual'
+            updated_at TEXT,
             PRIMARY KEY (date, source)
         );
 
@@ -153,6 +155,27 @@ def init_db():
         -- VO2max estimate, one row per day Garmin updated it. Same shape the
         -- historical backfill (garmin_backfill.ensure_vo2_table) created, so
         -- this is a no-op on DBs that already have it.
+        -- Garmin all-day energy (get_stats), one row per day. consumed_kcal is
+        -- whatever a linked food app pushed to Garmin (calories only); NULL when
+        -- nothing is linked.
+        CREATE TABLE IF NOT EXISTS daily_energy (
+            date TEXT NOT NULL,
+            total_kcal REAL,
+            active_kcal REAL,
+            bmr_kcal REAL,
+            consumed_kcal REAL,
+            source TEXT NOT NULL,
+            PRIMARY KEY (date, source)
+        );
+
+        -- Fuel planner key/value state (last refreshed activity id, pending
+        -- refresh flags, pace choice, backoff timers).
+        CREATE TABLE IF NOT EXISTS fuel_state (
+            key TEXT PRIMARY KEY,
+            value TEXT,
+            updated_at TEXT
+        );
+
         CREATE TABLE IF NOT EXISTS vo2max (
             date TEXT NOT NULL,             -- Garmin calendarDate of the estimate
             vo2max REAL,                    -- ml/kg/min (vo2MaxPreciseValue)
@@ -163,6 +186,18 @@ def init_db():
     _migrate(conn)
     conn.commit()
     conn.close()
+
+
+ACTIVITY_FUEL_COLUMNS = (
+    ("name", "TEXT"),
+    ("duration_s", "REAL"),        # timer time (power x this = work)
+    ("moving_s", "REAL"),
+    ("avg_power_w", "REAL"),
+    ("np_w", "REAL"),
+    ("bmr_kcal", "REAL"),          # resting share of `calories`
+    ("training_load", "REAL"),
+    ("aerobic_te", "REAL"),
+)
 
 
 def _migrate(conn):
@@ -181,6 +216,16 @@ def _migrate(conn):
         # NULL = canonical/unique. Non-NULL points at the canonical row this is
         # a cross-source duplicate of (the recording device's copy).
         conn.execute("ALTER TABLE activities ADD COLUMN dup_of INTEGER")
+    # Fuel planner: power-meter energy needs timer/moving time, power and the
+    # resting (BMR) share Garmin folds into `calories`.
+    for col, typ in ACTIVITY_FUEL_COLUMNS:
+        if col not in cols:
+            conn.execute(f"ALTER TABLE activities ADD COLUMN {col} {typ}")
+
+    ncols = {row[1] for row in conn.execute("PRAGMA table_info(nutrition_daily)")}
+    for col, typ in (("cholesterol_mg", "REAL"), ("updated_at", "TEXT")):
+        if col not in ncols:
+            conn.execute(f"ALTER TABLE nutrition_daily ADD COLUMN {col} {typ}")
 
 
 if __name__ == "__main__":

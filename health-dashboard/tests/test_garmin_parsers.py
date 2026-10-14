@@ -282,7 +282,7 @@ def test_nutrition_row_sums_meals():
     row = _nutrition_row(payload)
     assert row is not None
     (date, calories, protein, carbs, fat, satfat, fiber, sugar,
-     sodium, potassium, source) = row
+     sodium, potassium, cholesterol, source) = row
     assert date == "2026-07-16"
     assert source == "garmin"
     assert calories == 1200          # 500 + 700
@@ -450,3 +450,42 @@ def test_vo2max_row_empty_or_dateless_returns_none():
     assert _vo2max_row(None) is None
     assert _vo2max_row({}) is None
     assert _vo2max_row({"generic": {"vo2MaxPreciseValue": 50.6}}) is None
+
+
+# --- Fuel planner fields (shapes from the Phase-0 probe, 2026-10-14) ---
+
+from collectors.garmin_collector import _activity_row, _daily_energy_row, _ACTIVITY_COLS
+
+
+def test_nutrition_row_sums_cholesterol():
+    payload = _nutrition_payload([_meal_detail(_meal_content()), _meal_detail(_meal_content(cholesterol=210.0))])
+    row = _nutrition_row(payload)
+    assert row[10] == 250.0  # 40 + 210
+
+
+def test_activity_row_keeps_power_and_bmr():
+    act = {"activityId": 123, "activityName": "Ride", "startTimeLocal": "2026-10-11 08:54:00",
+           "activityType": {"typeKey": "road_biking"}, "duration": 3600.5, "movingDuration": 3500.0,
+           "distance": 30000.0, "averageHR": 140, "maxHR": 170, "calories": 900.0, "bmrCalories": 90.0,
+           "avgPower": 180.0, "normPower": 210.0, "activityTrainingLoad": 120.0, "aerobicTrainingEffect": 3.4}
+    row = dict(zip(_ACTIVITY_COLS, _activity_row(act)))
+    assert row["date"] == "2026-10-11" and row["source_id"] == "123"
+    assert row["duration_s"] == 3600.5 and row["moving_s"] == 3500.0
+    assert row["avg_power_w"] == 180.0 and row["np_w"] == 210.0 and row["bmr_kcal"] == 90.0
+    assert row["duration_minutes"] == 60.0
+
+
+def test_activity_row_without_power_leaves_nulls():
+    act = {"activityId": 9, "startTimeLocal": "2026-10-09 12:00:00", "activityType": {"typeKey": "walking"},
+           "duration": 1800, "calories": 150, "bmrCalories": 40}
+    row = dict(zip(_ACTIVITY_COLS, _activity_row(act)))
+    assert row["avg_power_w"] is None and row["np_w"] is None
+    assert _activity_row({"activityName": "no id"}) is None
+
+
+def test_daily_energy_row():
+    stats = {"totalKilocalories": 2600.0, "activeKilocalories": 400.0, "bmrKilocalories": 2200.0,
+             "consumedKilocalories": None}
+    assert _daily_energy_row(stats, "2026-10-13") == ("2026-10-13", 2600.0, 400.0, 2200.0, None, "garmin")
+    assert _daily_energy_row({"totalKilocalories": None}, "2026-10-13") is None
+    assert _daily_energy_row(None, "2026-10-13") is None
