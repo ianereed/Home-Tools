@@ -161,17 +161,54 @@ def probe_calendar(calendar_id: str):
         out("events", {"n": len(ev.get("items", [])), "item_keys": sorted({k for i in ev.get("items", []) for k in i})})
 
 
+def upload_test(delete: bool = False, workout_id: int | None = None):
+    """Phase-8 gate: upload ONE planner lift (not scheduled), read it back, report what Garmin kept.
+    Run again with --delete-test <id> after checking it on the watch / in Garmin Connect."""
+    from collectors.garmin_collector import _get_garmin_client
+    from . import strength
+
+    c = _get_garmin_client()
+    if delete:
+        c.delete_workout(workout_id)
+        out("deleted", {"workout_id": workout_id})
+        return
+    lift = {"plan_key": "lift-test", "kind": "lift", "date": date.today().isoformat(), "minutes": 45,
+            **{"template": "A", "level": 1, "variant": "normal", "deload": False, "upper": False},
+            "exercises": strength.prescription("A", 1, "normal", False, False), "reasons": ["upload test"],
+            "name": "FP · TEST Lift A1 · Lower+Core"}
+    lift["spec_hash"] = strength.spec_hash(lift)
+    res = c.upload_workout(strength.to_garmin_json(lift))
+    wid = res.get("workoutId")
+    back = c.get_workout_by_id(wid)
+    kept = []
+    for seg in back.get("workoutSegments", []):
+        for st in seg.get("workoutSteps", []):
+            for inner in st.get("workoutSteps", []) or [st]:
+                if inner.get("exerciseName") or inner.get("category"):
+                    kept.append((inner.get("category"), inner.get("exerciseName"),
+                                 (inner.get("endCondition") or {}).get("conditionTypeKey"), inner.get("endConditionValue")))
+    out("upload_test", {"workout_id": wid, "name": back.get("workoutName"), "sport": (back.get("sportType") or {}).get("sportTypeKey"),
+                        "description_tag_kept": (back.get("description") or "").startswith("fuel-planner:lift-test:"),
+                        "exercises_kept": kept})
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser()
     ap.add_argument("--garmin", action="store_true")
     ap.add_argument("--calendar", metavar="CALENDAR_ID")
     ap.add_argument("--date", default=(date.today() - timedelta(days=1)).isoformat())
     ap.add_argument("--food-date", help="a date with Garmin food logging, to inspect nutrient keys")
+    ap.add_argument("--upload-test", action="store_true", help="WRITES one unscheduled test workout to Garmin")
+    ap.add_argument("--delete-test", type=int, metavar="WORKOUT_ID")
     a = ap.parse_args(argv)
     if a.garmin:
         probe_garmin(a.date, a.food_date)
     if a.calendar:
         probe_calendar(a.calendar)
+    if a.upload_test:
+        upload_test()
+    if a.delete_test:
+        upload_test(delete=True, workout_id=a.delete_test)
 
 
 if __name__ == "__main__":
