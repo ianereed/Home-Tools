@@ -101,6 +101,30 @@ def plan_strength(conn, snap: dict, settings: dict, today: date, acts: list[dict
     return lifts, info
 
 
+def push_mfp_goal(conn, res: dict, today: date) -> str:
+    from collectors import mfp_collector as M
+    t = today.isoformat()
+    e = next((x for x in res["plans"]["plan"]["energy"] if x["date"] == t), None)
+    if e is None:
+        return "no target for today"
+    goal = {"day": t, "kcal": round(e["kcal"]), "carbs": round(e["carb_g"]), "protein": round(e["protein_g"]),
+            "fat": round(e["fat_g"]), "sodium": e.get("sodium_max_mg"), "cholesterol": e.get("chol_max_mg"),
+            "fiber": round(e.get("fiber_target", 25))}
+    if store.get_state(conn, "mfp_goal_pushed") == goal:
+        return "unchanged"
+    try:
+        out = M.push_goal(**goal)
+    except M.MFPAuthError:
+        return "auth_expired"
+    except Exception as ex:
+        log.warning("MFP goal push failed: %s", ex)
+        return f"error ({type(ex).__name__})"
+    if out.get("ok"):
+        store.set_state(conn, "mfp_goal_pushed", goal)
+        return "pushed"
+    return out.get("skipped", "not pushed")
+
+
 def run_refresh(reason: str, trigger: str = "manual", collect: bool = True, calendar: bool = True,
                 client=None, today: date | None = None) -> dict:
     t0 = time.time()
@@ -222,6 +246,9 @@ def run_refresh(reason: str, trigger: str = "manual", collect: bool = True, cale
                    "pace_schedule": settings.get("pace_schedule"), "intake": intake,
                    "coach": {"plan": plan, "window": workouts}, "dexa": dexa, "weight_kg": weight,
                    "athlete": {k: v for k, v in athlete.items() if k not in ("birth_date",)}}
+        # 7) mobile front end: today's target becomes MyFitnessPal's goal (only when it changed)
+        if settings.get("mfp_push_goal", True) and sources.get("mfp") not in ("not installed",):
+            sources["mfp_goal"] = push_mfp_goal(conn, res, today)
         dur = int((time.time() - t0) * 1000)
         run_id = store.save_run(conn, trigger=trigger, reason=reason, payload=payload, snapshot=snap, status="ok",
                                 duration_ms=dur)

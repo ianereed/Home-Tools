@@ -37,6 +37,7 @@ DEFAULTS = {
         {"match": "bike packing", "type": "BIKEPACKING", "hours_per_day": 5, "avg_power_w": 120},
         {"match": "bikepacking", "type": "BIKEPACKING", "hours_per_day": 5, "avg_power_w": 120},
     ],
+    "mfp_push_goal": True,                   # today's plan target -> MyFitnessPal goal after each refresh
     "garmin_write_mode": "off",              # off | dry_run | live  (strength/ride sync, Phase 6+)
     "strength_sync_days": 10,
     "upper_body_cleared": False,
