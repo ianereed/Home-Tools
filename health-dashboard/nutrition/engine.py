@@ -443,7 +443,7 @@ def schedule(days: list[dict], kg: float, cfg: dict | None = None, place_lifts: 
 def baseline_kcal(snap: dict) -> dict:
     a, x = snap["athlete"], snap["dexa"]
     age = age_on(a["birth_date"], d(snap["plan_start"]))
-    mif = rmr_mifflin(x["total_mass_kg"], a["height_cm"], age)
+    mif = rmr_mifflin(snap.get("weight_kg") or x["total_mass_kg"], a["height_cm"], age, a.get("sex", "male") != "female")
     kat = rmr_katch(x["lean_mass_kg"] + x["bone_mass_kg"])
     return {"age": age, "rmr": mif, "rmr_mifflin": mif, "rmr_katch": kat, "pal": PAL, "baseline": mif * PAL}
 
@@ -948,7 +948,7 @@ def history(snap: dict, paces: list[float]) -> dict:
                                 sum(r["session"]["garmin_active_kcal"] for r in with_power))}
 
 
-def run(snap: dict, paces: list, lift_plan: list[dict] | None = None) -> dict:
+def run(snap: dict, paces: list, lift_plan: list[dict] | None = None, meal_paces: list | None = None) -> dict:
     """paces: numbers (lb/week) and/or 'plan'. lift_plan: strength sessions from strength.plan_lifts
     ([{date, start, end, minutes, ...}]); when None the engine places lifts itself (prototype behavior)."""
     cfg = config(snap)
@@ -967,6 +967,11 @@ def run(snap: dict, paces: list, lift_plan: list[dict] | None = None) -> dict:
     plans = {}
     for pace in paces:
         energy = plan_energy(days, snap, pace)
+        for e, day in zip(energy, days):
+            e["source"] = day["source"]
+        if meal_paces is not None and pace not in meal_paces:
+            plans[pace] = {"energy": energy}
+            continue
         meals, prev = [], None
         for i, (day, e) in enumerate(zip(days, energy)):
             m = plan_meals(day, e, i, prev, cfg)
@@ -978,5 +983,7 @@ def run(snap: dict, paces: list, lift_plan: list[dict] | None = None) -> dict:
                        "grocery_by_week": grocery_by_week(meals),
                        "grocery_w1": grocery(meals[:7]), "grocery_w2": grocery(meals[7:14])}
     hist = history(snap, [p for p in paces]) if snap.get("daily_stats_prev_14d") else None
-    return {"engine_version": ENGINE_VERSION, "days": days, "plans": plans, "baseline": baseline_kcal(snap),
+    return {"engine_version": ENGINE_VERSION, "plan_start": snap["plan_start"],
+            "plan_end": days[-1]["date"] if days else snap["plan_start"],
+            "days": days, "plans": plans, "baseline": baseline_kcal(snap),
             "history": hist, "targets": body_targets(snap["dexa"]), "config": cfg}

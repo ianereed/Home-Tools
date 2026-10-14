@@ -1,0 +1,76 @@
+"""Fuel planner settings: public defaults + gitignored overrides in data/fuel_settings.json.
+
+Anything personal (calendar id, keyword rules naming people/places, travel buffers, trip
+assumptions) belongs in the JSON file, not here. Medical constraints come from the gitignored
+cardiology/clinical_data.py (FUEL_CONSTRAINTS), read with getattr like the other PHI views.
+"""
+from __future__ import annotations
+
+import importlib.util
+import json
+from copy import deepcopy
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+SETTINGS_PATH = ROOT / "data" / "fuel_settings.json"
+CLINICAL_PATH = ROOT / "cardiology" / "clinical_data.py"
+
+DEFAULTS = {
+    "horizon_end": "2026-12-31",
+    "calendar_ids": [],                      # e.g. ["you@gmail.com"]; empty -> no calendar
+    "treat_needs_action_as_busy": True,
+    "preferred_ride": "10:00",
+    "earliest_ride": "09:00",
+    "pace_schedule": [["2026-10-14", 0.75], ["2026-11-21", 1.0]],
+    "paces": [0, 0.5, 0.75, 1.0, 1.5],       # comparison paces shown alongside the plan
+    "limits": {"sodium_mg": 2300, "cholesterol_mg": 300, "satfat_pct": 0.06},
+    "travel_rules": [],                      # [{"match": "<location substring>", "pre_min": 60}]
+    "calendar_rules": {
+        "trip_keywords": ["bike packing", "bikepacking", "camping"],
+        "workout_keywords": ["group ride", "ride", "race"],
+        "meal_out_keywords": ["dinner", "party", "night"],
+        "meal_out_window": ["17:00", "20:30"],
+        "meal_out_min_minutes": 90,
+        "packed_lunch_span": ["11:30", "13:30"],
+    },
+    "trip_sessions": [                       # calendar trip -> planned session assumption
+        {"match": "bike packing", "type": "BIKEPACKING", "hours_per_day": 5, "avg_power_w": 120},
+        {"match": "bikepacking", "type": "BIKEPACKING", "hours_per_day": 5, "avg_power_w": 120},
+    ],
+    "garmin_write_mode": "off",              # off | dry_run | live  (strength/ride sync, Phase 6+)
+    "strength_sync_days": 10,
+    "upper_body_cleared": False,
+    "athlete_fallback": {},                  # used only if Garmin profile fields are missing
+}
+
+
+def _merge(base: dict, over: dict) -> dict:
+    out = deepcopy(base)
+    for k, v in over.items():
+        if isinstance(v, dict) and isinstance(out.get(k), dict):
+            out[k] = _merge(out[k], v)
+        else:
+            out[k] = v
+    return out
+
+
+def load_settings(path: Path | None = None) -> dict:
+    path = path or SETTINGS_PATH
+    if path.exists():
+        return _merge(DEFAULTS, json.loads(path.read_text()))
+    return deepcopy(DEFAULTS)
+
+
+def load_constraints(path: Path | None = None) -> dict:
+    """Medical constraints from the PHI module, e.g. {'first_food_min_after_wake': 30,
+    'potassium': 'display_only'}. Empty dict when the module or attribute is absent."""
+    path = path or CLINICAL_PATH
+    if not path.exists():
+        return {}
+    try:
+        spec = importlib.util.spec_from_file_location("clinical_data_fuel", path)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+    except Exception:
+        return {}
+    return dict(getattr(mod, "FUEL_CONSTRAINTS", {}) or {})
