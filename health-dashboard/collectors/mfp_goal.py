@@ -44,7 +44,7 @@ def _post(client, payload: dict):
     headers = dict(client.session.headers)
     headers.update({"authorization": f"Bearer {client.access_token}", "mfp-client-id": "mfp-main-js",
                     "mfp-user-id": f"{client.user_id}"})
-    return client.session.post(client.BASE_API_URL + "v2/nutrient-goals", json.dumps(payload), headers=headers)
+    return client.session.post(client.BASE_API_URL + "v2/nutrient-goals", data=json.dumps(payload), headers=headers)
 
 
 def set_goal(a) -> dict:
@@ -54,10 +54,19 @@ def set_goal(a) -> dict:
     extras = {"sodium": a.sodium, "cholesterol": a.cholesterol, "fiber": a.fiber}
     payload = build_payload(cur, a.date, a.kcal, a.carbs, a.protein, a.fat, extras)
     r = _post(c, payload)
+    if r.status_code in (401, 403):
+        raise PermissionError(f"MFP goal POST rejected: HTTP {r.status_code}")
     if not r.ok:
         raise RuntimeError(f"MFP goal POST failed: HTTP {r.status_code} {r.text[:150]}")
     applied = [k for k, v in extras.items() if v is not None and k in payload["item"]["default_goal"]]
     return {"ok": True, "date": a.date, "kcal": round(a.kcal), "extras_applied": applied}
+
+
+def _is_auth(e: Exception, is_auth_error) -> bool:
+    """Session problems only -- a programming error must not be reported as an expired login."""
+    if isinstance(e, (TypeError, AttributeError, KeyError, ValueError, NameError)):
+        return False
+    return isinstance(e, PermissionError) or "NotConnected" in type(e).__name__ or bool(is_auth_error(e))
 
 
 def main(argv=None) -> int:
@@ -80,7 +89,7 @@ def main(argv=None) -> int:
             print(json.dumps(set_goal(a)))
             return 0
         except Exception as e:
-            auth = bool(is_auth_error(e)) or "NotConnected" in type(e).__name__
+            auth = _is_auth(e, is_auth_error)
             if auth and attempt == 1 and refresh.available() and refresh.profile_seeded():
                 refresh.refresh_session()   # rotate the session in the headless profile, then retry once
                 continue
