@@ -104,6 +104,15 @@ def _sources_line(p: dict, meta: dict) -> str:
     return " · ".join(parts)
 
 
+def _metrics(items: list[tuple[str, str, str]]):
+    """Metric tiles with a plain caption (st.metric's delta draws a trend arrow, wrong for info text)."""
+    cols = st.columns(len(items))
+    for col, (label, value, note) in zip(cols, items):
+        col.metric(label, value)
+        if note:
+            col.caption(note)
+
+
 def _day_card(day, e, meals, tot, open_: bool = False):
     label = (f"{H.fdate(day['date'])} · {e['category']} · {H.g(e['kcal'])} kcal · "
              f"C {e['carb_g']:.0f} / P {e['protein_g']:.0f} / F {e['fat_g']:.0f} g")
@@ -136,12 +145,11 @@ def _today(p: dict):
     day, e, meals, tot = rows[today]
     intake = (p.get("intake") or {}).get(today) or {}
     logged = intake.get("calories_kcal")
-    c = st.columns(4)
-    c[0].metric("Eat today", f"{H.g(e['kcal'])} kcal", f"burn {H.g(e['tdee'])}", delta_color="off")
-    c[1].metric("Logged so far", f"{H.g(logged)} kcal" if logged is not None else "—",
-                f"via {intake.get('source')}" if intake else "nothing logged yet", delta_color="off")
-    c[2].metric("Left to eat", f"{H.g(e['kcal'] - (logged or 0))} kcal")
-    c[3].metric("Day type", e["category"].title(), f"deficit {H.g(e['deficit'])}", delta_color="off")
+    _metrics([("Eat today", f"{H.g(e['kcal'])} kcal", f"burn {H.g(e['tdee'])}"),
+              ("Logged so far", f"{H.g(logged)} kcal" if logged is not None else "—",
+               f"via {intake.get('source')}" if intake else "nothing logged yet"),
+              ("Left to eat", f"{H.g(e['kcal'] - (logged or 0))} kcal", ""),
+              ("Day type", e["category"].title(), f"deficit {H.g(e['deficit'])}")])
     bars = [H.bar_row("Calories", logged, e["kcal"], "kcal"),
             H.bar_row("Carbs", intake.get("carbs_g"), e["carb_g"], "g"),
             H.bar_row("Protein", intake.get("protein_g"), e["protein_g"], "g"),
@@ -194,13 +202,10 @@ def _goals(p: dict):
     dexa, w = p.get("dexa") or {}, p.get("weight_kg")
     total = w or dexa.get("total_mass_kg")
     ftp = (p.get("athlete") or {}).get("ftp_w")
-    c = st.columns(4)
-    c[0].metric("Weight", f"{total * KG_LB:.1f} lb" if total else "—", "7-day avg" if w else f"scan {dexa.get('date', '')}",
-                delta_color="off")
-    c[1].metric("Body fat", f"{dexa.get('tissue_fat_pct')}%" if dexa.get("tissue_fat_pct") else "—",
-                f"scan {dexa.get('date', '')}", delta_color="off")
-    c[2].metric("Lean mass", f"{dexa.get('lean_mass_kg', 0) * KG_LB:.0f} lb")
-    c[3].metric("FTP", f"{ftp:.0f} W" if ftp else "—", f"{ftp / total:.2f} W/kg" if ftp and total else "", delta_color="off")
+    _metrics([("Weight", f"{total * KG_LB:.1f} lb" if total else "—", "7-day avg" if w else f"scan {dexa.get('date', '')}"),
+              ("Body fat", f"{dexa.get('tissue_fat_pct')}%" if dexa.get("tissue_fat_pct") else "—", f"scan {dexa.get('date', '')}"),
+              ("Lean mass", f"{dexa.get('lean_mass_kg', 0) * KG_LB:.0f} lb", ""),
+              ("FTP", f"{ftp:.0f} W" if ftp else "—", f"{ftp / total:.2f} W/kg" if ftp and total else "")])
     st.markdown("## Body-fat targets")
     sched = p.get("pace_schedule") or []
     st.caption("Pace schedule: " + " → ".join(f"{v} lb/wk from {H.fdate(d, '%b %-d')}" for d, v in sched))
