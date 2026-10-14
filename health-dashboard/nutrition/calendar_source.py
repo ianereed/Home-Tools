@@ -58,6 +58,8 @@ def classify(raw: list[dict], settings: dict) -> list[dict]:
             continue
         if e.get("event_type") in ("workingLocation", "birthday"):
             continue
+        if e.get("source_tag") == "garmin-sync":
+            continue  # our own Garmin -> Calendar mirror; the planner already has these from Garmin
         title = e.get("summary") or ""
         busy = e.get("transparency", "opaque") != "transparent"
         if e.get("self_status") == "needsAction" and not needs_action_busy:

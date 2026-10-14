@@ -55,8 +55,11 @@ def test_watch_enqueues_refresh_on_change(monkeypatch):
     monkeypatch.setattr(W.subprocess, "run", fake_run)
     refreshed = []
     monkeypatch.setattr(W, "nutrition_refresh", lambda reason, trigger: refreshed.append((reason, trigger)))
+    synced = []
+    monkeypatch.setattr(W, "garmin_gcal_sync", lambda reason: synced.append(reason))
     out = W.nutrition_watch.call_local()
     assert out["enqueued"] and refreshed == [("new activity 42", "watch")]
+    assert synced == ["watch"]
     assert ["--mark-enqueued"] in calls
 
 
@@ -113,3 +116,44 @@ def test_daily_crons_cover_both_dst_offsets():
         assert datetime(2026, month, 15, utc_h, 30, tzinfo=timezone.utc).astimezone(TZ).hour == 7
     for month, utc_h in ((10, 2), (12, 3)):
         assert datetime(2026, month, 15, utc_h, 30, tzinfo=timezone.utc).astimezone(TZ).hour == 19
+
+
+# ---------------------------------------------------------------- garmin_gcal_sync
+from jobs.kinds import garmin_gcal_sync as G  # noqa: E402
+
+
+@pytest.mark.parametrize("fn,hour", [("garmin_gcal_sync_morning", 7), ("garmin_gcal_sync_midday", 13),
+                                     ("garmin_gcal_sync_evening", 19)])
+def test_gcal_sync_three_times_a_day_local_gate(monkeypatch, fn, hour):
+    seen = []
+    monkeypatch.setattr(G, "garmin_gcal_sync", lambda reason: seen.append(reason))
+    for h in (hour - 1, hour, hour + 1):
+        monkeypatch.setattr(G, "local_now", _at(h))
+        getattr(G, fn).call_local()
+    assert len(seen) == 1
+
+
+def test_gcal_sync_crons_cover_both_dst_offsets():
+    from datetime import timezone
+    for local_h, utc_pair in ((7, (14, 15)), (13, (20, 21)), (19, (2, 3))):
+        for month, utc_h in zip((10, 12), utc_pair):
+            assert datetime(2026, month, 15, utc_h, 10, tzinfo=timezone.utc).astimezone(TZ).hour == local_h
+
+
+def test_gcal_sync_alerts_on_second_failure_and_summarises_success(monkeypatch, tmp_path):
+    from pathlib import Path
+    (Path.home() / "Home-Tools" / "event-aggregator").mkdir(parents=True, exist_ok=True)
+    monkeypatch.setattr(G, "LOG_DIR", tmp_path)
+    monkeypatch.setattr(G, "FAILS_FILE", tmp_path / "f")
+    alerts = []
+    monkeypatch.setattr(G, "_notify", lambda t, b: alerts.append(t))
+    monkeypatch.setattr(G.subprocess, "run", lambda *a, **k: _Proc("", rc=1, stderr="boom"))
+    for _ in range(2):
+        with pytest.raises(RuntimeError):
+            G.garmin_gcal_sync.call_local("t")
+    assert alerts == ["Garmin → Google Calendar sync failing"]
+    out = {"ok": True, "mode": "live", "desired": 9, "existing": 7, "ops": [{"op": "insert"}, {"op": "patch"}]}
+    monkeypatch.setattr(G.subprocess, "run", lambda *a, **k: _Proc(json.dumps(out)))
+    assert G.garmin_gcal_sync.call_local("t") == {"ok": True, "mode": "live", "skipped": None, "desired": 9,
+                                                  "existing": 7, "duration_ms": None, "ops": 2}
+    assert (tmp_path / "f").read_text() == "0"
