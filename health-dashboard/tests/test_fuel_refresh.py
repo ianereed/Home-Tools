@@ -227,3 +227,35 @@ def test_refresh_lock_requests_rerun(empty_db, monkeypatch, tmp_path, capsys):
         assert store.get_state(conn, "rerun_requested") == 1
     finally:
         conn.close()
+
+
+def test_weight_mean_uses_only_the_last_week(empty_db):
+    today = date.today()
+    conn = sqlite3.connect(empty_db)
+    try:
+        conn.execute("INSERT INTO body_composition (timestamp, weight_kg, body_fat_pct, lean_mass_kg, bone_mass_kg, source)"
+                     " VALUES (?, 80.0, 25.0, 57.0, 3.0, 'garmin')", ((today - timedelta(days=1)).isoformat(),))
+        conn.executemany("INSERT INTO body_weight (timestamp, weight_kg, source) VALUES (?, ?, 'garmin')", [
+            ((today - timedelta(days=200)).isoformat(), 95.0),   # stale: must not drag the mean
+            ((today - timedelta(days=3)).isoformat(), 80.0),
+            ((today - timedelta(days=1)).isoformat(), 79.0)])
+        _, weight = S.db_body(conn)
+    finally:
+        conn.close()
+    assert weight == pytest.approx(79.5)
+
+
+def test_completed_sprint_keeps_planned_key_category():
+    from nutrition import engine as E
+    s = {"plan_start": "2026-10-14", "plan_days": 1,
+         "athlete": {"birth_date": "1980-01-01", "height_cm": 175.0, "ftp_w": 250, "lthr_bpm": 170},
+         "dexa": {"total_mass_kg": 80.0, "fat_mass_kg": 20.0, "lean_mass_kg": 57.0, "bone_mass_kg": 3.0},
+         "coach_plan": {"window_end": "2026-10-20"}, "calendar": [], "projected_workouts": [],
+         "coach_workouts": [{"date": "2026-10-14", "name": "Sprint", "type": "ANAEROBIC_SPEED", "duration_s": 3180,
+                             "steps": [[3180, 150, 200]]}],
+         "activities_plan_window": [{"date": "2026-10-14", "start": "10:00", "name": "Ride - Sprint", "type": "road_biking",
+                                     "duration_s": 3300, "moving_s": 3290, "kcal": 640, "bmr_kcal": 80,
+                                     "avg_power_w": 173, "np_w": 205, "avg_hr": 140}]}
+    days = E.build_days(s)
+    ride = next(x for x in days[0]["sessions"] if x["kind"] == "ride")
+    assert ride["completed"] and ride["category"] == "key" and ride["planned_as"] == "Sprint"
