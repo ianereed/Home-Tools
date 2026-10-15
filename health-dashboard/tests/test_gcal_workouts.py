@@ -70,6 +70,7 @@ def test_event_bodies_are_tagged_free_and_timed_in_local_tz():
     spec = G.desired_events([_coach_item("2026-10-14", "u1")], [_task("2026-10-14", "u1")], _settings(), TODAY, END)["coach:u1"]
     body = G.event_body(spec)
     assert body["transparency"] == "transparent"
+    assert body["reminders"] == {"useDefault": False, "overrides": []}
     assert body["extendedProperties"]["private"] == {"source": "garmin-sync", "garmin_key": "coach:u1", "digest": spec["digest"]}
     assert body["start"] == {"dateTime": "2026-10-14T10:00:00", "timeZone": "America/Los_Angeles"}
     assert body["end"] == {"dateTime": "2026-10-14T10:55:00", "timeZone": "America/Los_Angeles"}

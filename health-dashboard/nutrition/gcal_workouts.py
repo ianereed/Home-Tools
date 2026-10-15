@@ -39,6 +39,7 @@ LOCK_PATH = ROOT / "data" / "gcal_sync.lock"
 GARMIN_CAL_URL = "https://connect.garmin.com/modern/calendar"
 FP_PREFIX = "FP · "
 ICON = {"cycling": "🚴", "strength_training": "🏋️", "running": "🏃", "hiking": "🥾", "swimming": "🏊"}
+BODY_VERSION = 2  # bump when event_body() changes shape so existing events get re-patched
 FOOTER = "Synced from Garmin Connect by health-dashboard three times a day; edits made here are overwritten."
 
 
@@ -146,12 +147,13 @@ def desired_events(items: list[dict], tasks: list[dict], settings: dict, today: 
 def _spec(key, d, summary, description, all_day, start, minutes) -> dict:
     spec = {"key": key, "date": d, "summary": summary, "description": description, "all_day": all_day,
             "start": start, "minutes": minutes}
-    spec["digest"] = hashlib.sha1(json.dumps(spec, sort_keys=True).encode()).hexdigest()[:16]
+    spec["digest"] = hashlib.sha1(json.dumps(spec | {"v": BODY_VERSION}, sort_keys=True).encode()).hexdigest()[:16]
     return spec
 
 
 def event_body(spec: dict) -> dict:
     body = {"summary": spec["summary"], "description": spec["description"], "transparency": "transparent",
+            "reminders": {"useDefault": False, "overrides": []},  # no notifications for mirrored workouts
             "extendedProperties": {"private": {"source": TAG, "garmin_key": spec["key"], "digest": spec["digest"]}}}
     d = date.fromisoformat(spec["date"])
     if spec["all_day"]:
