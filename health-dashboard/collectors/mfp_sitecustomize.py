@@ -1,11 +1,17 @@
-"""sitecustomize for the MFP venv: persist MFP's rotated session cookie after every HTTP response.
+"""Venv-wide hook for the MFP venv: persist MFP's rotated session cookie after every HTTP response.
 
-Install as <mfp-venv>/lib/python3.x/site-packages/sitecustomize.py (a symlink to this file). site.py
-imports it in every interpreter of that venv, including under `python -I` (isolated mode only skips the
-user site), so it covers every code path: mfp_fetch.py / mfp_goal.py, `mfp-mcp auth --check`, the MCP
-server and ad-hoc scripts. Without it, any process that touches the session can advance MFP's token
-lineage and leave cookies.json holding a copy that is rejected within hours (journal-187, 2026-10-16:
-an `auth --check` plus one read-only script at 08:00 killed a session that had survived the night).
+Install (Homebrew's own sitecustomize.py shadows a venv one, so use a .pth file instead):
+
+    SP=~/.fuel-planner/mfp-venv/lib/python3.12/site-packages
+    ln -sf ~/Home-Tools/health-dashboard/collectors/mfp_sitecustomize.py $SP/mfp_persist_hook.py
+    echo "import mfp_persist_hook" > $SP/mfp_persist.pth
+
+site.py runs the .pth import in every interpreter of that venv, including under `python -I`
+(isolated mode only skips the user site), so it covers every code path: mfp_fetch.py / mfp_goal.py,
+`mfp-mcp auth --check`, the MCP server and ad-hoc scripts. Without it, any process that touches the
+session can advance MFP's token lineage and leave cookies.json holding a copy that is rejected within
+hours (journal-187, 2026-10-16: an `auth --check` plus one read-only script at 08:00 killed a session
+that had survived the night's scheduled runs).
 
 It wraps curl_cffi's Session.request: after each response, if the jar's newest session token differs
 from the last one this session persisted, write it back through mfp_session.persist_rotated.
