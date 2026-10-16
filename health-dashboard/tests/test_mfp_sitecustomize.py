@@ -64,3 +64,21 @@ def test_install_returns_false_outside_the_mfp_venv(monkeypatch):
         return real_import(name, *a, **k)
     monkeypatch.setattr(builtins, "__import__", no_curl)
     assert hook.install() is False
+
+
+def test_exit_write_uses_last_session_and_only_tokens_this_process_saw(monkeypatch):
+    hook = _load_hook()
+    fake_requests = NS(Session=_session_cls())
+    hook.install(fake_requests)
+    calls = []
+    monkeypatch.setattr(hook._ms, "persist_rotated",
+                        lambda client, auth=None, expect_saved=None: calls.append(
+                            (S.newest_session_token(client.session.cookies.jar), expect_saved)) or "saved")
+    assert hook.persist_at_exit() == "no session"
+    s = fake_requests.Session([NS(name=S.SESSION_COOKIE, domain=".myfitnesspal.com", value="pasted")])
+    s.request("GET", "u1")
+    s.cookies.jar.append(NS(name=S.SESSION_COOKIE, domain=S.HOST, value="refreshed"))
+    s.request("GET", "u2")
+    assert hook.persist_at_exit() == "saved"
+    # mfp-mcp auth saved "pasted" over "refreshed"; the exit write may restore it because "pasted" was seen
+    assert calls[-1] == ("refreshed", {"pasted", "refreshed"})

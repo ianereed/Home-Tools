@@ -31,11 +31,13 @@ def newest_session_token(jar) -> str | None:
     return fallback
 
 
-def persist_rotated(client, auth=None) -> str:
+def persist_rotated(client, auth=None, expect_saved=None) -> str:
     """Write the newest session token to mfp-mcp's cookie file when it changed.
 
-    Returns "saved", "unchanged", "no token" or "error: ..." and never raises: losing the
-    rotated token is bad, but failing the run over it would be worse.
+    `expect_saved`: when given, only write if the file's current token is one of these (tokens this
+    process has already seen), so a late write never clobbers a token another process just saved.
+    Returns "saved", "unchanged", "no token", "skipped: ..." or "error: ..." and never raises:
+    losing the rotated token is bad, but failing the run over it would be worse.
     """
     try:
         if auth is None:
@@ -46,6 +48,8 @@ def persist_rotated(client, auth=None) -> str:
         saved = dict(auth.load_cookies() or {})
         if saved.get(SESSION_COOKIE) == token:
             return "unchanged"
+        if expect_saved is not None and saved.get(SESSION_COOKIE) not in expect_saved:
+            return "skipped: cookie file changed by another process"
         saved[SESSION_COOKIE] = token
         auth.save_cookies(saved, username=auth.saved_username())
         return "saved"
