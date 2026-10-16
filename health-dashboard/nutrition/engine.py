@@ -540,33 +540,52 @@ def plan_energy(days: list[dict], snap: dict, pace_lb_wk) -> list[dict]:
 
     P = PROTEIN_G_PER_KG * kg
     limits = config(snap)["limits"]
-    for r in rows:
-        kcal = r["tdee"] - r["deficit_planned"]
+    for r, day in zip(rows, days):
         bonus = FUEL_TOMORROW_G_PER_KG * kg if r["next"] in ("key", "long") and r["category"] != "long" else 0.0
-        C = CARB_BASE_G_PER_KG * kg + r["session_carbs"] + bonus
-        c_min = CARB_MIN_BASE_G_PER_KG * kg + 0.85 * r["session_carbs"] + bonus
-        f_floor = FAT_FLOOR_G_PER_KG * kg
-        Fg = (kcal - 4 * P - 4 * C) / 9
-        flags = []
-        if Fg < f_floor:
-            C = max(c_min, (kcal - 4 * P - 9 * f_floor) / 4)
-            Fg = (kcal - 4 * P - 4 * C) / 9
-            flags.append("carbs trimmed to make room for the fat floor")
-            if Fg < f_floor - 0.01:
-                Fg = f_floor
-                new_kcal = 4 * P + 4 * C + 9 * Fg
-                flags.append(f"deficit reduced by {new_kcal - kcal:.0f} kcal to protect carbs + fat floor")
-                kcal = new_kcal
-        f_ceil = FAT_CEIL_PCT * kcal / 9
-        if Fg > f_ceil:
-            C += (Fg - f_ceil) * 9 / 4
-            Fg = f_ceil
-            flags.append("fat capped at 30% of kcal; extra went to carbs")
+        kcal, C, Fg, flags = _macros(r["tdee"] - r["deficit_planned"], P, kg, r["session_carbs"], bonus)
         r.update({"kcal": kcal, "deficit": r["tdee"] - kcal, "protein_g": P, "carb_g": C, "fat_g": Fg,
                   "fuel_tomorrow_g": bonus, "fiber_target": max(FIBER_MIN, 14 * kcal / 1000),
                   "satfat_max_g": limits["satfat_pct"] * kcal / 9, "sodium_max_mg": limits["sodium_mg"],
                   "chol_max_mg": limits["cholesterol_mg"], "flags": flags, "carb_g_per_kg": C / kg})
+        r["logged_goal"] = logged_goal(r, day, b, P, kg, bonus)
     return rows
+
+
+def _macros(kcal: float, P: float, kg: float, session_carbs: float, bonus: float) -> tuple[float, float, float, list[str]]:
+    """Carbs + fat for a kcal target (protein fixed). Returns (kcal, carbs, fat, flags); kcal only rises (fat floor)."""
+    C = CARB_BASE_G_PER_KG * kg + session_carbs + bonus
+    c_min = CARB_MIN_BASE_G_PER_KG * kg + 0.85 * session_carbs + bonus
+    f_floor = FAT_FLOOR_G_PER_KG * kg
+    Fg = (kcal - 4 * P - 4 * C) / 9
+    flags = []
+    if Fg < f_floor:
+        C = max(c_min, (kcal - 4 * P - 9 * f_floor) / 4)
+        Fg = (kcal - 4 * P - 4 * C) / 9
+        flags.append("carbs trimmed to make room for the fat floor")
+        if Fg < f_floor - 0.01:
+            Fg = f_floor
+            new_kcal = 4 * P + 4 * C + 9 * Fg
+            flags.append(f"deficit reduced by {new_kcal - kcal:.0f} kcal to protect carbs + fat floor")
+            kcal = new_kcal
+    f_ceil = FAT_CEIL_PCT * kcal / 9
+    if Fg > f_ceil:
+        C += (Fg - f_ceil) * 9 / 4
+        Fg = f_ceil
+        flags.append("fat capped at 30% of kcal; extra went to carbs")
+    return kcal, C, Fg, flags
+
+
+def logged_goal(r: dict, day: dict, b: dict, P: float, kg: float, bonus: float) -> dict:
+    """The day's goal counting only exercise already done (what MyFitnessPal shows). Same planned deficit as the
+    full target, so a skipped workout still lands on plan; each completed session adds its own energy + carbs."""
+    done = [s for s in day["sessions"] if s.get("completed")]
+    ex_net = sum(s["active_kcal"] - s["displaced_kcal"] for s in done)
+    tdee = b["baseline"] + ex_net
+    kcal, C, Fg, _ = _macros(tdee - min(r["deficit_planned"], DEFICIT_CAP_PCT * tdee), P, kg,
+                             sum(s["gross_kcal"] * s["cho_frac"] / 4 for s in done), bonus)
+    return {"kcal": kcal, "carb_g": C, "protein_g": P, "fat_g": Fg, "fiber_target": max(FIBER_MIN, 14 * kcal / 1000),
+            "tdee": tdee, "ex_net": ex_net, "sessions_done": len(done),
+            "sessions_pending": len(day["sessions"]) - len(done)}
 
 
 # ------------------------------------------------------------------ meal timing

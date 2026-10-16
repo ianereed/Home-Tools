@@ -107,9 +107,10 @@ def push_mfp_goal(conn, res: dict, today: date) -> str:
     e = next((x for x in res["plans"]["plan"]["energy"] if x["date"] == t), None)
     if e is None:
         return "no target for today"
-    goal = {"day": t, "kcal": round(e["kcal"]), "carbs": round(e["carb_g"]), "protein": round(e["protein_g"]),
-            "fat": round(e["fat_g"]), "sodium": e.get("sodium_max_mg"), "cholesterol": e.get("chol_max_mg"),
-            "fiber": round(e.get("fiber_target", 25))}
+    g = e.get("logged_goal") or e  # MFP carries the no-exercise goal; a synced workout raises it
+    goal = {"day": t, "kcal": round(g["kcal"]), "carbs": round(g["carb_g"]), "protein": round(g["protein_g"]),
+            "fat": round(g["fat_g"]), "sodium": e.get("sodium_max_mg"), "cholesterol": e.get("chol_max_mg"),
+            "fiber": round(g.get("fiber_target", 25))}
     if store.get_state(conn, "mfp_goal_pushed") == goal:
         return "unchanged"
     try:
@@ -257,6 +258,7 @@ def run_refresh(reason: str, trigger: str = "manual", collect: bool = True, cale
         if latest:
             store.set_state(conn, "last_refreshed_activity_id", latest[0])
         store.set_state(conn, "refresh_requested", 0)
+        store.set_state(conn, "last_refresh_day", today.isoformat())
         return {"ok": True, "run_id": run_id, "duration_ms": dur, "sources": sources, "plan_start": res["plan_start"],
                 "plan_end": res["plan_end"], "payload_bytes": len(json.dumps(payload, default=str))}
     except Exception as e:

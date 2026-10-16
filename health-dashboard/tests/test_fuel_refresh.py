@@ -204,11 +204,14 @@ def test_run_refresh_end_to_end(fake_db, monkeypatch, tmp_path):
 def test_watch_check(empty_db):
     conn = sqlite3.connect(empty_db)
     try:
-        assert W.check(conn, "1")["changed"]
+        assert W.check(conn, "1", today="2026-10-15")["reason"].startswith("first refresh of the day")
+        store.set_state(conn, "last_refresh_day", "2026-10-15")
+        assert W.check(conn, "1", today="2026-10-15")["changed"]
         store.set_state(conn, "last_refreshed_activity_id", "1")
-        assert not W.check(conn, "1")["changed"]
+        assert not W.check(conn, "1", today="2026-10-15")["changed"]
+        assert W.check(conn, "1", today="2026-10-16")["changed"]   # new day -> MFP back to the no-exercise goal
         store.set_state(conn, "refresh_requested", 1)
-        assert W.check(conn, "1")["reason"].startswith("refresh requested")
+        assert W.check(conn, "1", today="2026-10-15")["reason"].startswith("refresh requested")
         store.set_state(conn, "refresh_enqueued_at", 1e12)
         assert not W.check(conn, "2", now=1e12 + 60)["changed"]   # debounced
     finally:
@@ -259,3 +262,59 @@ def test_completed_sprint_keeps_planned_key_category():
     days = E.build_days(s)
     ride = next(x for x in days[0]["sessions"] if x["kind"] == "ride")
     assert ride["completed"] and ride["category"] == "key" and ride["planned_as"] == "Sprint"
+
+
+def _sprint_snap(done: bool):
+    s = {"plan_start": "2026-10-14", "plan_days": 3,
+         "athlete": {"birth_date": "1980-01-01", "height_cm": 175.0, "ftp_w": 250, "lthr_bpm": 170},
+         "dexa": {"total_mass_kg": 80.0, "fat_mass_kg": 20.0, "lean_mass_kg": 57.0, "bone_mass_kg": 3.0},
+         "coach_plan": {"window_end": "2026-10-20"}, "calendar": [], "projected_workouts": [],
+         "coach_workouts": [{"date": "2026-10-14", "name": "Sprint", "type": "ANAEROBIC_SPEED", "duration_s": 3180,
+                             "steps": [[3180, 150, 200]]}]}
+    if done:
+        s["activities_plan_window"] = [{"date": "2026-10-14", "start": "10:00", "name": "Ride - Sprint",
+                                        "type": "road_biking", "duration_s": 3300, "moving_s": 3290, "kcal": 640,
+                                        "bmr_kcal": 80, "avg_power_w": 173, "np_w": 205, "avg_hr": 140}]
+    return s
+
+
+def _energy(s):
+    from nutrition import engine as E
+    days = E.build_days(s)
+    E.schedule(days, 80.0, place_lifts=False)
+    return E.plan_energy(days, s, 0.75)
+
+
+def test_logged_goal_is_no_exercise_until_the_ride_syncs():
+    from nutrition import engine as E
+    before = _energy(_sprint_snap(done=False))
+    ride_day, rest_day = before[0], before[1]
+    g = ride_day["logged_goal"]
+    base = E.baseline_kcal(_sprint_snap(done=False))["baseline"]
+    assert g["sessions_done"] == 0 and g["sessions_pending"] == 1 and g["ex_net"] == 0
+    assert g["tdee"] == pytest.approx(base)
+    assert g["kcal"] == pytest.approx(base - ride_day["deficit_planned"], abs=1)   # same deficit, no ride energy
+    assert g["kcal"] < ride_day["kcal"] - 300 and g["carb_g"] < ride_day["carb_g"]
+    assert g["protein_g"] == ride_day["protein_g"]
+    assert rest_day["logged_goal"]["kcal"] == pytest.approx(rest_day["kcal"])         # rest day: nothing to add
+    after = _energy(_sprint_snap(done=True))[0]
+    assert after["logged_goal"]["sessions_done"] == 1 and after["logged_goal"]["sessions_pending"] == 0
+    assert after["logged_goal"]["kcal"] == pytest.approx(after["kcal"])                # ride done: full target
+    assert after["logged_goal"]["kcal"] > g["kcal"] + 300
+
+
+def test_push_mfp_goal_sends_logged_goal(empty_db, monkeypatch):
+    from collectors import mfp_collector as M
+    calls = []
+    monkeypatch.setattr(M, "push_goal", lambda **g: calls.append(g) or {"ok": True})
+    res = {"plans": {"plan": {"energy": [{"date": "2026-10-15", "kcal": 2900, "carb_g": 380, "protein_g": 170,
+                                          "fat_g": 70, "sodium_max_mg": 2300, "chol_max_mg": 300, "fiber_target": 40,
+                                          "logged_goal": {"kcal": 2300, "carb_g": 250, "protein_g": 170, "fat_g": 68,
+                                                          "fiber_target": 32}}]}}}
+    conn = sqlite3.connect(empty_db)
+    try:
+        assert R.push_mfp_goal(conn, res, date(2026, 10, 15)) == "pushed"
+    finally:
+        conn.close()
+    assert calls == [{"day": "2026-10-15", "kcal": 2300, "carbs": 250, "protein": 170, "fat": 68, "sodium": 2300,
+                      "cholesterol": 300, "fiber": 32}]

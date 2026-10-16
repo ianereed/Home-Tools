@@ -150,6 +150,11 @@ def _today(p: dict):
                f"via {intake.get('source')}" if intake else "nothing logged yet"),
               ("Left to eat", f"{H.g(e['kcal'] - (logged or 0))} kcal", ""),
               ("Day type", e["category"].title(), f"deficit {H.g(e['deficit'])}")])
+    lg = e.get("logged_goal")
+    if lg and lg["sessions_pending"]:
+        done = (f"{H.g(lg['ex_net'])} kcal of completed exercise" if lg["sessions_done"] else "no exercise")
+        st.caption(f"MyFitnessPal goal: {H.g(lg['kcal'])} kcal ({done} counted). It rises toward "
+                   f"{H.g(e['kcal'])} as planned sessions sync from Garmin.")
     bars = [H.bar_row("Calories", logged, e["kcal"], "kcal"),
             H.bar_row("Carbs", intake.get("carbs_g"), e["carb_g"], "g"),
             H.bar_row("Protein", intake.get("protein_g"), e["protein_g"], "g"),
