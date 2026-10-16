@@ -2,10 +2,11 @@
 
     <mfp-venv>/bin/python -I collectors/mfp_fetch.py --start YYYY-MM-DD --end YYYY-MM-DD
 
-Uses mfp-mcp's authenticated client (session cookie + Chrome TLS fingerprint, optional
-headless auto-refresh). MFP's v2 diary endpoint errors for this account, so day totals
-come from the web nutrition reports (one request per nutrient for the whole range) and
-the diary page tells us which days actually have entries. Standalone: stdlib + mfp-mcp only.
+Uses mfp-mcp's authenticated client (session cookie + Chrome TLS fingerprint). MFP's v2 diary
+endpoint errors for this account, so day totals come from the web nutrition reports (one request
+per nutrient for the whole range) and the diary page tells us which days actually have entries.
+After each run the rotated session cookie is written back (see mfp_session.py); the headless
+auto-refresh is deliberately not used. Standalone: stdlib + mfp-mcp only.
 """
 from __future__ import annotations
 
@@ -13,6 +14,13 @@ import argparse
 import json
 import sys
 from datetime import date, timedelta
+from pathlib import Path
+
+try:
+    from . import mfp_session
+except ImportError:  # run as a script under -I: the package isn't on sys.path
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import mfp_session
 
 # MFP report name -> nutrition_daily column
 REPORTS = {
@@ -57,19 +65,14 @@ def main(argv=None) -> int:
     except Exception as e:
         print(json.dumps({"ok": False, "error": f"mfp-mcp not importable: {e}", "auth": False}))
         return 2
-    for attempt in (1, 2):
-        rc, out, retry = _fetch(start, end, get_client, is_auth_error, attempt == 1)
-        if not retry:
-            print(json.dumps(out))
-            return rc
-        from myfitnesspal_mcp import refresh  # noqa
-        refresh.refresh_session()   # MFP rotated the session: renew it in the headless profile, retry once
+    rc, out = _fetch(start, end, get_client, is_auth_error)
     print(json.dumps(out))
     return rc
 
 
-def _fetch(start, end, get_client, is_auth_error, can_retry):
-    """-> (rc, json_out, retry_after_refresh)"""
+def _fetch(start, end, get_client, is_auth_error):
+    """-> (rc, json_out). 'session' reports whether the rotated cookie was written back."""
+    client = None
     try:
         client = get_client()
         counts = {}
@@ -87,7 +90,8 @@ def _fetch(start, end, get_client, is_auth_error, can_retry):
                 reports[name] = {str(k): v for k, v in rep.items()}
             except Exception as e:  # one nutrient failing shouldn't lose the day
                 errors[name] = f"{type(e).__name__}: {str(e)[:120]}"
-        return 0, {"ok": True, "days": build_days(reports, counts), "report_errors": errors}, False
+        return 0, {"ok": True, "days": build_days(reports, counts), "report_errors": errors,
+                   "session": mfp_session.persist_rotated(client)}
     except Exception as e:
         auth = "NotConnected" in type(e).__name__
         if not isinstance(e, (TypeError, AttributeError, KeyError, ValueError, NameError)):
@@ -95,14 +99,8 @@ def _fetch(start, end, get_client, is_auth_error, can_retry):
                 auth = auth or bool(is_auth_error(e))
             except Exception:
                 pass
-        if auth and can_retry:
-            try:
-                from myfitnesspal_mcp import refresh  # noqa
-                if refresh.available() and refresh.profile_seeded():
-                    return 2, None, True
-            except Exception:
-                pass
-        return 2, {"ok": False, "error": f"{type(e).__name__}: {str(e)[:200]}", "auth": auth}, False
+        session = mfp_session.persist_rotated(client) if client is not None else "no client"
+        return 2, {"ok": False, "error": f"{type(e).__name__}: {str(e)[:200]}", "auth": auth, "session": session}
 
 
 if __name__ == "__main__":

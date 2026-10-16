@@ -6,13 +6,21 @@
 Posts a v2 nutrient goal valid from --date (same request MFP's web app makes; python-myfitnesspal's
 set_new_goal does this for today only). Every daily goal row gets the same values, so MFP's mobile
 app shows today's plan target; earlier days keep the goal they had. Extra nutrients are only set
-when MFP's goal payload already has that field.
+when MFP's goal payload already has that field. The rotated session cookie is written back after
+the request (see mfp_session.py); the headless auto-refresh is deliberately not used.
 """
 from __future__ import annotations
 
 import argparse
 import json
 import sys
+from pathlib import Path
+
+try:
+    from . import mfp_session
+except ImportError:  # run as a script under -I: the package isn't on sys.path
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import mfp_session
 
 EXTRA = {"sodium": "sodium", "cholesterol": "cholesterol", "fiber": "fiber"}
 
@@ -54,12 +62,13 @@ def set_goal(a) -> dict:
     extras = {"sodium": a.sodium, "cholesterol": a.cholesterol, "fiber": a.fiber}
     payload = build_payload(cur, a.date, a.kcal, a.carbs, a.protein, a.fat, extras)
     r = _post(c, payload)
+    session = mfp_session.persist_rotated(c)
     if r.status_code in (401, 403):
         raise PermissionError(f"MFP goal POST rejected: HTTP {r.status_code}")
     if not r.ok:
         raise RuntimeError(f"MFP goal POST failed: HTTP {r.status_code} {r.text[:150]}")
     applied = [k for k, v in extras.items() if v is not None and k in payload["item"]["default_goal"]]
-    return {"ok": True, "date": a.date, "kcal": round(a.kcal), "extras_applied": applied}
+    return {"ok": True, "date": a.date, "kcal": round(a.kcal), "extras_applied": applied, "session": session}
 
 
 def _is_auth(e: Exception, is_auth_error) -> bool:
@@ -80,22 +89,16 @@ def main(argv=None) -> int:
     a = ap.parse_args(argv)
     try:
         from myfitnesspal_mcp.mfp_client import is_auth_error  # noqa
-        from myfitnesspal_mcp import refresh  # noqa
     except Exception as e:
         print(json.dumps({"ok": False, "error": f"mfp-mcp not importable: {e}", "auth": False}))
         return 2
-    for attempt in (1, 2):
-        try:
-            print(json.dumps(set_goal(a)))
-            return 0
-        except Exception as e:
-            auth = _is_auth(e, is_auth_error)
-            if auth and attempt == 1 and refresh.available() and refresh.profile_seeded():
-                refresh.refresh_session()   # rotate the session in the headless profile, then retry once
-                continue
-            print(json.dumps({"ok": False, "error": f"{type(e).__name__}: {str(e)[:200]}", "auth": auth}))
-            return 2
-    return 2
+    try:
+        print(json.dumps(set_goal(a)))
+        return 0
+    except Exception as e:
+        print(json.dumps({"ok": False, "error": f"{type(e).__name__}: {str(e)[:200]}",
+                          "auth": _is_auth(e, is_auth_error)}))
+        return 2
 
 
 if __name__ == "__main__":
