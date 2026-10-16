@@ -74,3 +74,12 @@ def test_fetch_reports_auth_failure_without_a_client(monkeypatch):
         raise NotConnectedError("expired")
     rc, out = F._fetch(F.date(2026, 10, 15), F.date(2026, 10, 15), get_client, lambda e: pytest.fail("unused"))
     assert rc == 2 and out["auth"] and out["session"] == "no client"
+
+
+def test_persist_guard_skips_when_another_process_wrote_the_file():
+    auth = FakeAuth({S.SESSION_COOKIE: "someone-elses"})
+    jar = _jar(_ck(S.HOST, NEW))
+    assert S.persist_rotated(jar, auth, expect_saved={OLD, NEW}).startswith("skipped")
+    assert auth.writes == []
+    auth = FakeAuth({S.SESSION_COOKIE: OLD})
+    assert S.persist_rotated(jar, auth, expect_saved={OLD}) == "saved"
