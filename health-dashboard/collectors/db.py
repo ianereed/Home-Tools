@@ -268,6 +268,24 @@ def init_db():
             detail TEXT
         );
 
+        -- Ride sweat sodium -> negative-sodium MyFitnessPal entry, one row per
+        -- Garmin activity. mfp_entry_id is the diary entry the planner owns, so
+        -- re-runs skip or replace it instead of logging a duplicate.
+        CREATE TABLE IF NOT EXISTS fuel_sweat_sodium (
+            activity_id TEXT PRIMARY KEY,   -- Garmin activityId
+            date TEXT NOT NULL,             -- local ride date = MFP diary day
+            water_ml REAL,                  -- Garmin waterEstimated, or the duration fallback
+            water_source TEXT,              -- garmin | fallback
+            mg_per_l REAL,
+            sodium_mg INTEGER,              -- what the planner wants on the diary (0 = no entry)
+            mode TEXT NOT NULL,             -- dry_run | live (mode of the last run that touched it)
+            status TEXT NOT NULL,           -- planned | logged | skipped | error | needs_concentration
+            mfp_entry_id TEXT,              -- MFP diary entry uuid while one exists
+            logged_mg INTEGER,              -- servings on that entry
+            detail TEXT,
+            updated_at TEXT
+        );
+
         CREATE TABLE IF NOT EXISTS vo2max (
             date TEXT NOT NULL,             -- Garmin calendarDate of the estimate
             vo2max REAL,                    -- ml/kg/min (vo2MaxPreciseValue)
@@ -315,7 +333,9 @@ def _migrate(conn):
             conn.execute(f"ALTER TABLE activities ADD COLUMN {col} {typ}")
 
     ncols = {row[1] for row in conn.execute("PRAGMA table_info(nutrition_daily)")}
-    for col, typ in (("cholesterol_mg", "REAL"), ("updated_at", "TEXT")):
+    # sweat_sodium_mg: the planner's negative-sodium MFP entries that day, as a positive number.
+    # MFP's sodium_mg is already net of it; gross intake = sodium_mg + sweat_sodium_mg.
+    for col, typ in (("cholesterol_mg", "REAL"), ("updated_at", "TEXT"), ("sweat_sodium_mg", "REAL")):
         if col not in ncols:
             conn.execute(f"ALTER TABLE nutrition_daily ADD COLUMN {col} {typ}")
 

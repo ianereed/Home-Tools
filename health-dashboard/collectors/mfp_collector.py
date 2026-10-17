@@ -54,10 +54,10 @@ def upsert(conn, days: dict[str, dict], now: str | None = None) -> tuple[int, in
             cur = conn.execute("DELETE FROM nutrition_daily WHERE date = ? AND source = 'mfp'", (ds,))
             deleted += cur.rowcount
             continue
-        cols = ", ".join(("date",) + NUTRIENT_COLS + ("source", "updated_at"))
-        marks = ", ".join("?" for _ in range(len(NUTRIENT_COLS) + 3))
+        cols = ", ".join(("date",) + NUTRIENT_COLS + ("sweat_sodium_mg", "source", "updated_at"))
+        marks = ", ".join("?" for _ in range(len(NUTRIENT_COLS) + 4))
         conn.execute(f"INSERT OR REPLACE INTO nutrition_daily ({cols}) VALUES ({marks})",
-                     (ds, *[row.get(c) for c in NUTRIENT_COLS], "mfp", now))
+                     (ds, *[row.get(c) for c in NUTRIENT_COLS], row.get("sweat_sodium_mg"), "mfp", now))
         written += 1
     conn.commit()
     return written, deleted
@@ -81,6 +81,23 @@ def collect_mfp(days_back: int = 7):
 
 
 GOAL_SCRIPT = Path(__file__).with_name("mfp_goal.py")
+SWEAT_SCRIPT = Path(__file__).with_name("mfp_sweat.py")
+
+
+def sweat_ops(ops: list[dict], timeout: int = 180) -> dict:
+    """Run log/delete ops for the negative-sodium sweat entries (collectors/mfp_sweat.py).
+
+    Returns its JSON as-is, including partial results when the session was rejected mid-batch
+    (out['auth'] true): the caller must record the entry ids that were created before raising.
+    """
+    if not mfp_python().exists():
+        return {"ok": False, "skipped": "mfp venv not installed", "results": []}
+    proc = subprocess.run([str(mfp_python()), "-I", str(SWEAT_SCRIPT)], input=json.dumps({"ops": ops}),
+                          capture_output=True, text=True, timeout=timeout)
+    lines = [ln for ln in proc.stdout.splitlines() if ln.startswith("{")]
+    if not lines:
+        raise RuntimeError(f"mfp_sweat printed no JSON (rc={proc.returncode}): {proc.stderr[-300:]}")
+    return json.loads(lines[-1])
 
 
 def push_goal(day: str, kcal: float, carbs: float, protein: float, fat: float, sodium: float | None = None,

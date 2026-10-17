@@ -312,7 +312,7 @@ def _sodium_tile(today):
         ((today - pd.Timedelta(days=14)).date().isoformat(),))
     return _tile(
         "Sodium", f"{mean:,.0f} <small>mg/day</small>",
-        f'DASH ≤{DASH_TARGETS["sodium_mg_ceiling"]:,} · ideal '
+        f'net of ride sweat · DASH ≤{DASH_TARGETS["sodium_mg_ceiling"]:,} · ideal '
         f'{DASH_TARGETS["sodium_mg_ideal"]:,} · <b>coverage {cov}/7 days</b>'
         + ("" if cov >= 4 else " — trend unlocks at 4/7"),
         color, _spark_svg(spark["sodium_mg"].tolist(), lib.ACCENT))
@@ -712,7 +712,7 @@ def _weekly_review(today, n_weeks=8):
         g = al[al["week"] == wk] if not al.empty else pd.DataFrame()
         row["Drinks"] = f'{g["amount"].sum():.0f}' if not g.empty else "—"
         g = na[na["week"] == wk] if not na.empty else pd.DataFrame()
-        row["Sodium (mg, logged days)"] = (
+        row["Sodium (net mg, logged days)"] = (
             f'{g["sodium_mg"].mean():,.0f} · {g["sodium_mg"].notna().sum()} d'
             if not g.empty and g["sodium_mg"].notna().any() else "—")
         rows.append(row)
