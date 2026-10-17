@@ -141,6 +141,7 @@ def run_refresh(reason: str, trigger: str = "manual", collect: bool = True, cale
             client = _get_garmin_client()
 
         # 1) fresh activity + energy + food rows
+        sweat_out = None
         if collect:
             from collectors import garmin_collector as G, mfp_collector as M
             try:
@@ -150,6 +151,15 @@ def run_refresh(reason: str, trigger: str = "manual", collect: bool = True, cale
                 sources["garmin_activities"] = "ok"
             except Exception as e:
                 sources["garmin_activities"] = f"error ({type(e).__name__})"
+            # ride sweat sodium -> MFP entry, before the MFP fetch so today's totals include it
+            try:
+                from . import sweat
+                sweat_out = sweat.sync(conn, client, settings, today)
+                sources["sweat_sodium"] = sweat_out.get("mfp") or sweat_out.get("error") or sweat_out["mode"]
+            except Exception as e:
+                log.warning("sweat sodium sync failed: %s", e)
+                sweat_out = {"error": f"{type(e).__name__}: {e}"}
+                sources["sweat_sodium"] = f"error ({type(e).__name__})"
             try:
                 M.collect_mfp(3)
                 sources["mfp"] = "ok" if M.mfp_python().exists() else "not installed"
@@ -243,7 +253,7 @@ def run_refresh(reason: str, trigger: str = "manual", collect: bool = True, cale
             log.warning("garmin sync failed: %s", e)
             strength_info["sync"] = {"mode": mode, "error": f"{type(e).__name__}: {e}"}
             sources["garmin_sync"] = f"error ({type(e).__name__})"
-        payload = {**res, "sources": sources, "reason": reason, "trigger": trigger, "strength": strength_info,
+        payload = {**res, "sources": sources, "reason": reason, "trigger": trigger, "strength": strength_info, "sweat_sodium": sweat_out,
                    "pace_schedule": settings.get("pace_schedule"), "intake": intake,
                    "coach": {"plan": plan, "window": workouts}, "dexa": dexa, "weight_kg": weight,
                    "athlete": {k: v for k, v in athlete.items() if k not in ("birth_date",)}}

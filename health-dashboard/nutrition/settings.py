@@ -52,6 +52,18 @@ DEFAULTS = {
         "default_minutes": {"cycling": 60, "strength_training": 45, "default": 60},
         "include_rest_days": True,
     },
+    "sweat_sodium": {                        # ride sweat sodium -> negative-sodium MFP entry (nutrition/sweat.py)
+        "mode": "dry_run",                   # off | dry_run | live
+        "mg_per_l": None,                    # sweat sodium concentration; Ian's number, nothing is logged while unset
+        "fallback_sweat_ml_per_h": 600,      # only when Garmin has no waterEstimated for the ride
+        "activity_types": ["cycling", "road_biking", "gravel_cycling", "mountain_biking", "indoor_cycling",
+                           "virtual_ride", "e_bike_fitness", "downhill_biking"],
+        "min_minutes": 15,
+        "min_mg": 50,                        # smaller losses aren't worth a diary line
+        "lookback_days": 3,
+        "since": None,                       # "YYYY-MM-DD": never touch rides before this date
+        "override_mg": {},                   # {"<garmin activity id>": mg} hand corrections
+    },
 }
 
 

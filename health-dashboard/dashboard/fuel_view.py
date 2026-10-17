@@ -321,7 +321,8 @@ def _baseline(p: dict):
             ("Carbs", fmt(b["carbs"], " g"), fmt(t["carb_g"], " g"), ""),
             ("Fat", fmt(b["fat"], " g"), fmt(t["fat_g"], " g"), f"sat {fmt(b['sat'], ' g')}"),
             ("Fiber", fmt(b["fiber"], " g"), "≥ 25 g", ""),
-            ("Sodium", fmt(b["sodium"], " mg"), "≤ 2,300 mg", f"{b['days_over_sodium']} of {b['n']} days over"),
+            ("Sodium (net of ride sweat)", fmt(b["sodium"], " mg"), "≤ 2,300 mg",
+             f"{b['days_over_sodium']} of {b['n']} days over"),
             ("Cholesterol", fmt(b["chol"], " mg"), "≤ 300 mg", f"{b['days_over_chol']} of {b['n']} days over")]
     st.dataframe(pd.DataFrame(rows, columns=["daily average", "you", "plan", "note"]), hide_index=True,
                  use_container_width=True)
