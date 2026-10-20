@@ -1,0 +1,7981 @@
+{
+ "model": "claude-opus-5-5",
+ "recipes": [
+  {
+   "recipe_id": 2,
+   "ingredients_hash": "532f9f10ddca6383",
+   "values": {
+    "calcium": 39,
+    "choline": 176,
+    "dairy": 0,
+    "fruit": 0,
+    "grain_refined": 2.0,
+    "grain_whole": 0,
+    "oils": 0,
+    "protein_meat_eggs": 3.0,
+    "protein_nuts_seeds_soy": 0,
+    "protein_seafood": 0,
+    "seafood_albacore": 0,
+    "veg_dark_green": 0,
+    "veg_legumes": 0,
+    "veg_other": 0.48,
+    "veg_red_orange": 0,
+    "veg_starchy": 0
+   },
+   "breakdown": [
+    {
+     "ingredient": "large onion",
+     "amount": "0.25 onion (~42 g, ~0.37 cup sliced)",
+     "key": "veg_other",
+     "eq": 0.37
+    },
+    {
+     "ingredient": "large onion",
+     "amount": "0.25 onion (~42 g, ~0.37 cup sliced)",
+     "key": "calcium",
+     "eq": 10
+    },
+    {
+     "ingredient": "chicken thighs or breast",
+     "amount": "3 oz raw → 2.25 oz cooked",
+     "key": "protein_meat_eggs",
+     "eq": 2.25
+    },
+    {
+     "ingredient": "chicken thighs or breast",
+     "amount": "3 oz raw → 2.25 oz cooked",
+     "key": "calcium",
+     "eq": 7
+    },
+    {
+     "ingredient": "chicken thighs or breast",
+     "amount": "3 oz raw → 2.25 oz cooked",
+     "key": "choline",
+     "eq": 60
+    },
+    {
+     "ingredient": "scallions",
+     "amount": "0.75 scallion (~0.11 cup)",
+     "key": "veg_other",
+     "eq": 0.11
+    },
+    {
+     "ingredient": "large eggs",
+     "amount": "0.75 egg",
+     "key": "protein_meat_eggs",
+     "eq": 0.75
+    },
+    {
+     "ingredient": "large eggs",
+     "amount": "0.75 egg",
+     "key": "calcium",
+     "eq": 19
+    },
+    {
+     "ingredient": "large eggs",
+     "amount": "0.75 egg",
+     "key": "choline",
+     "eq": 113
+    },
+    {
+     "ingredient": "steamed white rice (not listed)",
+     "amount": "~1 cup cooked (assumed)",
+     "key": "grain_refined",
+     "eq": 2.0,
+     "note": "rice bowl; rice missing from list"
+    },
+    {
+     "ingredient": "steamed white rice (not listed)",
+     "amount": "~1 cup cooked (assumed)",
+     "key": "calcium",
+     "eq": 3,
+     "note": "rice bowl; rice missing from list"
+    },
+    {
+     "ingredient": "steamed white rice (not listed)",
+     "amount": "~1 cup cooked (assumed)",
+     "key": "choline",
+     "eq": 3,
+     "note": "rice bowl; rice missing from list"
+    }
+   ],
+   "safety_flags": [
+    "raw_egg",
+    "alcohol"
+   ],
+   "confidence": "med",
+   "notes": "Added ~1 cup cooked white rice (title says rice bowl, not in ingredient list); raw_egg because oyakodon eggs are traditionally just-set/runny (fine if fully set); alcohol for briefly simmered sake (trace)."
+  },
+  {
+   "recipe_id": 3,
+   "ingredients_hash": "2108a995b732ec02",
+   "values": {
+    "calcium": 435,
+    "choline": 140,
+    "dairy": 0,
+    "fruit": 0,
+    "grain_refined": 0,
+    "grain_whole": 0,
+    "oils": 11.6,
+    "protein_meat_eggs": 3.0,
+    "protein_nuts_seeds_soy": 3.4,
+    "protein_seafood": 0,
+    "seafood_albacore": 0,
+    "veg_dark_green": 0,
+    "veg_legumes": 0,
+    "veg_other": 0.28,
+    "veg_red_orange": 0,
+    "veg_starchy": 0
+   },
+   "breakdown": [
+    {
+     "ingredient": "medium firm tofu",
+     "amount": "0.5 pack ≈ 7.5 oz ≈ 0.85 cup",
+     "key": "protein_nuts_seeds_soy",
+     "eq": 3.4,
+     "note": "assumed calcium-set"
+    },
+    {
+     "ingredient": "medium firm tofu",
+     "amount": "0.5 pack ≈ 7.5 oz ≈ 0.85 cup",
+     "key": "calcium",
+     "eq": 425,
+     "note": "assumed calcium-set"
+    },
+    {
+     "ingredient": "medium firm tofu",
+     "amount": "0.5 pack ≈ 7.5 oz ≈ 0.85 cup",
+     "key": "choline",
+     "eq": 60,
+     "note": "assumed calcium-set"
+    },
+    {
+     "ingredient": "ground pork",
+     "amount": "4 oz raw → 3 oz cooked",
+     "key": "protein_meat_eggs",
+     "eq": 3.0
+    },
+    {
+     "ingredient": "ground pork",
+     "amount": "4 oz raw → 3 oz cooked",
+     "key": "choline",
+     "eq": 80
+    },
+    {
+     "ingredient": "ground pork",
+     "amount": "4 oz raw → 3 oz cooked",
+     "key": "calcium",
+     "eq": 10
+    },
+    {
+     "ingredient": "large scallions",
+     "amount": "0.75 ≈ 0.25 cup",
+     "key": "veg_other",
+     "eq": 0.25
+    },
+    {
+     "ingredient": "canola oil",
+     "amount": "0.75 tbsp",
+     "key": "oils",
+     "eq": 10.5
+    },
+    {
+     "ingredient": "sesame oil",
+     "amount": "~0.25 tsp (to taste)",
+     "key": "oils",
+     "eq": 1.1,
+     "note": "qty assumed"
+    },
+    {
+     "ingredient": "garlic",
+     "amount": "0.25 tbsp minced",
+     "key": "veg_other",
+     "eq": 0.02
+    },
+    {
+     "ingredient": "ginger",
+     "amount": "0.5 tsp minced",
+     "key": "veg_other",
+     "eq": 0.01
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "med",
+   "notes": "Tofu pack taken as 15 oz (0.5 pack ≈ 0.85 cup), assumed calcium-set; doubanjiang/douchi not counted; sesame oil ~1/4 tsp."
+  },
+  {
+   "recipe_id": 4,
+   "ingredients_hash": "cfd4e5e9872eb86d",
+   "values": {
+    "calcium": 45,
+    "choline": 47,
+    "dairy": 0,
+    "fruit": 0,
+    "grain_refined": 0,
+    "grain_whole": 0,
+    "oils": 4.6,
+    "protein_meat_eggs": 1.13,
+    "protein_nuts_seeds_soy": 0,
+    "protein_seafood": 0,
+    "seafood_albacore": 0,
+    "veg_dark_green": 0,
+    "veg_legumes": 0,
+    "veg_other": 1.03,
+    "veg_red_orange": 0,
+    "veg_starchy": 0
+   },
+   "breakdown": [
+    {
+     "ingredient": "green beans",
+     "amount": "0.25 lb (~1 cup)",
+     "key": "veg_other",
+     "eq": 1.0
+    },
+    {
+     "ingredient": "green beans",
+     "amount": "0.25 lb (~1 cup)",
+     "key": "calcium",
+     "eq": 40
+    },
+    {
+     "ingredient": "green beans",
+     "amount": "0.25 lb (~1 cup)",
+     "key": "choline",
+     "eq": 17
+    },
+    {
+     "ingredient": "garlic",
+     "amount": "0.25 tbsp",
+     "key": "veg_other",
+     "eq": 0.02
+    },
+    {
+     "ingredient": "fresh ginger",
+     "amount": "0.125 tbsp",
+     "key": "veg_other",
+     "eq": 0.01
+    },
+    {
+     "ingredient": "peanut or canola oil",
+     "amount": "0.25 tbsp",
+     "key": "oils",
+     "eq": 3.5
+    },
+    {
+     "ingredient": "sesame oil (pork marinade)",
+     "amount": "~0.25 tsp (assumed)",
+     "key": "oils",
+     "eq": 1.1,
+     "note": "qty missing"
+    },
+    {
+     "ingredient": "ground pork, lean",
+     "amount": "1.5 oz raw → 1.13 oz cooked",
+     "key": "protein_meat_eggs",
+     "eq": 1.13
+    },
+    {
+     "ingredient": "ground pork, lean",
+     "amount": "1.5 oz raw → 1.13 oz cooked",
+     "key": "calcium",
+     "eq": 5
+    },
+    {
+     "ingredient": "ground pork, lean",
+     "amount": "1.5 oz raw → 1.13 oz cooked",
+     "key": "choline",
+     "eq": 30
+    }
+   ],
+   "safety_flags": [
+    "alcohol"
+   ],
+   "confidence": "med",
+   "notes": "Flagged alcohol: ~0.25 tbsp rice wine/sherry splashed into a quick stir-fry isn't fully cooked off (trace amount); sesame oil in marinade unquantified."
+  },
+  {
+   "recipe_id": 5,
+   "ingredients_hash": "f820d95e87fc920e",
+   "values": {
+    "calcium": 55,
+    "choline": 17,
+    "dairy": 0.12,
+    "fruit": 0,
+    "grain_refined": 0,
+    "grain_whole": 0,
+    "oils": 10.5,
+    "protein_meat_eggs": 0,
+    "protein_nuts_seeds_soy": 0,
+    "protein_seafood": 0,
+    "seafood_albacore": 0,
+    "veg_dark_green": 0,
+    "veg_legumes": 0,
+    "veg_other": 1.51,
+    "veg_red_orange": 0.57,
+    "veg_starchy": 0.57
+   },
+   "breakdown": [
+    {
+     "ingredient": "baby bella mushrooms",
+     "amount": "2 oz ≈ 0.7 cup",
+     "key": "veg_other",
+     "eq": 0.7
+    },
+    {
+     "ingredient": "baby bella mushrooms",
+     "amount": "2 oz ≈ 0.7 cup",
+     "key": "choline",
+     "eq": 6
+    },
+    {
+     "ingredient": "baby potatoes",
+     "amount": "3 oz ≈ 0.57 cup",
+     "key": "veg_starchy",
+     "eq": 0.57
+    },
+    {
+     "ingredient": "baby potatoes",
+     "amount": "3 oz ≈ 0.57 cup",
+     "key": "choline",
+     "eq": 10
+    },
+    {
+     "ingredient": "Campari tomatoes",
+     "amount": "3 oz ≈ 0.57 cup",
+     "key": "veg_red_orange",
+     "eq": 0.57
+    },
+    {
+     "ingredient": "zucchini",
+     "amount": "0.5 medium ≈ 0.75 cup",
+     "key": "veg_other",
+     "eq": 0.75
+    },
+    {
+     "ingredient": "garlic",
+     "amount": "2.5 large cloves",
+     "key": "veg_other",
+     "eq": 0.06
+    },
+    {
+     "ingredient": "extra virgin olive oil",
+     "amount": "~0.75 tbsp (assumed)",
+     "key": "oils",
+     "eq": 10.5,
+     "note": "qty assumed"
+    },
+    {
+     "ingredient": "Parmesan",
+     "amount": "~1 tbsp grated (5 g, assumed)",
+     "key": "dairy",
+     "eq": 0.12,
+     "note": "optional; qty assumed"
+    },
+    {
+     "ingredient": "Parmesan",
+     "amount": "~1 tbsp grated (5 g, assumed)",
+     "key": "calcium",
+     "eq": 55,
+     "note": "optional; qty assumed"
+    },
+    {
+     "ingredient": "Parmesan",
+     "amount": "~1 tbsp grated (5 g, assumed)",
+     "key": "choline",
+     "eq": 1,
+     "note": "optional; qty assumed"
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "med",
+   "notes": "Olive oil unquantified — assumed 0.75 tbsp/serving; optional Parmesan counted at 1 tbsp."
+  },
+  {
+   "recipe_id": 6,
+   "ingredients_hash": "d82b2760c67187ba",
+   "values": {
+    "calcium": 61,
+    "choline": 152,
+    "dairy": 0.0,
+    "fruit": 0.0,
+    "grain_refined": 2.0,
+    "grain_whole": 0.0,
+    "oils": 0.0,
+    "protein_meat_eggs": 4.0,
+    "protein_nuts_seeds_soy": 0.0,
+    "protein_seafood": 0.0,
+    "seafood_albacore": 0.0,
+    "veg_dark_green": 0.0,
+    "veg_legumes": 0.0,
+    "veg_other": 0.9,
+    "veg_red_orange": 0.5,
+    "veg_starchy": 0.0
+   },
+   "breakdown": [
+    {
+     "ingredient": "large onion",
+     "amount": "0.25 large ≈ 0.375 cup chopped",
+     "key": "veg_other",
+     "eq": 0.38
+    },
+    {
+     "ingredient": "medium carrots",
+     "amount": "1 carrot ≈ 0.5 cup chopped",
+     "key": "veg_red_orange",
+     "eq": 0.5
+    },
+    {
+     "ingredient": "medium carrots",
+     "amount": "1 carrot",
+     "key": "calcium",
+     "eq": 20
+    },
+    {
+     "ingredient": "celery",
+     "amount": "1 stalk ≈ 0.5 cup chopped",
+     "key": "veg_other",
+     "eq": 0.5
+    },
+    {
+     "ingredient": "celery",
+     "amount": "1 stalk",
+     "key": "calcium",
+     "eq": 16
+    },
+    {
+     "ingredient": "parsley/oregano fresh",
+     "amount": "0.5 tbsp chopped",
+     "key": "veg_other",
+     "eq": 0.02,
+     "note": "leafy herb"
+    },
+    {
+     "ingredient": "chicken with skin and bones",
+     "amount": "8 oz raw bone-in ≈ 5.3 oz raw meat ≈ 4 oz cooked",
+     "key": "protein_meat_eggs",
+     "eq": 4.0,
+     "note": "~2/3 edible yield, raw→cooked ×0.75"
+    },
+    {
+     "ingredient": "chicken with skin and bones",
+     "amount": "4 oz cooked",
+     "key": "choline",
+     "eq": 113
+    },
+    {
+     "ingredient": "chicken with skin and bones",
+     "amount": "4 oz cooked",
+     "key": "calcium",
+     "eq": 13
+    },
+    {
+     "ingredient": "egg noodles uncooked",
+     "amount": "2 oz dry",
+     "key": "grain_refined",
+     "eq": 2.0
+    },
+    {
+     "ingredient": "egg noodles uncooked",
+     "amount": "2 oz dry",
+     "key": "choline",
+     "eq": 39,
+     "note": "egg in noodles"
+    },
+    {
+     "ingredient": "egg noodles uncooked",
+     "amount": "2 oz dry",
+     "key": "calcium",
+     "eq": 12
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "med",
+   "notes": "Bone-in chicken converted at ~2/3 edible yield; butter not counted (solid fat)."
+  },
+  {
+   "recipe_id": 7,
+   "ingredients_hash": "d31c2a3c9833c986",
+   "values": {
+    "calcium": 130,
+    "choline": 45,
+    "dairy": 0.0,
+    "fruit": 0.0,
+    "grain_refined": 1.25,
+    "grain_whole": 0.0,
+    "oils": 14.0,
+    "protein_meat_eggs": 0.0,
+    "protein_nuts_seeds_soy": 0.0,
+    "protein_seafood": 0.0,
+    "seafood_albacore": 0.0,
+    "veg_dark_green": 0.38,
+    "veg_legumes": 0.38,
+    "veg_other": 1.01,
+    "veg_red_orange": 1.16,
+    "veg_starchy": 0.0
+   },
+   "breakdown": [
+    {
+     "ingredient": "medium onion",
+     "amount": "0.25 onion ≈ 0.25 cup chopped",
+     "key": "veg_other",
+     "eq": 0.25
+    },
+    {
+     "ingredient": "medium carrots",
+     "amount": "0.5 carrot ≈ 0.25 cup chopped",
+     "key": "veg_red_orange",
+     "eq": 0.25
+    },
+    {
+     "ingredient": "medium carrots",
+     "amount": "0.5 carrot",
+     "key": "calcium",
+     "eq": 10
+    },
+    {
+     "ingredient": "celery rib",
+     "amount": "0.5 rib ≈ 0.25 cup chopped",
+     "key": "veg_other",
+     "eq": 0.25
+    },
+    {
+     "ingredient": "zucchini squash",
+     "amount": "0.25 medium ≈ 0.5 cup chopped",
+     "key": "veg_other",
+     "eq": 0.5
+    },
+    {
+     "ingredient": "olive oil",
+     "amount": "1 tbsp",
+     "key": "oils",
+     "eq": 14.0
+    },
+    {
+     "ingredient": "tomato paste",
+     "amount": "0.5 tbsp",
+     "key": "veg_red_orange",
+     "eq": 0.06,
+     "note": "paste concentrated ~2x volume"
+    },
+    {
+     "ingredient": "diced fire roasted tomatoes",
+     "amount": "7 oz canned ≈ 0.85 cup",
+     "key": "veg_red_orange",
+     "eq": 0.85
+    },
+    {
+     "ingredient": "diced fire roasted tomatoes",
+     "amount": "7 oz canned",
+     "key": "calcium",
+     "eq": 50,
+     "note": "canned tomatoes w/ CaCl2"
+    },
+    {
+     "ingredient": "diced fire roasted tomatoes",
+     "amount": "7 oz canned",
+     "key": "choline",
+     "eq": 10
+    },
+    {
+     "ingredient": "cannellini beans",
+     "amount": "3.75 oz can (drained) ≈ 0.38 cup",
+     "key": "veg_legumes",
+     "eq": 0.38,
+     "note": "1/4 of 15-oz can"
+    },
+    {
+     "ingredient": "cannellini beans",
+     "amount": "0.38 cup",
+     "key": "calcium",
+     "eq": 30
+    },
+    {
+     "ingredient": "cannellini beans",
+     "amount": "0.38 cup",
+     "key": "choline",
+     "eq": 26
+    },
+    {
+     "ingredient": "garlic cloves",
+     "amount": "0.5 clove",
+     "key": "veg_other",
+     "eq": 0.01
+    },
+    {
+     "ingredient": "baby kale",
+     "amount": "0.75 cup raw",
+     "key": "veg_dark_green",
+     "eq": 0.38,
+     "note": "leafy raw ÷2"
+    },
+    {
+     "ingredient": "baby kale",
+     "amount": "0.75 cup raw",
+     "key": "calcium",
+     "eq": 40
+    },
+    {
+     "ingredient": "baby kale",
+     "amount": "0.75 cup raw",
+     "key": "choline",
+     "eq": 3
+    },
+    {
+     "ingredient": "pasta shells or spirals",
+     "amount": "0.375 cup dry ≈ 1.25 oz",
+     "key": "grain_refined",
+     "eq": 1.25
+    },
+    {
+     "ingredient": "pasta shells or spirals",
+     "amount": "1.25 oz dry",
+     "key": "choline",
+     "eq": 6
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "med",
+   "notes": "Unit-less veg estimated by size; optional Parmesan/pesto garnish not counted; tomato paste counted at ~2x volume."
+  },
+  {
+   "recipe_id": 8,
+   "ingredients_hash": "be400c5206d2a1d9",
+   "values": {
+    "calcium": 208,
+    "choline": 32,
+    "dairy": 0.47,
+    "fruit": 0,
+    "grain_refined": 4.0,
+    "grain_whole": 0,
+    "oils": 46.0,
+    "protein_meat_eggs": 0,
+    "protein_nuts_seeds_soy": 3.57,
+    "protein_seafood": 0,
+    "seafood_albacore": 0,
+    "veg_dark_green": 0,
+    "veg_legumes": 0,
+    "veg_other": 0.29,
+    "veg_red_orange": 0.76,
+    "veg_starchy": 0
+   },
+   "breakdown": [
+    {
+     "ingredient": "pine nuts",
+     "amount": "0.375 cup (~1.8 oz)",
+     "key": "protein_nuts_seeds_soy",
+     "eq": 3.57
+    },
+    {
+     "ingredient": "pine nuts",
+     "amount": "~1.8 oz",
+     "key": "oils",
+     "eq": 25.0
+    },
+    {
+     "ingredient": "pine nuts",
+     "amount": "~1.8 oz",
+     "key": "calcium",
+     "eq": 8
+    },
+    {
+     "ingredient": "pine nuts",
+     "amount": "~1.8 oz",
+     "key": "choline",
+     "eq": 28
+    },
+    {
+     "ingredient": "olive oil (pesto, not listed)",
+     "amount": "~1.5 tbsp (assumed)",
+     "key": "oils",
+     "eq": 21.0,
+     "note": "pesto default"
+    },
+    {
+     "ingredient": "garlic cloves",
+     "amount": "1.75 cloves",
+     "key": "veg_other",
+     "eq": 0.04
+    },
+    {
+     "ingredient": "basil leaves",
+     "amount": "0.5 cup packed",
+     "key": "veg_other",
+     "eq": 0.25,
+     "note": "leafy raw /2"
+    },
+    {
+     "ingredient": "Parmesan cheese",
+     "amount": "0.25 cup finely grated (~20 g)",
+     "key": "dairy",
+     "eq": 0.47
+    },
+    {
+     "ingredient": "Parmesan cheese",
+     "amount": "~20 g",
+     "key": "calcium",
+     "eq": 200
+    },
+    {
+     "ingredient": "Parmesan cheese",
+     "amount": "~20 g",
+     "key": "choline",
+     "eq": 4
+    },
+    {
+     "ingredient": "Short pasta",
+     "amount": "4 oz dry",
+     "key": "grain_refined",
+     "eq": 4.0
+    },
+    {
+     "ingredient": "cherry tomatoes",
+     "amount": "4 oz (~0.76 cup)",
+     "key": "veg_red_orange",
+     "eq": 0.76
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "med",
+   "notes": "Olive oil is not listed but pesto needs it, so 1.5 tbsp/serving assumed; 1.5 cups pine nuts for 4 servings looks high, worth checking."
+  },
+  {
+   "recipe_id": 10,
+   "ingredients_hash": "ddce11550d079a09",
+   "values": {
+    "calcium": 438,
+    "choline": 49,
+    "dairy": 1.4,
+    "fruit": 0.0,
+    "grain_refined": 3.0,
+    "grain_whole": 0.0,
+    "oils": 0.0,
+    "protein_meat_eggs": 0.0,
+    "protein_nuts_seeds_soy": 0.0,
+    "protein_seafood": 0.0,
+    "seafood_albacore": 0.0,
+    "veg_dark_green": 1.9,
+    "veg_legumes": 0.0,
+    "veg_other": 0.53,
+    "veg_red_orange": 0.0,
+    "veg_starchy": 0.25
+   },
+   "breakdown": [
+    {
+     "ingredient": "large scallions",
+     "amount": "2 large ≈ 0.25 cup sliced",
+     "key": "veg_other",
+     "eq": 0.25
+    },
+    {
+     "ingredient": "large scallions",
+     "amount": "2 large",
+     "key": "calcium",
+     "eq": 20
+    },
+    {
+     "ingredient": "large garlic cloves",
+     "amount": "1 large clove",
+     "key": "veg_other",
+     "eq": 0.03
+    },
+    {
+     "ingredient": "baby spinach leaves",
+     "amount": "4 oz raw ≈ 3.8 cups",
+     "key": "veg_dark_green",
+     "eq": 1.9,
+     "note": "leafy raw ÷2"
+    },
+    {
+     "ingredient": "baby spinach leaves",
+     "amount": "4 oz raw",
+     "key": "calcium",
+     "eq": 112
+    },
+    {
+     "ingredient": "baby spinach leaves",
+     "amount": "4 oz raw",
+     "key": "choline",
+     "eq": 22
+    },
+    {
+     "ingredient": "orzo",
+     "amount": "0.5 cup dry ≈ 3 oz",
+     "key": "grain_refined",
+     "eq": 3.0
+    },
+    {
+     "ingredient": "orzo",
+     "amount": "3 oz dry",
+     "key": "choline",
+     "eq": 10
+    },
+    {
+     "ingredient": "feta",
+     "amount": "0.4 cup crumbled ≈ 2.1 oz",
+     "key": "dairy",
+     "eq": 1.4,
+     "note": "1.5 oz cheese = 1 cup eq"
+    },
+    {
+     "ingredient": "feta",
+     "amount": "2.1 oz",
+     "key": "calcium",
+     "eq": 296
+    },
+    {
+     "ingredient": "feta",
+     "amount": "2.1 oz",
+     "key": "choline",
+     "eq": 9
+    },
+    {
+     "ingredient": "peas",
+     "amount": "0.25 cup",
+     "key": "veg_starchy",
+     "eq": 0.25,
+     "note": "optional; counted"
+    },
+    {
+     "ingredient": "peas",
+     "amount": "0.25 cup",
+     "key": "choline",
+     "eq": 8
+    },
+    {
+     "ingredient": "dill",
+     "amount": "0.5 cup chopped",
+     "key": "veg_other",
+     "eq": 0.25,
+     "note": "leafy herb ÷2"
+    },
+    {
+     "ingredient": "dill",
+     "amount": "0.5 cup chopped",
+     "key": "calcium",
+     "eq": 10
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "med",
+   "notes": "Per-serving amounts are large (0.5 cup dry orzo, 0.4 cup feta) but used as given; feta assumed pasteurized; butter not counted."
+  },
+  {
+   "recipe_id": 11,
+   "ingredients_hash": "d770a87b46bf5d29",
+   "values": {
+    "calcium": 8,
+    "choline": 18,
+    "dairy": 0,
+    "fruit": 0,
+    "grain_refined": 0,
+    "grain_whole": 0,
+    "oils": 10.5,
+    "protein_meat_eggs": 0,
+    "protein_nuts_seeds_soy": 0,
+    "protein_seafood": 0,
+    "seafood_albacore": 0,
+    "veg_dark_green": 0,
+    "veg_legumes": 0,
+    "veg_other": 1.39,
+    "veg_red_orange": 0,
+    "veg_starchy": 0
+   },
+   "breakdown": [
+    {
+     "ingredient": "cremini or button mushrooms",
+     "amount": "0.25 lb (~1.3 cup)",
+     "key": "veg_other",
+     "eq": 1.3
+    },
+    {
+     "ingredient": "cremini or button mushrooms",
+     "amount": "0.25 lb (~1.3 cup)",
+     "key": "calcium",
+     "eq": 3
+    },
+    {
+     "ingredient": "cremini or button mushrooms",
+     "amount": "0.25 lb (~1.3 cup)",
+     "key": "choline",
+     "eq": 18
+    },
+    {
+     "ingredient": "extra-virgin olive oil (both lines)",
+     "amount": "0.75 tbsp",
+     "key": "oils",
+     "eq": 10.5
+    },
+    {
+     "ingredient": "garlic cloves",
+     "amount": "1.25 cloves",
+     "key": "veg_other",
+     "eq": 0.03
+    },
+    {
+     "ingredient": "flat-leaf parsley",
+     "amount": "0.0625 cup",
+     "key": "veg_other",
+     "eq": 0.06
+    },
+    {
+     "ingredient": "flat-leaf parsley",
+     "amount": "0.0625 cup",
+     "key": "calcium",
+     "eq": 5
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "high",
+   "notes": ""
+  },
+  {
+   "recipe_id": 12,
+   "ingredients_hash": "4adfd16d7dfb7187",
+   "values": {
+    "calcium": 285,
+    "choline": 40,
+    "dairy": 0,
+    "fruit": 0.02,
+    "grain_refined": 0,
+    "grain_whole": 0,
+    "oils": 10.4,
+    "protein_meat_eggs": 0,
+    "protein_nuts_seeds_soy": 2.03,
+    "protein_seafood": 0,
+    "seafood_albacore": 0,
+    "veg_dark_green": 0.5,
+    "veg_legumes": 0,
+    "veg_other": 0.72,
+    "veg_red_orange": 0.13,
+    "veg_starchy": 0
+   },
+   "breakdown": [
+    {
+     "ingredient": "sesame oil",
+     "amount": "0.5 tsp",
+     "key": "oils",
+     "eq": 2.3
+    },
+    {
+     "ingredient": "avocado oil",
+     "amount": "0.5 tbsp",
+     "key": "oils",
+     "eq": 7.0
+    },
+    {
+     "ingredient": "snow peas",
+     "amount": "1.5 oz ≈ 0.65 cup",
+     "key": "veg_other",
+     "eq": 0.65,
+     "note": "edible-pod peas = other"
+    },
+    {
+     "ingredient": "carrot",
+     "amount": "0.25 medium ≈ 0.125 cup",
+     "key": "veg_red_orange",
+     "eq": 0.13
+    },
+    {
+     "ingredient": "Chinese broccoli (gai lan)",
+     "amount": "1.5 oz ≈ 0.5 cup chopped",
+     "key": "veg_dark_green",
+     "eq": 0.5
+    },
+    {
+     "ingredient": "Chinese broccoli (gai lan)",
+     "amount": "1.5 oz ≈ 0.5 cup chopped",
+     "key": "calcium",
+     "eq": 40
+    },
+    {
+     "ingredient": "Chinese broccoli (gai lan)",
+     "amount": "1.5 oz ≈ 0.5 cup chopped",
+     "key": "choline",
+     "eq": 10
+    },
+    {
+     "ingredient": "firm tofu",
+     "amount": "0.25 block ≈ 3.75 oz ≈ 0.45 cup",
+     "key": "protein_nuts_seeds_soy",
+     "eq": 1.9,
+     "note": "assumed calcium-set"
+    },
+    {
+     "ingredient": "firm tofu",
+     "amount": "0.25 block ≈ 3.75 oz ≈ 0.45 cup",
+     "key": "calcium",
+     "eq": 225,
+     "note": "assumed calcium-set"
+    },
+    {
+     "ingredient": "firm tofu",
+     "amount": "0.25 block ≈ 3.75 oz ≈ 0.45 cup",
+     "key": "choline",
+     "eq": 30,
+     "note": "assumed calcium-set"
+    },
+    {
+     "ingredient": "toasted sesame seeds",
+     "amount": "0.25 tbsp",
+     "key": "protein_nuts_seeds_soy",
+     "eq": 0.13
+    },
+    {
+     "ingredient": "toasted sesame seeds",
+     "amount": "0.25 tbsp",
+     "key": "oils",
+     "eq": 1.1
+    },
+    {
+     "ingredient": "toasted sesame seeds",
+     "amount": "0.25 tbsp",
+     "key": "calcium",
+     "eq": 20
+    },
+    {
+     "ingredient": "scallion",
+     "amount": "0.25 scallion ≈ 0.06 cup",
+     "key": "veg_other",
+     "eq": 0.06
+    },
+    {
+     "ingredient": "garlic",
+     "amount": "0.25 clove",
+     "key": "veg_other",
+     "eq": 0.01
+    },
+    {
+     "ingredient": "lemon/lime juice",
+     "amount": "0.25 tbsp",
+     "key": "fruit",
+     "eq": 0.02
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "med",
+   "notes": "Tofu block taken as 15 oz, assumed calcium-set; gochujang/soy/honey not counted."
+  },
+  {
+   "recipe_id": 13,
+   "ingredients_hash": "92bb1cb3c1136f1a",
+   "values": {
+    "calcium": 205,
+    "choline": 87,
+    "dairy": 0,
+    "fruit": 0,
+    "grain_refined": 0,
+    "grain_whole": 0,
+    "oils": 10.5,
+    "protein_meat_eggs": 0,
+    "protein_nuts_seeds_soy": 0,
+    "protein_seafood": 0,
+    "seafood_albacore": 0,
+    "veg_dark_green": 0.85,
+    "veg_legumes": 0.5,
+    "veg_other": 1.85,
+    "veg_red_orange": 0,
+    "veg_starchy": 0.75
+   },
+   "breakdown": [
+    {
+     "ingredient": "extra-virgin olive oil (both lines)",
+     "amount": "0.75 tbsp",
+     "key": "oils",
+     "eq": 10.5
+    },
+    {
+     "ingredient": "parsley, chopped (incl. garnish)",
+     "amount": "0.1875 cup",
+     "key": "veg_other",
+     "eq": 0.19,
+     "note": "herbs at real volume"
+    },
+    {
+     "ingredient": "parsley, chopped (incl. garnish)",
+     "amount": "0.1875 cup",
+     "key": "calcium",
+     "eq": 15,
+     "note": "herbs at real volume"
+    },
+    {
+     "ingredient": "dill, chopped",
+     "amount": "0.0625 cup",
+     "key": "veg_other",
+     "eq": 0.06
+    },
+    {
+     "ingredient": "lacinato kale",
+     "amount": "0.25 lb raw (~1.7 cup chopped)",
+     "key": "veg_dark_green",
+     "eq": 0.85,
+     "note": "raw leafy ÷2"
+    },
+    {
+     "ingredient": "lacinato kale",
+     "amount": "0.25 lb raw (~1.7 cup chopped)",
+     "key": "calcium",
+     "eq": 150,
+     "note": "raw leafy ÷2"
+    },
+    {
+     "ingredient": "lacinato kale",
+     "amount": "0.25 lb raw (~1.7 cup chopped)",
+     "key": "choline",
+     "eq": 20,
+     "note": "raw leafy ÷2"
+    },
+    {
+     "ingredient": "garlic",
+     "amount": "0.25 head (~2.5 cloves)",
+     "key": "veg_other",
+     "eq": 0.05
+    },
+    {
+     "ingredient": "medium onion",
+     "amount": "0.25 onion (~0.25 cup)",
+     "key": "veg_other",
+     "eq": 0.25
+    },
+    {
+     "ingredient": "cremini mushrooms",
+     "amount": "0.25 lb (~1.3 cup halved)",
+     "key": "veg_other",
+     "eq": 1.3
+    },
+    {
+     "ingredient": "cremini mushrooms",
+     "amount": "0.25 lb (~1.3 cup halved)",
+     "key": "choline",
+     "eq": 18
+    },
+    {
+     "ingredient": "new potatoes",
+     "amount": "0.25 lb (~0.75 cup)",
+     "key": "veg_starchy",
+     "eq": 0.75
+    },
+    {
+     "ingredient": "new potatoes",
+     "amount": "0.25 lb (~0.75 cup)",
+     "key": "choline",
+     "eq": 14
+    },
+    {
+     "ingredient": "cooked white beans",
+     "amount": "0.5 cup",
+     "key": "veg_legumes",
+     "eq": 0.5
+    },
+    {
+     "ingredient": "cooked white beans",
+     "amount": "0.5 cup",
+     "key": "calcium",
+     "eq": 40
+    },
+    {
+     "ingredient": "cooked white beans",
+     "amount": "0.5 cup",
+     "key": "choline",
+     "eq": 35
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "med",
+   "notes": "Kale weight→volume (~67 g/cup raw) and mushroom/potato weight→cups are judgment; herbs counted as veg_other."
+  },
+  {
+   "recipe_id": 14,
+   "ingredients_hash": "2d51ae19948be752",
+   "values": {
+    "calcium": 27,
+    "choline": 11,
+    "dairy": 0,
+    "fruit": 0.05,
+    "grain_refined": 2.6,
+    "grain_whole": 0,
+    "oils": 7.0,
+    "protein_meat_eggs": 0,
+    "protein_nuts_seeds_soy": 0,
+    "protein_seafood": 0,
+    "seafood_albacore": 0,
+    "veg_dark_green": 0.8,
+    "veg_legumes": 0,
+    "veg_other": 0.31,
+    "veg_red_orange": 0,
+    "veg_starchy": 0
+   },
+   "breakdown": [
+    {
+     "ingredient": "broccoli florets",
+     "amount": "2 oz ≈ 0.8 cup",
+     "key": "veg_dark_green",
+     "eq": 0.8
+    },
+    {
+     "ingredient": "broccoli florets",
+     "amount": "2 oz ≈ 0.8 cup",
+     "key": "calcium",
+     "eq": 27
+    },
+    {
+     "ingredient": "broccoli florets",
+     "amount": "2 oz ≈ 0.8 cup",
+     "key": "choline",
+     "eq": 11
+    },
+    {
+     "ingredient": "lemon (juice)",
+     "amount": "0.25 lemon ≈ 0.75 tbsp juice",
+     "key": "fruit",
+     "eq": 0.05
+    },
+    {
+     "ingredient": "onion",
+     "amount": "0.25 medium ≈ 0.25 cup",
+     "key": "veg_other",
+     "eq": 0.25
+    },
+    {
+     "ingredient": "arborio rice",
+     "amount": "0.375 cup dry ≈ 75 g",
+     "key": "grain_refined",
+     "eq": 2.6
+    },
+    {
+     "ingredient": "garlic",
+     "amount": "0.75 clove",
+     "key": "veg_other",
+     "eq": 0.02
+    },
+    {
+     "ingredient": "chives",
+     "amount": "0.25 tbsp",
+     "key": "veg_other",
+     "eq": 0.02
+    },
+    {
+     "ingredient": "fennel fronds",
+     "amount": "0.25 tbsp",
+     "key": "veg_other",
+     "eq": 0.02
+    },
+    {
+     "ingredient": "olive oil (assumed)",
+     "amount": "0.5 tbsp",
+     "key": "oils",
+     "eq": 7.0,
+     "note": "not in ingredient list"
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "med",
+   "notes": "No oil listed — assumed 0.5 tbsp olive oil for the sauté; nutritional yeast option assumed (no dairy); miso not counted."
+  },
+  {
+   "recipe_id": 15,
+   "ingredients_hash": "2b41cf3f72620d07",
+   "values": {
+    "calcium": 495,
+    "choline": 98,
+    "dairy": 0.0,
+    "fruit": 0.0,
+    "grain_refined": 4.1,
+    "grain_whole": 0.0,
+    "oils": 1.2,
+    "protein_meat_eggs": 0.5,
+    "protein_nuts_seeds_soy": 2.0,
+    "protein_seafood": 0.0,
+    "seafood_albacore": 0.0,
+    "veg_dark_green": 1.25,
+    "veg_legumes": 0.0,
+    "veg_other": 0.28,
+    "veg_red_orange": 0.0,
+    "veg_starchy": 0.0
+   },
+   "breakdown": [
+    {
+     "ingredient": "Premade dumplings",
+     "amount": "4 dumplings ≈ 80 g; wrappers ≈ 32 g flour",
+     "key": "grain_refined",
+     "eq": 1.1,
+     "note": "wrapper flour"
+    },
+    {
+     "ingredient": "Premade dumplings",
+     "amount": "4 dumplings; ~20 g raw pork filling",
+     "key": "protein_meat_eggs",
+     "eq": 0.5,
+     "note": "filling assumed pork & cabbage"
+    },
+    {
+     "ingredient": "Premade dumplings",
+     "amount": "4 dumplings; cabbage/veg filling",
+     "key": "veg_other",
+     "eq": 0.1
+    },
+    {
+     "ingredient": "Premade dumplings",
+     "amount": "4 dumplings",
+     "key": "choline",
+     "eq": 15
+    },
+    {
+     "ingredient": "Dried udon noodles",
+     "amount": "3 oz dry",
+     "key": "grain_refined",
+     "eq": 3.0
+    },
+    {
+     "ingredient": "Dried udon noodles",
+     "amount": "3 oz dry",
+     "key": "calcium",
+     "eq": 15
+    },
+    {
+     "ingredient": "Dried udon noodles",
+     "amount": "3 oz dry",
+     "key": "choline",
+     "eq": 10
+    },
+    {
+     "ingredient": "firm tofu",
+     "amount": "4 oz ≈ 0.5 cup",
+     "key": "protein_nuts_seeds_soy",
+     "eq": 2.0,
+     "note": "1/4 cup tofu = 1 oz eq"
+    },
+    {
+     "ingredient": "firm tofu",
+     "amount": "0.5 cup",
+     "key": "calcium",
+     "eq": 250,
+     "note": "assumes calcium-set"
+    },
+    {
+     "ingredient": "firm tofu",
+     "amount": "0.5 cup",
+     "key": "choline",
+     "eq": 35
+    },
+    {
+     "ingredient": "white miso paste",
+     "amount": "2 tbsp",
+     "key": "calcium",
+     "eq": 20
+    },
+    {
+     "ingredient": "white miso paste",
+     "amount": "2 tbsp",
+     "key": "choline",
+     "eq": 25
+    },
+    {
+     "ingredient": "shiitake mushroom caps",
+     "amount": "1 cap ≈ 0.15 cup sliced",
+     "key": "veg_other",
+     "eq": 0.15
+    },
+    {
+     "ingredient": "baby bok choy",
+     "amount": "2 heads ≈ 200 g ≈ 1.25 cup cooked",
+     "key": "veg_dark_green",
+     "eq": 1.25
+    },
+    {
+     "ingredient": "baby bok choy",
+     "amount": "200 g",
+     "key": "calcium",
+     "eq": 210
+    },
+    {
+     "ingredient": "baby bok choy",
+     "amount": "200 g",
+     "key": "choline",
+     "eq": 13
+    },
+    {
+     "ingredient": "sesame oil",
+     "amount": "0.25 tsp",
+     "key": "oils",
+     "eq": 1.2
+    },
+    {
+     "ingredient": "scallion",
+     "amount": "0.25 scallion",
+     "key": "veg_other",
+     "eq": 0.03
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "med",
+   "notes": "Dumpling filling unknown (assumed pork & cabbage); tofu assumed calcium-set; miso not counted as soy protein."
+  },
+  {
+   "recipe_id": 16,
+   "ingredients_hash": "96c43190816bf908",
+   "values": {
+    "calcium": 96,
+    "choline": 19,
+    "dairy": 0,
+    "fruit": 0,
+    "grain_refined": 0,
+    "grain_whole": 0,
+    "oils": 16.8,
+    "protein_meat_eggs": 0,
+    "protein_nuts_seeds_soy": 0.5,
+    "protein_seafood": 0,
+    "seafood_albacore": 0,
+    "veg_dark_green": 0,
+    "veg_legumes": 0,
+    "veg_other": 0.58,
+    "veg_red_orange": 0.5,
+    "veg_starchy": 0.65
+   },
+   "breakdown": [
+    {
+     "ingredient": "extra-virgin olive oil",
+     "amount": "0.75 tbsp",
+     "key": "oils",
+     "eq": 10.5
+    },
+    {
+     "ingredient": "garlic clove",
+     "amount": "0.25 clove",
+     "key": "veg_other",
+     "eq": 0.01
+    },
+    {
+     "ingredient": "carrots",
+     "amount": "1 medium (~0.5 cup)",
+     "key": "veg_red_orange",
+     "eq": 0.5
+    },
+    {
+     "ingredient": "carrots",
+     "amount": "1 medium (~0.5 cup)",
+     "key": "calcium",
+     "eq": 20
+    },
+    {
+     "ingredient": "carrots",
+     "amount": "1 medium (~0.5 cup)",
+     "key": "choline",
+     "eq": 6
+    },
+    {
+     "ingredient": "yellow beets",
+     "amount": "0.5 medium (~0.3 cup)",
+     "key": "veg_other",
+     "eq": 0.3
+    },
+    {
+     "ingredient": "yellow beets",
+     "amount": "0.5 medium (~0.3 cup)",
+     "key": "calcium",
+     "eq": 6
+    },
+    {
+     "ingredient": "yellow beets",
+     "amount": "0.5 medium (~0.3 cup)",
+     "key": "choline",
+     "eq": 2
+    },
+    {
+     "ingredient": "parsnips",
+     "amount": "~3 oz (~0.65 cup)",
+     "key": "veg_starchy",
+     "eq": 0.65,
+     "note": "USDA counts parsnip as starchy"
+    },
+    {
+     "ingredient": "parsnips",
+     "amount": "~3 oz (~0.65 cup)",
+     "key": "calcium",
+     "eq": 30,
+     "note": "USDA counts parsnip as starchy"
+    },
+    {
+     "ingredient": "parsnips",
+     "amount": "~3 oz (~0.65 cup)",
+     "key": "choline",
+     "eq": 8,
+     "note": "USDA counts parsnip as starchy"
+    },
+    {
+     "ingredient": "red radishes",
+     "amount": "~1.5 radishes (~0.12 cup)",
+     "key": "veg_other",
+     "eq": 0.12
+    },
+    {
+     "ingredient": "red onion",
+     "amount": "0.125 onion (~0.125 cup)",
+     "key": "veg_other",
+     "eq": 0.13
+    },
+    {
+     "ingredient": "Black Tahini Dressing",
+     "amount": "~2 tbsp dressing (~0.5 tbsp black tahini)",
+     "key": "protein_nuts_seeds_soy",
+     "eq": 0.5,
+     "note": "qty missing; assumed"
+    },
+    {
+     "ingredient": "Black Tahini Dressing",
+     "amount": "~2 tbsp dressing (~0.5 tbsp black tahini)",
+     "key": "oils",
+     "eq": 4.0,
+     "note": "qty missing; assumed"
+    },
+    {
+     "ingredient": "Black Tahini Dressing",
+     "amount": "~2 tbsp dressing (~0.5 tbsp black tahini)",
+     "key": "calcium",
+     "eq": 40,
+     "note": "qty missing; assumed"
+    },
+    {
+     "ingredient": "Black Tahini Dressing",
+     "amount": "~2 tbsp dressing (~0.5 tbsp black tahini)",
+     "key": "choline",
+     "eq": 3,
+     "note": "qty missing; assumed"
+    },
+    {
+     "ingredient": "Black Tahini Dressing (oil)",
+     "amount": "~0.5 tsp oil in dressing",
+     "key": "oils",
+     "eq": 2.3,
+     "note": "assumed"
+    },
+    {
+     "ingredient": "chives",
+     "amount": "0.25 tbsp",
+     "key": "veg_other",
+     "eq": 0.02
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "med",
+   "notes": "Tahini dressing has no quantity — assumed ~2 tbsp with 0.5 tbsp black tahini; parsnip put in starchy per USDA; vegetable sizes assumed medium."
+  },
+  {
+   "recipe_id": 22,
+   "ingredients_hash": "1dcf13e5b6184ba6",
+   "values": {
+    "calcium": 11,
+    "choline": 90,
+    "dairy": 0,
+    "fruit": 0,
+    "grain_refined": 0,
+    "grain_whole": 0,
+    "oils": 3.5,
+    "protein_meat_eggs": 3.2,
+    "protein_nuts_seeds_soy": 0,
+    "protein_seafood": 0,
+    "seafood_albacore": 0,
+    "veg_dark_green": 0,
+    "veg_legumes": 0,
+    "veg_other": 0.01,
+    "veg_red_orange": 0,
+    "veg_starchy": 0
+   },
+   "breakdown": [
+    {
+     "ingredient": "chicken drumsticks",
+     "amount": "2 drumsticks (~1.6 oz cooked meat each)",
+     "key": "protein_meat_eggs",
+     "eq": 3.2
+    },
+    {
+     "ingredient": "chicken drumsticks",
+     "amount": "2 drumsticks (~1.6 oz cooked meat each)",
+     "key": "calcium",
+     "eq": 11
+    },
+    {
+     "ingredient": "chicken drumsticks",
+     "amount": "2 drumsticks (~1.6 oz cooked meat each)",
+     "key": "choline",
+     "eq": 90
+    },
+    {
+     "ingredient": "sesame oil",
+     "amount": "0.25 tbsp",
+     "key": "oils",
+     "eq": 3.5
+    },
+    {
+     "ingredient": "garlic, minced",
+     "amount": "~0.5 clove (assumed)",
+     "key": "veg_other",
+     "eq": 0.01,
+     "note": "qty missing"
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "med",
+   "notes": "Used stored 2 drumsticks/serving, though qty_raw '5' for 4 servings implies ~1.25; baked 35-40 min at 425°F so no flag."
+  },
+  {
+   "recipe_id": 23,
+   "ingredients_hash": "e41741bc9691927f",
+   "values": {
+    "calcium": 820,
+    "choline": 58,
+    "dairy": 2.25,
+    "fruit": 0.53,
+    "grain_refined": 3.5,
+    "grain_whole": 0,
+    "oils": 2.3,
+    "protein_meat_eggs": 0,
+    "protein_nuts_seeds_soy": 0,
+    "protein_seafood": 0,
+    "seafood_albacore": 0,
+    "veg_dark_green": 0,
+    "veg_legumes": 0.38,
+    "veg_other": 0.51,
+    "veg_red_orange": 0.4,
+    "veg_starchy": 0
+   },
+   "breakdown": [
+    {
+     "ingredient": "vegetable oil",
+     "amount": "0.5 tsp",
+     "key": "oils",
+     "eq": 2.3
+    },
+    {
+     "ingredient": "large yellow onion",
+     "amount": "0.25 onion (~0.25 cup)",
+     "key": "veg_other",
+     "eq": 0.25
+    },
+    {
+     "ingredient": "medium red bell pepper",
+     "amount": "0.25 pepper (~0.25 cup)",
+     "key": "veg_red_orange",
+     "eq": 0.25
+    },
+    {
+     "ingredient": "pineapple tidbits, drained",
+     "amount": "~0.45 cup (0.25 × 20-oz can)",
+     "key": "fruit",
+     "eq": 0.45
+    },
+    {
+     "ingredient": "pineapple tidbits, drained",
+     "amount": "~0.45 cup (0.25 × 20-oz can)",
+     "key": "calcium",
+     "eq": 15
+    },
+    {
+     "ingredient": "reserved pineapple juice (in sauce)",
+     "amount": "~0.08 cup",
+     "key": "fruit",
+     "eq": 0.08
+    },
+    {
+     "ingredient": "black beans",
+     "amount": "0.375 cup drained (0.25 × 15-oz can)",
+     "key": "veg_legumes",
+     "eq": 0.38
+    },
+    {
+     "ingredient": "black beans",
+     "amount": "0.375 cup drained (0.25 × 15-oz can)",
+     "key": "calcium",
+     "eq": 30
+    },
+    {
+     "ingredient": "black beans",
+     "amount": "0.375 cup drained (0.25 × 15-oz can)",
+     "key": "choline",
+     "eq": 26
+    },
+    {
+     "ingredient": "chopped green chilies",
+     "amount": "~0.125 cup (0.25 × 4.5-oz can)",
+     "key": "veg_other",
+     "eq": 0.13
+    },
+    {
+     "ingredient": "chopped fresh cilantro",
+     "amount": "0.125 cup",
+     "key": "veg_other",
+     "eq": 0.13
+    },
+    {
+     "ingredient": "shredded cheddar cheese",
+     "amount": "0.75 cup",
+     "key": "dairy",
+     "eq": 2.25,
+     "note": "1/3 cup shredded = 1 cup eq"
+    },
+    {
+     "ingredient": "shredded cheddar cheese",
+     "amount": "0.75 cup",
+     "key": "calcium",
+     "eq": 675,
+     "note": "1/3 cup shredded = 1 cup eq"
+    },
+    {
+     "ingredient": "shredded cheddar cheese",
+     "amount": "0.75 cup",
+     "key": "choline",
+     "eq": 22,
+     "note": "1/3 cup shredded = 1 cup eq"
+    },
+    {
+     "ingredient": "enchilada sauce",
+     "amount": "~0.3 cup (0.25 × 10-oz can)",
+     "key": "veg_red_orange",
+     "eq": 0.15,
+     "note": "tomato/chile sauce, ~half counted"
+    },
+    {
+     "ingredient": "flour tortillas",
+     "amount": "2 × 8-inch",
+     "key": "grain_refined",
+     "eq": 3.5,
+     "note": "~1.75 oz eq each"
+    },
+    {
+     "ingredient": "flour tortillas",
+     "amount": "2 × 8-inch",
+     "key": "calcium",
+     "eq": 100,
+     "note": "~1.75 oz eq each"
+    },
+    {
+     "ingredient": "flour tortillas",
+     "amount": "2 × 8-inch",
+     "key": "choline",
+     "eq": 10,
+     "note": "~1.75 oz eq each"
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "med",
+   "notes": "Cheese is 3 cups over 4 servings (2.25 cup eq dairy each); tortilla size assumed 8-inch; enchilada sauce can assumed 10 oz; sour cream not counted."
+  },
+  {
+   "recipe_id": 24,
+   "ingredients_hash": "1e6920d49275f3c5",
+   "values": {
+    "calcium": 40,
+    "choline": 295,
+    "dairy": 0,
+    "fruit": 0,
+    "grain_refined": 2.0,
+    "grain_whole": 0,
+    "oils": 15.8,
+    "protein_meat_eggs": 5.5,
+    "protein_nuts_seeds_soy": 0,
+    "protein_seafood": 0,
+    "seafood_albacore": 0,
+    "veg_dark_green": 0,
+    "veg_legumes": 0,
+    "veg_other": 0.65,
+    "veg_red_orange": 0,
+    "veg_starchy": 0.5
+   },
+   "breakdown": [
+    {
+     "ingredient": "chuck roast or pork shoulder",
+     "amount": "6 oz raw",
+     "key": "protein_meat_eggs",
+     "eq": 4.5,
+     "note": "raw x0.75"
+    },
+    {
+     "ingredient": "chuck roast or pork shoulder",
+     "amount": "4.5 oz cooked",
+     "key": "calcium",
+     "eq": 15
+    },
+    {
+     "ingredient": "chuck roast or pork shoulder",
+     "amount": "4.5 oz cooked",
+     "key": "choline",
+     "eq": 135
+    },
+    {
+     "ingredient": "garlic",
+     "amount": "1 clove",
+     "key": "veg_other",
+     "eq": 0.02
+    },
+    {
+     "ingredient": "medium onion",
+     "amount": "1/8 onion",
+     "key": "veg_other",
+     "eq": 0.13
+    },
+    {
+     "ingredient": "green cabbage",
+     "amount": "1/16 head (~0.5 cup)",
+     "key": "veg_other",
+     "eq": 0.5
+    },
+    {
+     "ingredient": "eggs",
+     "amount": "1 egg",
+     "key": "protein_meat_eggs",
+     "eq": 1.0
+    },
+    {
+     "ingredient": "eggs",
+     "amount": "1 egg",
+     "key": "calcium",
+     "eq": 25
+    },
+    {
+     "ingredient": "eggs",
+     "amount": "1 egg",
+     "key": "choline",
+     "eq": 150
+    },
+    {
+     "ingredient": "medium yellow potatoes",
+     "amount": "1/2 potato (~0.5 cup)",
+     "key": "veg_starchy",
+     "eq": 0.5
+    },
+    {
+     "ingredient": "medium yellow potatoes",
+     "amount": "0.5 cup",
+     "key": "choline",
+     "eq": 10
+    },
+    {
+     "ingredient": "udon noodles / rice",
+     "amount": "~1 cup cooked (assumed)",
+     "key": "grain_refined",
+     "eq": 2.0,
+     "note": "qty missing"
+    },
+    {
+     "ingredient": "oil (instructions)",
+     "amount": "3 tbsp / 8",
+     "key": "oils",
+     "eq": 5.3,
+     "note": "from step 1"
+    },
+    {
+     "ingredient": "sesame oil (instructions)",
+     "amount": "6 tbsp / 8",
+     "key": "oils",
+     "eq": 10.5,
+     "note": "from step 2"
+    }
+   ],
+   "safety_flags": [
+    "raw_egg"
+   ],
+   "confidence": "med",
+   "notes": "Flagged raw_egg: 6-min soft-boiled eggs keep runny yolks, fine if boiled until yolks set; udon assumed 1 cup cooked; 3 tbsp oil + 6 tbsp sesame oil from instructions counted."
+  },
+  {
+   "recipe_id": 25,
+   "ingredients_hash": "8781ad4a3a9e14a1",
+   "values": {
+    "calcium": 30,
+    "choline": 190,
+    "dairy": 0,
+    "fruit": 0,
+    "grain_refined": 0,
+    "grain_whole": 0,
+    "oils": 1.1,
+    "protein_meat_eggs": 2.5,
+    "protein_nuts_seeds_soy": 0,
+    "protein_seafood": 0,
+    "seafood_albacore": 0,
+    "veg_dark_green": 0,
+    "veg_legumes": 0,
+    "veg_other": 0.03,
+    "veg_red_orange": 0,
+    "veg_starchy": 0
+   },
+   "breakdown": [
+    {
+     "ingredient": "eggs",
+     "amount": "1 egg",
+     "key": "protein_meat_eggs",
+     "eq": 1.0
+    },
+    {
+     "ingredient": "eggs",
+     "amount": "1 egg",
+     "key": "calcium",
+     "eq": 25
+    },
+    {
+     "ingredient": "eggs",
+     "amount": "1 egg",
+     "key": "choline",
+     "eq": 150
+    },
+    {
+     "ingredient": "green onions",
+     "amount": "1/4 stalk",
+     "key": "veg_other",
+     "eq": 0.03
+    },
+    {
+     "ingredient": "cooked ground pork or bacon bits",
+     "amount": "1.5 oz cooked",
+     "key": "protein_meat_eggs",
+     "eq": 1.5
+    },
+    {
+     "ingredient": "cooked ground pork or bacon bits",
+     "amount": "1.5 oz cooked",
+     "key": "calcium",
+     "eq": 5
+    },
+    {
+     "ingredient": "cooked ground pork or bacon bits",
+     "amount": "1.5 oz cooked",
+     "key": "choline",
+     "eq": 40
+    },
+    {
+     "ingredient": "sesame oil",
+     "amount": "~0.25 tsp (assumed)",
+     "key": "oils",
+     "eq": 1.1,
+     "note": "qty missing"
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "med",
+   "notes": "Pork taken as 1.5 oz cooked per serving (raw '1/3-1/2' likely lb); sesame oil amount assumed; egg steamed 12-15 min so fully set."
+  },
+  {
+   "recipe_id": 26,
+   "ingredients_hash": "8f93ed83ad7860fe",
+   "values": {
+    "calcium": 15,
+    "choline": 111,
+    "dairy": 0,
+    "fruit": 0,
+    "grain_refined": 3.8,
+    "grain_whole": 0,
+    "oils": 22.3,
+    "protein_meat_eggs": 0,
+    "protein_nuts_seeds_soy": 0.04,
+    "protein_seafood": 4.6,
+    "seafood_albacore": 0,
+    "veg_dark_green": 0,
+    "veg_legumes": 0,
+    "veg_other": 0.33,
+    "veg_red_orange": 0,
+    "veg_starchy": 0
+   },
+   "breakdown": [
+    {
+     "ingredient": "short grain rice",
+     "amount": "0.5 cup uncooked ≈ 100 g",
+     "key": "grain_refined",
+     "eq": 3.5
+    },
+    {
+     "ingredient": "imitation crab (surimi, pollock)",
+     "amount": "0.25 pack ≈ 2 oz",
+     "key": "protein_seafood",
+     "eq": 1.0,
+     "note": "~50% fish"
+    },
+    {
+     "ingredient": "imitation crab (surimi, pollock)",
+     "amount": "0.25 pack ≈ 2 oz",
+     "key": "choline",
+     "eq": 8,
+     "note": "~50% fish"
+    },
+    {
+     "ingredient": "imitation crab (surimi, pollock)",
+     "amount": "0.25 pack ≈ 2 oz",
+     "key": "calcium",
+     "eq": 5,
+     "note": "~50% fish"
+    },
+    {
+     "ingredient": "Kewpie mayo",
+     "amount": "~0.5 tbsp (to taste)",
+     "key": "oils",
+     "eq": 5.5,
+     "note": "qty assumed"
+    },
+    {
+     "ingredient": "avocado",
+     "amount": "0.25 large ≈ 0.33 cup",
+     "key": "veg_other",
+     "eq": 0.33
+    },
+    {
+     "ingredient": "avocado",
+     "amount": "0.25 large ≈ 0.33 cup",
+     "key": "oils",
+     "eq": 6.5
+    },
+    {
+     "ingredient": "sashimi-grade salmon (raw)",
+     "amount": "0.25 piece ≈ 3 oz",
+     "key": "protein_seafood",
+     "eq": 3.0,
+     "note": "eaten raw"
+    },
+    {
+     "ingredient": "sashimi-grade salmon (raw)",
+     "amount": "0.25 piece ≈ 3 oz",
+     "key": "oils",
+     "eq": 6.0,
+     "note": "eaten raw"
+    },
+    {
+     "ingredient": "sashimi-grade salmon (raw)",
+     "amount": "0.25 piece ≈ 3 oz",
+     "key": "choline",
+     "eq": 80,
+     "note": "eaten raw"
+    },
+    {
+     "ingredient": "sashimi-grade salmon (raw)",
+     "amount": "0.25 piece ≈ 3 oz",
+     "key": "calcium",
+     "eq": 10,
+     "note": "eaten raw"
+    },
+    {
+     "ingredient": "tempura shrimp",
+     "amount": "1.5 pieces ≈ 0.6 oz shrimp",
+     "key": "protein_seafood",
+     "eq": 0.6,
+     "note": "batter + frying oil"
+    },
+    {
+     "ingredient": "tempura shrimp",
+     "amount": "1.5 pieces ≈ 0.6 oz shrimp",
+     "key": "grain_refined",
+     "eq": 0.3,
+     "note": "batter + frying oil"
+    },
+    {
+     "ingredient": "tempura shrimp",
+     "amount": "1.5 pieces ≈ 0.6 oz shrimp",
+     "key": "oils",
+     "eq": 3.5,
+     "note": "batter + frying oil"
+    },
+    {
+     "ingredient": "tempura shrimp",
+     "amount": "1.5 pieces ≈ 0.6 oz shrimp",
+     "key": "choline",
+     "eq": 23,
+     "note": "batter + frying oil"
+    },
+    {
+     "ingredient": "roasted sesame seeds",
+     "amount": "~0.5 tsp (assumed)",
+     "key": "protein_nuts_seeds_soy",
+     "eq": 0.04
+    },
+    {
+     "ingredient": "roasted sesame seeds",
+     "amount": "~0.5 tsp (assumed)",
+     "key": "oils",
+     "eq": 0.8
+    }
+   ],
+   "safety_flags": [
+    "raw_fish"
+   ],
+   "confidence": "low",
+   "notes": "Raw sashimi-grade salmon → raw_fish; salmon piece ≈ 12 oz (3 oz/serving), imitation crab pack 8 oz counted ~50% fish; Kewpie assumed 0.5 tbsp (commercial, pasteurized)."
+  },
+  {
+   "recipe_id": 27,
+   "ingredients_hash": "385967fc1205e3a5",
+   "values": {
+    "calcium": 44,
+    "choline": 205,
+    "dairy": 0,
+    "fruit": 0,
+    "grain_refined": 0,
+    "grain_whole": 0,
+    "oils": 0,
+    "protein_meat_eggs": 7.5,
+    "protein_nuts_seeds_soy": 0,
+    "protein_seafood": 0,
+    "seafood_albacore": 0,
+    "veg_dark_green": 0,
+    "veg_legumes": 0,
+    "veg_other": 0.13,
+    "veg_red_orange": 0.44,
+    "veg_starchy": 0
+   },
+   "breakdown": [
+    {
+     "ingredient": "canned tomatoes",
+     "amount": "1/4 of 14-oz can (~0.44 cup)",
+     "key": "veg_red_orange",
+     "eq": 0.44
+    },
+    {
+     "ingredient": "garlic",
+     "amount": "~1.4 cloves (5-6 / 4)",
+     "key": "veg_other",
+     "eq": 0.03
+    },
+    {
+     "ingredient": "minced ginger",
+     "amount": "~0.4 tsp",
+     "key": "veg_other",
+     "eq": 0.01
+    },
+    {
+     "ingredient": "boneless skinless chicken thighs",
+     "amount": "10 oz raw (2.5 lb midpoint / 4)",
+     "key": "protein_meat_eggs",
+     "eq": 7.5,
+     "note": "raw x0.75"
+    },
+    {
+     "ingredient": "boneless skinless chicken thighs",
+     "amount": "7.5 oz cooked",
+     "key": "calcium",
+     "eq": 25
+    },
+    {
+     "ingredient": "boneless skinless chicken thighs",
+     "amount": "7.5 oz cooked",
+     "key": "choline",
+     "eq": 200
+    },
+    {
+     "ingredient": "heavy cream",
+     "amount": "1 oz",
+     "key": "calcium",
+     "eq": 19,
+     "note": "cream not dairy eq"
+    },
+    {
+     "ingredient": "heavy cream",
+     "amount": "1 oz",
+     "key": "choline",
+     "eq": 5
+    },
+    {
+     "ingredient": "chopped cilantro",
+     "amount": "~0.09 cup",
+     "key": "veg_other",
+     "eq": 0.09,
+     "note": "herb at real volume"
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "med",
+   "notes": "Chicken 2-3 lb taken at 2.5 lb (7.5 oz cooked/serving); butter/cream not counted; serving rice not included."
+  },
+  {
+   "recipe_id": 28,
+   "ingredients_hash": "87defabc71bd4295",
+   "values": {
+    "calcium": 180,
+    "choline": 29,
+    "dairy": 0,
+    "fruit": 0,
+    "grain_refined": 0,
+    "grain_whole": 0,
+    "oils": 7.0,
+    "protein_meat_eggs": 0,
+    "protein_nuts_seeds_soy": 0,
+    "protein_seafood": 0,
+    "seafood_albacore": 0,
+    "veg_dark_green": 1.2,
+    "veg_legumes": 0,
+    "veg_other": 1.23,
+    "veg_red_orange": 0,
+    "veg_starchy": 0
+   },
+   "breakdown": [
+    {
+     "ingredient": "minced ginger",
+     "amount": "0.25 tsp",
+     "key": "veg_other",
+     "eq": 0.01
+    },
+    {
+     "ingredient": "garlic",
+     "amount": "1 clove",
+     "key": "veg_other",
+     "eq": 0.02
+    },
+    {
+     "ingredient": "baby bok choy",
+     "amount": "6 oz raw (~2.4 cups)",
+     "key": "veg_dark_green",
+     "eq": 1.2,
+     "note": "leafy raw /2"
+    },
+    {
+     "ingredient": "baby bok choy",
+     "amount": "6 oz",
+     "key": "calcium",
+     "eq": 180
+    },
+    {
+     "ingredient": "baby bok choy",
+     "amount": "6 oz",
+     "key": "choline",
+     "eq": 11
+    },
+    {
+     "ingredient": "fresh shiitake mushrooms",
+     "amount": "3 oz raw (~1.2 cups)",
+     "key": "veg_other",
+     "eq": 1.2
+    },
+    {
+     "ingredient": "fresh shiitake mushrooms",
+     "amount": "3 oz",
+     "key": "choline",
+     "eq": 18
+    },
+    {
+     "ingredient": "oil (instructions)",
+     "amount": "1 tbsp / 4",
+     "key": "oils",
+     "eq": 3.5,
+     "note": "from step 1"
+    },
+    {
+     "ingredient": "sesame oil (instructions)",
+     "amount": "1 tbsp / 4",
+     "key": "oils",
+     "eq": 3.5,
+     "note": "from step 5"
+    }
+   ],
+   "safety_flags": [
+    "alcohol"
+   ],
+   "confidence": "high",
+   "notes": "Flagged alcohol: 0.5 tbsp Shaoxing wine/serving is stir-fried only ~3 min, so a trace remains; oils from instructions counted."
+  },
+  {
+   "recipe_id": 29,
+   "ingredients_hash": "8a778dee3d30f393",
+   "values": {
+    "calcium": 35,
+    "choline": 225,
+    "dairy": 0,
+    "fruit": 0,
+    "grain_refined": 1.7,
+    "grain_whole": 0,
+    "oils": 5.2,
+    "protein_meat_eggs": 4.0,
+    "protein_nuts_seeds_soy": 0,
+    "protein_seafood": 0,
+    "seafood_albacore": 0,
+    "veg_dark_green": 0,
+    "veg_legumes": 0,
+    "veg_other": 0.41,
+    "veg_red_orange": 0,
+    "veg_starchy": 0
+   },
+   "breakdown": [
+    {
+     "ingredient": "white button mushrooms",
+     "amount": "0.75 oz ≈ 0.25 cup",
+     "key": "veg_other",
+     "eq": 0.25
+    },
+    {
+     "ingredient": "garlic",
+     "amount": "0.5 tbsp minced (instr. 2 tbsp ÷ 4)",
+     "key": "veg_other",
+     "eq": 0.03,
+     "note": "list says 0.25 clove; used instructions"
+    },
+    {
+     "ingredient": "fresh ginger",
+     "amount": "0.75 tbsp (instr. 3 tbsp ÷ 4)",
+     "key": "veg_other",
+     "eq": 0.05
+    },
+    {
+     "ingredient": "chicken thighs",
+     "amount": "4 oz raw → 3 oz cooked",
+     "key": "protein_meat_eggs",
+     "eq": 3.0
+    },
+    {
+     "ingredient": "chicken thighs",
+     "amount": "4 oz raw → 3 oz cooked",
+     "key": "choline",
+     "eq": 75
+    },
+    {
+     "ingredient": "chicken thighs",
+     "amount": "4 oz raw → 3 oz cooked",
+     "key": "calcium",
+     "eq": 10
+    },
+    {
+     "ingredient": "scallions",
+     "amount": "0.5 scallion ≈ 0.08 cup",
+     "key": "veg_other",
+     "eq": 0.08
+    },
+    {
+     "ingredient": "white rice (from instructions)",
+     "amount": "0.25 cup dry ≈ 48 g",
+     "key": "grain_refined",
+     "eq": 1.7,
+     "note": "rice type assumed white"
+    },
+    {
+     "ingredient": "sesame oil (from instructions)",
+     "amount": "0.375 tsp",
+     "key": "oils",
+     "eq": 1.7
+    },
+    {
+     "ingredient": "neutral oil (scallion sauce)",
+     "amount": "0.25 tbsp",
+     "key": "oils",
+     "eq": 3.5
+    },
+    {
+     "ingredient": "over-easy egg (topping)",
+     "amount": "1 egg",
+     "key": "protein_meat_eggs",
+     "eq": 1.0,
+     "note": "runny yolk"
+    },
+    {
+     "ingredient": "over-easy egg (topping)",
+     "amount": "1 egg",
+     "key": "choline",
+     "eq": 150,
+     "note": "runny yolk"
+    },
+    {
+     "ingredient": "over-easy egg (topping)",
+     "amount": "1 egg",
+     "key": "calcium",
+     "eq": 25,
+     "note": "runny yolk"
+    }
+   ],
+   "safety_flags": [
+    "raw_egg"
+   ],
+   "confidence": "med",
+   "notes": "Rice (1 cup/4), oils, extra garlic/ginger and the over-easy egg come from the instructions; over-easy egg → raw_egg (cook yolk firm)."
+  },
+  {
+   "recipe_id": 30,
+   "ingredients_hash": "3b7f145f1f04c626",
+   "values": {
+    "calcium": 33,
+    "choline": 219,
+    "dairy": 0,
+    "fruit": 0,
+    "grain_refined": 3.0,
+    "grain_whole": 0,
+    "oils": 8.2,
+    "protein_meat_eggs": 3.44,
+    "protein_nuts_seeds_soy": 0,
+    "protein_seafood": 0,
+    "seafood_albacore": 0,
+    "veg_dark_green": 0,
+    "veg_legumes": 0,
+    "veg_other": 0.09,
+    "veg_red_orange": 0,
+    "veg_starchy": 0
+   },
+   "breakdown": [
+    {
+     "ingredient": "ginger + garlic",
+     "amount": "0.5 tbsp minced",
+     "key": "veg_other",
+     "eq": 0.03,
+     "note": "aromatics at real volume"
+    },
+    {
+     "ingredient": "chicken",
+     "amount": "3.25 oz raw (13 oz midpoint / 4)",
+     "key": "protein_meat_eggs",
+     "eq": 2.44,
+     "note": "raw x0.75"
+    },
+    {
+     "ingredient": "chicken",
+     "amount": "2.44 oz cooked",
+     "key": "calcium",
+     "eq": 8
+    },
+    {
+     "ingredient": "chicken",
+     "amount": "2.44 oz cooked",
+     "key": "choline",
+     "eq": 69
+    },
+    {
+     "ingredient": "eggs",
+     "amount": "1 egg",
+     "key": "protein_meat_eggs",
+     "eq": 1.0
+    },
+    {
+     "ingredient": "eggs",
+     "amount": "1 egg",
+     "key": "calcium",
+     "eq": 25
+    },
+    {
+     "ingredient": "eggs",
+     "amount": "1 egg",
+     "key": "choline",
+     "eq": 150
+    },
+    {
+     "ingredient": "white rice, uncooked",
+     "amount": "0.5 cup dry (~3 oz)",
+     "key": "grain_refined",
+     "eq": 3.0,
+     "note": "~1.5 cup cooked"
+    },
+    {
+     "ingredient": "green onion",
+     "amount": "0.5 stalk",
+     "key": "veg_other",
+     "eq": 0.06
+    },
+    {
+     "ingredient": "oil",
+     "amount": "0.5 tbsp",
+     "key": "oils",
+     "eq": 7.0
+    },
+    {
+     "ingredient": "sesame oil",
+     "amount": "~0.25 tsp (assumed)",
+     "key": "oils",
+     "eq": 1.2,
+     "note": "qty missing"
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "med",
+   "notes": "Chicken range 10-16 oz taken at 13 oz; rice cups read as US cups; sesame oil amount assumed; photo instructions truncated."
+  },
+  {
+   "recipe_id": 31,
+   "ingredients_hash": "47a492c2180d2274",
+   "values": {
+    "calcium": 13,
+    "choline": 75,
+    "dairy": 0,
+    "fruit": 0,
+    "grain_refined": 2.5,
+    "grain_whole": 0,
+    "oils": 0,
+    "protein_meat_eggs": 0.5,
+    "protein_nuts_seeds_soy": 0,
+    "protein_seafood": 0,
+    "seafood_albacore": 0,
+    "veg_dark_green": 0,
+    "veg_legumes": 0,
+    "veg_other": 0,
+    "veg_red_orange": 0,
+    "veg_starchy": 0
+   },
+   "breakdown": [
+    {
+     "ingredient": "all-purpose flour",
+     "amount": "2.5 oz (70 g)",
+     "key": "grain_refined",
+     "eq": 2.5
+    },
+    {
+     "ingredient": "large eggs",
+     "amount": "0.5 egg",
+     "key": "protein_meat_eggs",
+     "eq": 0.5
+    },
+    {
+     "ingredient": "large eggs",
+     "amount": "0.5 egg",
+     "key": "choline",
+     "eq": 75
+    },
+    {
+     "ingredient": "large eggs",
+     "amount": "0.5 egg",
+     "key": "calcium",
+     "eq": 13
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "high",
+   "notes": "Serving = 1/4 batch ≈ 7 cookies (base_servings 4, yield 28) — consider re-basing; baked, so no raw_egg."
+  },
+  {
+   "recipe_id": 32,
+   "ingredients_hash": "725df1e91d923c57",
+   "values": {
+    "calcium": 89,
+    "choline": 137,
+    "dairy": 0.0,
+    "fruit": 0.0,
+    "grain_refined": 0.5,
+    "grain_whole": 0.0,
+    "oils": 0.0,
+    "protein_meat_eggs": 0.75,
+    "protein_nuts_seeds_soy": 0.0,
+    "protein_seafood": 0.0,
+    "seafood_albacore": 0.0,
+    "veg_dark_green": 0.0,
+    "veg_legumes": 0.0,
+    "veg_other": 0.0,
+    "veg_red_orange": 0.0,
+    "veg_starchy": 0.0
+   },
+   "breakdown": [
+    {
+     "ingredient": "Pavesini ladyfingers",
+     "amount": "≈25 g (1/8 of a 200 g pack)",
+     "key": "grain_refined",
+     "eq": 0.5,
+     "note": "flour portion of biscuits"
+    },
+    {
+     "ingredient": "Pavesini ladyfingers",
+     "amount": "≈25 g",
+     "key": "calcium",
+     "eq": 10
+    },
+    {
+     "ingredient": "Pavesini ladyfingers",
+     "amount": "≈25 g",
+     "key": "choline",
+     "eq": 15
+    },
+    {
+     "ingredient": "eggs",
+     "amount": "0.75 egg (raw, whipped)",
+     "key": "protein_meat_eggs",
+     "eq": 0.75
+    },
+    {
+     "ingredient": "eggs",
+     "amount": "0.75 egg",
+     "key": "choline",
+     "eq": 112
+    },
+    {
+     "ingredient": "eggs",
+     "amount": "0.75 egg",
+     "key": "calcium",
+     "eq": 19
+    },
+    {
+     "ingredient": "Granarolo mascarpone",
+     "amount": "≈62 g (250 g ÷ 4)",
+     "key": "calcium",
+     "eq": 60,
+     "note": "cream cheese-type: not counted as dairy"
+    },
+    {
+     "ingredient": "Granarolo mascarpone",
+     "amount": "≈62 g",
+     "key": "choline",
+     "eq": 10
+    }
+   ],
+   "safety_flags": [
+    "raw_egg"
+   ],
+   "confidence": "low",
+   "notes": "Flagged raw_egg: yolks and whites are whipped raw and only frozen/chilled; pasteurized eggs would clear it. Biscuit/mascarpone amounts from handwritten notes."
+  },
+  {
+   "recipe_id": 33,
+   "ingredients_hash": "2277fcbfaba3b346",
+   "values": {
+    "calcium": 247,
+    "choline": 170,
+    "dairy": 0.75,
+    "fruit": 0,
+    "grain_refined": 1.0,
+    "grain_whole": 0,
+    "oils": 0,
+    "protein_meat_eggs": 0.33,
+    "protein_nuts_seeds_soy": 0,
+    "protein_seafood": 0,
+    "seafood_albacore": 0,
+    "veg_dark_green": 0,
+    "veg_legumes": 0,
+    "veg_other": 0,
+    "veg_red_orange": 0,
+    "veg_starchy": 0
+   },
+   "breakdown": [
+    {
+     "ingredient": "pie crust",
+     "amount": "1/4 crust",
+     "key": "grain_refined",
+     "eq": 1.0,
+     "note": "~4 oz eq per crust"
+    },
+    {
+     "ingredient": "whole milk",
+     "amount": "0.75 cup",
+     "key": "dairy",
+     "eq": 0.75
+    },
+    {
+     "ingredient": "whole milk",
+     "amount": "0.75 cup",
+     "key": "calcium",
+     "eq": 225
+    },
+    {
+     "ingredient": "whole milk",
+     "amount": "0.75 cup",
+     "key": "choline",
+     "eq": 30
+    },
+    {
+     "ingredient": "whole egg yolks",
+     "amount": "1 yolk",
+     "key": "protein_meat_eggs",
+     "eq": 0.33,
+     "note": "yolk ~1/3 of egg"
+    },
+    {
+     "ingredient": "whole egg yolks",
+     "amount": "1 yolk",
+     "key": "calcium",
+     "eq": 22
+    },
+    {
+     "ingredient": "whole egg yolks",
+     "amount": "1 yolk",
+     "key": "choline",
+     "eq": 140
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "med",
+   "notes": "Servings are the app's 4 (recipe says it yields 10, so a real slice is ~40% of these values); yolks are boiled into the pudding, so no raw_egg flag."
+  },
+  {
+   "recipe_id": 34,
+   "ingredients_hash": "27c4ddaa54fa3b81",
+   "values": {
+    "calcium": 13,
+    "choline": 98,
+    "dairy": 0,
+    "fruit": 0,
+    "grain_refined": 1.1,
+    "grain_whole": 0,
+    "oils": 2.8,
+    "protein_meat_eggs": 2.6,
+    "protein_nuts_seeds_soy": 0,
+    "protein_seafood": 0,
+    "seafood_albacore": 0,
+    "veg_dark_green": 0,
+    "veg_legumes": 0,
+    "veg_other": 0.46,
+    "veg_red_orange": 0.25,
+    "veg_starchy": 0.3
+   },
+   "breakdown": [
+    {
+     "ingredient": "extra-virgin olive oil",
+     "amount": "0.2 tbsp",
+     "key": "oils",
+     "eq": 2.8
+    },
+    {
+     "ingredient": "chicken breast/thigh",
+     "amount": "3.2 oz raw → 2.4 oz cooked",
+     "key": "protein_meat_eggs",
+     "eq": 2.4
+    },
+    {
+     "ingredient": "chicken breast/thigh",
+     "amount": "3.2 oz raw → 2.4 oz cooked",
+     "key": "choline",
+     "eq": 68
+    },
+    {
+     "ingredient": "chicken breast/thigh",
+     "amount": "3.2 oz raw → 2.4 oz cooked",
+     "key": "calcium",
+     "eq": 8
+    },
+    {
+     "ingredient": "carrots",
+     "amount": "0.25 cup chopped",
+     "key": "veg_red_orange",
+     "eq": 0.25
+    },
+    {
+     "ingredient": "celery",
+     "amount": "0.25 cup chopped",
+     "key": "veg_other",
+     "eq": 0.25
+    },
+    {
+     "ingredient": "leek",
+     "amount": "0.2 medium ≈ 0.2 cup sliced",
+     "key": "veg_other",
+     "eq": 0.2
+    },
+    {
+     "ingredient": "garlic",
+     "amount": "0.6 clove",
+     "key": "veg_other",
+     "eq": 0.01
+    },
+    {
+     "ingredient": "all-purpose flour",
+     "amount": "8.8 g (44 g ÷ 5)",
+     "key": "grain_refined",
+     "eq": 0.31,
+     "note": "qty from raw text"
+    },
+    {
+     "ingredient": "frozen green peas",
+     "amount": "0.3 cup",
+     "key": "veg_starchy",
+     "eq": 0.3
+    },
+    {
+     "ingredient": "puff pastry",
+     "amount": "0.2 sheet ≈ 49 g (~22 g flour)",
+     "key": "grain_refined",
+     "eq": 0.79,
+     "note": "~45% flour by weight"
+    },
+    {
+     "ingredient": "egg (egg wash)",
+     "amount": "0.2 egg",
+     "key": "protein_meat_eggs",
+     "eq": 0.2
+    },
+    {
+     "ingredient": "egg (egg wash)",
+     "amount": "0.2 egg",
+     "key": "choline",
+     "eq": 30
+    },
+    {
+     "ingredient": "egg (egg wash)",
+     "amount": "0.2 egg",
+     "key": "calcium",
+     "eq": 5
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "med",
+   "notes": "Puff pastry = 1 sheet (~245 g) ≈ 45% flour; egg wash egg counted in full; butter/cream not counted."
+  },
+  {
+   "recipe_id": 35,
+   "ingredients_hash": "00a0f92c1d5d5659",
+   "values": {
+    "calcium": 133,
+    "choline": 111,
+    "dairy": 0.24,
+    "fruit": 0,
+    "grain_refined": 4.0,
+    "grain_whole": 0,
+    "oils": 2.3,
+    "protein_meat_eggs": 3.75,
+    "protein_nuts_seeds_soy": 0,
+    "protein_seafood": 0,
+    "seafood_albacore": 0,
+    "veg_dark_green": 0,
+    "veg_legumes": 0,
+    "veg_other": 0.13,
+    "veg_red_orange": 0,
+    "veg_starchy": 0.5
+   },
+   "breakdown": [
+    {
+     "ingredient": "olive oil",
+     "amount": "0.5 tsp",
+     "key": "oils",
+     "eq": 2.3
+    },
+    {
+     "ingredient": "Italian sausage",
+     "amount": "5 oz raw",
+     "key": "protein_meat_eggs",
+     "eq": 3.75,
+     "note": "raw x0.75"
+    },
+    {
+     "ingredient": "Italian sausage",
+     "amount": "3.75 oz cooked",
+     "key": "calcium",
+     "eq": 15
+    },
+    {
+     "ingredient": "Italian sausage",
+     "amount": "3.75 oz cooked",
+     "key": "choline",
+     "eq": 88
+    },
+    {
+     "ingredient": "medium shallot",
+     "amount": "1/2 shallot (~2 tbsp)",
+     "key": "veg_other",
+     "eq": 0.13
+    },
+    {
+     "ingredient": "orzo",
+     "amount": "4 oz dry",
+     "key": "grain_refined",
+     "eq": 4.0
+    },
+    {
+     "ingredient": "frozen peas",
+     "amount": "0.5 cup",
+     "key": "veg_starchy",
+     "eq": 0.5
+    },
+    {
+     "ingredient": "frozen peas",
+     "amount": "0.5 cup",
+     "key": "calcium",
+     "eq": 18
+    },
+    {
+     "ingredient": "frozen peas",
+     "amount": "0.5 cup",
+     "key": "choline",
+     "eq": 21
+    },
+    {
+     "ingredient": "Parmigiano-Reggiano",
+     "amount": "2 tbsp finely grated (~10 g)",
+     "key": "dairy",
+     "eq": 0.24
+    },
+    {
+     "ingredient": "Parmigiano-Reggiano",
+     "amount": "~10 g",
+     "key": "calcium",
+     "eq": 100
+    },
+    {
+     "ingredient": "Parmigiano-Reggiano",
+     "amount": "~10 g",
+     "key": "choline",
+     "eq": 2
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "high",
+   "notes": "Raw Italian sausage cooked through, so no deli_meat flag."
+  },
+  {
+   "recipe_id": 36,
+   "ingredients_hash": "ea95a10f101c4e24",
+   "values": {
+    "calcium": 4,
+    "choline": 9,
+    "dairy": 0.01,
+    "fruit": 0,
+    "grain_refined": 0.2,
+    "grain_whole": 0.2,
+    "oils": 2.0,
+    "protein_meat_eggs": 0.06,
+    "protein_nuts_seeds_soy": 0.29,
+    "protein_seafood": 0,
+    "seafood_albacore": 0,
+    "veg_dark_green": 0,
+    "veg_legumes": 0,
+    "veg_other": 0,
+    "veg_red_orange": 0,
+    "veg_starchy": 0
+   },
+   "breakdown": [
+    {
+     "ingredient": "graham crackers",
+     "amount": "11.25 g",
+     "key": "grain_refined",
+     "eq": 0.2,
+     "note": "mixed flour, 50/50"
+    },
+    {
+     "ingredient": "graham crackers",
+     "amount": "11.25 g",
+     "key": "grain_whole",
+     "eq": 0.2,
+     "note": "mixed flour, 50/50"
+    },
+    {
+     "ingredient": "walnuts",
+     "amount": "4.1 g",
+     "key": "protein_nuts_seeds_soy",
+     "eq": 0.29
+    },
+    {
+     "ingredient": "walnuts",
+     "amount": "4.1 g",
+     "key": "oils",
+     "eq": 2.0
+    },
+    {
+     "ingredient": "large egg",
+     "amount": "1/16 egg",
+     "key": "protein_meat_eggs",
+     "eq": 0.06
+    },
+    {
+     "ingredient": "large egg",
+     "amount": "1/16 egg",
+     "key": "calcium",
+     "eq": 2
+    },
+    {
+     "ingredient": "large egg",
+     "amount": "1/16 egg",
+     "key": "choline",
+     "eq": 9
+    },
+    {
+     "ingredient": "whole milk",
+     "amount": "0.125 tbsp",
+     "key": "dairy",
+     "eq": 0.01
+    },
+    {
+     "ingredient": "whole milk",
+     "amount": "0.125 tbsp",
+     "key": "calcium",
+     "eq": 2
+    }
+   ],
+   "safety_flags": [
+    "raw_egg"
+   ],
+   "confidence": "high",
+   "notes": "Flagged raw_egg: base-layer egg is only warmed over simmering water ~2 min, fine if it reaches 160F; graham crackers split 50/50 whole/refined; coconut, chocolate, butter, sugar not counted."
+  },
+  {
+   "recipe_id": 37,
+   "ingredients_hash": "e7ba015c7e836620",
+   "values": {
+    "calcium": 68,
+    "choline": 49,
+    "dairy": 0.0,
+    "fruit": 0.0,
+    "grain_refined": 0.0,
+    "grain_whole": 0.0,
+    "oils": 0.0,
+    "protein_meat_eggs": 0.0,
+    "protein_nuts_seeds_soy": 0.0,
+    "protein_seafood": 0.0,
+    "seafood_albacore": 0.0,
+    "veg_dark_green": 0.75,
+    "veg_legumes": 0.0,
+    "veg_other": 0.0,
+    "veg_red_orange": 0.5,
+    "veg_starchy": 0.0
+   },
+   "breakdown": [
+    {
+     "ingredient": "Broccoli",
+     "amount": "0.75 cup cooked (assumed)",
+     "key": "veg_dark_green",
+     "eq": 0.75
+    },
+    {
+     "ingredient": "Broccoli",
+     "amount": "0.75 cup cooked",
+     "key": "calcium",
+     "eq": 45
+    },
+    {
+     "ingredient": "Broccoli",
+     "amount": "0.75 cup cooked",
+     "key": "choline",
+     "eq": 45
+    },
+    {
+     "ingredient": "Carrots",
+     "amount": "0.5 cup cooked (assumed)",
+     "key": "veg_red_orange",
+     "eq": 0.5
+    },
+    {
+     "ingredient": "Carrots",
+     "amount": "0.5 cup cooked",
+     "key": "calcium",
+     "eq": 23
+    },
+    {
+     "ingredient": "Carrots",
+     "amount": "0.5 cup cooked",
+     "key": "choline",
+     "eq": 4
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "low",
+   "notes": "No quantities: assumed a typical side of 0.75 cup broccoli + 0.5 cup carrots, no added fat."
+  },
+  {
+   "recipe_id": 41,
+   "ingredients_hash": "820b6fc112a99fe2",
+   "values": {
+    "calcium": 55,
+    "choline": 41,
+    "dairy": 0.0,
+    "fruit": 0.0,
+    "grain_refined": 0.0,
+    "grain_whole": 0.0,
+    "oils": 7.0,
+    "protein_meat_eggs": 0.0,
+    "protein_nuts_seeds_soy": 0.0,
+    "protein_seafood": 0.0,
+    "seafood_albacore": 0.0,
+    "veg_dark_green": 0.0,
+    "veg_legumes": 0.5,
+    "veg_other": 0.3,
+    "veg_red_orange": 0.81,
+    "veg_starchy": 0.0
+   },
+   "breakdown": [
+    {
+     "ingredient": "vegetable oil",
+     "amount": "0.5 tbsp",
+     "key": "oils",
+     "eq": 7.0
+    },
+    {
+     "ingredient": "onion",
+     "amount": "0.25 cup chopped",
+     "key": "veg_other",
+     "eq": 0.25
+    },
+    {
+     "ingredient": "sweet potato",
+     "amount": "2.5 oz ≈ 0.55 cup diced",
+     "key": "veg_red_orange",
+     "eq": 0.55
+    },
+    {
+     "ingredient": "sweet potato",
+     "amount": "0.55 cup",
+     "key": "calcium",
+     "eq": 20
+    },
+    {
+     "ingredient": "sweet potato",
+     "amount": "0.55 cup",
+     "key": "choline",
+     "eq": 8
+    },
+    {
+     "ingredient": "ginger",
+     "amount": "0.25 tbsp minced",
+     "key": "veg_other",
+     "eq": 0.02
+    },
+    {
+     "ingredient": "garlic cloves",
+     "amount": "0.5 clove",
+     "key": "veg_other",
+     "eq": 0.01
+    },
+    {
+     "ingredient": "Thai or bird's-eye red chili",
+     "amount": "0.25 chili",
+     "key": "veg_red_orange",
+     "eq": 0.01
+    },
+    {
+     "ingredient": "red lentils",
+     "amount": "0.25 cup dry ≈ 0.5 cup cooked",
+     "key": "veg_legumes",
+     "eq": 0.5
+    },
+    {
+     "ingredient": "red lentils",
+     "amount": "0.5 cup cooked",
+     "key": "calcium",
+     "eq": 20,
+     "note": "lentils lower Ca than beans"
+    },
+    {
+     "ingredient": "red lentils",
+     "amount": "0.5 cup cooked",
+     "key": "choline",
+     "eq": 33
+    },
+    {
+     "ingredient": "canned chopped tomatoes",
+     "amount": "0.25 cup",
+     "key": "veg_red_orange",
+     "eq": 0.25
+    },
+    {
+     "ingredient": "canned chopped tomatoes",
+     "amount": "0.25 cup",
+     "key": "calcium",
+     "eq": 15
+    },
+    {
+     "ingredient": "cilantro",
+     "amount": "0.75 tbsp chopped",
+     "key": "veg_other",
+     "eq": 0.02,
+     "note": "leafy herb ÷2"
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "med",
+   "notes": "Sweet potato given in oz (≈0.55 cup diced); optional coconut garnish not counted."
+  },
+  {
+   "recipe_id": 42,
+   "ingredients_hash": "fc330d732328575e",
+   "values": {
+    "calcium": 34,
+    "choline": 145,
+    "dairy": 0.0,
+    "fruit": 0.0,
+    "grain_refined": 0.0,
+    "grain_whole": 0.0,
+    "oils": 7.0,
+    "protein_meat_eggs": 4.5,
+    "protein_nuts_seeds_soy": 0.0,
+    "protein_seafood": 0.0,
+    "seafood_albacore": 0.0,
+    "veg_dark_green": 0.0,
+    "veg_legumes": 0.0,
+    "veg_other": 0.15,
+    "veg_red_orange": 1.0,
+    "veg_starchy": 0.0
+   },
+   "breakdown": [
+    {
+     "ingredient": "olive oil",
+     "amount": "0.5 tbsp",
+     "key": "oils",
+     "eq": 7.0
+    },
+    {
+     "ingredient": "boneless, skinless chicken thighs",
+     "amount": "0.375 lb (6 oz) raw ≈ 4.5 oz cooked",
+     "key": "protein_meat_eggs",
+     "eq": 4.5,
+     "note": "1.5 lb total"
+    },
+    {
+     "ingredient": "boneless, skinless chicken thighs",
+     "amount": "4.5 oz cooked",
+     "key": "choline",
+     "eq": 135
+    },
+    {
+     "ingredient": "boneless, skinless chicken thighs",
+     "amount": "4.5 oz cooked",
+     "key": "calcium",
+     "eq": 12
+    },
+    {
+     "ingredient": "scallions",
+     "amount": "1 scallion ≈ 0.1 cup",
+     "key": "veg_other",
+     "eq": 0.1
+    },
+    {
+     "ingredient": "scallions",
+     "amount": "1 scallion",
+     "key": "calcium",
+     "eq": 7
+    },
+    {
+     "ingredient": "garlic cloves",
+     "amount": "0.75 clove",
+     "key": "veg_other",
+     "eq": 0.02
+    },
+    {
+     "ingredient": "cherry or grape tomatoes",
+     "amount": "0.5 pint ≈ 1 cup",
+     "key": "veg_red_orange",
+     "eq": 1.0,
+     "note": "2 pints total"
+    },
+    {
+     "ingredient": "cherry or grape tomatoes",
+     "amount": "1 cup",
+     "key": "calcium",
+     "eq": 15
+    },
+    {
+     "ingredient": "cherry or grape tomatoes",
+     "amount": "1 cup",
+     "key": "choline",
+     "eq": 10
+    },
+    {
+     "ingredient": "cilantro, parsley or basil",
+     "amount": "0.0625 packed cup",
+     "key": "veg_other",
+     "eq": 0.03,
+     "note": "leafy herb ÷2"
+    }
+   ],
+   "safety_flags": [
+    "alcohol"
+   ],
+   "confidence": "med",
+   "notes": "Flagged alcohol: 2 tbsp wine/serving simmers only ~13 min, so some (trace) alcohol remains; thighs read as 1.5 lb and tomatoes as 2 pints."
+  },
+  {
+   "recipe_id": 43,
+   "ingredients_hash": "3e1a467111f26e89",
+   "values": {
+    "calcium": 278,
+    "choline": 62,
+    "dairy": 0.75,
+    "fruit": 0.5,
+    "grain_refined": 0.0,
+    "grain_whole": 1.43,
+    "oils": 8.2,
+    "protein_meat_eggs": 0.0,
+    "protein_nuts_seeds_soy": 1.17,
+    "protein_seafood": 0.0,
+    "seafood_albacore": 0.0,
+    "veg_dark_green": 0.0,
+    "veg_legumes": 0.0,
+    "veg_other": 0.0,
+    "veg_red_orange": 0.0,
+    "veg_starchy": 0.0
+   },
+   "breakdown": [
+    {
+     "ingredient": "old-fashioned rolled oats",
+     "amount": "0.5 cup dry ≈ 40 g",
+     "key": "grain_whole",
+     "eq": 1.43
+    },
+    {
+     "ingredient": "old-fashioned rolled oats",
+     "amount": "40 g",
+     "key": "calcium",
+     "eq": 21
+    },
+    {
+     "ingredient": "old-fashioned rolled oats",
+     "amount": "40 g",
+     "key": "choline",
+     "eq": 16
+    },
+    {
+     "ingredient": "low-fat (1%) milk",
+     "amount": "0.5 cup",
+     "key": "dairy",
+     "eq": 0.5
+    },
+    {
+     "ingredient": "low-fat (1%) milk",
+     "amount": "0.5 cup",
+     "key": "calcium",
+     "eq": 150
+    },
+    {
+     "ingredient": "low-fat (1%) milk",
+     "amount": "0.5 cup",
+     "key": "choline",
+     "eq": 20
+    },
+    {
+     "ingredient": "plain nonfat Greek yogurt",
+     "amount": "0.25 cup",
+     "key": "dairy",
+     "eq": 0.25
+    },
+    {
+     "ingredient": "plain nonfat Greek yogurt",
+     "amount": "0.25 cup",
+     "key": "calcium",
+     "eq": 63
+    },
+    {
+     "ingredient": "plain nonfat Greek yogurt",
+     "amount": "0.25 cup",
+     "key": "choline",
+     "eq": 9
+    },
+    {
+     "ingredient": "chia seeds",
+     "amount": "1 tsp ≈ 4 g",
+     "key": "protein_nuts_seeds_soy",
+     "eq": 0.17,
+     "note": "2 tbsp seeds = 1 oz eq"
+    },
+    {
+     "ingredient": "chia seeds",
+     "amount": "1 tsp",
+     "key": "oils",
+     "eq": 1.2
+    },
+    {
+     "ingredient": "chia seeds",
+     "amount": "1 tsp",
+     "key": "calcium",
+     "eq": 25
+    },
+    {
+     "ingredient": "chia seeds",
+     "amount": "1 tsp",
+     "key": "choline",
+     "eq": 3
+    },
+    {
+     "ingredient": "banana",
+     "amount": "1 small",
+     "key": "fruit",
+     "eq": 0.5,
+     "note": "small ≈ ½ cup eq"
+    },
+    {
+     "ingredient": "banana",
+     "amount": "1 small",
+     "key": "calcium",
+     "eq": 4
+    },
+    {
+     "ingredient": "banana",
+     "amount": "1 small",
+     "key": "choline",
+     "eq": 8
+    },
+    {
+     "ingredient": "unsalted walnuts",
+     "amount": "2 tbsp chopped ≈ 0.5 oz",
+     "key": "protein_nuts_seeds_soy",
+     "eq": 1.0
+    },
+    {
+     "ingredient": "unsalted walnuts",
+     "amount": "0.5 oz",
+     "key": "oils",
+     "eq": 7.0
+    },
+    {
+     "ingredient": "unsalted walnuts",
+     "amount": "0.5 oz",
+     "key": "calcium",
+     "eq": 15
+    },
+    {
+     "ingredient": "unsalted walnuts",
+     "amount": "0.5 oz",
+     "key": "choline",
+     "eq": 6
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "high",
+   "notes": ""
+  },
+  {
+   "recipe_id": 44,
+   "ingredients_hash": "39d035ddb19c6fa2",
+   "values": {
+    "calcium": 258,
+    "choline": 48,
+    "dairy": 0.75,
+    "fruit": 1.0,
+    "grain_refined": 0,
+    "grain_whole": 0.4,
+    "oils": 10.4,
+    "protein_meat_eggs": 0,
+    "protein_nuts_seeds_soy": 1.35,
+    "protein_seafood": 0,
+    "seafood_albacore": 0,
+    "veg_dark_green": 0,
+    "veg_legumes": 0,
+    "veg_other": 0,
+    "veg_red_orange": 0,
+    "veg_starchy": 0
+   },
+   "breakdown": [
+    {
+     "ingredient": "plain nonfat Greek yogurt",
+     "amount": "0.75 cup",
+     "key": "dairy",
+     "eq": 0.75
+    },
+    {
+     "ingredient": "plain nonfat Greek yogurt",
+     "amount": "0.75 cup",
+     "key": "calcium",
+     "eq": 188
+    },
+    {
+     "ingredient": "plain nonfat Greek yogurt",
+     "amount": "0.75 cup",
+     "key": "choline",
+     "eq": 26
+    },
+    {
+     "ingredient": "blueberries",
+     "amount": "0.5 cup",
+     "key": "fruit",
+     "eq": 0.5
+    },
+    {
+     "ingredient": "blueberries",
+     "amount": "0.5 cup",
+     "key": "calcium",
+     "eq": 5
+    },
+    {
+     "ingredient": "blueberries",
+     "amount": "0.5 cup",
+     "key": "choline",
+     "eq": 3
+    },
+    {
+     "ingredient": "strawberries",
+     "amount": "0.5 cup",
+     "key": "fruit",
+     "eq": 0.5
+    },
+    {
+     "ingredient": "strawberries",
+     "amount": "0.5 cup",
+     "key": "calcium",
+     "eq": 10
+    },
+    {
+     "ingredient": "strawberries",
+     "amount": "0.5 cup",
+     "key": "choline",
+     "eq": 3
+    },
+    {
+     "ingredient": "ground flaxseed",
+     "amount": "1 tbsp (~7 g)",
+     "key": "protein_nuts_seeds_soy",
+     "eq": 0.5
+    },
+    {
+     "ingredient": "ground flaxseed",
+     "amount": "1 tbsp (~7 g)",
+     "key": "oils",
+     "eq": 3.0
+    },
+    {
+     "ingredient": "ground flaxseed",
+     "amount": "1 tbsp (~7 g)",
+     "key": "calcium",
+     "eq": 18
+    },
+    {
+     "ingredient": "ground flaxseed",
+     "amount": "1 tbsp (~7 g)",
+     "key": "choline",
+     "eq": 6
+    },
+    {
+     "ingredient": "unsalted sliced almonds",
+     "amount": "2 tbsp (~12 g)",
+     "key": "protein_nuts_seeds_soy",
+     "eq": 0.85
+    },
+    {
+     "ingredient": "unsalted sliced almonds",
+     "amount": "2 tbsp (~12 g)",
+     "key": "oils",
+     "eq": 5.9
+    },
+    {
+     "ingredient": "unsalted sliced almonds",
+     "amount": "2 tbsp (~12 g)",
+     "key": "calcium",
+     "eq": 32
+    },
+    {
+     "ingredient": "unsalted sliced almonds",
+     "amount": "2 tbsp (~12 g)",
+     "key": "choline",
+     "eq": 6
+    },
+    {
+     "ingredient": "low-sodium granola",
+     "amount": "2 tbsp (~14 g)",
+     "key": "grain_whole",
+     "eq": 0.4,
+     "note": "mostly oats"
+    },
+    {
+     "ingredient": "low-sodium granola",
+     "amount": "2 tbsp (~14 g)",
+     "key": "oils",
+     "eq": 1.5,
+     "note": "mostly oats"
+    },
+    {
+     "ingredient": "low-sodium granola",
+     "amount": "2 tbsp (~14 g)",
+     "key": "calcium",
+     "eq": 5,
+     "note": "mostly oats"
+    },
+    {
+     "ingredient": "low-sodium granola",
+     "amount": "2 tbsp (~14 g)",
+     "key": "choline",
+     "eq": 4,
+     "note": "mostly oats"
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "high",
+   "notes": "Granola counted as ~0.4 oz eq whole grain with a little oil."
+  },
+  {
+   "recipe_id": 45,
+   "ingredients_hash": "16c29502526f44a1",
+   "values": {
+    "calcium": 59,
+    "choline": 157,
+    "dairy": 0,
+    "fruit": 0,
+    "grain_refined": 0,
+    "grain_whole": 1.0,
+    "oils": 4.7,
+    "protein_meat_eggs": 2.0,
+    "protein_nuts_seeds_soy": 0,
+    "protein_seafood": 0,
+    "seafood_albacore": 0,
+    "veg_dark_green": 0.5,
+    "veg_legumes": 0,
+    "veg_other": 0.04,
+    "veg_red_orange": 0.5,
+    "veg_starchy": 0
+   },
+   "breakdown": [
+    {
+     "ingredient": "eggs",
+     "amount": "1 egg",
+     "key": "protein_meat_eggs",
+     "eq": 1.0
+    },
+    {
+     "ingredient": "eggs",
+     "amount": "1 egg",
+     "key": "calcium",
+     "eq": 25
+    },
+    {
+     "ingredient": "eggs",
+     "amount": "1 egg",
+     "key": "choline",
+     "eq": 150
+    },
+    {
+     "ingredient": "egg whites",
+     "amount": "2 whites",
+     "key": "protein_meat_eggs",
+     "eq": 1.0,
+     "note": "2 whites = 1 oz eq"
+    },
+    {
+     "ingredient": "egg whites",
+     "amount": "2 whites",
+     "key": "calcium",
+     "eq": 4
+    },
+    {
+     "ingredient": "egg whites",
+     "amount": "2 whites",
+     "key": "choline",
+     "eq": 1
+    },
+    {
+     "ingredient": "baby spinach",
+     "amount": "1 cup raw",
+     "key": "veg_dark_green",
+     "eq": 0.5,
+     "note": "leafy raw /2"
+    },
+    {
+     "ingredient": "baby spinach",
+     "amount": "1 cup raw",
+     "key": "calcium",
+     "eq": 30
+    },
+    {
+     "ingredient": "baby spinach",
+     "amount": "1 cup raw",
+     "key": "choline",
+     "eq": 6
+    },
+    {
+     "ingredient": "cherry tomatoes",
+     "amount": "0.5 cup",
+     "key": "veg_red_orange",
+     "eq": 0.5
+    },
+    {
+     "ingredient": "garlic",
+     "amount": "0.5 clove",
+     "key": "veg_other",
+     "eq": 0.01
+    },
+    {
+     "ingredient": "fresh basil or chives",
+     "amount": "0.5 tbsp",
+     "key": "veg_other",
+     "eq": 0.03,
+     "note": "herb at real volume"
+    },
+    {
+     "ingredient": "olive oil",
+     "amount": "1 tsp",
+     "key": "oils",
+     "eq": 4.7
+    },
+    {
+     "ingredient": "100% whole-grain bread",
+     "amount": "1 slice",
+     "key": "grain_whole",
+     "eq": 1.0
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "high",
+   "notes": "Not flagged, but cook the scramble until no liquid egg remains rather than 'softly set'."
+  },
+  {
+   "recipe_id": 46,
+   "ingredients_hash": "50a311eece930edf",
+   "values": {
+    "calcium": 125,
+    "choline": 182,
+    "dairy": 0,
+    "fruit": 0,
+    "grain_refined": 0,
+    "grain_whole": 2.0,
+    "oils": 10.0,
+    "protein_meat_eggs": 1.0,
+    "protein_nuts_seeds_soy": 0,
+    "protein_seafood": 0,
+    "seafood_albacore": 0,
+    "veg_dark_green": 0,
+    "veg_legumes": 0,
+    "veg_other": 0.5,
+    "veg_red_orange": 0.5,
+    "veg_starchy": 0
+   },
+   "breakdown": [
+    {
+     "ingredient": "100% whole-grain bread",
+     "amount": "2 slices",
+     "key": "grain_whole",
+     "eq": 2.0
+    },
+    {
+     "ingredient": "100% whole-grain bread",
+     "amount": "2 slices",
+     "key": "calcium",
+     "eq": 80
+    },
+    {
+     "ingredient": "100% whole-grain bread",
+     "amount": "2 slices",
+     "key": "choline",
+     "eq": 16
+    },
+    {
+     "ingredient": "avocado",
+     "amount": "0.5 avocado (~0.5 cup)",
+     "key": "veg_other",
+     "eq": 0.5
+    },
+    {
+     "ingredient": "avocado",
+     "amount": "0.5 avocado (~0.5 cup)",
+     "key": "oils",
+     "eq": 10.0
+    },
+    {
+     "ingredient": "avocado",
+     "amount": "0.5 avocado (~0.5 cup)",
+     "key": "calcium",
+     "eq": 10
+    },
+    {
+     "ingredient": "avocado",
+     "amount": "0.5 avocado (~0.5 cup)",
+     "key": "choline",
+     "eq": 10
+    },
+    {
+     "ingredient": "tomato",
+     "amount": "1 small (~0.5 cup)",
+     "key": "veg_red_orange",
+     "eq": 0.5
+    },
+    {
+     "ingredient": "tomato",
+     "amount": "1 small (~0.5 cup)",
+     "key": "calcium",
+     "eq": 10
+    },
+    {
+     "ingredient": "tomato",
+     "amount": "1 small (~0.5 cup)",
+     "key": "choline",
+     "eq": 6
+    },
+    {
+     "ingredient": "egg (optional, poached)",
+     "amount": "1 egg",
+     "key": "protein_meat_eggs",
+     "eq": 1.0
+    },
+    {
+     "ingredient": "egg (optional, poached)",
+     "amount": "1 egg",
+     "key": "calcium",
+     "eq": 25
+    },
+    {
+     "ingredient": "egg (optional, poached)",
+     "amount": "1 egg",
+     "key": "choline",
+     "eq": 150
+    }
+   ],
+   "safety_flags": [
+    "raw_egg"
+   ],
+   "confidence": "med",
+   "notes": "Optional poached egg included (not the pumpkin-seed swap); raw_egg because poached yolks are usually runny — fine if cooked firm."
+  },
+  {
+   "recipe_id": 47,
+   "ingredients_hash": "ed35b9cd43f50714",
+   "values": {
+    "calcium": 354,
+    "choline": 67,
+    "dairy": 1.0,
+    "fruit": 1.75,
+    "grain_refined": 0,
+    "grain_whole": 0,
+    "oils": 3.0,
+    "protein_meat_eggs": 0,
+    "protein_nuts_seeds_soy": 0.5,
+    "protein_seafood": 0,
+    "seafood_albacore": 0,
+    "veg_dark_green": 0.5,
+    "veg_legumes": 0,
+    "veg_other": 0,
+    "veg_red_orange": 0,
+    "veg_starchy": 0
+   },
+   "breakdown": [
+    {
+     "ingredient": "banana",
+     "amount": "1 medium",
+     "key": "fruit",
+     "eq": 1.0
+    },
+    {
+     "ingredient": "banana",
+     "amount": "1 medium",
+     "key": "calcium",
+     "eq": 6
+    },
+    {
+     "ingredient": "banana",
+     "amount": "1 medium",
+     "key": "choline",
+     "eq": 12
+    },
+    {
+     "ingredient": "frozen mixed berries",
+     "amount": "0.75 cup",
+     "key": "fruit",
+     "eq": 0.75
+    },
+    {
+     "ingredient": "frozen mixed berries",
+     "amount": "0.75 cup",
+     "key": "calcium",
+     "eq": 12
+    },
+    {
+     "ingredient": "frozen mixed berries",
+     "amount": "0.75 cup",
+     "key": "choline",
+     "eq": 4
+    },
+    {
+     "ingredient": "baby spinach",
+     "amount": "1 cup raw",
+     "key": "veg_dark_green",
+     "eq": 0.5,
+     "note": "raw leafy ÷2"
+    },
+    {
+     "ingredient": "baby spinach",
+     "amount": "1 cup raw",
+     "key": "calcium",
+     "eq": 30,
+     "note": "raw leafy ÷2"
+    },
+    {
+     "ingredient": "baby spinach",
+     "amount": "1 cup raw",
+     "key": "choline",
+     "eq": 6,
+     "note": "raw leafy ÷2"
+    },
+    {
+     "ingredient": "low-fat milk",
+     "amount": "0.75 cup",
+     "key": "dairy",
+     "eq": 0.75
+    },
+    {
+     "ingredient": "low-fat milk",
+     "amount": "0.75 cup",
+     "key": "calcium",
+     "eq": 225
+    },
+    {
+     "ingredient": "low-fat milk",
+     "amount": "0.75 cup",
+     "key": "choline",
+     "eq": 30
+    },
+    {
+     "ingredient": "plain nonfat Greek yogurt",
+     "amount": "0.25 cup",
+     "key": "dairy",
+     "eq": 0.25
+    },
+    {
+     "ingredient": "plain nonfat Greek yogurt",
+     "amount": "0.25 cup",
+     "key": "calcium",
+     "eq": 63
+    },
+    {
+     "ingredient": "plain nonfat Greek yogurt",
+     "amount": "0.25 cup",
+     "key": "choline",
+     "eq": 9
+    },
+    {
+     "ingredient": "ground flaxseed",
+     "amount": "1 tbsp (~7 g)",
+     "key": "protein_nuts_seeds_soy",
+     "eq": 0.5
+    },
+    {
+     "ingredient": "ground flaxseed",
+     "amount": "1 tbsp (~7 g)",
+     "key": "oils",
+     "eq": 3.0
+    },
+    {
+     "ingredient": "ground flaxseed",
+     "amount": "1 tbsp (~7 g)",
+     "key": "calcium",
+     "eq": 18
+    },
+    {
+     "ingredient": "ground flaxseed",
+     "amount": "1 tbsp (~7 g)",
+     "key": "choline",
+     "eq": 6
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "high",
+   "notes": ""
+  },
+  {
+   "recipe_id": 48,
+   "ingredients_hash": "c739c00021b22b9a",
+   "values": {
+    "calcium": 126,
+    "choline": 90,
+    "dairy": 0.38,
+    "fruit": 0.38,
+    "grain_refined": 0,
+    "grain_whole": 1.7,
+    "oils": 2.3,
+    "protein_meat_eggs": 0.5,
+    "protein_nuts_seeds_soy": 0,
+    "protein_seafood": 0,
+    "seafood_albacore": 0,
+    "veg_dark_green": 0,
+    "veg_legumes": 0,
+    "veg_other": 0,
+    "veg_red_orange": 0,
+    "veg_starchy": 0
+   },
+   "breakdown": [
+    {
+     "ingredient": "old-fashioned oats",
+     "amount": "0.25 cup dry ≈ 20 g",
+     "key": "grain_whole",
+     "eq": 0.7
+    },
+    {
+     "ingredient": "whole-wheat flour",
+     "amount": "0.25 cup ≈ 30 g",
+     "key": "grain_whole",
+     "eq": 1.0
+    },
+    {
+     "ingredient": "egg",
+     "amount": "0.5 egg",
+     "key": "protein_meat_eggs",
+     "eq": 0.5
+    },
+    {
+     "ingredient": "egg",
+     "amount": "0.5 egg",
+     "key": "choline",
+     "eq": 75
+    },
+    {
+     "ingredient": "egg",
+     "amount": "0.5 egg",
+     "key": "calcium",
+     "eq": 13
+    },
+    {
+     "ingredient": "low-fat milk",
+     "amount": "0.375 cup",
+     "key": "dairy",
+     "eq": 0.38
+    },
+    {
+     "ingredient": "low-fat milk",
+     "amount": "0.375 cup",
+     "key": "calcium",
+     "eq": 113
+    },
+    {
+     "ingredient": "low-fat milk",
+     "amount": "0.375 cup",
+     "key": "choline",
+     "eq": 15
+    },
+    {
+     "ingredient": "blueberries",
+     "amount": "0.375 cup",
+     "key": "fruit",
+     "eq": 0.38
+    },
+    {
+     "ingredient": "neutral oil",
+     "amount": "0.5 tsp",
+     "key": "oils",
+     "eq": 2.3
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "high",
+   "notes": ""
+  },
+  {
+   "recipe_id": 49,
+   "ingredients_hash": "f530c7f92c401cef",
+   "values": {
+    "calcium": 370,
+    "choline": 82,
+    "dairy": 1.0,
+    "fruit": 1.0,
+    "grain_refined": 0,
+    "grain_whole": 2.0,
+    "oils": 12.0,
+    "protein_meat_eggs": 0,
+    "protein_nuts_seeds_soy": 1.5,
+    "protein_seafood": 0,
+    "seafood_albacore": 0,
+    "veg_dark_green": 0,
+    "veg_legumes": 0,
+    "veg_other": 0,
+    "veg_red_orange": 0,
+    "veg_starchy": 0
+   },
+   "breakdown": [
+    {
+     "ingredient": "100% whole-grain bread",
+     "amount": "2 slices",
+     "key": "grain_whole",
+     "eq": 2.0
+    },
+    {
+     "ingredient": "100% whole-grain bread",
+     "amount": "2 slices",
+     "key": "calcium",
+     "eq": 60
+    },
+    {
+     "ingredient": "100% whole-grain bread",
+     "amount": "2 slices",
+     "key": "choline",
+     "eq": 15
+    },
+    {
+     "ingredient": "natural peanut butter",
+     "amount": "1.5 tbsp ≈ 24 g",
+     "key": "protein_nuts_seeds_soy",
+     "eq": 1.5
+    },
+    {
+     "ingredient": "natural peanut butter",
+     "amount": "1.5 tbsp ≈ 24 g",
+     "key": "oils",
+     "eq": 12.0
+    },
+    {
+     "ingredient": "natural peanut butter",
+     "amount": "1.5 tbsp ≈ 24 g",
+     "key": "calcium",
+     "eq": 10
+    },
+    {
+     "ingredient": "natural peanut butter",
+     "amount": "1.5 tbsp ≈ 24 g",
+     "key": "choline",
+     "eq": 15
+    },
+    {
+     "ingredient": "banana",
+     "amount": "1 medium",
+     "key": "fruit",
+     "eq": 1.0
+    },
+    {
+     "ingredient": "banana",
+     "amount": "1 medium",
+     "key": "choline",
+     "eq": 12
+    },
+    {
+     "ingredient": "low-fat (1%) milk",
+     "amount": "1 cup",
+     "key": "dairy",
+     "eq": 1.0
+    },
+    {
+     "ingredient": "low-fat (1%) milk",
+     "amount": "1 cup",
+     "key": "calcium",
+     "eq": 300
+    },
+    {
+     "ingredient": "low-fat (1%) milk",
+     "amount": "1 cup",
+     "key": "choline",
+     "eq": 40
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "high",
+   "notes": ""
+  },
+  {
+   "recipe_id": 50,
+   "ingredients_hash": "aa484337b67d8e2f",
+   "values": {
+    "calcium": 263,
+    "choline": 38,
+    "dairy": 0.75,
+    "fruit": 0.75,
+    "grain_refined": 0,
+    "grain_whole": 1.5,
+    "oils": 8.5,
+    "protein_meat_eggs": 0,
+    "protein_nuts_seeds_soy": 1.17,
+    "protein_seafood": 0,
+    "seafood_albacore": 0,
+    "veg_dark_green": 0,
+    "veg_legumes": 0,
+    "veg_other": 0,
+    "veg_red_orange": 0,
+    "veg_starchy": 0
+   },
+   "breakdown": [
+    {
+     "ingredient": "old-fashioned rolled oats",
+     "amount": "0.5 cup dry",
+     "key": "grain_whole",
+     "eq": 1.5,
+     "note": "1/3 cup dry = 1 oz eq"
+    },
+    {
+     "ingredient": "apple",
+     "amount": "0.5 medium",
+     "key": "fruit",
+     "eq": 0.5
+    },
+    {
+     "ingredient": "raisins",
+     "amount": "2 tbsp",
+     "key": "fruit",
+     "eq": 0.25,
+     "note": "dried x2"
+    },
+    {
+     "ingredient": "unsalted almonds or hazelnuts",
+     "amount": "2 tbsp chopped (~0.5 oz)",
+     "key": "protein_nuts_seeds_soy",
+     "eq": 1.0
+    },
+    {
+     "ingredient": "unsalted almonds or hazelnuts",
+     "amount": "0.5 oz",
+     "key": "oils",
+     "eq": 7.0
+    },
+    {
+     "ingredient": "unsalted almonds or hazelnuts",
+     "amount": "0.5 oz",
+     "key": "calcium",
+     "eq": 38
+    },
+    {
+     "ingredient": "unsalted almonds or hazelnuts",
+     "amount": "0.5 oz",
+     "key": "choline",
+     "eq": 8
+    },
+    {
+     "ingredient": "low-fat milk",
+     "amount": "0.75 cup",
+     "key": "dairy",
+     "eq": 0.75
+    },
+    {
+     "ingredient": "low-fat milk",
+     "amount": "0.75 cup",
+     "key": "calcium",
+     "eq": 225
+    },
+    {
+     "ingredient": "low-fat milk",
+     "amount": "0.75 cup",
+     "key": "choline",
+     "eq": 30
+    },
+    {
+     "ingredient": "unsalted sunflower seeds",
+     "amount": "1 tsp",
+     "key": "protein_nuts_seeds_soy",
+     "eq": 0.17,
+     "note": "optional"
+    },
+    {
+     "ingredient": "unsalted sunflower seeds",
+     "amount": "1 tsp",
+     "key": "oils",
+     "eq": 1.5
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "high",
+   "notes": "Optional sunflower seeds included."
+  },
+  {
+   "recipe_id": 51,
+   "ingredients_hash": "09543c589e08d219",
+   "values": {
+    "calcium": 95,
+    "choline": 171,
+    "dairy": 0,
+    "fruit": 0,
+    "grain_refined": 0,
+    "grain_whole": 0,
+    "oils": 7.0,
+    "protein_meat_eggs": 1.0,
+    "protein_nuts_seeds_soy": 0,
+    "protein_seafood": 0,
+    "seafood_albacore": 0,
+    "veg_dark_green": 0.5,
+    "veg_legumes": 0,
+    "veg_other": 0.28,
+    "veg_red_orange": 1.6,
+    "veg_starchy": 0
+   },
+   "breakdown": [
+    {
+     "ingredient": "sweet potato",
+     "amount": "0.5 large ≈ 1.1 cup diced",
+     "key": "veg_red_orange",
+     "eq": 1.1
+    },
+    {
+     "ingredient": "sweet potato",
+     "amount": "0.5 large ≈ 1.1 cup diced",
+     "key": "calcium",
+     "eq": 40
+    },
+    {
+     "ingredient": "sweet potato",
+     "amount": "0.5 large ≈ 1.1 cup diced",
+     "key": "choline",
+     "eq": 15
+    },
+    {
+     "ingredient": "red bell pepper",
+     "amount": "0.5 pepper ≈ 0.5 cup",
+     "key": "veg_red_orange",
+     "eq": 0.5
+    },
+    {
+     "ingredient": "red onion",
+     "amount": "0.25 onion ≈ 0.25 cup",
+     "key": "veg_other",
+     "eq": 0.25
+    },
+    {
+     "ingredient": "olive oil",
+     "amount": "0.5 tbsp",
+     "key": "oils",
+     "eq": 7.0
+    },
+    {
+     "ingredient": "baby spinach",
+     "amount": "1 cup raw",
+     "key": "veg_dark_green",
+     "eq": 0.5,
+     "note": "leafy raw ÷2"
+    },
+    {
+     "ingredient": "baby spinach",
+     "amount": "1 cup raw",
+     "key": "calcium",
+     "eq": 30,
+     "note": "leafy raw ÷2"
+    },
+    {
+     "ingredient": "baby spinach",
+     "amount": "1 cup raw",
+     "key": "choline",
+     "eq": 6,
+     "note": "leafy raw ÷2"
+    },
+    {
+     "ingredient": "eggs",
+     "amount": "1 egg",
+     "key": "protein_meat_eggs",
+     "eq": 1.0
+    },
+    {
+     "ingredient": "eggs",
+     "amount": "1 egg",
+     "key": "choline",
+     "eq": 150
+    },
+    {
+     "ingredient": "eggs",
+     "amount": "1 egg",
+     "key": "calcium",
+     "eq": 25
+    },
+    {
+     "ingredient": "scallions or cilantro",
+     "amount": "0.5 tbsp",
+     "key": "veg_other",
+     "eq": 0.03
+    }
+   ],
+   "safety_flags": [
+    "raw_egg"
+   ],
+   "confidence": "med",
+   "notes": "Eggs cooked only until whites set (yolks likely runny) — flagged raw_egg; fine if cooked until yolks are firm."
+  },
+  {
+   "recipe_id": 52,
+   "ingredients_hash": "1fce2407e42bc9d4",
+   "values": {
+    "calcium": 284,
+    "choline": 25,
+    "dairy": 0.5,
+    "fruit": 0.53,
+    "grain_refined": 0,
+    "grain_whole": 0,
+    "oils": 10.1,
+    "protein_meat_eggs": 0,
+    "protein_nuts_seeds_soy": 1.5,
+    "protein_seafood": 0,
+    "seafood_albacore": 0,
+    "veg_dark_green": 0,
+    "veg_legumes": 0,
+    "veg_other": 0,
+    "veg_red_orange": 0,
+    "veg_starchy": 0
+   },
+   "breakdown": [
+    {
+     "ingredient": "chia seeds",
+     "amount": "2 tbsp ≈ 20 g",
+     "key": "protein_nuts_seeds_soy",
+     "eq": 1.0
+    },
+    {
+     "ingredient": "chia seeds",
+     "amount": "2 tbsp ≈ 20 g",
+     "key": "oils",
+     "eq": 6.2
+    },
+    {
+     "ingredient": "chia seeds",
+     "amount": "2 tbsp ≈ 20 g",
+     "key": "calcium",
+     "eq": 126
+    },
+    {
+     "ingredient": "low-fat milk",
+     "amount": "0.5 cup",
+     "key": "dairy",
+     "eq": 0.5
+    },
+    {
+     "ingredient": "low-fat milk",
+     "amount": "0.5 cup",
+     "key": "calcium",
+     "eq": 150
+    },
+    {
+     "ingredient": "low-fat milk",
+     "amount": "0.5 cup",
+     "key": "choline",
+     "eq": 20
+    },
+    {
+     "ingredient": "mango",
+     "amount": "0.5 cup",
+     "key": "fruit",
+     "eq": 0.5
+    },
+    {
+     "ingredient": "unsalted pistachios",
+     "amount": "1 tbsp chopped ≈ 8 g",
+     "key": "protein_nuts_seeds_soy",
+     "eq": 0.5
+    },
+    {
+     "ingredient": "unsalted pistachios",
+     "amount": "1 tbsp chopped ≈ 8 g",
+     "key": "oils",
+     "eq": 3.9
+    },
+    {
+     "ingredient": "unsalted pistachios",
+     "amount": "1 tbsp chopped ≈ 8 g",
+     "key": "calcium",
+     "eq": 8
+    },
+    {
+     "ingredient": "unsalted pistachios",
+     "amount": "1 tbsp chopped ≈ 8 g",
+     "key": "choline",
+     "eq": 5
+    },
+    {
+     "ingredient": "lime",
+     "amount": "0.25 lime ≈ 0.5 tbsp juice",
+     "key": "fruit",
+     "eq": 0.03
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "high",
+   "notes": "Low-fat dairy milk assumed (not the soy option)."
+  },
+  {
+   "recipe_id": 53,
+   "ingredients_hash": "2e7e21b6ab9be81d",
+   "values": {
+    "calcium": 165,
+    "choline": 65,
+    "dairy": 0.06,
+    "fruit": 0,
+    "grain_refined": 0,
+    "grain_whole": 0,
+    "oils": 3.5,
+    "protein_meat_eggs": 0,
+    "protein_nuts_seeds_soy": 0,
+    "protein_seafood": 0,
+    "seafood_albacore": 0,
+    "veg_dark_green": 0.38,
+    "veg_legumes": 0.75,
+    "veg_other": 0.47,
+    "veg_red_orange": 0.25,
+    "veg_starchy": 0
+   },
+   "breakdown": [
+    {
+     "ingredient": "olive oil",
+     "amount": "0.25 tbsp",
+     "key": "oils",
+     "eq": 3.5
+    },
+    {
+     "ingredient": "onion",
+     "amount": "0.25 onion",
+     "key": "veg_other",
+     "eq": 0.25
+    },
+    {
+     "ingredient": "carrots",
+     "amount": "0.5 medium (~0.25 cup)",
+     "key": "veg_red_orange",
+     "eq": 0.25
+    },
+    {
+     "ingredient": "carrots",
+     "amount": "0.5 medium (~0.25 cup)",
+     "key": "calcium",
+     "eq": 10
+    },
+    {
+     "ingredient": "carrots",
+     "amount": "0.5 medium (~0.25 cup)",
+     "key": "choline",
+     "eq": 3
+    },
+    {
+     "ingredient": "celery",
+     "amount": "0.5 stalk (~0.2 cup)",
+     "key": "veg_other",
+     "eq": 0.2
+    },
+    {
+     "ingredient": "garlic",
+     "amount": "0.75 clove",
+     "key": "veg_other",
+     "eq": 0.02
+    },
+    {
+     "ingredient": "no-salt-added cannellini beans",
+     "amount": "0.75 cup drained (0.5 × 15-oz can)",
+     "key": "veg_legumes",
+     "eq": 0.75
+    },
+    {
+     "ingredient": "no-salt-added cannellini beans",
+     "amount": "0.75 cup drained (0.5 × 15-oz can)",
+     "key": "calcium",
+     "eq": 60
+    },
+    {
+     "ingredient": "no-salt-added cannellini beans",
+     "amount": "0.75 cup drained (0.5 × 15-oz can)",
+     "key": "choline",
+     "eq": 52
+    },
+    {
+     "ingredient": "kale",
+     "amount": "0.75 cup raw chopped",
+     "key": "veg_dark_green",
+     "eq": 0.38,
+     "note": "raw leafy ÷2"
+    },
+    {
+     "ingredient": "kale",
+     "amount": "0.75 cup raw chopped",
+     "key": "calcium",
+     "eq": 65,
+     "note": "raw leafy ÷2"
+    },
+    {
+     "ingredient": "kale",
+     "amount": "0.75 cup raw chopped",
+     "key": "choline",
+     "eq": 10,
+     "note": "raw leafy ÷2"
+    },
+    {
+     "ingredient": "grated Parmesan",
+     "amount": "0.5 tbsp (~2.5 g)",
+     "key": "dairy",
+     "eq": 0.06
+    },
+    {
+     "ingredient": "grated Parmesan",
+     "amount": "0.5 tbsp (~2.5 g)",
+     "key": "calcium",
+     "eq": 30
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "med",
+   "notes": "Optional Parmesan included; lemon juice treated as seasoning."
+  },
+  {
+   "recipe_id": 54,
+   "ingredients_hash": "7666e2b2ecae7810",
+   "values": {
+    "calcium": 136,
+    "choline": 82,
+    "dairy": 0.0,
+    "fruit": 0.08,
+    "grain_refined": 0.0,
+    "grain_whole": 1.5,
+    "oils": 14.0,
+    "protein_meat_eggs": 0.0,
+    "protein_nuts_seeds_soy": 0.0,
+    "protein_seafood": 0.0,
+    "seafood_albacore": 0.0,
+    "veg_dark_green": 0.33,
+    "veg_legumes": 0.5,
+    "veg_other": 0.54,
+    "veg_red_orange": 0.45,
+    "veg_starchy": 0.0
+   },
+   "breakdown": [
+    {
+     "ingredient": "quinoa",
+     "amount": "0.25 cup dry ≈ 1.5 oz",
+     "key": "grain_whole",
+     "eq": 1.5,
+     "note": "≈0.75 cup cooked"
+    },
+    {
+     "ingredient": "quinoa",
+     "amount": "0.75 cup cooked",
+     "key": "calcium",
+     "eq": 23
+    },
+    {
+     "ingredient": "quinoa",
+     "amount": "0.75 cup cooked",
+     "key": "choline",
+     "eq": 34
+    },
+    {
+     "ingredient": "no-salt-added chickpeas",
+     "amount": "1/3 of 15-oz can ≈ 0.5 cup",
+     "key": "veg_legumes",
+     "eq": 0.5
+    },
+    {
+     "ingredient": "no-salt-added chickpeas",
+     "amount": "0.5 cup",
+     "key": "calcium",
+     "eq": 40
+    },
+    {
+     "ingredient": "no-salt-added chickpeas",
+     "amount": "0.5 cup",
+     "key": "choline",
+     "eq": 35
+    },
+    {
+     "ingredient": "fresh parsley",
+     "amount": "0.67 cup chopped",
+     "key": "veg_dark_green",
+     "eq": 0.33,
+     "note": "leafy raw ÷2; parsley = dark green (USDA FPED)"
+    },
+    {
+     "ingredient": "fresh parsley",
+     "amount": "0.67 cup chopped",
+     "key": "calcium",
+     "eq": 55
+    },
+    {
+     "ingredient": "fresh parsley",
+     "amount": "0.67 cup chopped",
+     "key": "choline",
+     "eq": 5
+    },
+    {
+     "ingredient": "fresh mint",
+     "amount": "0.083 cup",
+     "key": "veg_other",
+     "eq": 0.04,
+     "note": "leafy herb ÷2"
+    },
+    {
+     "ingredient": "tomatoes",
+     "amount": "0.67 medium ≈ 0.45 cup diced",
+     "key": "veg_red_orange",
+     "eq": 0.45
+    },
+    {
+     "ingredient": "tomatoes",
+     "amount": "0.45 cup",
+     "key": "calcium",
+     "eq": 8
+    },
+    {
+     "ingredient": "tomatoes",
+     "amount": "0.45 cup",
+     "key": "choline",
+     "eq": 8
+    },
+    {
+     "ingredient": "cucumber",
+     "amount": "0.33 cucumber ≈ 0.4 cup diced",
+     "key": "veg_other",
+     "eq": 0.4
+    },
+    {
+     "ingredient": "cucumber",
+     "amount": "0.4 cup",
+     "key": "calcium",
+     "eq": 10
+    },
+    {
+     "ingredient": "scallions",
+     "amount": "1 scallion ≈ 0.1 cup",
+     "key": "veg_other",
+     "eq": 0.1
+    },
+    {
+     "ingredient": "lemon juice",
+     "amount": "0.083 cup",
+     "key": "fruit",
+     "eq": 0.08,
+     "note": "100% juice"
+    },
+    {
+     "ingredient": "extra-virgin olive oil",
+     "amount": "1 tbsp",
+     "key": "oils",
+     "eq": 14.0
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "med",
+   "notes": "Parsley (0.67 cup, the main green) counted as dark green; other herbs as other veg."
+  },
+  {
+   "recipe_id": 55,
+   "ingredients_hash": "6d255ccc2b5dbd96",
+   "values": {
+    "calcium": 116,
+    "choline": 115,
+    "dairy": 0,
+    "fruit": 0.5,
+    "grain_refined": 0,
+    "grain_whole": 0,
+    "oils": 17.3,
+    "protein_meat_eggs": 3.0,
+    "protein_nuts_seeds_soy": 0.4,
+    "protein_seafood": 0,
+    "seafood_albacore": 0,
+    "veg_dark_green": 1.25,
+    "veg_legumes": 0,
+    "veg_other": 0.31,
+    "veg_red_orange": 0,
+    "veg_starchy": 0
+   },
+   "breakdown": [
+    {
+     "ingredient": "boneless, skinless chicken breast",
+     "amount": "4 oz raw → 3 oz cooked",
+     "key": "protein_meat_eggs",
+     "eq": 3.0
+    },
+    {
+     "ingredient": "boneless, skinless chicken breast",
+     "amount": "4 oz raw → 3 oz cooked",
+     "key": "calcium",
+     "eq": 10
+    },
+    {
+     "ingredient": "boneless, skinless chicken breast",
+     "amount": "4 oz raw → 3 oz cooked",
+     "key": "choline",
+     "eq": 85
+    },
+    {
+     "ingredient": "olive oil (rub)",
+     "amount": "0.5 tsp",
+     "key": "oils",
+     "eq": 2.3
+    },
+    {
+     "ingredient": "mixed greens or baby spinach",
+     "amount": "2.5 cup raw",
+     "key": "veg_dark_green",
+     "eq": 1.25,
+     "note": "raw leafy ÷2; assumed mostly dark greens"
+    },
+    {
+     "ingredient": "mixed greens or baby spinach",
+     "amount": "2.5 cup raw",
+     "key": "calcium",
+     "eq": 60,
+     "note": "raw leafy ÷2; assumed mostly dark greens"
+    },
+    {
+     "ingredient": "mixed greens or baby spinach",
+     "amount": "2.5 cup raw",
+     "key": "choline",
+     "eq": 14,
+     "note": "raw leafy ÷2; assumed mostly dark greens"
+    },
+    {
+     "ingredient": "orange",
+     "amount": "0.5 medium",
+     "key": "fruit",
+     "eq": 0.5
+    },
+    {
+     "ingredient": "orange",
+     "amount": "0.5 medium",
+     "key": "calcium",
+     "eq": 30
+    },
+    {
+     "ingredient": "orange",
+     "amount": "0.5 medium",
+     "key": "choline",
+     "eq": 8
+    },
+    {
+     "ingredient": "avocado",
+     "amount": "0.25 avocado (~0.25 cup)",
+     "key": "veg_other",
+     "eq": 0.25
+    },
+    {
+     "ingredient": "avocado",
+     "amount": "0.25 avocado (~0.25 cup)",
+     "key": "oils",
+     "eq": 5.0
+    },
+    {
+     "ingredient": "avocado",
+     "amount": "0.25 avocado (~0.25 cup)",
+     "key": "choline",
+     "eq": 5
+    },
+    {
+     "ingredient": "red onion",
+     "amount": "0.125 small (~0.06 cup)",
+     "key": "veg_other",
+     "eq": 0.06
+    },
+    {
+     "ingredient": "unsalted sliced almonds",
+     "amount": "1 tbsp (~6 g)",
+     "key": "protein_nuts_seeds_soy",
+     "eq": 0.4
+    },
+    {
+     "ingredient": "unsalted sliced almonds",
+     "amount": "1 tbsp (~6 g)",
+     "key": "oils",
+     "eq": 3.0
+    },
+    {
+     "ingredient": "unsalted sliced almonds",
+     "amount": "1 tbsp (~6 g)",
+     "key": "calcium",
+     "eq": 16
+    },
+    {
+     "ingredient": "unsalted sliced almonds",
+     "amount": "1 tbsp (~6 g)",
+     "key": "choline",
+     "eq": 3
+    },
+    {
+     "ingredient": "olive oil (dressing)",
+     "amount": "0.5 tbsp",
+     "key": "oils",
+     "eq": 7.0
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "high",
+   "notes": "Cooked to 165°F — no flag; mixed greens counted as dark green."
+  },
+  {
+   "recipe_id": 56,
+   "ingredients_hash": "11c1b2e238efaf06",
+   "values": {
+    "calcium": 111,
+    "choline": 79,
+    "dairy": 0,
+    "fruit": 0.06,
+    "grain_refined": 0,
+    "grain_whole": 0,
+    "oils": 10.5,
+    "protein_meat_eggs": 0,
+    "protein_nuts_seeds_soy": 0,
+    "protein_seafood": 2.0,
+    "seafood_albacore": 0,
+    "veg_dark_green": 1.0,
+    "veg_legumes": 0.75,
+    "veg_other": 0.69,
+    "veg_red_orange": 0,
+    "veg_starchy": 0
+   },
+   "breakdown": [
+    {
+     "ingredient": "low-sodium tuna in water",
+     "amount": "1/2 of 5-oz can (~2 oz drained)",
+     "key": "protein_seafood",
+     "eq": 2.0,
+     "note": "assumed chunk light"
+    },
+    {
+     "ingredient": "low-sodium tuna in water",
+     "amount": "2 oz",
+     "key": "calcium",
+     "eq": 6
+    },
+    {
+     "ingredient": "low-sodium tuna in water",
+     "amount": "2 oz",
+     "key": "choline",
+     "eq": 20
+    },
+    {
+     "ingredient": "no-salt-added cannellini beans",
+     "amount": "1/2 of 15-oz can (~0.75 cup)",
+     "key": "veg_legumes",
+     "eq": 0.75
+    },
+    {
+     "ingredient": "no-salt-added cannellini beans",
+     "amount": "0.75 cup",
+     "key": "calcium",
+     "eq": 60
+    },
+    {
+     "ingredient": "no-salt-added cannellini beans",
+     "amount": "0.75 cup",
+     "key": "choline",
+     "eq": 53
+    },
+    {
+     "ingredient": "celery",
+     "amount": "1 stalk (~0.5 cup)",
+     "key": "veg_other",
+     "eq": 0.5
+    },
+    {
+     "ingredient": "red onion",
+     "amount": "1/8 onion",
+     "key": "veg_other",
+     "eq": 0.13
+    },
+    {
+     "ingredient": "fresh parsley or dill",
+     "amount": "1 tbsp",
+     "key": "veg_other",
+     "eq": 0.06,
+     "note": "herb at real volume"
+    },
+    {
+     "ingredient": "lemon juice",
+     "amount": "1 tbsp",
+     "key": "fruit",
+     "eq": 0.06
+    },
+    {
+     "ingredient": "olive oil",
+     "amount": "0.75 tbsp",
+     "key": "oils",
+     "eq": 10.5
+    },
+    {
+     "ingredient": "arugula or romaine",
+     "amount": "2 cups raw",
+     "key": "veg_dark_green",
+     "eq": 1.0,
+     "note": "leafy raw /2"
+    },
+    {
+     "ingredient": "arugula or romaine",
+     "amount": "2 cups raw",
+     "key": "calcium",
+     "eq": 45
+    },
+    {
+     "ingredient": "arugula or romaine",
+     "amount": "2 cups raw",
+     "key": "choline",
+     "eq": 6
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "med",
+   "notes": "Tuna assumed canned light (not albacore); if it is white/albacore, add 2.0 to seafood_albacore."
+  },
+  {
+   "recipe_id": 57,
+   "ingredients_hash": "ecc93c7bfe6c4e3b",
+   "values": {
+    "calcium": 63,
+    "choline": 97,
+    "dairy": 0,
+    "fruit": 0.02,
+    "grain_refined": 0,
+    "grain_whole": 2.0,
+    "oils": 4.5,
+    "protein_meat_eggs": 3.0,
+    "protein_nuts_seeds_soy": 0.15,
+    "protein_seafood": 0,
+    "seafood_albacore": 0,
+    "veg_dark_green": 0.5,
+    "veg_legumes": 0.1,
+    "veg_other": 0.5,
+    "veg_red_orange": 0.75,
+    "veg_starchy": 0
+   },
+   "breakdown": [
+    {
+     "ingredient": "whole-wheat tortilla",
+     "amount": "1 tortilla (~8\")",
+     "key": "grain_whole",
+     "eq": 2.0,
+     "note": "size assumed"
+    },
+    {
+     "ingredient": "hummus",
+     "amount": "2 tbsp",
+     "key": "veg_legumes",
+     "eq": 0.1,
+     "note": "bean part + tahini"
+    },
+    {
+     "ingredient": "hummus",
+     "amount": "2 tbsp",
+     "key": "protein_nuts_seeds_soy",
+     "eq": 0.15,
+     "note": "bean part + tahini"
+    },
+    {
+     "ingredient": "hummus",
+     "amount": "2 tbsp",
+     "key": "oils",
+     "eq": 4.5,
+     "note": "bean part + tahini"
+    },
+    {
+     "ingredient": "hummus",
+     "amount": "2 tbsp",
+     "key": "calcium",
+     "eq": 15,
+     "note": "bean part + tahini"
+    },
+    {
+     "ingredient": "hummus",
+     "amount": "2 tbsp",
+     "key": "choline",
+     "eq": 7,
+     "note": "bean part + tahini"
+    },
+    {
+     "ingredient": "cooked chicken breast",
+     "amount": "3 oz cooked",
+     "key": "protein_meat_eggs",
+     "eq": 3.0
+    },
+    {
+     "ingredient": "cooked chicken breast",
+     "amount": "3 oz cooked",
+     "key": "choline",
+     "eq": 85
+    },
+    {
+     "ingredient": "cooked chicken breast",
+     "amount": "3 oz cooked",
+     "key": "calcium",
+     "eq": 10
+    },
+    {
+     "ingredient": "carrot",
+     "amount": "0.5 cup shredded",
+     "key": "veg_red_orange",
+     "eq": 0.5
+    },
+    {
+     "ingredient": "carrot",
+     "amount": "0.5 cup shredded",
+     "key": "calcium",
+     "eq": 18
+    },
+    {
+     "ingredient": "cucumber",
+     "amount": "0.5 cup",
+     "key": "veg_other",
+     "eq": 0.5
+    },
+    {
+     "ingredient": "red bell pepper",
+     "amount": "0.25 pepper ≈ 0.25 cup",
+     "key": "veg_red_orange",
+     "eq": 0.25
+    },
+    {
+     "ingredient": "spinach or romaine",
+     "amount": "1 cup raw",
+     "key": "veg_dark_green",
+     "eq": 0.5,
+     "note": "leafy raw ÷2"
+    },
+    {
+     "ingredient": "spinach or romaine",
+     "amount": "1 cup raw",
+     "key": "calcium",
+     "eq": 20,
+     "note": "leafy raw ÷2"
+    },
+    {
+     "ingredient": "spinach or romaine",
+     "amount": "1 cup raw",
+     "key": "choline",
+     "eq": 5,
+     "note": "leafy raw ÷2"
+    },
+    {
+     "ingredient": "lemon",
+     "amount": "a squeeze ≈ 1 tsp",
+     "key": "fruit",
+     "eq": 0.02
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "med",
+   "notes": "Tortilla assumed 8\" (≈2 oz eq); hummus split into bean part + ~1/2 tsp tahini."
+  },
+  {
+   "recipe_id": 58,
+   "ingredients_hash": "e8cf1e1b70f79715",
+   "values": {
+    "calcium": 65,
+    "choline": 47,
+    "dairy": 0,
+    "fruit": 0,
+    "grain_refined": 0,
+    "grain_whole": 0,
+    "oils": 2.3,
+    "protein_meat_eggs": 0,
+    "protein_nuts_seeds_soy": 0,
+    "protein_seafood": 0,
+    "seafood_albacore": 0,
+    "veg_dark_green": 0.25,
+    "veg_legumes": 0.63,
+    "veg_other": 0.35,
+    "veg_red_orange": 0.46,
+    "veg_starchy": 0
+   },
+   "breakdown": [
+    {
+     "ingredient": "olive oil",
+     "amount": "0.17 tbsp",
+     "key": "oils",
+     "eq": 2.3
+    },
+    {
+     "ingredient": "onion",
+     "amount": "1/6 medium",
+     "key": "veg_other",
+     "eq": 0.17
+    },
+    {
+     "ingredient": "carrots",
+     "amount": "1/3 medium (~0.17 cup)",
+     "key": "veg_red_orange",
+     "eq": 0.17
+    },
+    {
+     "ingredient": "celery",
+     "amount": "1/3 stalk (~0.17 cup)",
+     "key": "veg_other",
+     "eq": 0.17
+    },
+    {
+     "ingredient": "garlic",
+     "amount": "0.5 clove",
+     "key": "veg_other",
+     "eq": 0.01
+    },
+    {
+     "ingredient": "brown or green lentils",
+     "amount": "0.25 cup dry (~0.63 cup cooked)",
+     "key": "veg_legumes",
+     "eq": 0.63
+    },
+    {
+     "ingredient": "brown or green lentils",
+     "amount": "0.63 cup cooked",
+     "key": "calcium",
+     "eq": 50
+    },
+    {
+     "ingredient": "brown or green lentils",
+     "amount": "0.63 cup cooked",
+     "key": "choline",
+     "eq": 44
+    },
+    {
+     "ingredient": "no-salt-added diced tomatoes",
+     "amount": "1/6 of 14.5-oz can (~0.29 cup)",
+     "key": "veg_red_orange",
+     "eq": 0.29
+    },
+    {
+     "ingredient": "baby spinach",
+     "amount": "0.5 cup raw",
+     "key": "veg_dark_green",
+     "eq": 0.25,
+     "note": "leafy raw /2"
+    },
+    {
+     "ingredient": "baby spinach",
+     "amount": "0.5 cup raw",
+     "key": "calcium",
+     "eq": 15
+    },
+    {
+     "ingredient": "baby spinach",
+     "amount": "0.5 cup raw",
+     "key": "choline",
+     "eq": 3
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "med",
+   "notes": "Dry lentils converted at 2.5x to cooked; unitless carrot/onion read as medium."
+  },
+  {
+   "recipe_id": 59,
+   "ingredients_hash": "17d3b8afc26d059b",
+   "values": {
+    "calcium": 84,
+    "choline": 37,
+    "dairy": 0.21,
+    "fruit": 0.06,
+    "grain_refined": 0,
+    "grain_whole": 2.2,
+    "oils": 16.3,
+    "protein_meat_eggs": 0,
+    "protein_nuts_seeds_soy": 0,
+    "protein_seafood": 0,
+    "seafood_albacore": 0,
+    "veg_dark_green": 0,
+    "veg_legumes": 0.5,
+    "veg_other": 1.45,
+    "veg_red_orange": 0.66,
+    "veg_starchy": 0
+   },
+   "breakdown": [
+    {
+     "ingredient": "pearled farro",
+     "amount": "1/3 cup dry ≈ 2.2 oz",
+     "key": "grain_whole",
+     "eq": 2.2,
+     "note": "pearled — arguably refined"
+    },
+    {
+     "ingredient": "zucchini",
+     "amount": "1/3 medium ≈ 0.5 cup",
+     "key": "veg_other",
+     "eq": 0.5
+    },
+    {
+     "ingredient": "red bell pepper",
+     "amount": "1/3 pepper ≈ 0.33 cup",
+     "key": "veg_red_orange",
+     "eq": 0.33
+    },
+    {
+     "ingredient": "eggplant",
+     "amount": "1/3 small ≈ 0.9 cup",
+     "key": "veg_other",
+     "eq": 0.9
+    },
+    {
+     "ingredient": "cherry tomatoes",
+     "amount": "0.33 cup",
+     "key": "veg_red_orange",
+     "eq": 0.33
+    },
+    {
+     "ingredient": "olive oil (roasting)",
+     "amount": "0.5 tbsp",
+     "key": "oils",
+     "eq": 7.0
+    },
+    {
+     "ingredient": "chickpeas",
+     "amount": "1/3 of 15-oz can ≈ 0.5 cup",
+     "key": "veg_legumes",
+     "eq": 0.5
+    },
+    {
+     "ingredient": "chickpeas",
+     "amount": "1/3 of 15-oz can ≈ 0.5 cup",
+     "key": "calcium",
+     "eq": 40
+    },
+    {
+     "ingredient": "chickpeas",
+     "amount": "1/3 of 15-oz can ≈ 0.5 cup",
+     "key": "choline",
+     "eq": 35
+    },
+    {
+     "ingredient": "crumbled feta",
+     "amount": "1 tbsp ≈ 9 g",
+     "key": "dairy",
+     "eq": 0.21
+    },
+    {
+     "ingredient": "crumbled feta",
+     "amount": "1 tbsp ≈ 9 g",
+     "key": "calcium",
+     "eq": 44
+    },
+    {
+     "ingredient": "crumbled feta",
+     "amount": "1 tbsp ≈ 9 g",
+     "key": "choline",
+     "eq": 2
+    },
+    {
+     "ingredient": "parsley or basil",
+     "amount": "0.67 tbsp",
+     "key": "veg_other",
+     "eq": 0.04
+    },
+    {
+     "ingredient": "lemon juice",
+     "amount": "1 tbsp",
+     "key": "fruit",
+     "eq": 0.06
+    },
+    {
+     "ingredient": "olive oil (dressing)",
+     "amount": "0.67 tbsp",
+     "key": "oils",
+     "eq": 9.3
+    },
+    {
+     "ingredient": "garlic (dressing)",
+     "amount": "1/3 clove",
+     "key": "veg_other",
+     "eq": 0.01
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "med",
+   "notes": "Pearled farro counted whole per rules.md (it is partly de-branned); small eggplant ≈ 2.7 cups; feta assumed pasteurized."
+  },
+  {
+   "recipe_id": 60,
+   "ingredients_hash": "e7353edf2f4ff495",
+   "values": {
+    "calcium": 80,
+    "choline": 67,
+    "dairy": 0.0,
+    "fruit": 0.08,
+    "grain_refined": 0.0,
+    "grain_whole": 0.67,
+    "oils": 11.4,
+    "protein_meat_eggs": 0.0,
+    "protein_nuts_seeds_soy": 0.0,
+    "protein_seafood": 0.0,
+    "seafood_albacore": 0.0,
+    "veg_dark_green": 0.0,
+    "veg_legumes": 0.5,
+    "veg_other": 0.37,
+    "veg_red_orange": 0.67,
+    "veg_starchy": 0.33
+   },
+   "breakdown": [
+    {
+     "ingredient": "sweet potatoes",
+     "amount": "0.67 medium ≈ 0.67 cup diced",
+     "key": "veg_red_orange",
+     "eq": 0.67
+    },
+    {
+     "ingredient": "sweet potatoes",
+     "amount": "0.67 cup",
+     "key": "calcium",
+     "eq": 27
+    },
+    {
+     "ingredient": "sweet potatoes",
+     "amount": "0.67 cup",
+     "key": "choline",
+     "eq": 11
+    },
+    {
+     "ingredient": "olive oil",
+     "amount": "0.33 tbsp",
+     "key": "oils",
+     "eq": 4.7
+    },
+    {
+     "ingredient": "no-salt-added black beans",
+     "amount": "1/3 of 15-oz can ≈ 0.5 cup",
+     "key": "veg_legumes",
+     "eq": 0.5
+    },
+    {
+     "ingredient": "no-salt-added black beans",
+     "amount": "0.5 cup",
+     "key": "calcium",
+     "eq": 40
+    },
+    {
+     "ingredient": "no-salt-added black beans",
+     "amount": "0.5 cup",
+     "key": "choline",
+     "eq": 35
+    },
+    {
+     "ingredient": "brown rice",
+     "amount": "0.33 cup cooked",
+     "key": "grain_whole",
+     "eq": 0.67
+    },
+    {
+     "ingredient": "brown rice",
+     "amount": "0.33 cup cooked",
+     "key": "calcium",
+     "eq": 7
+    },
+    {
+     "ingredient": "brown rice",
+     "amount": "0.33 cup cooked",
+     "key": "choline",
+     "eq": 6
+    },
+    {
+     "ingredient": "frozen corn",
+     "amount": "0.33 cup",
+     "key": "veg_starchy",
+     "eq": 0.33
+    },
+    {
+     "ingredient": "frozen corn",
+     "amount": "0.33 cup",
+     "key": "choline",
+     "eq": 8
+    },
+    {
+     "ingredient": "avocado",
+     "amount": "0.33 avocado ≈ 0.33 cup",
+     "key": "veg_other",
+     "eq": 0.33
+    },
+    {
+     "ingredient": "avocado",
+     "amount": "0.33 avocado",
+     "key": "oils",
+     "eq": 6.7,
+     "note": "½ avocado ≈ 10 g"
+    },
+    {
+     "ingredient": "avocado",
+     "amount": "0.33 avocado",
+     "key": "calcium",
+     "eq": 6
+    },
+    {
+     "ingredient": "avocado",
+     "amount": "0.33 avocado",
+     "key": "choline",
+     "eq": 7
+    },
+    {
+     "ingredient": "cilantro",
+     "amount": "0.083 cup chopped",
+     "key": "veg_other",
+     "eq": 0.04,
+     "note": "leafy herb ÷2"
+    },
+    {
+     "ingredient": "limes",
+     "amount": "juice of 0.67 lime ≈ 1.3 tbsp",
+     "key": "fruit",
+     "eq": 0.08,
+     "note": "100% juice"
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "med",
+   "notes": "Optional Greek yogurt topping not counted."
+  },
+  {
+   "recipe_id": 61,
+   "ingredients_hash": "b5663d6f952051bf",
+   "values": {
+    "calcium": 130,
+    "choline": 116,
+    "dairy": 0.0,
+    "fruit": 0.5,
+    "grain_refined": 0.0,
+    "grain_whole": 0.0,
+    "oils": 21.0,
+    "protein_meat_eggs": 0.0,
+    "protein_nuts_seeds_soy": 0.5,
+    "protein_seafood": 3.0,
+    "seafood_albacore": 0.0,
+    "veg_dark_green": 1.25,
+    "veg_legumes": 0.0,
+    "veg_other": 0.31,
+    "veg_red_orange": 0.0,
+    "veg_starchy": 0.0
+   },
+   "breakdown": [
+    {
+     "ingredient": "cooked salmon",
+     "amount": "3 oz cooked",
+     "key": "protein_seafood",
+     "eq": 3.0
+    },
+    {
+     "ingredient": "cooked salmon",
+     "amount": "3 oz",
+     "key": "oils",
+     "eq": 6.0
+    },
+    {
+     "ingredient": "cooked salmon",
+     "amount": "3 oz",
+     "key": "choline",
+     "eq": 90
+    },
+    {
+     "ingredient": "cooked salmon",
+     "amount": "3 oz",
+     "key": "calcium",
+     "eq": 10,
+     "note": "canned with bones would be ~200"
+    },
+    {
+     "ingredient": "baby spinach",
+     "amount": "2.5 cups raw",
+     "key": "veg_dark_green",
+     "eq": 1.25,
+     "note": "leafy raw ÷2"
+    },
+    {
+     "ingredient": "baby spinach",
+     "amount": "2.5 cups raw",
+     "key": "calcium",
+     "eq": 74
+    },
+    {
+     "ingredient": "baby spinach",
+     "amount": "2.5 cups raw",
+     "key": "choline",
+     "eq": 14
+    },
+    {
+     "ingredient": "orange",
+     "amount": "0.5 orange",
+     "key": "fruit",
+     "eq": 0.5
+    },
+    {
+     "ingredient": "orange",
+     "amount": "0.5 orange",
+     "key": "calcium",
+     "eq": 26
+    },
+    {
+     "ingredient": "orange",
+     "amount": "0.5 orange",
+     "key": "choline",
+     "eq": 4
+    },
+    {
+     "ingredient": "red onion",
+     "amount": "0.125 small ≈ 0.06 cup",
+     "key": "veg_other",
+     "eq": 0.06
+    },
+    {
+     "ingredient": "unsalted sliced almonds or walnuts",
+     "amount": "1 tbsp",
+     "key": "protein_nuts_seeds_soy",
+     "eq": 0.5,
+     "note": "2 tbsp = 1 oz eq"
+    },
+    {
+     "ingredient": "unsalted sliced almonds or walnuts",
+     "amount": "1 tbsp",
+     "key": "oils",
+     "eq": 3.0
+    },
+    {
+     "ingredient": "unsalted sliced almonds or walnuts",
+     "amount": "1 tbsp",
+     "key": "calcium",
+     "eq": 15
+    },
+    {
+     "ingredient": "unsalted sliced almonds or walnuts",
+     "amount": "1 tbsp",
+     "key": "choline",
+     "eq": 3
+    },
+    {
+     "ingredient": "avocado",
+     "amount": "0.25 avocado ≈ 0.25 cup",
+     "key": "veg_other",
+     "eq": 0.25
+    },
+    {
+     "ingredient": "avocado",
+     "amount": "0.25 avocado",
+     "key": "oils",
+     "eq": 5.0
+    },
+    {
+     "ingredient": "avocado",
+     "amount": "0.25 avocado",
+     "key": "calcium",
+     "eq": 5
+    },
+    {
+     "ingredient": "avocado",
+     "amount": "0.25 avocado",
+     "key": "choline",
+     "eq": 5
+    },
+    {
+     "ingredient": "olive oil",
+     "amount": "0.5 tbsp",
+     "key": "oils",
+     "eq": 7.0
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "high",
+   "notes": "Assumes fresh-cooked salmon; canned salmon with bones would add ~190 mg calcium."
+  },
+  {
+   "recipe_id": 62,
+   "ingredients_hash": "8f478d86dc178b80",
+   "values": {
+    "calcium": 76,
+    "choline": 28,
+    "dairy": 0,
+    "fruit": 0,
+    "grain_refined": 0,
+    "grain_whole": 1.0,
+    "oils": 10.5,
+    "protein_meat_eggs": 0,
+    "protein_nuts_seeds_soy": 0,
+    "protein_seafood": 0,
+    "seafood_albacore": 0,
+    "veg_dark_green": 0,
+    "veg_legumes": 0,
+    "veg_other": 0.44,
+    "veg_red_orange": 1.51,
+    "veg_starchy": 0
+   },
+   "breakdown": [
+    {
+     "ingredient": "ripe tomatoes",
+     "amount": "0.5 lb (~1.25 cup chopped)",
+     "key": "veg_red_orange",
+     "eq": 1.26
+    },
+    {
+     "ingredient": "ripe tomatoes",
+     "amount": "0.5 lb (~1.25 cup chopped)",
+     "key": "calcium",
+     "eq": 23
+    },
+    {
+     "ingredient": "ripe tomatoes",
+     "amount": "0.5 lb (~1.25 cup chopped)",
+     "key": "choline",
+     "eq": 15
+    },
+    {
+     "ingredient": "cucumber",
+     "amount": "0.25 medium, peeled & seeded (~0.4 cup)",
+     "key": "veg_other",
+     "eq": 0.4
+    },
+    {
+     "ingredient": "cucumber",
+     "amount": "0.25 medium, peeled & seeded (~0.4 cup)",
+     "key": "calcium",
+     "eq": 10
+    },
+    {
+     "ingredient": "cucumber",
+     "amount": "0.25 medium, peeled & seeded (~0.4 cup)",
+     "key": "choline",
+     "eq": 5
+    },
+    {
+     "ingredient": "red bell pepper",
+     "amount": "0.25 pepper (~0.25 cup)",
+     "key": "veg_red_orange",
+     "eq": 0.25
+    },
+    {
+     "ingredient": "red bell pepper",
+     "amount": "0.25 pepper (~0.25 cup)",
+     "key": "calcium",
+     "eq": 3
+    },
+    {
+     "ingredient": "red onion",
+     "amount": "0.0625 small (~0.03 cup)",
+     "key": "veg_other",
+     "eq": 0.03
+    },
+    {
+     "ingredient": "garlic",
+     "amount": "0.25 small clove",
+     "key": "veg_other",
+     "eq": 0.01
+    },
+    {
+     "ingredient": "extra-virgin olive oil",
+     "amount": "0.75 tbsp",
+     "key": "oils",
+     "eq": 10.5
+    },
+    {
+     "ingredient": "100% whole-grain bread",
+     "amount": "1 slice",
+     "key": "grain_whole",
+     "eq": 1.0
+    },
+    {
+     "ingredient": "100% whole-grain bread",
+     "amount": "1 slice",
+     "key": "calcium",
+     "eq": 40
+    },
+    {
+     "ingredient": "100% whole-grain bread",
+     "amount": "1 slice",
+     "key": "choline",
+     "eq": 8
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "med",
+   "notes": "Cucumber/pepper sizes assumed medium; raw vegetables only, no flags."
+  },
+  {
+   "recipe_id": 63,
+   "ingredients_hash": "bb14a4459c4e9d62",
+   "values": {
+    "calcium": 83,
+    "choline": 182,
+    "dairy": 0,
+    "fruit": 0.47,
+    "grain_refined": 0,
+    "grain_whole": 1.6,
+    "oils": 11.0,
+    "protein_meat_eggs": 0,
+    "protein_nuts_seeds_soy": 0,
+    "protein_seafood": 3.75,
+    "seafood_albacore": 0,
+    "veg_dark_green": 1.0,
+    "veg_legumes": 0,
+    "veg_other": 0.15,
+    "veg_red_orange": 0.13,
+    "veg_starchy": 0
+   },
+   "breakdown": [
+    {
+     "ingredient": "salmon fillets",
+     "amount": "5 oz raw",
+     "key": "protein_seafood",
+     "eq": 3.75,
+     "note": "raw x0.75"
+    },
+    {
+     "ingredient": "salmon fillets",
+     "amount": "3.75 oz cooked",
+     "key": "oils",
+     "eq": 7.5
+    },
+    {
+     "ingredient": "salmon fillets",
+     "amount": "3.75 oz cooked",
+     "key": "calcium",
+     "eq": 13
+    },
+    {
+     "ingredient": "salmon fillets",
+     "amount": "3.75 oz cooked",
+     "key": "choline",
+     "eq": 113
+    },
+    {
+     "ingredient": "olive oil",
+     "amount": "0.25 tbsp",
+     "key": "oils",
+     "eq": 3.5
+    },
+    {
+     "ingredient": "limes",
+     "amount": "0.5 lime (~1 tbsp juice)",
+     "key": "fruit",
+     "eq": 0.06
+    },
+    {
+     "ingredient": "mango",
+     "amount": "1/4 mango (~0.41 cup)",
+     "key": "fruit",
+     "eq": 0.41
+    },
+    {
+     "ingredient": "red onion",
+     "amount": "1/16 onion",
+     "key": "veg_other",
+     "eq": 0.06
+    },
+    {
+     "ingredient": "red bell pepper",
+     "amount": "1/8 pepper",
+     "key": "veg_red_orange",
+     "eq": 0.13
+    },
+    {
+     "ingredient": "jalapeno",
+     "amount": "1/4 pepper",
+     "key": "veg_other",
+     "eq": 0.03
+    },
+    {
+     "ingredient": "cilantro",
+     "amount": "0.0625 cup",
+     "key": "veg_other",
+     "eq": 0.06,
+     "note": "herb at real volume"
+    },
+    {
+     "ingredient": "brown rice",
+     "amount": "0.25 cup dry (~1.6 oz)",
+     "key": "grain_whole",
+     "eq": 1.6
+    },
+    {
+     "ingredient": "brown rice",
+     "amount": "0.25 cup dry",
+     "key": "calcium",
+     "eq": 10
+    },
+    {
+     "ingredient": "brown rice",
+     "amount": "0.25 cup dry",
+     "key": "choline",
+     "eq": 9
+    },
+    {
+     "ingredient": "broccoli florets",
+     "amount": "1 cup steamed",
+     "key": "veg_dark_green",
+     "eq": 1.0
+    },
+    {
+     "ingredient": "broccoli florets",
+     "amount": "1 cup",
+     "key": "calcium",
+     "eq": 60
+    },
+    {
+     "ingredient": "broccoli florets",
+     "amount": "1 cup",
+     "key": "choline",
+     "eq": 60
+    }
+   ],
+   "safety_flags": [
+    "raw_fish"
+   ],
+   "confidence": "med",
+   "notes": "Flagged raw_fish: recipe allows salmon at 125-130F (medium); bake to 145F for pregnancy."
+  },
+  {
+   "recipe_id": 64,
+   "ingredients_hash": "37d9cc1ccf0d2456",
+   "values": {
+    "calcium": 76,
+    "choline": 133,
+    "dairy": 0.0,
+    "fruit": 0.05,
+    "grain_refined": 0.0,
+    "grain_whole": 0.0,
+    "oils": 7.0,
+    "protein_meat_eggs": 3.75,
+    "protein_nuts_seeds_soy": 0.0,
+    "protein_seafood": 0.0,
+    "seafood_albacore": 0.0,
+    "veg_dark_green": 0.0,
+    "veg_legumes": 0.0,
+    "veg_other": 0.77,
+    "veg_red_orange": 1.08,
+    "veg_starchy": 0.0
+   },
+   "breakdown": [
+    {
+     "ingredient": "boneless, skinless chicken thighs",
+     "amount": "5 oz raw ≈ 3.75 oz cooked",
+     "key": "protein_meat_eggs",
+     "eq": 3.75
+    },
+    {
+     "ingredient": "boneless, skinless chicken thighs",
+     "amount": "3.75 oz cooked",
+     "key": "choline",
+     "eq": 112
+    },
+    {
+     "ingredient": "boneless, skinless chicken thighs",
+     "amount": "3.75 oz cooked",
+     "key": "calcium",
+     "eq": 12
+    },
+    {
+     "ingredient": "sweet potato",
+     "amount": "0.25 large ≈ 0.7 cup chunks",
+     "key": "veg_red_orange",
+     "eq": 0.7
+    },
+    {
+     "ingredient": "sweet potato",
+     "amount": "0.7 cup",
+     "key": "calcium",
+     "eq": 28
+    },
+    {
+     "ingredient": "sweet potato",
+     "amount": "0.7 cup",
+     "key": "choline",
+     "eq": 11
+    },
+    {
+     "ingredient": "carrots",
+     "amount": "0.75 carrot ≈ 0.38 cup",
+     "key": "veg_red_orange",
+     "eq": 0.38
+    },
+    {
+     "ingredient": "carrots",
+     "amount": "0.75 carrot",
+     "key": "calcium",
+     "eq": 12
+    },
+    {
+     "ingredient": "parsnips",
+     "amount": "0.5 parsnip ≈ 0.5 cup",
+     "key": "veg_other",
+     "eq": 0.5,
+     "note": "parsnip → other (not on starchy list)"
+    },
+    {
+     "ingredient": "parsnips",
+     "amount": "0.5 cup",
+     "key": "calcium",
+     "eq": 24
+    },
+    {
+     "ingredient": "parsnips",
+     "amount": "0.5 cup",
+     "key": "choline",
+     "eq": 10
+    },
+    {
+     "ingredient": "red onion",
+     "amount": "0.25 onion ≈ 0.25 cup",
+     "key": "veg_other",
+     "eq": 0.25
+    },
+    {
+     "ingredient": "olive oil",
+     "amount": "0.5 tbsp",
+     "key": "oils",
+     "eq": 7.0
+    },
+    {
+     "ingredient": "garlic",
+     "amount": "0.75 clove",
+     "key": "veg_other",
+     "eq": 0.02
+    },
+    {
+     "ingredient": "lemon",
+     "amount": "juice of 0.25 lemon",
+     "key": "fruit",
+     "eq": 0.05,
+     "note": "100% juice"
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "med",
+   "notes": "Root veg by fraction of whole vegetables; parsnip counted as other veg."
+  },
+  {
+   "recipe_id": 65,
+   "ingredients_hash": "4154316584bc1353",
+   "values": {
+    "calcium": 78,
+    "choline": 93,
+    "dairy": 0.13,
+    "fruit": 0,
+    "grain_refined": 0,
+    "grain_whole": 0,
+    "oils": 2.3,
+    "protein_meat_eggs": 2.0,
+    "protein_nuts_seeds_soy": 0,
+    "protein_seafood": 0,
+    "seafood_albacore": 0,
+    "veg_dark_green": 0,
+    "veg_legumes": 0.5,
+    "veg_other": 0.35,
+    "veg_red_orange": 0.5,
+    "veg_starchy": 0
+   },
+   "breakdown": [
+    {
+     "ingredient": "93% lean ground turkey",
+     "amount": "2.67 oz raw",
+     "key": "protein_meat_eggs",
+     "eq": 2.0,
+     "note": "raw x0.75"
+    },
+    {
+     "ingredient": "93% lean ground turkey",
+     "amount": "2 oz cooked",
+     "key": "calcium",
+     "eq": 7
+    },
+    {
+     "ingredient": "93% lean ground turkey",
+     "amount": "2 oz cooked",
+     "key": "choline",
+     "eq": 53
+    },
+    {
+     "ingredient": "olive oil",
+     "amount": "0.17 tbsp",
+     "key": "oils",
+     "eq": 2.3
+    },
+    {
+     "ingredient": "onion",
+     "amount": "1/6 medium",
+     "key": "veg_other",
+     "eq": 0.17
+    },
+    {
+     "ingredient": "green bell pepper",
+     "amount": "1/6 medium",
+     "key": "veg_other",
+     "eq": 0.17
+    },
+    {
+     "ingredient": "garlic",
+     "amount": "0.5 clove",
+     "key": "veg_other",
+     "eq": 0.01
+    },
+    {
+     "ingredient": "no-salt-added kidney beans",
+     "amount": "1/6 of 15-oz can (~0.25 cup)",
+     "key": "veg_legumes",
+     "eq": 0.25
+    },
+    {
+     "ingredient": "no-salt-added kidney beans",
+     "amount": "0.25 cup",
+     "key": "calcium",
+     "eq": 20
+    },
+    {
+     "ingredient": "no-salt-added kidney beans",
+     "amount": "0.25 cup",
+     "key": "choline",
+     "eq": 18
+    },
+    {
+     "ingredient": "no-salt-added black beans",
+     "amount": "1/6 of 15-oz can (~0.25 cup)",
+     "key": "veg_legumes",
+     "eq": 0.25
+    },
+    {
+     "ingredient": "no-salt-added black beans",
+     "amount": "0.25 cup",
+     "key": "calcium",
+     "eq": 20
+    },
+    {
+     "ingredient": "no-salt-added black beans",
+     "amount": "0.25 cup",
+     "key": "choline",
+     "eq": 18
+    },
+    {
+     "ingredient": "no-salt-added crushed tomatoes",
+     "amount": "1/6 of 28-oz can (~0.5 cup)",
+     "key": "veg_red_orange",
+     "eq": 0.5
+    },
+    {
+     "ingredient": "plain nonfat Greek yogurt",
+     "amount": "2 tbsp (assumed)",
+     "key": "dairy",
+     "eq": 0.13,
+     "note": "qty missing"
+    },
+    {
+     "ingredient": "plain nonfat Greek yogurt",
+     "amount": "2 tbsp",
+     "key": "calcium",
+     "eq": 31
+    },
+    {
+     "ingredient": "plain nonfat Greek yogurt",
+     "amount": "2 tbsp",
+     "key": "choline",
+     "eq": 4
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "med",
+   "notes": "Yogurt topping assumed 2 tbsp; avocado/cilantro/scallion garnishes have no amounts and are not counted."
+  },
+  {
+   "recipe_id": 66,
+   "ingredients_hash": "2c3f533746132cf3",
+   "values": {
+    "calcium": 310,
+    "choline": 55,
+    "dairy": 0,
+    "fruit": 0,
+    "grain_refined": 0,
+    "grain_whole": 2.2,
+    "oils": 12.3,
+    "protein_meat_eggs": 0,
+    "protein_nuts_seeds_soy": 2.27,
+    "protein_seafood": 0,
+    "seafood_albacore": 0,
+    "veg_dark_green": 1.33,
+    "veg_legumes": 0,
+    "veg_other": 0.04,
+    "veg_red_orange": 0.33,
+    "veg_starchy": 0
+   },
+   "breakdown": [
+    {
+     "ingredient": "extra-firm tofu",
+     "amount": "1/3 of 14-oz block ≈ 4.7 oz ≈ 0.53 cup",
+     "key": "protein_nuts_seeds_soy",
+     "eq": 2.1,
+     "note": "assumed calcium-set"
+    },
+    {
+     "ingredient": "extra-firm tofu",
+     "amount": "1/3 of 14-oz block ≈ 4.7 oz ≈ 0.53 cup",
+     "key": "calcium",
+     "eq": 265,
+     "note": "assumed calcium-set"
+    },
+    {
+     "ingredient": "extra-firm tofu",
+     "amount": "1/3 of 14-oz block ≈ 4.7 oz ≈ 0.53 cup",
+     "key": "choline",
+     "eq": 37,
+     "note": "assumed calcium-set"
+    },
+    {
+     "ingredient": "broccoli florets",
+     "amount": "1.33 cup raw",
+     "key": "veg_dark_green",
+     "eq": 1.33
+    },
+    {
+     "ingredient": "broccoli florets",
+     "amount": "1.33 cup raw",
+     "key": "calcium",
+     "eq": 45
+    },
+    {
+     "ingredient": "broccoli florets",
+     "amount": "1.33 cup raw",
+     "key": "choline",
+     "eq": 18
+    },
+    {
+     "ingredient": "red bell pepper",
+     "amount": "1/3 pepper ≈ 0.33 cup",
+     "key": "veg_red_orange",
+     "eq": 0.33
+    },
+    {
+     "ingredient": "neutral oil",
+     "amount": "0.67 tbsp",
+     "key": "oils",
+     "eq": 9.3
+    },
+    {
+     "ingredient": "garlic",
+     "amount": "1 clove",
+     "key": "veg_other",
+     "eq": 0.02
+    },
+    {
+     "ingredient": "fresh ginger",
+     "amount": "1 tsp minced",
+     "key": "veg_other",
+     "eq": 0.02
+    },
+    {
+     "ingredient": "toasted sesame oil",
+     "amount": "0.33 tsp",
+     "key": "oils",
+     "eq": 1.6
+    },
+    {
+     "ingredient": "brown rice",
+     "amount": "1/3 cup dry ≈ 2.2 oz",
+     "key": "grain_whole",
+     "eq": 2.2
+    },
+    {
+     "ingredient": "cashews or sesame seeds",
+     "amount": "1 tsp",
+     "key": "protein_nuts_seeds_soy",
+     "eq": 0.17
+    },
+    {
+     "ingredient": "cashews or sesame seeds",
+     "amount": "1 tsp",
+     "key": "oils",
+     "eq": 1.4
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "high",
+   "notes": "Tofu assumed calcium-set; brown rice by dry weight (1/3 cup ≈ 62 g)."
+  },
+  {
+   "recipe_id": 67,
+   "ingredients_hash": "9fe4bdc4340e22a2",
+   "values": {
+    "calcium": 100,
+    "choline": 33,
+    "dairy": 0.12,
+    "fruit": 0.05,
+    "grain_refined": 0.0,
+    "grain_whole": 2.5,
+    "oils": 10.5,
+    "protein_meat_eggs": 0.0,
+    "protein_nuts_seeds_soy": 0.0,
+    "protein_seafood": 0.0,
+    "seafood_albacore": 0.0,
+    "veg_dark_green": 0.0,
+    "veg_legumes": 0.0,
+    "veg_other": 1.08,
+    "veg_red_orange": 0.75,
+    "veg_starchy": 0.25
+   },
+   "breakdown": [
+    {
+     "ingredient": "whole-wheat spaghetti or penne",
+     "amount": "2.5 oz dry",
+     "key": "grain_whole",
+     "eq": 2.5
+    },
+    {
+     "ingredient": "whole-wheat spaghetti or penne",
+     "amount": "2.5 oz dry",
+     "key": "calcium",
+     "eq": 25
+    },
+    {
+     "ingredient": "whole-wheat spaghetti or penne",
+     "amount": "2.5 oz dry",
+     "key": "choline",
+     "eq": 20
+    },
+    {
+     "ingredient": "extra-virgin olive oil",
+     "amount": "0.75 tbsp",
+     "key": "oils",
+     "eq": 10.5
+    },
+    {
+     "ingredient": "garlic",
+     "amount": "1 clove",
+     "key": "veg_other",
+     "eq": 0.02
+    },
+    {
+     "ingredient": "zucchini",
+     "amount": "0.25 medium ≈ 0.5 cup",
+     "key": "veg_other",
+     "eq": 0.5
+    },
+    {
+     "ingredient": "yellow squash",
+     "amount": "0.25 medium ≈ 0.5 cup",
+     "key": "veg_other",
+     "eq": 0.5,
+     "note": "summer squash"
+    },
+    {
+     "ingredient": "zucchini + yellow squash",
+     "amount": "1 cup",
+     "key": "calcium",
+     "eq": 20
+    },
+    {
+     "ingredient": "red bell pepper",
+     "amount": "0.25 pepper ≈ 0.25 cup strips",
+     "key": "veg_red_orange",
+     "eq": 0.25
+    },
+    {
+     "ingredient": "cherry tomatoes",
+     "amount": "0.5 cup",
+     "key": "veg_red_orange",
+     "eq": 0.5
+    },
+    {
+     "ingredient": "cherry tomatoes",
+     "amount": "0.5 cup",
+     "key": "choline",
+     "eq": 5
+    },
+    {
+     "ingredient": "frozen peas",
+     "amount": "0.25 cup",
+     "key": "veg_starchy",
+     "eq": 0.25
+    },
+    {
+     "ingredient": "frozen peas",
+     "amount": "0.25 cup",
+     "key": "choline",
+     "eq": 8
+    },
+    {
+     "ingredient": "lemon",
+     "amount": "juice of 0.25 lemon ≈ 0.75 tbsp",
+     "key": "fruit",
+     "eq": 0.05,
+     "note": "100% juice"
+    },
+    {
+     "ingredient": "fresh basil",
+     "amount": "0.125 cup torn",
+     "key": "veg_other",
+     "eq": 0.06,
+     "note": "leafy herb ÷2"
+    },
+    {
+     "ingredient": "grated Parmesan",
+     "amount": "1 tbsp ≈ 5 g",
+     "key": "dairy",
+     "eq": 0.12,
+     "note": "1.5 oz cheese = 1 cup eq"
+    },
+    {
+     "ingredient": "grated Parmesan",
+     "amount": "1 tbsp ≈ 5 g",
+     "key": "calcium",
+     "eq": 55
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "med",
+   "notes": "Squash/pepper by fraction of a medium vegetable."
+  },
+  {
+   "recipe_id": 68,
+   "ingredients_hash": "573d2c8b2e8b1e1a",
+   "values": {
+    "calcium": 138,
+    "choline": 85,
+    "dairy": 0.38,
+    "fruit": 0,
+    "grain_refined": 0,
+    "grain_whole": 0.75,
+    "oils": 1.2,
+    "protein_meat_eggs": 2.25,
+    "protein_nuts_seeds_soy": 0,
+    "protein_seafood": 0,
+    "seafood_albacore": 0,
+    "veg_dark_green": 0.13,
+    "veg_legumes": 0,
+    "veg_other": 0.69,
+    "veg_red_orange": 0.99,
+    "veg_starchy": 0
+   },
+   "breakdown": [
+    {
+     "ingredient": "bell pepper (large)",
+     "amount": "1 pepper ≈ 1.1 cup",
+     "key": "veg_red_orange",
+     "eq": 0.55,
+     "note": "color unknown, 50/50"
+    },
+    {
+     "ingredient": "bell pepper (large)",
+     "amount": "1 pepper ≈ 1.1 cup",
+     "key": "veg_other",
+     "eq": 0.55,
+     "note": "color unknown, 50/50"
+    },
+    {
+     "ingredient": "93% lean ground turkey",
+     "amount": "3 oz raw → 2.25 oz cooked",
+     "key": "protein_meat_eggs",
+     "eq": 2.25
+    },
+    {
+     "ingredient": "93% lean ground turkey",
+     "amount": "3 oz raw → 2.25 oz cooked",
+     "key": "choline",
+     "eq": 64
+    },
+    {
+     "ingredient": "93% lean ground turkey",
+     "amount": "3 oz raw → 2.25 oz cooked",
+     "key": "calcium",
+     "eq": 7
+    },
+    {
+     "ingredient": "quinoa",
+     "amount": "0.125 cup dry ≈ 21 g",
+     "key": "grain_whole",
+     "eq": 0.75
+    },
+    {
+     "ingredient": "quinoa",
+     "amount": "0.125 cup dry ≈ 21 g",
+     "key": "calcium",
+     "eq": 11
+    },
+    {
+     "ingredient": "quinoa",
+     "amount": "0.125 cup dry ≈ 21 g",
+     "key": "choline",
+     "eq": 17
+    },
+    {
+     "ingredient": "onion",
+     "amount": "0.25 small ≈ 0.125 cup",
+     "key": "veg_other",
+     "eq": 0.13
+    },
+    {
+     "ingredient": "garlic",
+     "amount": "0.5 clove",
+     "key": "veg_other",
+     "eq": 0.01
+    },
+    {
+     "ingredient": "olive oil",
+     "amount": "0.25 tsp",
+     "key": "oils",
+     "eq": 1.2
+    },
+    {
+     "ingredient": "no-salt-added tomato sauce",
+     "amount": "0.25 of 15-oz can ≈ 0.44 cup",
+     "key": "veg_red_orange",
+     "eq": 0.44
+    },
+    {
+     "ingredient": "spinach",
+     "amount": "0.25 cup raw chopped",
+     "key": "veg_dark_green",
+     "eq": 0.13,
+     "note": "leafy raw ÷2"
+    },
+    {
+     "ingredient": "spinach",
+     "amount": "0.25 cup raw chopped",
+     "key": "calcium",
+     "eq": 7,
+     "note": "leafy raw ÷2"
+    },
+    {
+     "ingredient": "part-skim mozzarella",
+     "amount": "0.125 cup shredded",
+     "key": "dairy",
+     "eq": 0.38
+    },
+    {
+     "ingredient": "part-skim mozzarella",
+     "amount": "0.125 cup shredded",
+     "key": "calcium",
+     "eq": 113
+    },
+    {
+     "ingredient": "part-skim mozzarella",
+     "amount": "0.125 cup shredded",
+     "key": "choline",
+     "eq": 4
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "med",
+   "notes": "Pepper color unspecified — split 50/50 red/orange vs green; large pepper ≈ 1.1 cup."
+  },
+  {
+   "recipe_id": 69,
+   "ingredients_hash": "9bc393e662747691",
+   "values": {
+    "calcium": 56,
+    "choline": 155,
+    "dairy": 0.0,
+    "fruit": 0.05,
+    "grain_refined": 0.0,
+    "grain_whole": 1.1,
+    "oils": 7.0,
+    "protein_meat_eggs": 0.0,
+    "protein_nuts_seeds_soy": 0.0,
+    "protein_seafood": 3.75,
+    "seafood_albacore": 0.0,
+    "veg_dark_green": 0.0,
+    "veg_legumes": 0.0,
+    "veg_other": 0.86,
+    "veg_red_orange": 0.0,
+    "veg_starchy": 0.0
+   },
+   "breakdown": [
+    {
+     "ingredient": "cod fillets",
+     "amount": "1 fillet, 5 oz raw ≈ 3.75 oz cooked",
+     "key": "protein_seafood",
+     "eq": 3.75
+    },
+    {
+     "ingredient": "cod fillets",
+     "amount": "3.75 oz cooked",
+     "key": "choline",
+     "eq": 112
+    },
+    {
+     "ingredient": "cod fillets",
+     "amount": "3.75 oz cooked",
+     "key": "calcium",
+     "eq": 12
+    },
+    {
+     "ingredient": "olive oil",
+     "amount": "0.5 tbsp",
+     "key": "oils",
+     "eq": 7.0
+    },
+    {
+     "ingredient": "garlic",
+     "amount": "0.5 clove",
+     "key": "veg_other",
+     "eq": 0.01
+    },
+    {
+     "ingredient": "lemon",
+     "amount": "juice of 0.25 lemon",
+     "key": "fruit",
+     "eq": 0.05,
+     "note": "100% juice"
+    },
+    {
+     "ingredient": "asparagus",
+     "amount": "0.25 lb ≈ 0.85 cup",
+     "key": "veg_other",
+     "eq": 0.85
+    },
+    {
+     "ingredient": "asparagus",
+     "amount": "0.25 lb",
+     "key": "calcium",
+     "eq": 27
+    },
+    {
+     "ingredient": "asparagus",
+     "amount": "0.25 lb",
+     "key": "choline",
+     "eq": 18
+    },
+    {
+     "ingredient": "quinoa",
+     "amount": "0.1875 cup dry ≈ 1.1 oz",
+     "key": "grain_whole",
+     "eq": 1.1
+    },
+    {
+     "ingredient": "quinoa",
+     "amount": "≈0.56 cup cooked",
+     "key": "calcium",
+     "eq": 17
+    },
+    {
+     "ingredient": "quinoa",
+     "amount": "≈0.56 cup cooked",
+     "key": "choline",
+     "eq": 25
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "high",
+   "notes": ""
+  },
+  {
+   "recipe_id": 70,
+   "ingredients_hash": "43e3458039468e32",
+   "values": {
+    "calcium": 94,
+    "choline": 133,
+    "dairy": 0.19,
+    "fruit": 0.0,
+    "grain_refined": 0.0,
+    "grain_whole": 1.5,
+    "oils": 7.0,
+    "protein_meat_eggs": 3.75,
+    "protein_nuts_seeds_soy": 0.0,
+    "protein_seafood": 0.0,
+    "seafood_albacore": 0.0,
+    "veg_dark_green": 0.0,
+    "veg_legumes": 0.0,
+    "veg_other": 1.02,
+    "veg_red_orange": 0.59,
+    "veg_starchy": 0.0
+   },
+   "breakdown": [
+    {
+     "ingredient": "boneless, skinless chicken breast",
+     "amount": "5 oz raw ≈ 3.75 oz cooked",
+     "key": "protein_meat_eggs",
+     "eq": 3.75
+    },
+    {
+     "ingredient": "boneless, skinless chicken breast",
+     "amount": "3.75 oz cooked",
+     "key": "choline",
+     "eq": 106
+    },
+    {
+     "ingredient": "boneless, skinless chicken breast",
+     "amount": "3.75 oz cooked",
+     "key": "calcium",
+     "eq": 12
+    },
+    {
+     "ingredient": "zucchini",
+     "amount": "0.25 medium ≈ 0.5 cup",
+     "key": "veg_other",
+     "eq": 0.5
+    },
+    {
+     "ingredient": "red onion",
+     "amount": "0.25 onion ≈ 0.25 cup",
+     "key": "veg_other",
+     "eq": 0.25
+    },
+    {
+     "ingredient": "bell peppers",
+     "amount": "0.5 pepper ≈ 0.5 cup",
+     "key": "veg_red_orange",
+     "eq": 0.25,
+     "note": "color unspecified; split 50/50 red vs green"
+    },
+    {
+     "ingredient": "bell peppers",
+     "amount": "0.5 pepper ≈ 0.5 cup",
+     "key": "veg_other",
+     "eq": 0.25,
+     "note": "color unspecified; split 50/50 red vs green"
+    },
+    {
+     "ingredient": "cherry tomatoes",
+     "amount": "3 tomatoes ≈ 0.34 cup",
+     "key": "veg_red_orange",
+     "eq": 0.34
+    },
+    {
+     "ingredient": "vegetables (zucchini, onion, pepper, tomato)",
+     "amount": "~1.3 cups",
+     "key": "calcium",
+     "eq": 25
+    },
+    {
+     "ingredient": "vegetables (zucchini, onion, pepper, tomato)",
+     "amount": "~1.3 cups",
+     "key": "choline",
+     "eq": 10
+    },
+    {
+     "ingredient": "olive oil",
+     "amount": "0.5 tbsp (marinade)",
+     "key": "oils",
+     "eq": 7.0,
+     "note": "assumes marinade oil mostly retained"
+    },
+    {
+     "ingredient": "garlic (marinade + sauce)",
+     "amount": "1 clove",
+     "key": "veg_other",
+     "eq": 0.02
+    },
+    {
+     "ingredient": "plain nonfat Greek yogurt",
+     "amount": "0.1875 cup",
+     "key": "dairy",
+     "eq": 0.19
+    },
+    {
+     "ingredient": "plain nonfat Greek yogurt",
+     "amount": "0.1875 cup",
+     "key": "calcium",
+     "eq": 47
+    },
+    {
+     "ingredient": "plain nonfat Greek yogurt",
+     "amount": "0.1875 cup",
+     "key": "choline",
+     "eq": 7
+    },
+    {
+     "ingredient": "whole-wheat couscous",
+     "amount": "0.25 cup dry ≈ 1.5 oz",
+     "key": "grain_whole",
+     "eq": 1.5
+    },
+    {
+     "ingredient": "whole-wheat couscous",
+     "amount": "1.5 oz dry",
+     "key": "calcium",
+     "eq": 10
+    },
+    {
+     "ingredient": "whole-wheat couscous",
+     "amount": "1.5 oz dry",
+     "key": "choline",
+     "eq": 10
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "med",
+   "notes": "Bell pepper color unspecified (split red/green); marinade oil counted fully, marinade lemon juice not counted."
+  },
+  {
+   "recipe_id": 71,
+   "ingredients_hash": "263695afb41b2318",
+   "values": {
+    "calcium": 80,
+    "choline": 70,
+    "dairy": 0,
+    "fruit": 0,
+    "grain_refined": 0,
+    "grain_whole": 1.6,
+    "oils": 3.5,
+    "protein_meat_eggs": 0,
+    "protein_nuts_seeds_soy": 0,
+    "protein_seafood": 0,
+    "seafood_albacore": 0,
+    "veg_dark_green": 0,
+    "veg_legumes": 0.75,
+    "veg_other": 0.85,
+    "veg_red_orange": 0,
+    "veg_starchy": 0
+   },
+   "breakdown": [
+    {
+     "ingredient": "olive oil",
+     "amount": "0.25 tbsp",
+     "key": "oils",
+     "eq": 3.5
+    },
+    {
+     "ingredient": "onion",
+     "amount": "0.25 onion",
+     "key": "veg_other",
+     "eq": 0.25
+    },
+    {
+     "ingredient": "green bell pepper",
+     "amount": "0.25 pepper (~0.25 cup)",
+     "key": "veg_other",
+     "eq": 0.25
+    },
+    {
+     "ingredient": "celery",
+     "amount": "0.5 stalk (~0.2 cup)",
+     "key": "veg_other",
+     "eq": 0.2
+    },
+    {
+     "ingredient": "garlic",
+     "amount": "1 clove",
+     "key": "veg_other",
+     "eq": 0.02
+    },
+    {
+     "ingredient": "no-salt-added red kidney beans",
+     "amount": "0.75 cup drained (0.5 × 15-oz can)",
+     "key": "veg_legumes",
+     "eq": 0.75
+    },
+    {
+     "ingredient": "no-salt-added red kidney beans",
+     "amount": "0.75 cup drained (0.5 × 15-oz can)",
+     "key": "calcium",
+     "eq": 60
+    },
+    {
+     "ingredient": "no-salt-added red kidney beans",
+     "amount": "0.75 cup drained (0.5 × 15-oz can)",
+     "key": "choline",
+     "eq": 52
+    },
+    {
+     "ingredient": "brown rice",
+     "amount": "0.25 cup dry (~46 g)",
+     "key": "grain_whole",
+     "eq": 1.6
+    },
+    {
+     "ingredient": "brown rice",
+     "amount": "0.25 cup dry (~46 g)",
+     "key": "calcium",
+     "eq": 10
+    },
+    {
+     "ingredient": "brown rice",
+     "amount": "0.25 cup dry (~46 g)",
+     "key": "choline",
+     "eq": 18
+    },
+    {
+     "ingredient": "scallions",
+     "amount": "~2 tbsp sliced (assumed)",
+     "key": "veg_other",
+     "eq": 0.13,
+     "note": "qty missing"
+    },
+    {
+     "ingredient": "scallions",
+     "amount": "~2 tbsp sliced (assumed)",
+     "key": "calcium",
+     "eq": 10,
+     "note": "qty missing"
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "med",
+   "notes": "Scallion amount assumed (~2 tbsp); can drained ≈ 1.5 cups."
+  },
+  {
+   "recipe_id": 72,
+   "ingredients_hash": "28256203e1ddb707",
+   "values": {
+    "calcium": 118,
+    "choline": 60,
+    "dairy": 0,
+    "fruit": 0.13,
+    "grain_refined": 0,
+    "grain_whole": 1.5,
+    "oils": 7.0,
+    "protein_meat_eggs": 0,
+    "protein_nuts_seeds_soy": 0,
+    "protein_seafood": 0,
+    "seafood_albacore": 0,
+    "veg_dark_green": 0,
+    "veg_legumes": 0.38,
+    "veg_other": 1.75,
+    "veg_red_orange": 0.83,
+    "veg_starchy": 0
+   },
+   "breakdown": [
+    {
+     "ingredient": "olive oil",
+     "amount": "0.5 tbsp",
+     "key": "oils",
+     "eq": 7.0
+    },
+    {
+     "ingredient": "eggplant",
+     "amount": "0.25 large (~140 g, ~1.4 cup cooked)",
+     "key": "veg_other",
+     "eq": 1.4
+    },
+    {
+     "ingredient": "eggplant",
+     "amount": "0.25 large (~140 g, ~1.4 cup cooked)",
+     "key": "calcium",
+     "eq": 13
+    },
+    {
+     "ingredient": "eggplant",
+     "amount": "0.25 large (~140 g, ~1.4 cup cooked)",
+     "key": "choline",
+     "eq": 10
+    },
+    {
+     "ingredient": "onion",
+     "amount": "0.25 onion",
+     "key": "veg_other",
+     "eq": 0.25
+    },
+    {
+     "ingredient": "garlic",
+     "amount": "0.75 clove",
+     "key": "veg_other",
+     "eq": 0.02
+    },
+    {
+     "ingredient": "fresh ginger",
+     "amount": "0.25 tbsp",
+     "key": "veg_other",
+     "eq": 0.02
+    },
+    {
+     "ingredient": "no-salt-added diced tomatoes",
+     "amount": "7 oz (0.25 × 28-oz can, ~0.83 cup)",
+     "key": "veg_red_orange",
+     "eq": 0.83
+    },
+    {
+     "ingredient": "no-salt-added diced tomatoes",
+     "amount": "7 oz (0.25 × 28-oz can, ~0.83 cup)",
+     "key": "calcium",
+     "eq": 60
+    },
+    {
+     "ingredient": "no-salt-added diced tomatoes",
+     "amount": "7 oz (0.25 × 28-oz can, ~0.83 cup)",
+     "key": "choline",
+     "eq": 14
+    },
+    {
+     "ingredient": "no-salt-added chickpeas",
+     "amount": "0.375 cup drained (0.25 × 15-oz can)",
+     "key": "veg_legumes",
+     "eq": 0.38
+    },
+    {
+     "ingredient": "no-salt-added chickpeas",
+     "amount": "0.375 cup drained (0.25 × 15-oz can)",
+     "key": "calcium",
+     "eq": 30
+    },
+    {
+     "ingredient": "no-salt-added chickpeas",
+     "amount": "0.375 cup drained (0.25 × 15-oz can)",
+     "key": "choline",
+     "eq": 26
+    },
+    {
+     "ingredient": "dried apricots",
+     "amount": "0.0625 cup",
+     "key": "fruit",
+     "eq": 0.13,
+     "note": "dried ×2"
+    },
+    {
+     "ingredient": "cilantro or parsley",
+     "amount": "0.0625 cup",
+     "key": "veg_other",
+     "eq": 0.06
+    },
+    {
+     "ingredient": "whole-wheat couscous",
+     "amount": "0.25 cup dry (~43 g)",
+     "key": "grain_whole",
+     "eq": 1.5
+    },
+    {
+     "ingredient": "whole-wheat couscous",
+     "amount": "0.25 cup dry (~43 g)",
+     "key": "calcium",
+     "eq": 15
+    },
+    {
+     "ingredient": "whole-wheat couscous",
+     "amount": "0.25 cup dry (~43 g)",
+     "key": "choline",
+     "eq": 10
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "med",
+   "notes": "Large eggplant ≈ 560 g; can contents converted to cups; lemon juice treated as seasoning (not fruit)."
+  },
+  {
+   "recipe_id": 73,
+   "ingredients_hash": "576e3a5ce3e9eec4",
+   "values": {
+    "calcium": 230,
+    "choline": 384,
+    "dairy": 0.22,
+    "fruit": 0,
+    "grain_refined": 0,
+    "grain_whole": 2.0,
+    "oils": 7.0,
+    "protein_meat_eggs": 2.0,
+    "protein_nuts_seeds_soy": 0,
+    "protein_seafood": 0,
+    "seafood_albacore": 0,
+    "veg_dark_green": 0,
+    "veg_legumes": 0.75,
+    "veg_other": 0.59,
+    "veg_red_orange": 1.6,
+    "veg_starchy": 0
+   },
+   "breakdown": [
+    {
+     "ingredient": "olive oil",
+     "amount": "0.5 tbsp",
+     "key": "oils",
+     "eq": 7.0
+    },
+    {
+     "ingredient": "onion",
+     "amount": "0.5 onion",
+     "key": "veg_other",
+     "eq": 0.5
+    },
+    {
+     "ingredient": "red bell pepper",
+     "amount": "0.5 medium (~0.5 cup)",
+     "key": "veg_red_orange",
+     "eq": 0.5
+    },
+    {
+     "ingredient": "garlic",
+     "amount": "1.5 cloves",
+     "key": "veg_other",
+     "eq": 0.03
+    },
+    {
+     "ingredient": "no-salt-added diced tomatoes",
+     "amount": "7.25 oz (0.5 × 14.5-oz can, ~0.85 cup)",
+     "key": "veg_red_orange",
+     "eq": 0.85
+    },
+    {
+     "ingredient": "no-salt-added diced tomatoes",
+     "amount": "7.25 oz (0.5 × 14.5-oz can, ~0.85 cup)",
+     "key": "calcium",
+     "eq": 60
+    },
+    {
+     "ingredient": "no-salt-added diced tomatoes",
+     "amount": "7.25 oz (0.5 × 14.5-oz can, ~0.85 cup)",
+     "key": "choline",
+     "eq": 15
+    },
+    {
+     "ingredient": "no-salt-added tomato paste",
+     "amount": "1 tbsp",
+     "key": "veg_red_orange",
+     "eq": 0.25,
+     "note": "paste ≈ 4× concentrate"
+    },
+    {
+     "ingredient": "no-salt-added cannellini beans",
+     "amount": "0.75 cup drained (0.5 × 15-oz can)",
+     "key": "veg_legumes",
+     "eq": 0.75
+    },
+    {
+     "ingredient": "no-salt-added cannellini beans",
+     "amount": "0.75 cup drained (0.5 × 15-oz can)",
+     "key": "calcium",
+     "eq": 60
+    },
+    {
+     "ingredient": "no-salt-added cannellini beans",
+     "amount": "0.75 cup drained (0.5 × 15-oz can)",
+     "key": "choline",
+     "eq": 52
+    },
+    {
+     "ingredient": "eggs",
+     "amount": "2 eggs",
+     "key": "protein_meat_eggs",
+     "eq": 2.0
+    },
+    {
+     "ingredient": "eggs",
+     "amount": "2 eggs",
+     "key": "calcium",
+     "eq": 50
+    },
+    {
+     "ingredient": "eggs",
+     "amount": "2 eggs",
+     "key": "choline",
+     "eq": 300
+    },
+    {
+     "ingredient": "crumbled feta",
+     "amount": "1 tbsp (~9 g)",
+     "key": "dairy",
+     "eq": 0.22
+    },
+    {
+     "ingredient": "crumbled feta",
+     "amount": "1 tbsp (~9 g)",
+     "key": "calcium",
+     "eq": 50
+    },
+    {
+     "ingredient": "crumbled feta",
+     "amount": "1 tbsp (~9 g)",
+     "key": "choline",
+     "eq": 2
+    },
+    {
+     "ingredient": "cilantro or parsley",
+     "amount": "1 tbsp",
+     "key": "veg_other",
+     "eq": 0.06
+    },
+    {
+     "ingredient": "whole-grain pita",
+     "amount": "1 pita (~2 oz)",
+     "key": "grain_whole",
+     "eq": 2.0
+    },
+    {
+     "ingredient": "whole-grain pita",
+     "amount": "1 pita (~2 oz)",
+     "key": "calcium",
+     "eq": 10
+    },
+    {
+     "ingredient": "whole-grain pita",
+     "amount": "1 pita (~2 oz)",
+     "key": "choline",
+     "eq": 15
+    }
+   ],
+   "safety_flags": [
+    "raw_egg"
+   ],
+   "confidence": "med",
+   "notes": "Flagged raw_egg: recipe cooks only until whites set (runny yolks) — fine if cooked until yolks firm; assumes pasteurized feta."
+  },
+  {
+   "recipe_id": 74,
+   "ingredients_hash": "c3d92657a7c2945f",
+   "values": {
+    "calcium": 133,
+    "choline": 66,
+    "dairy": 0.09,
+    "fruit": 0.06,
+    "grain_refined": 0,
+    "grain_whole": 3.0,
+    "oils": 12.3,
+    "protein_meat_eggs": 0,
+    "protein_nuts_seeds_soy": 0,
+    "protein_seafood": 0,
+    "seafood_albacore": 0,
+    "veg_dark_green": 0,
+    "veg_legumes": 0.75,
+    "veg_other": 1.64,
+    "veg_red_orange": 0,
+    "veg_starchy": 0
+   },
+   "breakdown": [
+    {
+     "ingredient": "no-salt-added black beans",
+     "amount": "1/2 of 15-oz can (~0.75 cup)",
+     "key": "veg_legumes",
+     "eq": 0.75
+    },
+    {
+     "ingredient": "no-salt-added black beans",
+     "amount": "0.75 cup",
+     "key": "calcium",
+     "eq": 60
+    },
+    {
+     "ingredient": "no-salt-added black beans",
+     "amount": "0.75 cup",
+     "key": "choline",
+     "eq": 53
+    },
+    {
+     "ingredient": "olive oil",
+     "amount": "0.5 tsp",
+     "key": "oils",
+     "eq": 2.3
+    },
+    {
+     "ingredient": "garlic",
+     "amount": "0.5 clove",
+     "key": "veg_other",
+     "eq": 0.01
+    },
+    {
+     "ingredient": "corn tortillas",
+     "amount": "3 small",
+     "key": "grain_whole",
+     "eq": 3.0
+    },
+    {
+     "ingredient": "corn tortillas",
+     "amount": "3 small",
+     "key": "calcium",
+     "eq": 50,
+     "note": "lime-treated masa"
+    },
+    {
+     "ingredient": "cabbage or slaw mix",
+     "amount": "1 cup shredded",
+     "key": "veg_other",
+     "eq": 1.0
+    },
+    {
+     "ingredient": "plain nonfat Greek yogurt",
+     "amount": "1.5 tbsp",
+     "key": "dairy",
+     "eq": 0.09
+    },
+    {
+     "ingredient": "plain nonfat Greek yogurt",
+     "amount": "1.5 tbsp",
+     "key": "calcium",
+     "eq": 23
+    },
+    {
+     "ingredient": "plain nonfat Greek yogurt",
+     "amount": "1.5 tbsp",
+     "key": "choline",
+     "eq": 3
+    },
+    {
+     "ingredient": "lime",
+     "amount": "0.5 lime (~1 tbsp juice)",
+     "key": "fruit",
+     "eq": 0.06
+    },
+    {
+     "ingredient": "avocado",
+     "amount": "0.5 avocado (~0.5 cup)",
+     "key": "veg_other",
+     "eq": 0.5
+    },
+    {
+     "ingredient": "avocado",
+     "amount": "0.5 avocado",
+     "key": "oils",
+     "eq": 10.0
+    },
+    {
+     "ingredient": "avocado",
+     "amount": "0.5 avocado",
+     "key": "choline",
+     "eq": 10
+    },
+    {
+     "ingredient": "cilantro",
+     "amount": "0.125 cup",
+     "key": "veg_other",
+     "eq": 0.13,
+     "note": "herb at real volume"
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "med",
+   "notes": "Corn tortillas counted as whole grain; half a drained 15-oz can taken as 0.75 cup beans."
+  },
+  {
+   "recipe_id": 75,
+   "ingredients_hash": "79d667ce450a8970",
+   "values": {
+    "calcium": 296,
+    "choline": 44,
+    "dairy": 0.75,
+    "fruit": 0.5,
+    "grain_refined": 0,
+    "grain_whole": 1.4,
+    "oils": 3.1,
+    "protein_meat_eggs": 0,
+    "protein_nuts_seeds_soy": 0.5,
+    "protein_seafood": 0,
+    "seafood_albacore": 0,
+    "veg_dark_green": 0,
+    "veg_legumes": 0,
+    "veg_other": 0,
+    "veg_red_orange": 0,
+    "veg_starchy": 0
+   },
+   "breakdown": [
+    {
+     "ingredient": "rolled oats",
+     "amount": "0.5 cup dry ≈ 40 g",
+     "key": "grain_whole",
+     "eq": 1.4
+    },
+    {
+     "ingredient": "rolled oats",
+     "amount": "0.5 cup dry ≈ 40 g",
+     "key": "calcium",
+     "eq": 20
+    },
+    {
+     "ingredient": "rolled oats",
+     "amount": "0.5 cup dry ≈ 40 g",
+     "key": "choline",
+     "eq": 15
+    },
+    {
+     "ingredient": "milk",
+     "amount": "0.5 cup",
+     "key": "dairy",
+     "eq": 0.5
+    },
+    {
+     "ingredient": "milk",
+     "amount": "0.5 cup",
+     "key": "calcium",
+     "eq": 150
+    },
+    {
+     "ingredient": "milk",
+     "amount": "0.5 cup",
+     "key": "choline",
+     "eq": 20
+    },
+    {
+     "ingredient": "Greek yogurt",
+     "amount": "0.25 cup",
+     "key": "dairy",
+     "eq": 0.25
+    },
+    {
+     "ingredient": "Greek yogurt",
+     "amount": "0.25 cup",
+     "key": "calcium",
+     "eq": 63
+    },
+    {
+     "ingredient": "Greek yogurt",
+     "amount": "0.25 cup",
+     "key": "choline",
+     "eq": 9
+    },
+    {
+     "ingredient": "chia seeds",
+     "amount": "1 tbsp",
+     "key": "protein_nuts_seeds_soy",
+     "eq": 0.5
+    },
+    {
+     "ingredient": "chia seeds",
+     "amount": "1 tbsp",
+     "key": "oils",
+     "eq": 3.1
+    },
+    {
+     "ingredient": "chia seeds",
+     "amount": "1 tbsp",
+     "key": "calcium",
+     "eq": 63
+    },
+    {
+     "ingredient": "berries",
+     "amount": "0.5 cup",
+     "key": "fruit",
+     "eq": 0.5
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "low",
+   "notes": "Estimated from title — recipe has no ingredients yet."
+  },
+  {
+   "recipe_id": 76,
+   "ingredients_hash": "5ed909ca63f5d301",
+   "values": {
+    "calcium": 62,
+    "choline": 308,
+    "dairy": 0,
+    "fruit": 0,
+    "grain_refined": 0,
+    "grain_whole": 0,
+    "oils": 14.0,
+    "protein_meat_eggs": 2.0,
+    "protein_nuts_seeds_soy": 0,
+    "protein_seafood": 0,
+    "seafood_albacore": 0,
+    "veg_dark_green": 0,
+    "veg_legumes": 0,
+    "veg_other": 0.1,
+    "veg_red_orange": 0.75,
+    "veg_starchy": 0
+   },
+   "breakdown": [
+    {
+     "ingredient": "eggs",
+     "amount": "2 eggs, scrambled firm",
+     "key": "protein_meat_eggs",
+     "eq": 2.0
+    },
+    {
+     "ingredient": "eggs",
+     "amount": "2 eggs, scrambled firm",
+     "key": "choline",
+     "eq": 300
+    },
+    {
+     "ingredient": "eggs",
+     "amount": "2 eggs, scrambled firm",
+     "key": "calcium",
+     "eq": 50
+    },
+    {
+     "ingredient": "tomato",
+     "amount": "1 medium ≈ 0.75 cup",
+     "key": "veg_red_orange",
+     "eq": 0.75
+    },
+    {
+     "ingredient": "tomato",
+     "amount": "1 medium ≈ 0.75 cup",
+     "key": "calcium",
+     "eq": 12
+    },
+    {
+     "ingredient": "tomato",
+     "amount": "1 medium ≈ 0.75 cup",
+     "key": "choline",
+     "eq": 8
+    },
+    {
+     "ingredient": "scallion",
+     "amount": "0.5 scallion ≈ 0.1 cup",
+     "key": "veg_other",
+     "eq": 0.1
+    },
+    {
+     "ingredient": "neutral oil",
+     "amount": "1 tbsp",
+     "key": "oils",
+     "eq": 14.0
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "low",
+   "notes": "Estimated from title — recipe has no ingredients yet."
+  },
+  {
+   "recipe_id": 77,
+   "ingredients_hash": "99c271ccdd0146fa",
+   "values": {
+    "calcium": 35,
+    "choline": 160,
+    "dairy": 0,
+    "fruit": 0,
+    "grain_refined": 2.0,
+    "grain_whole": 0,
+    "oils": 14.0,
+    "protein_meat_eggs": 1.0,
+    "protein_nuts_seeds_soy": 0,
+    "protein_seafood": 0,
+    "seafood_albacore": 0,
+    "veg_dark_green": 0,
+    "veg_legumes": 0,
+    "veg_other": 0.3,
+    "veg_red_orange": 0.25,
+    "veg_starchy": 0.25
+   },
+   "breakdown": [
+    {
+     "ingredient": "cooked white rice",
+     "amount": "1 cup",
+     "key": "grain_refined",
+     "eq": 2.0
+    },
+    {
+     "ingredient": "egg",
+     "amount": "1 egg",
+     "key": "protein_meat_eggs",
+     "eq": 1.0
+    },
+    {
+     "ingredient": "egg",
+     "amount": "1 egg",
+     "key": "choline",
+     "eq": 150
+    },
+    {
+     "ingredient": "egg",
+     "amount": "1 egg",
+     "key": "calcium",
+     "eq": 25
+    },
+    {
+     "ingredient": "frozen peas",
+     "amount": "0.25 cup",
+     "key": "veg_starchy",
+     "eq": 0.25
+    },
+    {
+     "ingredient": "frozen peas",
+     "amount": "0.25 cup",
+     "key": "choline",
+     "eq": 10
+    },
+    {
+     "ingredient": "carrots",
+     "amount": "0.25 cup diced",
+     "key": "veg_red_orange",
+     "eq": 0.25
+    },
+    {
+     "ingredient": "carrots",
+     "amount": "0.25 cup diced",
+     "key": "calcium",
+     "eq": 10
+    },
+    {
+     "ingredient": "onion + scallion",
+     "amount": "0.3 cup",
+     "key": "veg_other",
+     "eq": 0.3
+    },
+    {
+     "ingredient": "neutral oil",
+     "amount": "1 tbsp",
+     "key": "oils",
+     "eq": 14.0
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "low",
+   "notes": "Estimated from title — recipe has no ingredients yet."
+  },
+  {
+   "recipe_id": 78,
+   "ingredients_hash": "99c271ccdd0146fa",
+   "values": {
+    "calcium": 10,
+    "choline": 85,
+    "dairy": 0,
+    "fruit": 0,
+    "grain_refined": 2.0,
+    "grain_whole": 0,
+    "oils": 4.5,
+    "protein_meat_eggs": 3.0,
+    "protein_nuts_seeds_soy": 0,
+    "protein_seafood": 0,
+    "seafood_albacore": 0,
+    "veg_dark_green": 0,
+    "veg_legumes": 0,
+    "veg_other": 0.27,
+    "veg_red_orange": 0.25,
+    "veg_starchy": 0
+   },
+   "breakdown": [
+    {
+     "ingredient": "beef (chuck/flank)",
+     "amount": "4 oz raw → 3 oz cooked",
+     "key": "protein_meat_eggs",
+     "eq": 3.0
+    },
+    {
+     "ingredient": "beef (chuck/flank)",
+     "amount": "4 oz raw → 3 oz cooked",
+     "key": "choline",
+     "eq": 85
+    },
+    {
+     "ingredient": "beef (chuck/flank)",
+     "amount": "4 oz raw → 3 oz cooked",
+     "key": "calcium",
+     "eq": 10
+    },
+    {
+     "ingredient": "cooked white rice",
+     "amount": "1 cup",
+     "key": "grain_refined",
+     "eq": 2.0
+    },
+    {
+     "ingredient": "carrot",
+     "amount": "0.25 cup",
+     "key": "veg_red_orange",
+     "eq": 0.25
+    },
+    {
+     "ingredient": "onion/scallion + garlic",
+     "amount": "0.27 cup",
+     "key": "veg_other",
+     "eq": 0.27
+    },
+    {
+     "ingredient": "sesame oil",
+     "amount": "1 tsp",
+     "key": "oils",
+     "eq": 4.5
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "low",
+   "notes": "Estimated from title — recipe has no ingredients yet."
+  },
+  {
+   "recipe_id": 79,
+   "ingredients_hash": "99c271ccdd0146fa",
+   "values": {
+    "calcium": 16,
+    "choline": 117,
+    "dairy": 0,
+    "fruit": 0,
+    "grain_refined": 1.6,
+    "grain_whole": 0,
+    "oils": 2.3,
+    "protein_meat_eggs": 3.25,
+    "protein_nuts_seeds_soy": 0,
+    "protein_seafood": 0,
+    "seafood_albacore": 0,
+    "veg_dark_green": 0,
+    "veg_legumes": 0,
+    "veg_other": 0.05,
+    "veg_red_orange": 0,
+    "veg_starchy": 0.13
+   },
+   "breakdown": [
+    {
+     "ingredient": "ground pork",
+     "amount": "4 oz raw → 3 oz cooked (steamed)",
+     "key": "protein_meat_eggs",
+     "eq": 3.0
+    },
+    {
+     "ingredient": "ground pork",
+     "amount": "4 oz raw → 3 oz cooked (steamed)",
+     "key": "choline",
+     "eq": 80
+    },
+    {
+     "ingredient": "ground pork",
+     "amount": "4 oz raw → 3 oz cooked (steamed)",
+     "key": "calcium",
+     "eq": 10
+    },
+    {
+     "ingredient": "egg (binder)",
+     "amount": "0.25 egg",
+     "key": "protein_meat_eggs",
+     "eq": 0.25
+    },
+    {
+     "ingredient": "egg (binder)",
+     "amount": "0.25 egg",
+     "key": "choline",
+     "eq": 37
+    },
+    {
+     "ingredient": "egg (binder)",
+     "amount": "0.25 egg",
+     "key": "calcium",
+     "eq": 6
+    },
+    {
+     "ingredient": "glutinous rice",
+     "amount": "0.25 cup dry ≈ 45 g",
+     "key": "grain_refined",
+     "eq": 1.6
+    },
+    {
+     "ingredient": "water chestnut",
+     "amount": "2 tbsp",
+     "key": "veg_starchy",
+     "eq": 0.13
+    },
+    {
+     "ingredient": "scallion + ginger",
+     "amount": "1 tbsp",
+     "key": "veg_other",
+     "eq": 0.05
+    },
+    {
+     "ingredient": "sesame oil",
+     "amount": "0.5 tsp",
+     "key": "oils",
+     "eq": 2.3
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "low",
+   "notes": "Estimated from title — recipe has no ingredients yet."
+  },
+  {
+   "recipe_id": 80,
+   "ingredients_hash": "99c271ccdd0146fa",
+   "values": {
+    "calcium": 15,
+    "choline": 135,
+    "dairy": 0,
+    "fruit": 0,
+    "grain_refined": 0,
+    "grain_whole": 0,
+    "oils": 11.0,
+    "protein_meat_eggs": 0,
+    "protein_nuts_seeds_soy": 0,
+    "protein_seafood": 4.5,
+    "seafood_albacore": 0,
+    "veg_dark_green": 0,
+    "veg_legumes": 0,
+    "veg_other": 0.15,
+    "veg_red_orange": 0,
+    "veg_starchy": 0
+   },
+   "breakdown": [
+    {
+     "ingredient": "cod",
+     "amount": "6 oz raw → 4.5 oz cooked",
+     "key": "protein_seafood",
+     "eq": 4.5
+    },
+    {
+     "ingredient": "cod",
+     "amount": "6 oz raw → 4.5 oz cooked",
+     "key": "oils",
+     "eq": 0.5
+    },
+    {
+     "ingredient": "cod",
+     "amount": "6 oz raw → 4.5 oz cooked",
+     "key": "choline",
+     "eq": 135
+    },
+    {
+     "ingredient": "cod",
+     "amount": "6 oz raw → 4.5 oz cooked",
+     "key": "calcium",
+     "eq": 15
+    },
+    {
+     "ingredient": "scallion, ginger, cilantro",
+     "amount": "~0.15 cup",
+     "key": "veg_other",
+     "eq": 0.15
+    },
+    {
+     "ingredient": "neutral oil (sizzled)",
+     "amount": "0.75 tbsp",
+     "key": "oils",
+     "eq": 10.5
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "low",
+   "notes": "Estimated from title — recipe has no ingredients yet."
+  },
+  {
+   "recipe_id": 81,
+   "ingredients_hash": "99c271ccdd0146fa",
+   "values": {
+    "calcium": 149,
+    "choline": 64,
+    "dairy": 0,
+    "fruit": 0,
+    "grain_refined": 3.0,
+    "grain_whole": 0,
+    "oils": 21.8,
+    "protein_meat_eggs": 1.5,
+    "protein_nuts_seeds_soy": 1.5,
+    "protein_seafood": 0,
+    "seafood_albacore": 0,
+    "veg_dark_green": 0.5,
+    "veg_legumes": 0,
+    "veg_other": 0.05,
+    "veg_red_orange": 0,
+    "veg_starchy": 0
+   },
+   "breakdown": [
+    {
+     "ingredient": "wheat noodles",
+     "amount": "3 oz dry",
+     "key": "grain_refined",
+     "eq": 3.0
+    },
+    {
+     "ingredient": "wheat noodles",
+     "amount": "3 oz dry",
+     "key": "choline",
+     "eq": 10
+    },
+    {
+     "ingredient": "ground pork",
+     "amount": "2 oz raw → 1.5 oz cooked",
+     "key": "protein_meat_eggs",
+     "eq": 1.5
+    },
+    {
+     "ingredient": "ground pork",
+     "amount": "2 oz raw → 1.5 oz cooked",
+     "key": "choline",
+     "eq": 40
+    },
+    {
+     "ingredient": "ground pork",
+     "amount": "2 oz raw → 1.5 oz cooked",
+     "key": "calcium",
+     "eq": 5
+    },
+    {
+     "ingredient": "sesame paste",
+     "amount": "1 tbsp",
+     "key": "protein_nuts_seeds_soy",
+     "eq": 1.0
+    },
+    {
+     "ingredient": "sesame paste",
+     "amount": "1 tbsp",
+     "key": "oils",
+     "eq": 8.0
+    },
+    {
+     "ingredient": "sesame paste",
+     "amount": "1 tbsp",
+     "key": "calcium",
+     "eq": 64
+    },
+    {
+     "ingredient": "sesame paste",
+     "amount": "1 tbsp",
+     "key": "choline",
+     "eq": 4
+    },
+    {
+     "ingredient": "chili oil",
+     "amount": "2 tsp",
+     "key": "oils",
+     "eq": 9.3
+    },
+    {
+     "ingredient": "crushed peanuts",
+     "amount": "1 tbsp ≈ 9 g",
+     "key": "protein_nuts_seeds_soy",
+     "eq": 0.5
+    },
+    {
+     "ingredient": "crushed peanuts",
+     "amount": "1 tbsp ≈ 9 g",
+     "key": "oils",
+     "eq": 4.5
+    },
+    {
+     "ingredient": "bok choy",
+     "amount": "0.5 cup cooked",
+     "key": "veg_dark_green",
+     "eq": 0.5
+    },
+    {
+     "ingredient": "bok choy",
+     "amount": "0.5 cup cooked",
+     "key": "calcium",
+     "eq": 80
+    },
+    {
+     "ingredient": "bok choy",
+     "amount": "0.5 cup cooked",
+     "key": "choline",
+     "eq": 10
+    },
+    {
+     "ingredient": "scallion",
+     "amount": "~1 tbsp",
+     "key": "veg_other",
+     "eq": 0.05
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "low",
+   "notes": "Estimated from title — recipe has no ingredients yet."
+  },
+  {
+   "recipe_id": 82,
+   "ingredients_hash": "99c271ccdd0146fa",
+   "values": {
+    "calcium": 5,
+    "choline": 32,
+    "dairy": 0,
+    "fruit": 0,
+    "grain_refined": 2.0,
+    "grain_whole": 0,
+    "oils": 2.0,
+    "protein_meat_eggs": 0,
+    "protein_nuts_seeds_soy": 0,
+    "protein_seafood": 1.0,
+    "seafood_albacore": 0,
+    "veg_dark_green": 0,
+    "veg_legumes": 0,
+    "veg_other": 0,
+    "veg_red_orange": 0,
+    "veg_starchy": 0
+   },
+   "breakdown": [
+    {
+     "ingredient": "cooked short-grain white rice",
+     "amount": "1 cup (2 rice balls)",
+     "key": "grain_refined",
+     "eq": 2.0
+    },
+    {
+     "ingredient": "cooked short-grain white rice",
+     "amount": "1 cup (2 rice balls)",
+     "key": "calcium",
+     "eq": 2
+    },
+    {
+     "ingredient": "cooked short-grain white rice",
+     "amount": "1 cup (2 rice balls)",
+     "key": "choline",
+     "eq": 2
+    },
+    {
+     "ingredient": "cooked salted salmon (filling)",
+     "amount": "1 oz",
+     "key": "protein_seafood",
+     "eq": 1.0
+    },
+    {
+     "ingredient": "cooked salted salmon (filling)",
+     "amount": "1 oz",
+     "key": "oils",
+     "eq": 2.0
+    },
+    {
+     "ingredient": "cooked salted salmon (filling)",
+     "amount": "1 oz",
+     "key": "choline",
+     "eq": 30
+    },
+    {
+     "ingredient": "cooked salted salmon (filling)",
+     "amount": "1 oz",
+     "key": "calcium",
+     "eq": 3
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "low",
+   "notes": "Estimated from title — recipe has no ingredients yet."
+  },
+  {
+   "recipe_id": 83,
+   "ingredients_hash": "79d667ce450a8970",
+   "values": {
+    "calcium": 78,
+    "choline": 15,
+    "dairy": 0.03,
+    "fruit": 0,
+    "grain_refined": 0,
+    "grain_whole": 2.0,
+    "oils": 11.7,
+    "protein_meat_eggs": 0,
+    "protein_nuts_seeds_soy": 0.17,
+    "protein_seafood": 0,
+    "seafood_albacore": 0,
+    "veg_dark_green": 0,
+    "veg_legumes": 0,
+    "veg_other": 0.1,
+    "veg_red_orange": 0,
+    "veg_starchy": 0
+   },
+   "breakdown": [
+    {
+     "ingredient": "whole-wheat bread",
+     "amount": "2 slices",
+     "key": "grain_whole",
+     "eq": 2.0
+    },
+    {
+     "ingredient": "whole-wheat bread",
+     "amount": "2 slices",
+     "key": "calcium",
+     "eq": 60
+    },
+    {
+     "ingredient": "whole-wheat bread",
+     "amount": "2 slices",
+     "key": "choline",
+     "eq": 15
+    },
+    {
+     "ingredient": "basil pesto",
+     "amount": "1.5 tbsp: olive oil part",
+     "key": "oils",
+     "eq": 10.5
+    },
+    {
+     "ingredient": "pine nuts (in pesto)",
+     "amount": "~1 tsp",
+     "key": "protein_nuts_seeds_soy",
+     "eq": 0.17
+    },
+    {
+     "ingredient": "pine nuts (in pesto)",
+     "amount": "~1 tsp",
+     "key": "oils",
+     "eq": 1.2
+    },
+    {
+     "ingredient": "Parmesan (in pesto)",
+     "amount": "~1 tsp",
+     "key": "dairy",
+     "eq": 0.03
+    },
+    {
+     "ingredient": "Parmesan (in pesto)",
+     "amount": "~1 tsp",
+     "key": "calcium",
+     "eq": 18
+    },
+    {
+     "ingredient": "basil + garlic (in pesto)",
+     "amount": "~0.1 cup",
+     "key": "veg_other",
+     "eq": 0.1
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "low",
+   "notes": "Estimated from title — recipe has no ingredients yet."
+  }
+ ]
+}

@@ -9,4 +9,4 @@ Compute Anny Food breakdowns for anything new or changed, then import them on th
 5. Validate, then import:
    `ssh homeserver@homeserver 'cd ~/Home-Tools && console/.venv/bin/python -m anny_food.cli import - --dry-run' < out.json`
    then the same without `--dry-run`. A hash mismatch means the recipe changed after export: re-export just those ids.
-6. Append the imported recipes to `anny_food/data/recipe_breakdowns.json` (replace by recipe_id) so the repo keeps the audit trail, and commit.
+6. Append the imported recipes to `anny_food/breakdowns/recipe_breakdowns.json` (replace by recipe_id) so the repo keeps the audit trail, and commit.
