@@ -1,0 +1,311 @@
+# Anny Food — weekly food-group targets by trimester.
+#
+# Source: Dietary Guidelines for Americans 2020–2025, Table 5-1, Healthy
+# U.S.-Style Dietary Pattern for pregnant/lactating women at 2,000 kcal
+# (T1 = baseline). T2/T3 scale the baseline by the DGA Chapter 5 calorie
+# increases (+340 / +452 kcal → factors 1.170 / 1.226), per Ian's
+# "Pregnancy Diet Planning.xlsx". A planning approximation, not an official
+# per-trimester DGA pattern, and not medical advice.
+#
+# Editing: change numbers freely; the app reads this file on each load.
+#   period = "day"  → target is per day; weekly target = value × 7
+#   period = "week" → target is per week
+#   kind   = "min"  → goal is to reach at least the value
+#   kind   = "limit"→ value is a maximum (shown red when exceeded)
+#   ceiling         → optional weekly hard max on a "min" row (seafood)
+#   derived_from    → total computed from subgroups; never stored per recipe
+#   enabled = false → row is kept for later and ignored by the app
+#
+# TODO(verify vs xlsx before T2, ~week 14): the workbook summary says refined
+# grains are held at baseline, but the original prompt table scaled them to
+# 3.8/4.0. Refined is a DGA "≤" amount, so it is a limit row held at 3.0 here.
+
+[meta]
+baseline_kcal = 2000
+scale_factors = { t1 = 1.000, t2 = 1.170, t3 = 1.226 }
+# Legumes count toward veg_legumes until its weekly target is met; the
+# overflow counts as protein at this rate (¼ cup cooked beans = 1 oz eq).
+legume_protein_oz_eq_per_cup_eq = 4.0
+week_start = "monday"
+
+# ---- Vegetables -------------------------------------------------------------
+
+[[target]]
+key = "veg_total"
+label = "Vegetables (total)"
+unit = "cup eq"
+period = "day"
+kind = "min"
+t1 = 2.5
+t2 = 2.9
+t3 = 3.1
+derived_from = ["veg_dark_green", "veg_red_orange", "veg_legumes", "veg_starchy", "veg_other"]
+
+[[target]]
+key = "veg_dark_green"
+label = "Dark-green vegetables"
+unit = "cup eq"
+period = "week"
+kind = "min"
+t1 = 1.5
+t2 = 1.8
+t3 = 1.8
+parent = "veg_total"
+
+[[target]]
+key = "veg_red_orange"
+label = "Red & orange vegetables"
+unit = "cup eq"
+period = "week"
+kind = "min"
+t1 = 5.5
+t2 = 6.4
+t3 = 6.7
+parent = "veg_total"
+
+[[target]]
+key = "veg_legumes"
+label = "Beans, peas, lentils"
+unit = "cup eq"
+period = "week"
+kind = "min"
+t1 = 1.5
+t2 = 1.8
+t3 = 1.8
+parent = "veg_total"
+
+[[target]]
+key = "veg_starchy"
+label = "Starchy vegetables"
+unit = "cup eq"
+period = "week"
+kind = "min"
+t1 = 5.0
+t2 = 5.9
+t3 = 6.1
+parent = "veg_total"
+
+[[target]]
+key = "veg_other"
+label = "Other vegetables"
+unit = "cup eq"
+period = "week"
+kind = "min"
+t1 = 4.0
+t2 = 4.7
+t3 = 4.9
+parent = "veg_total"
+
+# ---- Fruit ------------------------------------------------------------------
+
+[[target]]
+key = "fruit"
+label = "Fruits"
+unit = "cup eq"
+period = "day"
+kind = "min"
+t1 = 2.0
+t2 = 2.0
+t3 = 2.0
+
+# ---- Grains -----------------------------------------------------------------
+
+[[target]]
+key = "grain_whole"
+label = "Whole grains"
+unit = "oz eq"
+period = "day"
+kind = "min"
+t1 = 3.0
+t2 = 3.8
+t3 = 4.0
+
+[[target]]
+key = "grain_refined"
+label = "Refined grains (enriched)"
+unit = "oz eq"
+period = "day"
+kind = "limit"
+t1 = 3.0
+t2 = 3.0
+t3 = 3.0
+
+# ---- Dairy ------------------------------------------------------------------
+
+[[target]]
+key = "dairy"
+label = "Dairy"
+unit = "cup eq"
+period = "day"
+kind = "min"
+t1 = 3.0
+t2 = 3.0
+t3 = 3.0
+
+# ---- Protein ----------------------------------------------------------------
+
+[[target]]
+key = "protein_total"
+label = "Protein foods (total)"
+unit = "oz eq"
+period = "day"
+kind = "min"
+t1 = 5.5
+t2 = 6.4
+t3 = 6.7
+# Plus any legume overflow (see meta.legume_protein_oz_eq_per_cup_eq).
+derived_from = ["protein_meat_eggs", "protein_seafood", "protein_nuts_seeds_soy"]
+
+[[target]]
+key = "protein_meat_eggs"
+label = "Meats, poultry, eggs"
+unit = "oz eq"
+period = "week"
+kind = "min"
+t1 = 26.0
+t2 = 30.4
+t3 = 31.9
+parent = "protein_total"
+
+[[target]]
+key = "protein_seafood"
+label = "Seafood (low-mercury)"
+unit = "oz eq"
+period = "week"
+kind = "min"
+t1 = 8.0
+t2 = 9.4
+t3 = 9.8
+ceiling = 12.0   # FDA/EPA: 8–12 oz/week during pregnancy
+parent = "protein_total"
+
+[[target]]
+key = "seafood_albacore"
+label = "…of which albacore / white tuna"
+unit = "oz eq"
+period = "week"
+kind = "limit"
+# Ian's DGA-sourced cap. FDA's current fish chart puts albacore in "Good
+# Choices" at 1 serving (~4 oz) per week — lower this to 4 to follow it.
+t1 = 6.0
+t2 = 6.0
+t3 = 6.0
+parent = "protein_seafood"
+# Already counted inside protein_seafood; tracked only for the cap.
+subset_of = "protein_seafood"
+
+[[target]]
+key = "protein_nuts_seeds_soy"
+label = "Nuts, seeds, soy"
+unit = "oz eq"
+period = "week"
+kind = "min"
+t1 = 5.0
+t2 = 5.9
+t3 = 6.1
+parent = "protein_total"
+
+# ---- Oils & nutrients -------------------------------------------------------
+
+[[target]]
+key = "oils"
+label = "Oils"
+unit = "g"
+period = "day"
+kind = "min"
+t1 = 27.0
+t2 = 27.0
+t3 = 27.0
+
+[[target]]
+key = "calcium"
+label = "Calcium"
+unit = "mg"
+period = "day"
+kind = "min"
+t1 = 1000.0
+t2 = 1000.0
+t3 = 1000.0
+
+[[target]]
+key = "choline"
+label = "Choline"
+unit = "mg"
+period = "day"
+kind = "min"
+t1 = 450.0
+t2 = 450.0
+t3 = 450.0
+
+# ---- Later (from the workbook; disabled in v1) ------------------------------
+
+[[target]]
+key = "inositol"
+label = "Inositol (unconfirmed)"
+unit = "mg"
+period = "day"
+kind = "min"
+t1 = 500.0
+t2 = 500.0
+t3 = 500.0
+enabled = false
+
+[[target]]
+key = "fluids"
+label = "Fluids"
+unit = "cup"
+period = "day"
+kind = "min"
+t1 = 8.0
+t2 = 8.0
+t3 = 8.0
+enabled = false
+
+[[target]]
+key = "added_sugar"
+label = "Added sugars"
+unit = "g"
+period = "day"
+kind = "limit"
+t1 = 50.0
+t2 = 50.0
+t3 = 50.0
+enabled = false
+
+[[target]]
+key = "sodium"
+label = "Sodium"
+unit = "mg"
+period = "day"
+kind = "limit"
+t1 = 2300.0
+t2 = 2300.0
+t3 = 2300.0
+enabled = false
+
+[[target]]
+key = "caffeine"
+label = "Caffeine"
+unit = "mg"
+period = "day"
+kind = "limit"
+t1 = 300.0
+t2 = 300.0
+t3 = 300.0
+enabled = false
+
+# ---- Pregnancy safety flags (informational, shown on recipe cards) ----------
+
+[safety_flags]
+raw_egg = "Raw or undercooked egg"
+undercooked_meat = "Raw or undercooked meat/poultry"
+raw_fish = "Raw fish/shellfish (sushi, poke, ceviche, oysters)"
+smoked_seafood = "Refrigerated smoked seafood (OK if cooked in a dish)"
+high_mercury_fish = "High-mercury fish (swordfish, king mackerel, shark, tilefish, bigeye tuna, marlin, orange roughy)"
+unpasteurized_dairy = "Unpasteurized milk or cheese"
+deli_meat = "Deli/hot dog/cured meat not heated to 165°F"
+pate = "Refrigerated pâté or meat spread"
+liver = "Liver / high preformed vitamin A"
+raw_sprouts = "Raw sprouts"
+unpasteurized_juice = "Unpasteurized juice or cider"
+alcohol = "Alcohol not fully cooked off"

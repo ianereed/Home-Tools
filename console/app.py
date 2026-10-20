@@ -1,14 +1,15 @@
 """
 Mini Ops — Streamlit console at :8503.
 
-Ian's ops surface for the Home-Tools mini. NOT a joint surface for Anny;
-that's the meal-planner expansion (Phase 14+).
+Ian's ops surface for the Home-Tools mini. Recipes and Anny Food are the
+two tabs Anny uses too.
 
 Tab order (left → right, default):
   Jobs      — queue depth, recent runs, kinds list
   Decisions — cards.jsonl feed (approve/reject/dismiss)
   Intake    — paste/upload files for nas-intake-style processing
   Recipes   — meal-planner V0 (Phase 14)
+  Anny Food — Anny's pregnancy food-group tracker (anny_food/)
   Status    — status panel + links/docs (moved out of the old sidebar)
 
 Deep-link: ?tab=<key> opens directly on the named tab (no Jobs flicker).
@@ -23,7 +24,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import streamlit as st  # noqa: E402
 
-from console.tabs import capture, decisions, intake, jobs, plan, status  # noqa: E402
+from console.tabs import anny_food, capture, decisions, intake, jobs, plan, status  # noqa: E402
 
 st.set_page_config(
     page_title="Mini Ops",
@@ -32,13 +33,14 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
-_TAB_ORDER = ["jobs", "capture", "decisions", "intake", "recipes", "status"]
+_TAB_ORDER = ["jobs", "capture", "decisions", "intake", "recipes", "anny", "status"]
 _TAB_LABELS = {
     "jobs":      ":racing_car: Jobs",
     "capture":   ":camera: Capture",
     "decisions": ":card_index: Decisions",
     "intake":    ":inbox_tray: Intake",
     "recipes":   ":memo: Recipes",
+    "anny":      ":pregnant_woman: Anny Food",
     "status":    ":gear: Status",
 }
 _TAB_RENDERERS = {
@@ -47,6 +49,7 @@ _TAB_RENDERERS = {
     "decisions": decisions.render,
     "intake":    intake.render,
     "recipes":   plan.render,  # module is still console.tabs.plan
+    "anny":      anny_food.render,
     "status":    status.render,
 }
 
