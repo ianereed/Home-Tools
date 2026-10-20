@@ -12,18 +12,21 @@ to edit-mode. "Delete this recipe" uses a two-click confirm (10 s TTL).
 from __future__ import annotations
 
 import time
+import traceback
 
 import pandas as pd
 import streamlit as st
 
 from console import jobs_client as _jobs_client
 from console.tabs._recipe_form import (
+    INGREDIENT_COLUMNS,
     clean_optional_str,
     diff_ingredients,
     format_view_block,
     ingredients_to_rows,
     nan_to_none,
     normalize_tags,
+    row_name,
     validate_recipe_form,
 )
 from meal_planner import db as _db
@@ -73,6 +76,9 @@ def render() -> None:
     try:
         _render_inner()
     except Exception as exc:
+        # Also to stderr (logs/console.err.log): st.exception only reaches the
+        # browser, so a failure Anny hits otherwise leaves no trace to debug.
+        traceback.print_exc()
         st.error("Plan tab error — see traceback below")
         st.exception(exc)
 
@@ -410,7 +416,7 @@ def _render_edit_panel(recipe_id: int) -> None:
     # Ingredients sub-grid
     # -----------------------------------------------------------------------
     st.markdown("**Ingredients**")
-    ingr_df = pd.DataFrame(before_rows)
+    ingr_df = _ingredients_frame(before_rows)
     edited_ingr = st.data_editor(
         ingr_df,
         column_config={
@@ -457,13 +463,16 @@ def _render_edit_panel(recipe_id: int) -> None:
     ingr_changed = bool(
         ingr_diff["updates"]
         or ingr_diff["deletes"]
-        or any(r.get("name", "").strip() for r in ingr_diff["adds"])
+        or any(row_name(r) for r in ingr_diff["adds"])
     )
     saved_now = False
     if ok and _edit_is_dirty(recipe, current_tags, payload, merged, before_rows, after_rows):
         pok, perr = _persist_recipe(recipe_id, payload, merged, before_rows, edited_ingr)
         if pok:
             saved_now = True
+            # Once anything is autosaved the recipe is real: the button flips
+            # from "Cancel" (hard-deletes the stub) to "Close".
+            _pending_ids().discard(recipe_id)
             if ingr_changed:
                 # st.data_editor keeps its edits as a POSITION-keyed delta in
                 # session_state that survives reruns. We just wrote the
@@ -523,6 +532,19 @@ def _render_edit_panel(recipe_id: int) -> None:
         _render_delete_button(recipe_id)
 
 
+def _ingredients_frame(rows: list[dict]) -> pd.DataFrame:
+    """Build the ingredient grid's DataFrame, keeping its columns when empty.
+
+    ``pd.DataFrame([])`` has no columns, so a brand-new recipe got a grid with
+    nothing to type into and its ingredients could never be added (Anny,
+    2026-10-20). Numeric dtypes match what a non-empty frame infers.
+    """
+    df = pd.DataFrame(rows, columns=list(INGREDIENT_COLUMNS))
+    if df.empty:
+        df = df.astype({"id": "int64", "qty_per_serving": "float64", "sort_order": "int64"})
+    return df
+
+
 def _rows_from_editor(edited_ingr) -> list[dict]:
     """Turn the data_editor frame into plain row dicts with normalized ids.
 
@@ -576,7 +598,7 @@ def _edit_is_dirty(
     diff = diff_ingredients(before_rows, after_rows)
     if diff["updates"] or diff["deletes"]:
         return True
-    if any(row.get("name", "").strip() for row in diff["adds"]):
+    if any(row_name(row) for row in diff["adds"]):
         return True
     return False
 
@@ -625,10 +647,10 @@ def _persist_recipe(
                     conn=conn,
                 )
             for row in diff["adds"]:
-                if row.get("name", "").strip():
+                if row_name(row):
                     queries.add_ingredient(
                         recipe_id,
-                        name=row["name"].strip(),
+                        name=row_name(row),
                         qty_per_serving=nan_to_none(row.get("qty_per_serving")),
                         unit=clean_optional_str(row.get("unit")),
                         notes=clean_optional_str(row.get("notes")),
