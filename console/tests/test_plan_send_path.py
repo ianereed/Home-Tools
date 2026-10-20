@@ -170,6 +170,68 @@ def test_job_result_stays_until_dismissed(tab, monkeypatch):
 
 
 # ---------------------------------------------------------------------------
+# A job that never reports back must not lock Send for the whole session
+# ---------------------------------------------------------------------------
+# jobs_client.result() returns None ("pending") while the job runs, and also
+# when jobs-http or the consumer is down or the job was lost.
+
+_PAST_GIVE_UP = 301  # s; the console gives up on a job after 5 min
+
+
+def _pending_job(tab, monkeypatch, age_s: float):
+    import time
+
+    from console.tabs import plan
+
+    tab.session_state["_send_job"] = {
+        "task_id": "task-1", "started_at": time.monotonic() - age_s, "notes": [],
+    }
+    monkeypatch.setattr(plan._jobs_client, "result", lambda task_id: None)
+    return plan
+
+
+def test_young_pending_job_offers_no_stop(tab, monkeypatch):
+    plan = _pending_job(tab, monkeypatch, age_s=5)
+
+    assert tab.run(plan._job_status_body, "_send_job", "Send to Todoist") is False
+
+    assert "_send_job_stop" not in tab.disabled
+    assert "_send_job" in tab.session_state
+
+
+def test_stop_waiting_unlocks_send(tab, monkeypatch):
+    plan = _pending_job(tab, monkeypatch, age_s=90)
+    tab.buttons_clicked = {"_send_job_stop"}
+
+    assert tab.run(plan._job_status_body, "_send_job", "Send to Todoist") is True
+
+    assert "_send_job" not in tab.session_state
+    level, message = tab.session_state["_send_job_done"]
+    assert level == "warning" and "Check Todoist" in message
+
+
+def test_pending_job_gives_up_after_timeout(tab, monkeypatch):
+    plan = _pending_job(tab, monkeypatch, age_s=_PAST_GIVE_UP)
+
+    assert tab.run(plan._job_status_body, "_send_job", "Send to Todoist") is True
+
+    assert "_send_job" not in tab.session_state
+    assert "no result after 5 min" in tab.session_state["_send_job_done"][1]
+
+
+def test_send_enabled_again_after_giving_up(db, tab, monkeypatch, enqueued):
+    insert_recipe(title="Soup", path=db)
+    plan = _pending_job(tab, monkeypatch, age_s=_PAST_GIVE_UP)
+    tab.run(plan._job_status_body, "_send_job", "Send to Todoist")
+    tab.buttons_clicked = {SEND}
+
+    _render_tab(tab, _check_first_row())
+
+    assert tab.disabled[SEND] is False
+    assert len(enqueued) == 1
+
+
+# ---------------------------------------------------------------------------
 # Runner: load every recipe before creating any task
 # ---------------------------------------------------------------------------
 

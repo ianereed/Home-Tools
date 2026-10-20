@@ -41,6 +41,12 @@ from console.tabs._job_status import (
 
 _CONFIRM_CLEAR_TTL = 10  # seconds before the confirm state resets
 _CONFIRM_DELETE_TTL = 10  # seconds before the delete confirm state resets
+# A job with no result yet: jobs_client.result() says "pending" both while the
+# job runs and when the consumer or jobs-http is down or lost the job, and
+# Send stays disabled meanwhile. After _JOB_STOP_WAITING_AFTER the user may
+# give up on it; after _JOB_GIVE_UP_AFTER the console gives up by itself.
+_JOB_STOP_WAITING_AFTER = 60  # seconds
+_JOB_GIVE_UP_AFTER = 300  # seconds
 
 # Tracks recipe IDs created by "+ New recipe" that have not yet been saved.
 # Cancel on a pending recipe deletes the stub row instead of leaving an orphan.
@@ -108,7 +114,9 @@ def _job_status_body(state_key: str, label: str) -> None:
     the result (success/warning/error with the result-dict summary) under
     ``{state_key}_done`` and reruns the whole app, so a Send button disabled
     while the job ran comes back. The result stays up until Dismiss — it used
-    to be drawn once and vanish on the fragment's next 2 s tick.
+    to be drawn once and vanish on the fragment's next 2 s tick. A job with no
+    result can be abandoned ("Stop waiting") and is abandoned automatically
+    after _JOB_GIVE_UP_AFTER, the same way.
     """
     done_key = f"{state_key}_done"
     done = st.session_state.get(done_key)
@@ -132,13 +140,27 @@ def _job_status_body(state_key: str, label: str) -> None:
     for note in state.get("notes", ()):
         st.warning(note)
     result = _read_result_or_synthesize_error(_jobs_client.result, task_id)
+    notes = " ".join(state.get("notes", ()))
     if result is None:
         elapsed = int(time.monotonic() - started_at)
-        st.info(f"{label}… ({elapsed}s)", icon="⏳")
-        return
+        gave_up = elapsed >= _JOB_GIVE_UP_AFTER
+        if not gave_up:
+            st.info(f"{label}… ({elapsed}s)", icon="⏳")
+            if elapsed < _JOB_STOP_WAITING_AFTER or not st.button(
+                "Stop waiting", key=f"{state_key}_stop",
+                help="No result yet. The job service may be down, or the job lost.",
+            ):
+                return
+        del st.session_state[state_key]
+        why = f"no result after {elapsed // 60} min" if gave_up else "stopped waiting"
+        st.session_state[done_key] = (
+            "warning",
+            f"{why} — the job may still run, or may never have. "
+            f"Check Todoist before sending again. {notes}".strip(),
+        )
+        st.rerun()
     del st.session_state[state_key]
     level, message = _format_status(result)
-    notes = " ".join(state.get("notes", ()))
     st.session_state[done_key] = (level, f"{message} {notes}".strip())
     st.rerun()
 
@@ -406,7 +428,7 @@ def _close_edit_panel(recipe_id: int) -> None:
     st.session_state.pop(f"_confirm_delete_at_{recipe_id}", None)
     for prefix in _EDIT_WIDGET_KEY_PREFIXES:
         st.session_state.pop(f"{prefix}_{recipe_id}", None)
-    for prefix in ("_edit_snapshot", "_edit_reload", "_edit_notice"):
+    for prefix in ("_edit_snapshot", "_edit_reload", "_edit_notice", "_edit_ingr_rows"):
         st.session_state.pop(f"{prefix}_{recipe_id}", None)
 
 
@@ -445,7 +467,7 @@ def _render_edit_panel(recipe_id: int) -> None:
 
     current_tags = queries.get_recipe_tags(recipe_id)
     current_ingredients = queries.list_ingredients(recipe_id)
-    before_rows = ingredients_to_rows(current_ingredients)
+    fresh_rows = ingredients_to_rows(current_ingredients)
 
     # The edit widgets are keyed, so they hold the recipe as this panel loaded
     # it plus this session's edits. Comparing them against a fresh DB read
@@ -460,6 +482,16 @@ def _render_edit_panel(recipe_id: int) -> None:
         st.session_state[snap_key] = snap
         # A reload names the widgets to refresh; opening the panel fills all.
         _seed_edit_widgets(recipe_id, recipe, current_tags, reload)
+    # The ingredient grid needs its own snapshot, for a Streamlit reason:
+    # data_editor's widget id is built from its data, so a grid built from a
+    # fresh read that another session had just changed got a new id and
+    # silently dropped this session's pending edit. The grid keeps showing the
+    # rows it was built from until this session saves or reloads it.
+    rows_key = f"_edit_ingr_rows_{recipe_id}"
+    shown_rows = st.session_state.get(rows_key)
+    if shown_rows is None:
+        shown_rows = fresh_rows
+        st.session_state[rows_key] = shown_rows
     notice = st.session_state.pop(f"_edit_notice_{recipe_id}", None)
     if notice:
         st.warning(notice)
@@ -520,7 +552,7 @@ def _render_edit_panel(recipe_id: int) -> None:
     # Ingredients sub-grid
     # -----------------------------------------------------------------------
     st.markdown("**Ingredients**")
-    ingr_df = _ingredients_frame(before_rows)
+    ingr_df = _ingredients_frame(shown_rows)
     edited_ingr = st.data_editor(
         ingr_df,
         column_config={
@@ -552,10 +584,12 @@ def _render_edit_panel(recipe_id: int) -> None:
     # change). Each commit triggers a rerun, and we save here BEFORE the
     # buttons render, so a dropped tailnet connection can't lose work.
     #
-    # Only fields this session changed (form vs snapshot) are written, under
-    # an updated_at guard, so a concurrent edit to another field survives. If
-    # the other session changed the same field, or wrote between our read and
-    # our write, the panel reloads from the DB and says so.
+    # Only what this session changed (form vs snapshot) is written, under an
+    # updated_at guard, so a concurrent edit elsewhere in the recipe survives.
+    # If the other session changed the same field or ingredient, or wrote
+    # between our read and our write, the panel reloads and says so. Any
+    # rerun waits until the buttons below have handled their click, or
+    # Done/Close/Delete pressed in the same commit would be lost.
     # -----------------------------------------------------------------------
     payload = {
         "title": new_title,
@@ -567,9 +601,8 @@ def _render_edit_panel(recipe_id: int) -> None:
     }
     ok, errs = validate_recipe_form(payload)
     after_rows = _rows_from_editor(edited_ingr)
-    ingr_diff, blanked = _ingredient_diff(before_rows, after_rows)
-    ingr_changed = any(ingr_diff.values())
-    if blanked:
+    ingr = _plan_ingredient_sync(shown_rows, fresh_rows, after_rows)
+    if ingr["blanked"]:
         st.warning(
             "An ingredient's name can't be blank, so that change isn't saved. "
             "To remove an ingredient, delete its row instead."
@@ -577,27 +610,15 @@ def _render_edit_panel(recipe_id: int) -> None:
 
     saved_now = False
     save_error: str | None = None
+    rerun_after = False
+    notice = None
     if ok:
         form = _form_values(payload)
-        db_now = _recipe_values(recipe)
-        mine = {k: v for k, v in form.items() if v != snap["fields"][k]}
-        theirs = {k for k, v in db_now.items() if v != snap["fields"][k]}
-        theirs_tags = sorted(current_tags) != snap["tags"]
-        writes = {k: v for k, v in mine.items() if v != db_now[k]}
-        write_tags = sorted(merged) != snap["tags"] and sorted(merged) != sorted(current_tags)
-
-        # Both sessions changed the same field: the first write stands and only
-        # this session's edit of that field is dropped (said in the notice).
-        conflicts = sorted(k for k in writes if k in theirs)
-        for k in conflicts:
-            del writes[k]
-        if write_tags and theirs_tags:
-            conflicts.append("tags")
-            write_tags = False
-        notice = None
-        if conflicts:
+        rec = _plan_recipe_sync(snap, recipe, current_tags, form, merged)
+        clashes = rec["conflicts"] + [f"ingredient {row['name']}" for row in ingr["conflicts"]]
+        if clashes:
             notice = (
-                f"This recipe's {', '.join(conflicts)} was changed in another "
+                f"This recipe's {', '.join(clashes)} was changed in another "
                 "session at the same time, so your edit there wasn't saved. It "
                 "now shows the other version — redo your edit if you still want it."
             )
@@ -606,13 +627,14 @@ def _render_edit_panel(recipe_id: int) -> None:
         # the box, the next tag typed there replaced it in the saved set). Only
         # these: reloading pushes the value to the browser, over anything
         # being typed in that field.
-        refresh = set(theirs)
-        if theirs_tags or new_free_tag.strip():
+        refresh = set(rec["theirs"])
+        if rec["theirs_tags"] or new_free_tag.strip():
             refresh |= {"tags", "new_tag"}
+        ingr_changed = any(ingr["diff"].values())
 
-        if writes or write_tags or ingr_changed:
+        if rec["writes"] or rec["tags"] is not None or ingr_changed:
             status, perr = _persist_recipe(
-                recipe_id, writes, merged if write_tags else None, ingr_diff,
+                recipe_id, rec["writes"], rec["tags"], ingr["diff"],
                 expected_updated_at=recipe.updated_at,
             )
             if status == "ok":
@@ -620,38 +642,35 @@ def _render_edit_panel(recipe_id: int) -> None:
                 # Once anything is autosaved the recipe is real: the button flips
                 # from "Cancel" (hard-deletes the stub) to "Close".
                 _pending_ids().discard(recipe_id)
-                if refresh:
-                    _reload_edit_panel(recipe_id, refresh, notice)
-                st.session_state[snap_key] = {"fields": form, "tags": sorted(merged)}
-                if ingr_changed:
-                    # st.data_editor keeps its edits as a POSITION-keyed delta in
-                    # session_state that survives reruns. We just wrote the
-                    # ingredient changes to the DB; on the next rerun
-                    # list_ingredients reorders the rows (ORDER BY sort_order, name)
-                    # and grows/shrinks the set, so the stale delta would re-apply at
-                    # the wrong row positions — reverting or duplicating the edit
-                    # (Anny: every edit after the first needs two tries). Drop the
-                    # delta and rerun so the grid rebuilds clean from the saved rows.
-                    st.session_state.pop(f"edit_ingr_{recipe_id}", None)
-                    st.rerun()
+                st.session_state[snap_key] = {"fields": form, "tags": rec["final_tags"]}
+                # st.data_editor keeps its edits as a POSITION-keyed delta in
+                # session_state that survives reruns. After an ingredient write
+                # list_ingredients reorders the rows (ORDER BY sort_order, name)
+                # and grows/shrinks the set, so the stale delta would re-apply at
+                # the wrong row positions — reverting or duplicating the edit
+                # (Anny: every edit after the first needs two tries). So the grid
+                # rebuilds clean from the saved rows.
+                rerun_after = _queue_reload(
+                    recipe_id, refresh, notice, grid=ingr_changed or ingr["theirs_changed"],
+                )
             elif status == "deleted":
                 st.error("Recipe was deleted by another session — closing editor.")
                 _close_edit_panel(recipe_id)
                 st.rerun()
             elif status == "stale":
-                _reload_edit_panel(
-                    recipe_id,
-                    notice="This recipe was changed in another session while you "
-                    "were editing, so your last edit wasn't saved. It now shows "
-                    "the latest version — redo the edit if you still want it.",
+                notice = (
+                    "This recipe was changed in another session while you were "
+                    "editing, so your last edit wasn't saved. It now shows the "
+                    "latest version — redo the edit if you still want it."
                 )
+                rerun_after = _queue_reload(recipe_id, set(_EDIT_FIELD_WIDGETS), notice, grid=True)
             else:
                 save_error = perr
                 st.warning(f"Autosave failed: {perr}")
-        elif refresh:
-            # Nothing of ours to save, but another session changed this recipe:
-            # load its version so the form isn't showing stale values.
-            _reload_edit_panel(recipe_id, refresh, notice)
+        else:
+            # Nothing of ours to save, but another session may have changed this
+            # recipe: load its version so the form isn't showing stale values.
+            rerun_after = _queue_reload(recipe_id, refresh, notice, grid=ingr["theirs_changed"])
 
     if saved_now:
         st.success("Saved ✓", icon="✅")
@@ -667,13 +686,14 @@ def _render_edit_panel(recipe_id: int) -> None:
 
     with col_done:
         if st.button("Done", type="primary", use_container_width=True, key=f"save_{recipe_id}"):
-            # Autosave above already wrote this run's edits; Done just closes.
+            # Autosave above already wrote this run's edits; Done just closes —
+            # unless part of the edit wasn't saved, which the rerun explains.
             if not ok:
                 for e in errs:
                     st.error(e)
             elif save_error:
                 st.error(f"Save failed: {save_error}")
-            else:
+            elif not notice:
                 _pending_ids().discard(recipe_id)
                 _close_edit_panel(recipe_id)
                 st.rerun()
@@ -697,6 +717,9 @@ def _render_edit_panel(recipe_id: int) -> None:
 
     with col_delete:
         _render_delete_button(recipe_id)
+
+    if rerun_after:
+        st.rerun()
 
 
 def _recipe_values(recipe) -> dict:
@@ -751,13 +774,21 @@ def _seed_edit_widgets(recipe_id: int, recipe, tags: list[str], only=None) -> No
         st.session_state[f"{_EDIT_FIELD_WIDGETS[name]}_{recipe_id}"] = values[name]
 
 
-def _reload_edit_panel(recipe_id: int, fields=None, notice: str | None = None) -> None:
-    """Rerun with the named edit widgets (default: all) reloaded from the DB."""
-    st.session_state[f"_edit_reload_{recipe_id}"] = sorted(fields or _EDIT_FIELD_WIDGETS)
+def _queue_reload(recipe_id: int, fields=(), notice: str | None = None, grid: bool = False) -> bool:
+    """Mark edit widgets to reload from the DB on the next run.
+
+    ``fields`` names _EDIT_FIELD_WIDGETS entries; ``grid`` rebuilds the
+    ingredient grid from fresh rows. Returns True when the caller should rerun.
+    """
+    if fields:
+        reload_key = f"_edit_reload_{recipe_id}"
+        st.session_state[reload_key] = sorted(set(st.session_state.get(reload_key) or ()) | set(fields))
     if notice:
         st.session_state[f"_edit_notice_{recipe_id}"] = notice
-    st.session_state.pop(f"edit_ingr_{recipe_id}", None)
-    st.rerun()
+    if grid:
+        st.session_state.pop(f"_edit_ingr_rows_{recipe_id}", None)
+        st.session_state.pop(f"edit_ingr_{recipe_id}", None)
+    return bool(fields or notice or grid)
 
 
 def _ingredients_frame(rows: list[dict]) -> pd.DataFrame:
@@ -810,6 +841,73 @@ def _ingredient_diff(
     diff["updates"] = [row for row in diff["updates"] if row_name(row)]
     diff["adds"] = [row for row in diff["adds"] if row_name(row)]
     return diff, blanked
+
+
+def _plan_recipe_sync(snap: dict, recipe, current_tags: list[str], form: dict, merged: list[str]) -> dict:
+    """Three-way merge of the form against the panel snapshot and the DB now.
+
+    "mine" is form vs snapshot, "theirs" is DB vs snapshot. Returns:
+
+    - writes: fields to write — this session's changes, minus conflicts
+    - conflicts: fields both sessions changed (the DB's value stands)
+    - theirs: fields the other session changed, to reload into the form
+    - theirs_tags: whether the other session changed the tag set
+    - final_tags: the merged tag set; tags: the same when it must be written,
+      else None
+
+    Tags merge one tag at a time: this session's additions and removals apply
+    on top of the other session's set, so two people each adding a tag at
+    once keep both (comparing whole sets called that a conflict and dropped one).
+    """
+    base = snap["fields"]
+    db_now = _recipe_values(recipe)
+    mine = {k: v for k, v in form.items() if v != base[k]}
+    theirs = {k for k, v in db_now.items() if v != base[k]}
+    writes = {k: v for k, v in mine.items() if v != db_now[k]}
+    conflicts = sorted(k for k in writes if k in theirs)
+    for k in conflicts:
+        del writes[k]
+
+    base_tags, mine_tags, db_tags = set(snap["tags"]), set(merged), set(current_tags)
+    final = (db_tags | (mine_tags - base_tags)) - (base_tags - mine_tags)
+    return {
+        "writes": writes,
+        "conflicts": conflicts,
+        "theirs": theirs,
+        "theirs_tags": db_tags != base_tags,
+        "final_tags": sorted(final),
+        "tags": sorted(final) if final != db_tags else None,
+    }
+
+
+def _plan_ingredient_sync(shown_rows: list[dict], fresh_rows: list[dict], after_rows: list[dict]) -> dict:
+    """The grid's edits (vs the rows it showed) merged with the DB now.
+
+    Returns:
+
+    - diff: what to write (see _ingredient_diff), minus conflicts
+    - blanked: rows whose name was cleared (not saved)
+    - conflicts: edited or deleted rows the other session also changed or
+      deleted (the DB's version stands)
+    - theirs_changed: whether the DB rows differ from the grid's, so the grid
+      should be rebuilt
+    """
+    diff, blanked = _ingredient_diff(shown_rows, after_rows)
+    fresh_by_id = {row["id"]: row for row in fresh_rows}
+    theirs_ids = {row["id"] for row in shown_rows if fresh_by_id.get(row["id"]) != row}
+    shown_names = {row["id"]: row["name"] for row in shown_rows}
+    conflicts = [
+        {"id": row["id"], "name": shown_names.get(row["id"]) or row_name(row)}
+        for row in diff["updates"] + diff["deletes"] if row["id"] in theirs_ids
+    ]
+    diff["updates"] = [row for row in diff["updates"] if row["id"] not in theirs_ids]
+    diff["deletes"] = [row for row in diff["deletes"] if row["id"] not in theirs_ids]
+    return {
+        "diff": diff,
+        "blanked": blanked,
+        "conflicts": conflicts,
+        "theirs_changed": fresh_rows != shown_rows,
+    }
 
 
 def _persist_recipe(

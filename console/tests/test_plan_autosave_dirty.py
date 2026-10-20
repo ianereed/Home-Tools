@@ -10,17 +10,24 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-from console.tabs.plan import _form_values, _ingredient_diff, _recipe_values
+from console.tabs.plan import (
+    _form_values,
+    _plan_ingredient_sync,
+    _plan_recipe_sync,
+    _recipe_values,
+)
 
 
 def _edit_is_dirty(recipe, current_tags, payload, tags, before_rows, after_rows) -> bool:
-    """The panel's autosave gate, as one predicate."""
-    diff, _ = _ingredient_diff(before_rows, after_rows)
-    return (
-        _form_values(payload) != _recipe_values(recipe)
-        or set(tags) != set(current_tags)
-        or any(diff.values())
-    )
+    """Whether the panel's autosave would write, for a panel just opened.
+
+    Runs the real merge functions with the snapshot equal to the DB (no other
+    session involved), so only this session's edits count.
+    """
+    snap = {"fields": _recipe_values(recipe), "tags": sorted(current_tags)}
+    rec = _plan_recipe_sync(snap, recipe, current_tags, _form_values(payload), tags)
+    ingr = _plan_ingredient_sync(before_rows, before_rows, after_rows)
+    return bool(rec["writes"] or rec["tags"] is not None or any(ingr["diff"].values()))
 
 
 def _recipe(**over):
@@ -122,3 +129,31 @@ def test_none_source_and_recipe_book_match_empty_widgets():
     assert _edit_is_dirty(
         r, [], _payload(source="", recipe_book="  "), [], [], []
     ) is False
+
+
+# Tags merge one tag at a time against the snapshot (PR #59 review).
+
+def _snap(**over):
+    r = _recipe(**over)
+    return r, {"fields": _recipe_values(r), "tags": ["dinner"]}
+
+
+def test_tag_merge_keeps_both_sessions_additions():
+    r, snap = _snap()
+    rec = _plan_recipe_sync(snap, r, ["dinner", "vegan"], _form_values(_payload()), ["dinner", "spicy"])
+    assert rec["tags"] == ["dinner", "spicy", "vegan"]
+    assert rec["conflicts"] == []
+
+
+def test_tag_merge_applies_removal_on_top_of_their_addition():
+    r, snap = _snap()
+    rec = _plan_recipe_sync(snap, r, ["dinner", "lunch"], _form_values(_payload()), [])
+    assert rec["tags"] == ["lunch"]
+
+
+def test_tag_merge_unchanged_here_writes_nothing():
+    r, snap = _snap()
+    rec = _plan_recipe_sync(snap, r, ["dinner", "lunch"], _form_values(_payload()), ["dinner"])
+    assert rec["tags"] is None
+    assert rec["final_tags"] == ["dinner", "lunch"]
+    assert rec["theirs_tags"] is True
