@@ -93,12 +93,18 @@ def send_recipes_to_todoist_sync(recipe_scales: list[list]) -> dict:
     # reads top-to-bottom by recipe.
     pending: list[dict] = []
 
+    # Load every recipe before creating any task: a recipe deleted since it was
+    # checked raises KeyError here, before Todoist has headers for the recipes
+    # ahead of it in the list and none of their ingredients.
+    loaded = []
     for rid, target_servings in recipe_scales:
         recipe = get_recipe(int(rid))
-        scaled = scale_ingredients(recipe, int(target_servings))
+        servings = int(target_servings)
+        loaded.append((recipe, servings, scale_ingredients(recipe, servings)))
 
+    for recipe, target_servings, scaled in loaded:
         attempted += 1
-        header_title = f"{recipe.title} ({int(target_servings)} servings)"
+        header_title = f"{recipe.title} ({target_servings} servings)"
         header_result = todoist_adapter.create_task(
             output_config={
                 "project_id": project_id,

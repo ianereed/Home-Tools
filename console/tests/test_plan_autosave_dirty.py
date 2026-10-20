@@ -1,15 +1,26 @@
 """Tests for the autosave dirty-gate in console/tabs/plan.py.
 
-_edit_is_dirty decides whether an edit-panel rerun should issue an autosave
-write. A false-negative loses work; a false-positive churns the DB / updated_at
-on every rerun. Field normalization here must mirror _persist_recipe exactly so
-a just-saved form reads back as clean.
+The edit panel writes when the form's normalized values (_form_values) differ
+from the recipe's (_recipe_values), the tag set changed, or _ingredient_diff
+has something to save. A false-negative loses work; a false-positive churns
+the DB / updated_at on every rerun. The two normalizers must mirror each other
+exactly so a just-saved form reads back as clean.
 """
 from __future__ import annotations
 
 from types import SimpleNamespace
 
-from console.tabs.plan import _edit_is_dirty, _rows_from_editor
+from console.tabs.plan import _form_values, _ingredient_diff, _recipe_values
+
+
+def _edit_is_dirty(recipe, current_tags, payload, tags, before_rows, after_rows) -> bool:
+    """The panel's autosave gate, as one predicate."""
+    diff, _ = _ingredient_diff(before_rows, after_rows)
+    return (
+        _form_values(payload) != _recipe_values(recipe)
+        or set(tags) != set(current_tags)
+        or any(diff.values())
+    )
 
 
 def _recipe(**over):
