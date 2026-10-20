@@ -144,9 +144,27 @@ def normalize_tags(raw_tags: list[str]) -> list[str]:
     return list(seen)
 
 
+def row_name(row: dict) -> str:
+    """Stripped ingredient name, or "" when blank.
+
+    A row added in the grid has ``name`` present but None until the user types
+    one, so ``row.get("name", "")`` is not enough — it returns None.
+    """
+    name = row.get("name")
+    return name.strip() if isinstance(name, str) else ""
+
+
 # ---------------------------------------------------------------------------
 # Ingredient list → editor rows
 # ---------------------------------------------------------------------------
+
+# Column order of the ingredient grid. Must match the keys ingredients_to_rows
+# emits: a recipe with no ingredients yet still needs these columns, or the
+# grid renders with nothing to type into.
+INGREDIENT_COLUMNS = (
+    "id", "name", "qty_per_serving", "unit", "notes", "todoist_section", "sort_order",
+)
+
 
 def ingredients_to_rows(ingredients: list) -> list[dict]:
     """Convert Ingredient dataclass instances to plain dicts for st.data_editor.
