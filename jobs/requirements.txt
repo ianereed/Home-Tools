@@ -20,3 +20,7 @@ Pillow>=10.0
 #   pillow-heif lets PIL open iPhone HEIC/HEIF photos.
 pypdfium2>=4.0
 pillow-heif>=0.16
+
+# console Recipes tab "Export to Excel" (meal_planner/export_xlsx.py); the
+# console venv installs this file, see console/run.sh.
+openpyxl>=3.1

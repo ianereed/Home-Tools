@@ -30,7 +30,7 @@ from console.tabs._recipe_form import (
     validate_recipe_form,
 )
 from meal_planner import db as _db
-from meal_planner import queries
+from meal_planner import export_xlsx, queries
 from meal_planner.sections import EDITABLE_SECTIONS, classify
 from meal_planner.tag_categories import CATEGORY_MAP, _partition_tags_by_category
 
@@ -237,9 +237,14 @@ def _render_inner() -> None:
     )
 
     # -----------------------------------------------------------------------
-    # "+ New recipe" button (above grid)
+    # "+ New recipe" and "Export to Excel" buttons (above grid)
     # -----------------------------------------------------------------------
-    if st.button("+ New recipe", type="secondary"):
+    col_new, col_export, _ = st.columns([1, 1, 3])
+    with col_export:
+        _render_export_button()
+    with col_new:
+        new_clicked = st.button("+ New recipe", type="secondary", use_container_width=True)
+    if new_clicked:
         try:
             _sweep_stub_recipes()
             new_id = queries.create_recipe(title="New Recipe")
@@ -1016,6 +1021,35 @@ def _render_delete_button(recipe_id: int) -> None:
                 # Reset the confirm window so a retry starts from a clean slate
                 st.session_state.pop(_key, None)
                 st.error(f"Delete failed: {exc}")
+
+
+def _build_export() -> bytes:
+    try:
+        return export_xlsx.build_workbook_bytes()
+    except Exception:
+        # Runs on a worker thread after the click, so nothing reaches the page;
+        # log it for logs/console.err.log and let the download fail visibly.
+        traceback.print_exc()
+        raise
+
+
+def _render_export_button() -> None:
+    """Download the whole recipe DB as .xlsx (ignores the filters above).
+
+    The workbook is built only when clicked (callable ``data``), so the tab's
+    frequent reruns don't rebuild it; the browser saves it to Downloads.
+    """
+    st.download_button(
+        "Export to Excel",
+        data=_build_export,
+        file_name=export_xlsx.export_filename(),
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        on_click="ignore",
+        use_container_width=True,
+        key="export_xlsx_button",
+        help="Download every recipe (ingredients, instructions, tags, nutrition) as an "
+             ".xlsx — e.g. for a Claude project folder. Ignores the filters above.",
+    )
 
 
 def _render_clear_button() -> None:

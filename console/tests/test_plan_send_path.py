@@ -38,6 +38,9 @@ class _TabSt(_BrowserSt):
         self.disabled[key or label] = disabled
         return (key or label) in self.buttons_clicked
 
+    def download_button(self, label, *a, **k):
+        return False
+
     def toggle(self, label, value=False, key=None, **k):
         return self._widget(key, value)
 
