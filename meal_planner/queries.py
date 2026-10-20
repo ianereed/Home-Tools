@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import sqlite3
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from meal_planner import db as _db
@@ -20,6 +20,15 @@ class _Unset:
 
 
 _UNSET: _Unset = _Unset()
+
+
+class StaleRecipeError(Exception):
+    """A guarded write found the recipe changed since the caller read it.
+
+    Raised by ``update_recipe(..., expected_updated_at=...)`` when another
+    session wrote the recipe in between, so the caller can reload instead of
+    overwriting the other edit.
+    """
 
 
 def _now_utc() -> str:
@@ -294,6 +303,7 @@ def update_recipe(
     cook_time_min: int | None | _Unset = _UNSET,
     source: str | None | _Unset = _UNSET,
     recipe_book: str | None | _Unset = _UNSET,
+    expected_updated_at: str | None = None,
     path: Path | None = None,
     conn: sqlite3.Connection | None = None,
 ) -> None:
@@ -301,6 +311,11 @@ def update_recipe(
 
     Pass None to explicitly clear a nullable field to NULL.
     Omit a kwarg (or pass _UNSET) to leave it unchanged.
+
+    expected_updated_at makes the write optimistic: it only applies while the
+    row's updated_at still equals that value, else StaleRecipeError. With no
+    fields to change it still checks and bumps updated_at, so it can open a
+    transaction that must not race another session's write.
 
     When conn is passed, uses it without committing or closing (caller owns the
     transaction). When conn is None, opens and commits its own connection.
@@ -322,12 +337,17 @@ def update_recipe(
     fields["updated_at"] = _now_utc()
     set_clause = ", ".join(f"{k} = ?" for k in fields)
 
+    where = "id = ?"
+    params: list[object] = [*fields.values(), recipe_id]
+    if expected_updated_at is not None:
+        where += " AND updated_at = ?"
+        params.append(expected_updated_at)
+
     def _run(c: sqlite3.Connection) -> None:
-        cur = c.execute(
-            f"UPDATE recipes SET {set_clause} WHERE id = ?",
-            [*fields.values(), recipe_id],
-        )
+        cur = c.execute(f"UPDATE recipes SET {set_clause} WHERE {where}", params)
         if cur.rowcount == 0:
+            if c.execute("SELECT 1 FROM recipes WHERE id = ?", (recipe_id,)).fetchone():
+                raise StaleRecipeError(recipe_id)
             raise KeyError(recipe_id)
 
     if conn is not None:
@@ -369,6 +389,41 @@ def delete_recipe(
     p = path or _db.DB_PATH
     with _db._get_conn(p) as c:
         _run(c)
+
+
+STUB_RECIPE_TITLE = "New Recipe"
+
+
+def delete_untouched_stub_recipes(
+    *,
+    older_than_s: int = 3600,
+    path: Path | None = None,
+) -> int:
+    """Delete "+ New recipe" stubs nobody ever filled in. Returns the count.
+
+    The console inserts the stub row up front, and only that browser session
+    knows it is pending, so a dropped session or a double-click leaves blank
+    "New Recipe" rows behind. A stub counts as untouched when it still has the
+    default title, no ingredients, no tags and was never updated
+    (updated_at == created_at). Any autosave bumps updated_at, so a recipe
+    someone started editing is never swept. older_than_s leaves a stub that is
+    open in an editor right now alone.
+    """
+    cutoff = (datetime.now(timezone.utc) - timedelta(seconds=older_than_s)).isoformat()
+    p = path or _db.DB_PATH
+    with _db._get_conn(p) as c:
+        cur = c.execute(
+            """
+            DELETE FROM recipes
+            WHERE title = ?
+              AND updated_at = created_at
+              AND created_at < ?
+              AND NOT EXISTS (SELECT 1 FROM ingredients i WHERE i.recipe_id = recipes.id)
+              AND NOT EXISTS (SELECT 1 FROM recipe_tags t WHERE t.recipe_id = recipes.id)
+            """,
+            (STUB_RECIPE_TITLE, cutoff),
+        )
+        return cur.rowcount
 
 
 def add_ingredient(

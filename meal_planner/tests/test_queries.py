@@ -775,3 +775,62 @@ def test_add_ingredient_non_fk_integrity_error_propagates(db_path: Path) -> None
 
         with pytest.raises(sqlite3.IntegrityError, match="UNIQUE constraint"):
             add_ingredient(rid, name="Salt", sort_order=0, path=db_path)
+
+
+# ---------------------------------------------------------------------------
+# Optimistic concurrency + stub sweep (console Recipes tab, 2026-10-20)
+# ---------------------------------------------------------------------------
+
+def test_update_recipe_expected_updated_at_matches(db_path: Path) -> None:
+    rid = create_recipe(title="Soup", path=db_path)
+    stamp = get_recipe(rid, path=db_path).updated_at
+    update_recipe(rid, title="Stew", expected_updated_at=stamp, path=db_path)
+    assert get_recipe(rid, path=db_path).title == "Stew"
+
+
+def test_update_recipe_expected_updated_at_stale_raises(db_path: Path) -> None:
+    from meal_planner.queries import StaleRecipeError
+
+    rid = create_recipe(title="Soup", path=db_path)
+    stamp = get_recipe(rid, path=db_path).updated_at
+    update_recipe(rid, instructions="Theirs", path=db_path)  # another session
+    with pytest.raises(StaleRecipeError):
+        update_recipe(rid, title="Mine", expected_updated_at=stamp, path=db_path)
+    assert get_recipe(rid, path=db_path).title == "Soup"
+
+
+def test_update_recipe_expected_updated_at_missing_raises_keyerror(db_path: Path) -> None:
+    with pytest.raises(KeyError):
+        update_recipe(999, title="x", expected_updated_at="2026-01-01", path=db_path)
+
+
+def _age(db_path: Path, rid: int, created: str, updated: str | None = None) -> None:
+    with _sqlite3.connect(db_path) as c:
+        c.execute(
+            "UPDATE recipes SET created_at = ?, updated_at = ? WHERE id = ?",
+            (created, updated or created, rid),
+        )
+
+
+def test_delete_untouched_stub_recipes(db_path: Path) -> None:
+    from meal_planner.queries import delete_untouched_stub_recipes
+
+    old = "2026-01-01T00:00:00+00:00"
+    stale = create_recipe(title="New Recipe", path=db_path)
+    _age(db_path, stale, old)
+    fresh = create_recipe(title="New Recipe", path=db_path)  # open in an editor now
+    edited = create_recipe(title="New Recipe", path=db_path)
+    _age(db_path, edited, old, "2026-01-01T00:05:00+00:00")  # autosaved once
+    with_ingr = create_recipe(title="New Recipe", path=db_path)
+    insert_ingredient(recipe_id=with_ingr, name="salt", path=db_path)
+    _age(db_path, with_ingr, old)
+    with_tag = create_recipe(title="New Recipe", path=db_path)
+    add_recipe_tag(with_tag, "dinner", path=db_path)
+    _age(db_path, with_tag, old)
+    named = create_recipe(title="Soup", path=db_path)
+    _age(db_path, named, old)
+
+    assert delete_untouched_stub_recipes(path=db_path) == 1
+
+    left = {r.id for r in list_recipes(path=db_path)}
+    assert left == {fresh, edited, with_ingr, with_tag, named}

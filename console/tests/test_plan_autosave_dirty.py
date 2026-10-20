@@ -1,15 +1,33 @@
 """Tests for the autosave dirty-gate in console/tabs/plan.py.
 
-_edit_is_dirty decides whether an edit-panel rerun should issue an autosave
-write. A false-negative loses work; a false-positive churns the DB / updated_at
-on every rerun. Field normalization here must mirror _persist_recipe exactly so
-a just-saved form reads back as clean.
+The edit panel writes when the form's normalized values (_form_values) differ
+from the recipe's (_recipe_values), the tag set changed, or _ingredient_diff
+has something to save. A false-negative loses work; a false-positive churns
+the DB / updated_at on every rerun. The two normalizers must mirror each other
+exactly so a just-saved form reads back as clean.
 """
 from __future__ import annotations
 
 from types import SimpleNamespace
 
-from console.tabs.plan import _edit_is_dirty, _rows_from_editor
+from console.tabs.plan import (
+    _form_values,
+    _plan_ingredient_sync,
+    _plan_recipe_sync,
+    _recipe_values,
+)
+
+
+def _edit_is_dirty(recipe, current_tags, payload, tags, before_rows, after_rows) -> bool:
+    """Whether the panel's autosave would write, for a panel just opened.
+
+    Runs the real merge functions with the snapshot equal to the DB (no other
+    session involved), so only this session's edits count.
+    """
+    snap = {"fields": _recipe_values(recipe), "tags": sorted(current_tags)}
+    rec = _plan_recipe_sync(snap, recipe, current_tags, _form_values(payload), tags)
+    ingr = _plan_ingredient_sync(before_rows, before_rows, after_rows)
+    return bool(rec["writes"] or rec["tags"] is not None or any(ingr["diff"].values()))
 
 
 def _recipe(**over):
@@ -111,3 +129,31 @@ def test_none_source_and_recipe_book_match_empty_widgets():
     assert _edit_is_dirty(
         r, [], _payload(source="", recipe_book="  "), [], [], []
     ) is False
+
+
+# Tags merge one tag at a time against the snapshot (PR #59 review).
+
+def _snap(**over):
+    r = _recipe(**over)
+    return r, {"fields": _recipe_values(r), "tags": ["dinner"]}
+
+
+def test_tag_merge_keeps_both_sessions_additions():
+    r, snap = _snap()
+    rec = _plan_recipe_sync(snap, r, ["dinner", "vegan"], _form_values(_payload()), ["dinner", "spicy"])
+    assert rec["tags"] == ["dinner", "spicy", "vegan"]
+    assert rec["conflicts"] == []
+
+
+def test_tag_merge_applies_removal_on_top_of_their_addition():
+    r, snap = _snap()
+    rec = _plan_recipe_sync(snap, r, ["dinner", "lunch"], _form_values(_payload()), [])
+    assert rec["tags"] == ["lunch"]
+
+
+def test_tag_merge_unchanged_here_writes_nothing():
+    r, snap = _snap()
+    rec = _plan_recipe_sync(snap, r, ["dinner", "lunch"], _form_values(_payload()), ["dinner"])
+    assert rec["tags"] is None
+    assert rec["final_tags"] == ["dinner", "lunch"]
+    assert rec["theirs_tags"] is True
