@@ -1,0 +1,4581 @@
+{
+ "model": "claude-opus-5-5",
+ "staples": [
+  {
+   "name": "Milk",
+   "serving_label": "1 cup (8 oz)",
+   "values": {
+    "veg_dark_green": 0.0,
+    "veg_red_orange": 0.0,
+    "veg_legumes": 0.0,
+    "veg_starchy": 0.0,
+    "veg_other": 0.0,
+    "fruit": 0.0,
+    "grain_whole": 0.0,
+    "grain_refined": 0.0,
+    "dairy": 1.0,
+    "protein_meat_eggs": 0.0,
+    "protein_seafood": 0.0,
+    "seafood_albacore": 0.0,
+    "protein_nuts_seeds_soy": 0.0,
+    "oils": 0.0,
+    "calcium": 300,
+    "choline": 40
+   },
+   "breakdown": [
+    {
+     "ingredient": "milk",
+     "amount": "1 cup",
+     "key": "dairy",
+     "eq": 1.0
+    },
+    {
+     "ingredient": "milk",
+     "amount": "1 cup",
+     "key": "calcium",
+     "eq": 300
+    },
+    {
+     "ingredient": "milk",
+     "amount": "1 cup",
+     "key": "choline",
+     "eq": 40
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "high",
+   "notes": "Any fat level (skim/1%/2%/whole)."
+  },
+  {
+   "name": "Soy milk, calcium-fortified",
+   "serving_label": "1 cup (8 oz)",
+   "values": {
+    "veg_dark_green": 0.0,
+    "veg_red_orange": 0.0,
+    "veg_legumes": 0.0,
+    "veg_starchy": 0.0,
+    "veg_other": 0.0,
+    "fruit": 0.0,
+    "grain_whole": 0.0,
+    "grain_refined": 0.0,
+    "dairy": 1.0,
+    "protein_meat_eggs": 0.0,
+    "protein_seafood": 0.0,
+    "seafood_albacore": 0.0,
+    "protein_nuts_seeds_soy": 0.0,
+    "oils": 0.0,
+    "calcium": 300,
+    "choline": 40
+   },
+   "breakdown": [
+    {
+     "ingredient": "fortified soy milk",
+     "amount": "1 cup",
+     "key": "dairy",
+     "eq": 1.0
+    },
+    {
+     "ingredient": "fortified soy milk",
+     "amount": "1 cup",
+     "key": "calcium",
+     "eq": 300
+    },
+    {
+     "ingredient": "fortified soy milk",
+     "amount": "1 cup",
+     "key": "choline",
+     "eq": 40
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "high",
+   "notes": "Counts as dairy only if calcium-fortified (check label). Almond/oat/rice milk do NOT count as dairy."
+  },
+  {
+   "name": "Greek yogurt, plain",
+   "serving_label": "1 container (5.3 oz ≈ ⅔ cup)",
+   "values": {
+    "veg_dark_green": 0.0,
+    "veg_red_orange": 0.0,
+    "veg_legumes": 0.0,
+    "veg_starchy": 0.0,
+    "veg_other": 0.0,
+    "fruit": 0.0,
+    "grain_whole": 0.0,
+    "grain_refined": 0.0,
+    "dairy": 0.66,
+    "protein_meat_eggs": 0.0,
+    "protein_seafood": 0.0,
+    "seafood_albacore": 0.0,
+    "protein_nuts_seeds_soy": 0.0,
+    "oils": 0.0,
+    "calcium": 165,
+    "choline": 23
+   },
+   "breakdown": [
+    {
+     "ingredient": "Greek yogurt",
+     "amount": "5.3 oz (≈0.66 cup)",
+     "key": "dairy",
+     "eq": 0.66
+    },
+    {
+     "ingredient": "Greek yogurt",
+     "amount": "0.66 cup",
+     "key": "calcium",
+     "eq": 165
+    },
+    {
+     "ingredient": "Greek yogurt",
+     "amount": "0.66 cup",
+     "key": "choline",
+     "eq": 23
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "high",
+   "notes": "Single-serve cup. Flavored Greek cups count the same for dairy."
+  },
+  {
+   "name": "Greek yogurt, 1 cup",
+   "serving_label": "1 cup (8 oz)",
+   "values": {
+    "veg_dark_green": 0.0,
+    "veg_red_orange": 0.0,
+    "veg_legumes": 0.0,
+    "veg_starchy": 0.0,
+    "veg_other": 0.0,
+    "fruit": 0.0,
+    "grain_whole": 0.0,
+    "grain_refined": 0.0,
+    "dairy": 1.0,
+    "protein_meat_eggs": 0.0,
+    "protein_seafood": 0.0,
+    "seafood_albacore": 0.0,
+    "protein_nuts_seeds_soy": 0.0,
+    "oils": 0.0,
+    "calcium": 250,
+    "choline": 35
+   },
+   "breakdown": [
+    {
+     "ingredient": "Greek yogurt",
+     "amount": "1 cup",
+     "key": "dairy",
+     "eq": 1.0
+    },
+    {
+     "ingredient": "Greek yogurt",
+     "amount": "1 cup",
+     "key": "calcium",
+     "eq": 250
+    },
+    {
+     "ingredient": "Greek yogurt",
+     "amount": "1 cup",
+     "key": "choline",
+     "eq": 35
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "high",
+   "notes": ""
+  },
+  {
+   "name": "Yogurt, plain (regular)",
+   "serving_label": "1 cup (8 oz)",
+   "values": {
+    "veg_dark_green": 0.0,
+    "veg_red_orange": 0.0,
+    "veg_legumes": 0.0,
+    "veg_starchy": 0.0,
+    "veg_other": 0.0,
+    "fruit": 0.0,
+    "grain_whole": 0.0,
+    "grain_refined": 0.0,
+    "dairy": 1.0,
+    "protein_meat_eggs": 0.0,
+    "protein_seafood": 0.0,
+    "seafood_albacore": 0.0,
+    "protein_nuts_seeds_soy": 0.0,
+    "oils": 0.0,
+    "calcium": 300,
+    "choline": 40
+   },
+   "breakdown": [
+    {
+     "ingredient": "yogurt",
+     "amount": "1 cup",
+     "key": "dairy",
+     "eq": 1.0
+    },
+    {
+     "ingredient": "yogurt",
+     "amount": "1 cup",
+     "key": "calcium",
+     "eq": 300
+    },
+    {
+     "ingredient": "yogurt",
+     "amount": "1 cup",
+     "key": "choline",
+     "eq": 40
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "high",
+   "notes": "Regular (non-Greek) yogurt is actually higher in calcium than Greek (~400 mg/cup per USDA); rules-table value used."
+  },
+  {
+   "name": "Yogurt, flavored cup",
+   "serving_label": "1 container (6 oz ≈ ¾ cup)",
+   "values": {
+    "veg_dark_green": 0.0,
+    "veg_red_orange": 0.0,
+    "veg_legumes": 0.0,
+    "veg_starchy": 0.0,
+    "veg_other": 0.0,
+    "fruit": 0.0,
+    "grain_whole": 0.0,
+    "grain_refined": 0.0,
+    "dairy": 0.75,
+    "protein_meat_eggs": 0.0,
+    "protein_seafood": 0.0,
+    "seafood_albacore": 0.0,
+    "protein_nuts_seeds_soy": 0.0,
+    "oils": 0.0,
+    "calcium": 225,
+    "choline": 30
+   },
+   "breakdown": [
+    {
+     "ingredient": "yogurt",
+     "amount": "6 oz (0.75 cup)",
+     "key": "dairy",
+     "eq": 0.75
+    },
+    {
+     "ingredient": "yogurt",
+     "amount": "0.75 cup",
+     "key": "calcium",
+     "eq": 225
+    },
+    {
+     "ingredient": "yogurt",
+     "amount": "0.75 cup",
+     "key": "choline",
+     "eq": 30
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "high",
+   "notes": "Fruit-on-the-bottom/flavored single cup; fruit in it is too little to count."
+  },
+  {
+   "name": "Kefir",
+   "serving_label": "1 cup (8 oz)",
+   "values": {
+    "veg_dark_green": 0.0,
+    "veg_red_orange": 0.0,
+    "veg_legumes": 0.0,
+    "veg_starchy": 0.0,
+    "veg_other": 0.0,
+    "fruit": 0.0,
+    "grain_whole": 0.0,
+    "grain_refined": 0.0,
+    "dairy": 1.0,
+    "protein_meat_eggs": 0.0,
+    "protein_seafood": 0.0,
+    "seafood_albacore": 0.0,
+    "protein_nuts_seeds_soy": 0.0,
+    "oils": 0.0,
+    "calcium": 300,
+    "choline": 40
+   },
+   "breakdown": [
+    {
+     "ingredient": "kefir",
+     "amount": "1 cup",
+     "key": "dairy",
+     "eq": 1.0
+    },
+    {
+     "ingredient": "kefir",
+     "amount": "1 cup",
+     "key": "calcium",
+     "eq": 300
+    },
+    {
+     "ingredient": "kefir",
+     "amount": "1 cup",
+     "key": "choline",
+     "eq": 40
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "high",
+   "notes": "Supermarket kefir is pasteurized; unpasteurized/raw-milk kefir would need unpasteurized_dairy."
+  },
+  {
+   "name": "Cheddar cheese",
+   "serving_label": "1 oz (1 slice or 1-inch cube)",
+   "values": {
+    "veg_dark_green": 0.0,
+    "veg_red_orange": 0.0,
+    "veg_legumes": 0.0,
+    "veg_starchy": 0.0,
+    "veg_other": 0.0,
+    "fruit": 0.0,
+    "grain_whole": 0.0,
+    "grain_refined": 0.0,
+    "dairy": 0.67,
+    "protein_meat_eggs": 0.0,
+    "protein_seafood": 0.0,
+    "seafood_albacore": 0.0,
+    "protein_nuts_seeds_soy": 0.0,
+    "oils": 0.0,
+    "calcium": 200,
+    "choline": 7
+   },
+   "breakdown": [
+    {
+     "ingredient": "cheddar",
+     "amount": "1 oz",
+     "key": "dairy",
+     "eq": 0.67
+    },
+    {
+     "ingredient": "cheddar",
+     "amount": "1 oz",
+     "key": "calcium",
+     "eq": 200
+    },
+    {
+     "ingredient": "cheddar",
+     "amount": "1 oz",
+     "key": "choline",
+     "eq": 7
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "high",
+   "notes": "1.5 oz natural cheese = 1 cup eq. Shredded: ¼ cup ≈ 1 oz."
+  },
+  {
+   "name": "Mozzarella string cheese",
+   "serving_label": "1 stick (1 oz)",
+   "values": {
+    "veg_dark_green": 0.0,
+    "veg_red_orange": 0.0,
+    "veg_legumes": 0.0,
+    "veg_starchy": 0.0,
+    "veg_other": 0.0,
+    "fruit": 0.0,
+    "grain_whole": 0.0,
+    "grain_refined": 0.0,
+    "dairy": 0.67,
+    "protein_meat_eggs": 0.0,
+    "protein_seafood": 0.0,
+    "seafood_albacore": 0.0,
+    "protein_nuts_seeds_soy": 0.0,
+    "oils": 0.0,
+    "calcium": 200,
+    "choline": 7
+   },
+   "breakdown": [
+    {
+     "ingredient": "part-skim mozzarella",
+     "amount": "1 oz",
+     "key": "dairy",
+     "eq": 0.67
+    },
+    {
+     "ingredient": "mozzarella",
+     "amount": "1 oz",
+     "key": "calcium",
+     "eq": 200
+    },
+    {
+     "ingredient": "mozzarella",
+     "amount": "1 oz",
+     "key": "choline",
+     "eq": 7
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "high",
+   "notes": ""
+  },
+  {
+   "name": "Cottage cheese",
+   "serving_label": "½ cup (4 oz cup)",
+   "values": {
+    "veg_dark_green": 0.0,
+    "veg_red_orange": 0.0,
+    "veg_legumes": 0.0,
+    "veg_starchy": 0.0,
+    "veg_other": 0.0,
+    "fruit": 0.0,
+    "grain_whole": 0.0,
+    "grain_refined": 0.0,
+    "dairy": 0.25,
+    "protein_meat_eggs": 0.0,
+    "protein_seafood": 0.0,
+    "seafood_albacore": 0.0,
+    "protein_nuts_seeds_soy": 0.0,
+    "oils": 0.0,
+    "calcium": 95,
+    "choline": 21
+   },
+   "breakdown": [
+    {
+     "ingredient": "cottage cheese",
+     "amount": "½ cup",
+     "key": "dairy",
+     "eq": 0.25
+    },
+    {
+     "ingredient": "cottage cheese",
+     "amount": "½ cup",
+     "key": "calcium",
+     "eq": 95
+    },
+    {
+     "ingredient": "cottage cheese",
+     "amount": "½ cup",
+     "key": "choline",
+     "eq": 21
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "high",
+   "notes": "2 cups cottage cheese = 1 cup eq dairy, so it counts little toward dairy despite the protein."
+  },
+  {
+   "name": "Parmesan, grated",
+   "serving_label": "2 tbsp (10 g)",
+   "values": {
+    "veg_dark_green": 0.0,
+    "veg_red_orange": 0.0,
+    "veg_legumes": 0.0,
+    "veg_starchy": 0.0,
+    "veg_other": 0.0,
+    "fruit": 0.0,
+    "grain_whole": 0.0,
+    "grain_refined": 0.0,
+    "dairy": 0.24,
+    "protein_meat_eggs": 0.0,
+    "protein_seafood": 0.0,
+    "seafood_albacore": 0.0,
+    "protein_nuts_seeds_soy": 0.0,
+    "oils": 0.0,
+    "calcium": 110,
+    "choline": 2
+   },
+   "breakdown": [
+    {
+     "ingredient": "grated parmesan",
+     "amount": "10 g (0.35 oz)",
+     "key": "dairy",
+     "eq": 0.24
+    },
+    {
+     "ingredient": "parmesan",
+     "amount": "10 g",
+     "key": "calcium",
+     "eq": 110
+    },
+    {
+     "ingredient": "parmesan",
+     "amount": "10 g",
+     "key": "choline",
+     "eq": 2
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "med",
+   "notes": "Hard cheese by weight: 0.35 oz / 1.5 oz. Supermarket parmesan is pasteurized."
+  },
+  {
+   "name": "Egg",
+   "serving_label": "1 large",
+   "values": {
+    "veg_dark_green": 0.0,
+    "veg_red_orange": 0.0,
+    "veg_legumes": 0.0,
+    "veg_starchy": 0.0,
+    "veg_other": 0.0,
+    "fruit": 0.0,
+    "grain_whole": 0.0,
+    "grain_refined": 0.0,
+    "dairy": 0.0,
+    "protein_meat_eggs": 1.0,
+    "protein_seafood": 0.0,
+    "seafood_albacore": 0.0,
+    "protein_nuts_seeds_soy": 0.0,
+    "oils": 0.0,
+    "calcium": 25,
+    "choline": 150
+   },
+   "breakdown": [
+    {
+     "ingredient": "egg",
+     "amount": "1 large",
+     "key": "protein_meat_eggs",
+     "eq": 1.0
+    },
+    {
+     "ingredient": "egg",
+     "amount": "1 large",
+     "key": "calcium",
+     "eq": 25
+    },
+    {
+     "ingredient": "egg",
+     "amount": "1 large",
+     "key": "choline",
+     "eq": 150
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "high",
+   "notes": "Boiled, poached or fried without counted oil; cook until yolk is firm."
+  },
+  {
+   "name": "Eggs, scrambled (2 eggs + 1 tsp oil)",
+   "serving_label": "2 eggs",
+   "values": {
+    "veg_dark_green": 0.0,
+    "veg_red_orange": 0.0,
+    "veg_legumes": 0.0,
+    "veg_starchy": 0.0,
+    "veg_other": 0.0,
+    "fruit": 0.0,
+    "grain_whole": 0.0,
+    "grain_refined": 0.0,
+    "dairy": 0.0,
+    "protein_meat_eggs": 2.0,
+    "protein_seafood": 0.0,
+    "seafood_albacore": 0.0,
+    "protein_nuts_seeds_soy": 0.0,
+    "oils": 4.7,
+    "calcium": 50,
+    "choline": 300
+   },
+   "breakdown": [
+    {
+     "ingredient": "eggs",
+     "amount": "2 large",
+     "key": "protein_meat_eggs",
+     "eq": 2.0
+    },
+    {
+     "ingredient": "oil",
+     "amount": "1 tsp",
+     "key": "oils",
+     "eq": 4.7
+    },
+    {
+     "ingredient": "eggs",
+     "amount": "2 large",
+     "key": "calcium",
+     "eq": 50
+    },
+    {
+     "ingredient": "eggs",
+     "amount": "2 large",
+     "key": "choline",
+     "eq": 300
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "high",
+   "notes": "If scrambled in butter instead of oil, oils = 0. Cook until no liquid egg remains."
+  },
+  {
+   "name": "Hard-boiled egg",
+   "serving_label": "1 large",
+   "values": {
+    "veg_dark_green": 0.0,
+    "veg_red_orange": 0.0,
+    "veg_legumes": 0.0,
+    "veg_starchy": 0.0,
+    "veg_other": 0.0,
+    "fruit": 0.0,
+    "grain_whole": 0.0,
+    "grain_refined": 0.0,
+    "dairy": 0.0,
+    "protein_meat_eggs": 1.0,
+    "protein_seafood": 0.0,
+    "seafood_albacore": 0.0,
+    "protein_nuts_seeds_soy": 0.0,
+    "oils": 0.0,
+    "calcium": 25,
+    "choline": 150
+   },
+   "breakdown": [
+    {
+     "ingredient": "egg",
+     "amount": "1 large",
+     "key": "protein_meat_eggs",
+     "eq": 1.0
+    },
+    {
+     "ingredient": "egg",
+     "amount": "1 large",
+     "key": "calcium",
+     "eq": 25
+    },
+    {
+     "ingredient": "egg",
+     "amount": "1 large",
+     "key": "choline",
+     "eq": 150
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "high",
+   "notes": ""
+  },
+  {
+   "name": "Apple",
+   "serving_label": "1 medium",
+   "values": {
+    "veg_dark_green": 0.0,
+    "veg_red_orange": 0.0,
+    "veg_legumes": 0.0,
+    "veg_starchy": 0.0,
+    "veg_other": 0.0,
+    "fruit": 1.0,
+    "grain_whole": 0.0,
+    "grain_refined": 0.0,
+    "dairy": 0.0,
+    "protein_meat_eggs": 0.0,
+    "protein_seafood": 0.0,
+    "seafood_albacore": 0.0,
+    "protein_nuts_seeds_soy": 0.0,
+    "oils": 0.0,
+    "calcium": 11,
+    "choline": 6
+   },
+   "breakdown": [
+    {
+     "ingredient": "apple",
+     "amount": "1 medium",
+     "key": "fruit",
+     "eq": 1.0
+    },
+    {
+     "ingredient": "apple",
+     "amount": "1 medium",
+     "key": "calcium",
+     "eq": 11
+    },
+    {
+     "ingredient": "apple",
+     "amount": "1 medium",
+     "key": "choline",
+     "eq": 6
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "high",
+   "notes": "Rules: 1 medium ≈ 1 cup eq; a small apple ≈ ½."
+  },
+  {
+   "name": "Banana",
+   "serving_label": "1 medium",
+   "values": {
+    "veg_dark_green": 0.0,
+    "veg_red_orange": 0.0,
+    "veg_legumes": 0.0,
+    "veg_starchy": 0.0,
+    "veg_other": 0.0,
+    "fruit": 1.0,
+    "grain_whole": 0.0,
+    "grain_refined": 0.0,
+    "dairy": 0.0,
+    "protein_meat_eggs": 0.0,
+    "protein_seafood": 0.0,
+    "seafood_albacore": 0.0,
+    "protein_nuts_seeds_soy": 0.0,
+    "oils": 0.0,
+    "calcium": 6,
+    "choline": 12
+   },
+   "breakdown": [
+    {
+     "ingredient": "banana",
+     "amount": "1 medium",
+     "key": "fruit",
+     "eq": 1.0
+    },
+    {
+     "ingredient": "banana",
+     "amount": "1 medium",
+     "key": "calcium",
+     "eq": 6
+    },
+    {
+     "ingredient": "banana",
+     "amount": "1 medium",
+     "key": "choline",
+     "eq": 12
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "high",
+   "notes": ""
+  },
+  {
+   "name": "Orange",
+   "serving_label": "1 medium",
+   "values": {
+    "veg_dark_green": 0.0,
+    "veg_red_orange": 0.0,
+    "veg_legumes": 0.0,
+    "veg_starchy": 0.0,
+    "veg_other": 0.0,
+    "fruit": 1.0,
+    "grain_whole": 0.0,
+    "grain_refined": 0.0,
+    "dairy": 0.0,
+    "protein_meat_eggs": 0.0,
+    "protein_seafood": 0.0,
+    "seafood_albacore": 0.0,
+    "protein_nuts_seeds_soy": 0.0,
+    "oils": 0.0,
+    "calcium": 52,
+    "choline": 11
+   },
+   "breakdown": [
+    {
+     "ingredient": "orange",
+     "amount": "1 medium",
+     "key": "fruit",
+     "eq": 1.0
+    },
+    {
+     "ingredient": "orange",
+     "amount": "1 medium",
+     "key": "calcium",
+     "eq": 52
+    },
+    {
+     "ingredient": "orange",
+     "amount": "1 medium",
+     "key": "choline",
+     "eq": 11
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "high",
+   "notes": ""
+  },
+  {
+   "name": "Clementine",
+   "serving_label": "1 clementine",
+   "values": {
+    "veg_dark_green": 0.0,
+    "veg_red_orange": 0.0,
+    "veg_legumes": 0.0,
+    "veg_starchy": 0.0,
+    "veg_other": 0.0,
+    "fruit": 0.4,
+    "grain_whole": 0.0,
+    "grain_refined": 0.0,
+    "dairy": 0.0,
+    "protein_meat_eggs": 0.0,
+    "protein_seafood": 0.0,
+    "seafood_albacore": 0.0,
+    "protein_nuts_seeds_soy": 0.0,
+    "oils": 0.0,
+    "calcium": 22,
+    "choline": 8
+   },
+   "breakdown": [
+    {
+     "ingredient": "clementine",
+     "amount": "1 (74 g)",
+     "key": "fruit",
+     "eq": 0.4
+    },
+    {
+     "ingredient": "clementine",
+     "amount": "1",
+     "key": "calcium",
+     "eq": 22
+    },
+    {
+     "ingredient": "clementine",
+     "amount": "1",
+     "key": "choline",
+     "eq": 8
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "med",
+   "notes": "~74 g each; about 2½ clementines ≈ 1 cup."
+  },
+  {
+   "name": "Pear",
+   "serving_label": "1 medium",
+   "values": {
+    "veg_dark_green": 0.0,
+    "veg_red_orange": 0.0,
+    "veg_legumes": 0.0,
+    "veg_starchy": 0.0,
+    "veg_other": 0.0,
+    "fruit": 1.0,
+    "grain_whole": 0.0,
+    "grain_refined": 0.0,
+    "dairy": 0.0,
+    "protein_meat_eggs": 0.0,
+    "protein_seafood": 0.0,
+    "seafood_albacore": 0.0,
+    "protein_nuts_seeds_soy": 0.0,
+    "oils": 0.0,
+    "calcium": 16,
+    "choline": 9
+   },
+   "breakdown": [
+    {
+     "ingredient": "pear",
+     "amount": "1 medium",
+     "key": "fruit",
+     "eq": 1.0
+    },
+    {
+     "ingredient": "pear",
+     "amount": "1 medium",
+     "key": "calcium",
+     "eq": 16
+    },
+    {
+     "ingredient": "pear",
+     "amount": "1 medium",
+     "key": "choline",
+     "eq": 9
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "high",
+   "notes": ""
+  },
+  {
+   "name": "Berries",
+   "serving_label": "1 cup",
+   "values": {
+    "veg_dark_green": 0.0,
+    "veg_red_orange": 0.0,
+    "veg_legumes": 0.0,
+    "veg_starchy": 0.0,
+    "veg_other": 0.0,
+    "fruit": 1.0,
+    "grain_whole": 0.0,
+    "grain_refined": 0.0,
+    "dairy": 0.0,
+    "protein_meat_eggs": 0.0,
+    "protein_seafood": 0.0,
+    "seafood_albacore": 0.0,
+    "protein_nuts_seeds_soy": 0.0,
+    "oils": 0.0,
+    "calcium": 20,
+    "choline": 8
+   },
+   "breakdown": [
+    {
+     "ingredient": "berries (strawberries/blueberries/raspberries)",
+     "amount": "1 cup",
+     "key": "fruit",
+     "eq": 1.0
+    },
+    {
+     "ingredient": "berries",
+     "amount": "1 cup",
+     "key": "calcium",
+     "eq": 20
+    },
+    {
+     "ingredient": "berries",
+     "amount": "1 cup",
+     "key": "choline",
+     "eq": 8
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "high",
+   "notes": "Fresh or frozen."
+  },
+  {
+   "name": "Grapes",
+   "serving_label": "1 cup (~30 grapes)",
+   "values": {
+    "veg_dark_green": 0.0,
+    "veg_red_orange": 0.0,
+    "veg_legumes": 0.0,
+    "veg_starchy": 0.0,
+    "veg_other": 0.0,
+    "fruit": 1.0,
+    "grain_whole": 0.0,
+    "grain_refined": 0.0,
+    "dairy": 0.0,
+    "protein_meat_eggs": 0.0,
+    "protein_seafood": 0.0,
+    "seafood_albacore": 0.0,
+    "protein_nuts_seeds_soy": 0.0,
+    "oils": 0.0,
+    "calcium": 15,
+    "choline": 8
+   },
+   "breakdown": [
+    {
+     "ingredient": "grapes",
+     "amount": "1 cup",
+     "key": "fruit",
+     "eq": 1.0
+    },
+    {
+     "ingredient": "grapes",
+     "amount": "1 cup",
+     "key": "calcium",
+     "eq": 15
+    },
+    {
+     "ingredient": "grapes",
+     "amount": "1 cup",
+     "key": "choline",
+     "eq": 8
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "high",
+   "notes": ""
+  },
+  {
+   "name": "Cut fruit / melon",
+   "serving_label": "1 cup",
+   "values": {
+    "veg_dark_green": 0.0,
+    "veg_red_orange": 0.0,
+    "veg_legumes": 0.0,
+    "veg_starchy": 0.0,
+    "veg_other": 0.0,
+    "fruit": 1.0,
+    "grain_whole": 0.0,
+    "grain_refined": 0.0,
+    "dairy": 0.0,
+    "protein_meat_eggs": 0.0,
+    "protein_seafood": 0.0,
+    "seafood_albacore": 0.0,
+    "protein_nuts_seeds_soy": 0.0,
+    "oils": 0.0,
+    "calcium": 15,
+    "choline": 12
+   },
+   "breakdown": [
+    {
+     "ingredient": "cut melon or mixed fruit",
+     "amount": "1 cup",
+     "key": "fruit",
+     "eq": 1.0
+    },
+    {
+     "ingredient": "cut fruit",
+     "amount": "1 cup",
+     "key": "calcium",
+     "eq": 15
+    },
+    {
+     "ingredient": "cut fruit",
+     "amount": "1 cup",
+     "key": "choline",
+     "eq": 12
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "high",
+   "notes": "Watermelon, cantaloupe, honeydew, pineapple or a mixed fruit cup. Pre-cut fruit: keep refrigerated, eat promptly."
+  },
+  {
+   "name": "Mango",
+   "serving_label": "1 cup sliced (≈ ½ mango)",
+   "values": {
+    "veg_dark_green": 0.0,
+    "veg_red_orange": 0.0,
+    "veg_legumes": 0.0,
+    "veg_starchy": 0.0,
+    "veg_other": 0.0,
+    "fruit": 1.0,
+    "grain_whole": 0.0,
+    "grain_refined": 0.0,
+    "dairy": 0.0,
+    "protein_meat_eggs": 0.0,
+    "protein_seafood": 0.0,
+    "seafood_albacore": 0.0,
+    "protein_nuts_seeds_soy": 0.0,
+    "oils": 0.0,
+    "calcium": 18,
+    "choline": 13
+   },
+   "breakdown": [
+    {
+     "ingredient": "mango",
+     "amount": "1 cup",
+     "key": "fruit",
+     "eq": 1.0
+    },
+    {
+     "ingredient": "mango",
+     "amount": "1 cup",
+     "key": "calcium",
+     "eq": 18
+    },
+    {
+     "ingredient": "mango",
+     "amount": "1 cup",
+     "key": "choline",
+     "eq": 13
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "high",
+   "notes": "A whole mango ≈ 2 cups; log 2 servings."
+  },
+  {
+   "name": "Raisins",
+   "serving_label": "¼ cup (small box ≈ 1.5 oz)",
+   "values": {
+    "veg_dark_green": 0.0,
+    "veg_red_orange": 0.0,
+    "veg_legumes": 0.0,
+    "veg_starchy": 0.0,
+    "veg_other": 0.0,
+    "fruit": 0.5,
+    "grain_whole": 0.0,
+    "grain_refined": 0.0,
+    "dairy": 0.0,
+    "protein_meat_eggs": 0.0,
+    "protein_seafood": 0.0,
+    "seafood_albacore": 0.0,
+    "protein_nuts_seeds_soy": 0.0,
+    "oils": 0.0,
+    "calcium": 20,
+    "choline": 4
+   },
+   "breakdown": [
+    {
+     "ingredient": "raisins",
+     "amount": "¼ cup",
+     "key": "fruit",
+     "eq": 0.5
+    },
+    {
+     "ingredient": "raisins",
+     "amount": "¼ cup",
+     "key": "calcium",
+     "eq": 20
+    },
+    {
+     "ingredient": "raisins",
+     "amount": "¼ cup",
+     "key": "choline",
+     "eq": 4
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "high",
+   "notes": "½ cup dried fruit = 1 cup eq. A mini snack box (0.5 oz) ≈ ⅓ of this."
+  },
+  {
+   "name": "Dried apricots",
+   "serving_label": "¼ cup (~10 halves)",
+   "values": {
+    "veg_dark_green": 0.0,
+    "veg_red_orange": 0.0,
+    "veg_legumes": 0.0,
+    "veg_starchy": 0.0,
+    "veg_other": 0.0,
+    "fruit": 0.5,
+    "grain_whole": 0.0,
+    "grain_refined": 0.0,
+    "dairy": 0.0,
+    "protein_meat_eggs": 0.0,
+    "protein_seafood": 0.0,
+    "seafood_albacore": 0.0,
+    "protein_nuts_seeds_soy": 0.0,
+    "oils": 0.0,
+    "calcium": 18,
+    "choline": 4
+   },
+   "breakdown": [
+    {
+     "ingredient": "dried apricots",
+     "amount": "¼ cup",
+     "key": "fruit",
+     "eq": 0.5
+    },
+    {
+     "ingredient": "dried apricots",
+     "amount": "¼ cup",
+     "key": "calcium",
+     "eq": 18
+    },
+    {
+     "ingredient": "dried apricots",
+     "amount": "¼ cup",
+     "key": "choline",
+     "eq": 4
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "high",
+   "notes": ""
+  },
+  {
+   "name": "Orange juice, 100%",
+   "serving_label": "8 oz (1 cup)",
+   "values": {
+    "veg_dark_green": 0.0,
+    "veg_red_orange": 0.0,
+    "veg_legumes": 0.0,
+    "veg_starchy": 0.0,
+    "veg_other": 0.0,
+    "fruit": 1.0,
+    "grain_whole": 0.0,
+    "grain_refined": 0.0,
+    "dairy": 0.0,
+    "protein_meat_eggs": 0.0,
+    "protein_seafood": 0.0,
+    "seafood_albacore": 0.0,
+    "protein_nuts_seeds_soy": 0.0,
+    "oils": 0.0,
+    "calcium": 27,
+    "choline": 15
+   },
+   "breakdown": [
+    {
+     "ingredient": "100% orange juice",
+     "amount": "1 cup",
+     "key": "fruit",
+     "eq": 1.0
+    },
+    {
+     "ingredient": "orange juice",
+     "amount": "1 cup",
+     "key": "calcium",
+     "eq": 27
+    },
+    {
+     "ingredient": "orange juice",
+     "amount": "1 cup",
+     "key": "choline",
+     "eq": 15
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "high",
+   "notes": "Supermarket juice is pasteurized. Fresh-squeezed/unpasteurized juice → unpasteurized_juice."
+  },
+  {
+   "name": "Orange juice, calcium-fortified",
+   "serving_label": "8 oz (1 cup)",
+   "values": {
+    "veg_dark_green": 0.0,
+    "veg_red_orange": 0.0,
+    "veg_legumes": 0.0,
+    "veg_starchy": 0.0,
+    "veg_other": 0.0,
+    "fruit": 1.0,
+    "grain_whole": 0.0,
+    "grain_refined": 0.0,
+    "dairy": 0.0,
+    "protein_meat_eggs": 0.0,
+    "protein_seafood": 0.0,
+    "seafood_albacore": 0.0,
+    "protein_nuts_seeds_soy": 0.0,
+    "oils": 0.0,
+    "calcium": 350,
+    "choline": 15
+   },
+   "breakdown": [
+    {
+     "ingredient": "calcium-fortified 100% orange juice",
+     "amount": "1 cup",
+     "key": "fruit",
+     "eq": 1.0
+    },
+    {
+     "ingredient": "fortified OJ",
+     "amount": "1 cup",
+     "key": "calcium",
+     "eq": 350
+    },
+    {
+     "ingredient": "orange juice",
+     "amount": "1 cup",
+     "key": "choline",
+     "eq": 15
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "med",
+   "notes": "Calcium per label (typically 300–350 mg/cup). Doesn't count as dairy."
+  },
+  {
+   "name": "Whole-wheat bread",
+   "serving_label": "1 slice",
+   "values": {
+    "veg_dark_green": 0.0,
+    "veg_red_orange": 0.0,
+    "veg_legumes": 0.0,
+    "veg_starchy": 0.0,
+    "veg_other": 0.0,
+    "fruit": 0.0,
+    "grain_whole": 1.0,
+    "grain_refined": 0.0,
+    "dairy": 0.0,
+    "protein_meat_eggs": 0.0,
+    "protein_seafood": 0.0,
+    "seafood_albacore": 0.0,
+    "protein_nuts_seeds_soy": 0.0,
+    "oils": 0.0,
+    "calcium": 50,
+    "choline": 9
+   },
+   "breakdown": [
+    {
+     "ingredient": "100% whole-wheat bread",
+     "amount": "1 slice",
+     "key": "grain_whole",
+     "eq": 1.0
+    },
+    {
+     "ingredient": "whole-wheat bread",
+     "amount": "1 slice",
+     "key": "calcium",
+     "eq": 50
+    },
+    {
+     "ingredient": "whole-wheat bread",
+     "amount": "1 slice",
+     "key": "choline",
+     "eq": 9
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "high",
+   "notes": ""
+  },
+  {
+   "name": "White bread",
+   "serving_label": "1 slice (sandwich loaf)",
+   "values": {
+    "veg_dark_green": 0.0,
+    "veg_red_orange": 0.0,
+    "veg_legumes": 0.0,
+    "veg_starchy": 0.0,
+    "veg_other": 0.0,
+    "fruit": 0.0,
+    "grain_whole": 0.0,
+    "grain_refined": 1.0,
+    "dairy": 0.0,
+    "protein_meat_eggs": 0.0,
+    "protein_seafood": 0.0,
+    "seafood_albacore": 0.0,
+    "protein_nuts_seeds_soy": 0.0,
+    "oils": 0.0,
+    "calcium": 60,
+    "choline": 4
+   },
+   "breakdown": [
+    {
+     "ingredient": "enriched white bread",
+     "amount": "1 slice",
+     "key": "grain_refined",
+     "eq": 1.0
+    },
+    {
+     "ingredient": "white bread",
+     "amount": "1 slice",
+     "key": "calcium",
+     "eq": 60
+    },
+    {
+     "ingredient": "white bread",
+     "amount": "1 slice",
+     "key": "choline",
+     "eq": 4
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "high",
+   "notes": ""
+  },
+  {
+   "name": "Sourdough bread",
+   "serving_label": "1 slice (bakery, ~1.5 oz)",
+   "values": {
+    "veg_dark_green": 0.0,
+    "veg_red_orange": 0.0,
+    "veg_legumes": 0.0,
+    "veg_starchy": 0.0,
+    "veg_other": 0.0,
+    "fruit": 0.0,
+    "grain_whole": 0.0,
+    "grain_refined": 1.5,
+    "dairy": 0.0,
+    "protein_meat_eggs": 0.0,
+    "protein_seafood": 0.0,
+    "seafood_albacore": 0.0,
+    "protein_nuts_seeds_soy": 0.0,
+    "oils": 0.0,
+    "calcium": 22,
+    "choline": 6
+   },
+   "breakdown": [
+    {
+     "ingredient": "sourdough bread",
+     "amount": "1.5 oz",
+     "key": "grain_refined",
+     "eq": 1.5
+    },
+    {
+     "ingredient": "sourdough",
+     "amount": "1.5 oz",
+     "key": "calcium",
+     "eq": 22
+    },
+    {
+     "ingredient": "sourdough",
+     "amount": "1.5 oz",
+     "key": "choline",
+     "eq": 6
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "med",
+   "notes": "Bakery slices run 1–2 oz; a thin sandwich-style slice = 1 oz eq."
+  },
+  {
+   "name": "Oatmeal, cooked",
+   "serving_label": "1 cup cooked (½ cup dry)",
+   "values": {
+    "veg_dark_green": 0.0,
+    "veg_red_orange": 0.0,
+    "veg_legumes": 0.0,
+    "veg_starchy": 0.0,
+    "veg_other": 0.0,
+    "fruit": 0.0,
+    "grain_whole": 2.0,
+    "grain_refined": 0.0,
+    "dairy": 0.0,
+    "protein_meat_eggs": 0.0,
+    "protein_seafood": 0.0,
+    "seafood_albacore": 0.0,
+    "protein_nuts_seeds_soy": 0.0,
+    "oils": 0.0,
+    "calcium": 21,
+    "choline": 17
+   },
+   "breakdown": [
+    {
+     "ingredient": "rolled oats",
+     "amount": "½ cup dry / 1 cup cooked",
+     "key": "grain_whole",
+     "eq": 2.0
+    },
+    {
+     "ingredient": "oats",
+     "amount": "1 cup cooked",
+     "key": "calcium",
+     "eq": 21
+    },
+    {
+     "ingredient": "oats",
+     "amount": "1 cup cooked",
+     "key": "choline",
+     "eq": 17
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "high",
+   "notes": "Made with water. If cooked in milk, also log the milk."
+  },
+  {
+   "name": "Instant oatmeal packet",
+   "serving_label": "1 packet",
+   "values": {
+    "veg_dark_green": 0.0,
+    "veg_red_orange": 0.0,
+    "veg_legumes": 0.0,
+    "veg_starchy": 0.0,
+    "veg_other": 0.0,
+    "fruit": 0.0,
+    "grain_whole": 1.0,
+    "grain_refined": 0.0,
+    "dairy": 0.0,
+    "protein_meat_eggs": 0.0,
+    "protein_seafood": 0.0,
+    "seafood_albacore": 0.0,
+    "protein_nuts_seeds_soy": 0.0,
+    "oils": 0.0,
+    "calcium": 100,
+    "choline": 10
+   },
+   "breakdown": [
+    {
+     "ingredient": "instant oats",
+     "amount": "1 packet (~1 oz oats)",
+     "key": "grain_whole",
+     "eq": 1.0
+    },
+    {
+     "ingredient": "fortified instant oatmeal",
+     "amount": "1 packet",
+     "key": "calcium",
+     "eq": 100
+    },
+    {
+     "ingredient": "oats",
+     "amount": "1 packet",
+     "key": "choline",
+     "eq": 10
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "med",
+   "notes": "Most instant packets are calcium-fortified (~100 mg); plain/unfortified ≈ 20 mg. Made with water."
+  },
+  {
+   "name": "Cereal, whole-grain (Cheerios-type)",
+   "serving_label": "1 cup (1 oz)",
+   "values": {
+    "veg_dark_green": 0.0,
+    "veg_red_orange": 0.0,
+    "veg_legumes": 0.0,
+    "veg_starchy": 0.0,
+    "veg_other": 0.0,
+    "fruit": 0.0,
+    "grain_whole": 1.0,
+    "grain_refined": 0.0,
+    "dairy": 0.0,
+    "protein_meat_eggs": 0.0,
+    "protein_seafood": 0.0,
+    "seafood_albacore": 0.0,
+    "protein_nuts_seeds_soy": 0.0,
+    "oils": 0.0,
+    "calcium": 100,
+    "choline": 8
+   },
+   "breakdown": [
+    {
+     "ingredient": "whole-grain oat cereal",
+     "amount": "1 oz",
+     "key": "grain_whole",
+     "eq": 1.0
+    },
+    {
+     "ingredient": "fortified cereal",
+     "amount": "1 oz",
+     "key": "calcium",
+     "eq": 100
+    },
+    {
+     "ingredient": "cereal",
+     "amount": "1 oz",
+     "key": "choline",
+     "eq": 8
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "med",
+   "notes": "Dry cereal only; log the milk separately. Calcium varies by brand fortification."
+  },
+  {
+   "name": "Cereal, refined (corn flakes/Rice Krispies-type)",
+   "serving_label": "1 cup (1 oz)",
+   "values": {
+    "veg_dark_green": 0.0,
+    "veg_red_orange": 0.0,
+    "veg_legumes": 0.0,
+    "veg_starchy": 0.0,
+    "veg_other": 0.0,
+    "fruit": 0.0,
+    "grain_whole": 0.0,
+    "grain_refined": 1.0,
+    "dairy": 0.0,
+    "protein_meat_eggs": 0.0,
+    "protein_seafood": 0.0,
+    "seafood_albacore": 0.0,
+    "protein_nuts_seeds_soy": 0.0,
+    "oils": 0.0,
+    "calcium": 5,
+    "choline": 0
+   },
+   "breakdown": [
+    {
+     "ingredient": "refined flake/puffed cereal",
+     "amount": "1 oz",
+     "key": "grain_refined",
+     "eq": 1.0
+    },
+    {
+     "ingredient": "cereal",
+     "amount": "1 oz",
+     "key": "calcium",
+     "eq": 5
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "med",
+   "notes": "Dry cereal only; log the milk separately."
+  },
+  {
+   "name": "Granola",
+   "serving_label": "½ cup",
+   "values": {
+    "veg_dark_green": 0.0,
+    "veg_red_orange": 0.0,
+    "veg_legumes": 0.0,
+    "veg_starchy": 0.0,
+    "veg_other": 0.0,
+    "fruit": 0.0,
+    "grain_whole": 1.5,
+    "grain_refined": 0.0,
+    "dairy": 0.0,
+    "protein_meat_eggs": 0.0,
+    "protein_seafood": 0.0,
+    "seafood_albacore": 0.0,
+    "protein_nuts_seeds_soy": 0.5,
+    "oils": 6.0,
+    "calcium": 45,
+    "choline": 15
+   },
+   "breakdown": [
+    {
+     "ingredient": "oats in granola",
+     "amount": "~1.5 oz",
+     "key": "grain_whole",
+     "eq": 1.5
+    },
+    {
+     "ingredient": "nuts/seeds in granola",
+     "amount": "~¼ oz",
+     "key": "protein_nuts_seeds_soy",
+     "eq": 0.5
+    },
+    {
+     "ingredient": "added oil + nut oil",
+     "amount": "½ cup granola",
+     "key": "oils",
+     "eq": 6.0
+    },
+    {
+     "ingredient": "granola",
+     "amount": "½ cup",
+     "key": "calcium",
+     "eq": 45
+    },
+    {
+     "ingredient": "granola",
+     "amount": "½ cup",
+     "key": "choline",
+     "eq": 15
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "med",
+   "notes": "Typical nut-containing granola (~60 g). Brands vary a lot; dense ½ cup."
+  },
+  {
+   "name": "Brown rice",
+   "serving_label": "½ cup cooked",
+   "values": {
+    "veg_dark_green": 0.0,
+    "veg_red_orange": 0.0,
+    "veg_legumes": 0.0,
+    "veg_starchy": 0.0,
+    "veg_other": 0.0,
+    "fruit": 0.0,
+    "grain_whole": 1.0,
+    "grain_refined": 0.0,
+    "dairy": 0.0,
+    "protein_meat_eggs": 0.0,
+    "protein_seafood": 0.0,
+    "seafood_albacore": 0.0,
+    "protein_nuts_seeds_soy": 0.0,
+    "oils": 0.0,
+    "calcium": 10,
+    "choline": 9
+   },
+   "breakdown": [
+    {
+     "ingredient": "brown rice",
+     "amount": "½ cup cooked",
+     "key": "grain_whole",
+     "eq": 1.0
+    },
+    {
+     "ingredient": "brown rice",
+     "amount": "½ cup",
+     "key": "calcium",
+     "eq": 10
+    },
+    {
+     "ingredient": "brown rice",
+     "amount": "½ cup",
+     "key": "choline",
+     "eq": 9
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "high",
+   "notes": ""
+  },
+  {
+   "name": "White rice",
+   "serving_label": "1 cup cooked",
+   "values": {
+    "veg_dark_green": 0.0,
+    "veg_red_orange": 0.0,
+    "veg_legumes": 0.0,
+    "veg_starchy": 0.0,
+    "veg_other": 0.0,
+    "fruit": 0.0,
+    "grain_whole": 0.0,
+    "grain_refined": 2.0,
+    "dairy": 0.0,
+    "protein_meat_eggs": 0.0,
+    "protein_seafood": 0.0,
+    "seafood_albacore": 0.0,
+    "protein_nuts_seeds_soy": 0.0,
+    "oils": 0.0,
+    "calcium": 16,
+    "choline": 4
+   },
+   "breakdown": [
+    {
+     "ingredient": "white rice",
+     "amount": "1 cup cooked",
+     "key": "grain_refined",
+     "eq": 2.0
+    },
+    {
+     "ingredient": "white rice",
+     "amount": "1 cup",
+     "key": "calcium",
+     "eq": 16
+    },
+    {
+     "ingredient": "white rice",
+     "amount": "1 cup",
+     "key": "choline",
+     "eq": 4
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "high",
+   "notes": ""
+  },
+  {
+   "name": "Pasta",
+   "serving_label": "1 cup cooked",
+   "values": {
+    "veg_dark_green": 0.0,
+    "veg_red_orange": 0.0,
+    "veg_legumes": 0.0,
+    "veg_starchy": 0.0,
+    "veg_other": 0.0,
+    "fruit": 0.0,
+    "grain_whole": 0.0,
+    "grain_refined": 2.0,
+    "dairy": 0.0,
+    "protein_meat_eggs": 0.0,
+    "protein_seafood": 0.0,
+    "seafood_albacore": 0.0,
+    "protein_nuts_seeds_soy": 0.0,
+    "oils": 0.0,
+    "calcium": 10,
+    "choline": 9
+   },
+   "breakdown": [
+    {
+     "ingredient": "enriched pasta",
+     "amount": "1 cup cooked",
+     "key": "grain_refined",
+     "eq": 2.0
+    },
+    {
+     "ingredient": "pasta",
+     "amount": "1 cup",
+     "key": "calcium",
+     "eq": 10
+    },
+    {
+     "ingredient": "pasta",
+     "amount": "1 cup",
+     "key": "choline",
+     "eq": 9
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "high",
+   "notes": "Plain pasta only; log sauce/cheese separately."
+  },
+  {
+   "name": "Whole-wheat pasta",
+   "serving_label": "1 cup cooked",
+   "values": {
+    "veg_dark_green": 0.0,
+    "veg_red_orange": 0.0,
+    "veg_legumes": 0.0,
+    "veg_starchy": 0.0,
+    "veg_other": 0.0,
+    "fruit": 0.0,
+    "grain_whole": 2.0,
+    "grain_refined": 0.0,
+    "dairy": 0.0,
+    "protein_meat_eggs": 0.0,
+    "protein_seafood": 0.0,
+    "seafood_albacore": 0.0,
+    "protein_nuts_seeds_soy": 0.0,
+    "oils": 0.0,
+    "calcium": 21,
+    "choline": 13
+   },
+   "breakdown": [
+    {
+     "ingredient": "whole-wheat pasta",
+     "amount": "1 cup cooked",
+     "key": "grain_whole",
+     "eq": 2.0
+    },
+    {
+     "ingredient": "whole-wheat pasta",
+     "amount": "1 cup",
+     "key": "calcium",
+     "eq": 21
+    },
+    {
+     "ingredient": "whole-wheat pasta",
+     "amount": "1 cup",
+     "key": "choline",
+     "eq": 13
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "high",
+   "notes": ""
+  },
+  {
+   "name": "Bagel, plain",
+   "serving_label": "1 bagel (4-inch, bakery size)",
+   "values": {
+    "veg_dark_green": 0.0,
+    "veg_red_orange": 0.0,
+    "veg_legumes": 0.0,
+    "veg_starchy": 0.0,
+    "veg_other": 0.0,
+    "fruit": 0.0,
+    "grain_whole": 0.0,
+    "grain_refined": 4.0,
+    "dairy": 0.0,
+    "protein_meat_eggs": 0.0,
+    "protein_seafood": 0.0,
+    "seafood_albacore": 0.0,
+    "protein_nuts_seeds_soy": 0.0,
+    "oils": 0.0,
+    "calcium": 30,
+    "choline": 10
+   },
+   "breakdown": [
+    {
+     "ingredient": "plain bagel",
+     "amount": "1 large (~3.5–4 oz)",
+     "key": "grain_refined",
+     "eq": 4.0
+    },
+    {
+     "ingredient": "bagel",
+     "amount": "1",
+     "key": "calcium",
+     "eq": 30
+    },
+    {
+     "ingredient": "bagel",
+     "amount": "1",
+     "key": "choline",
+     "eq": 10
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "med",
+   "notes": "Large bagel = 4 oz eq; a packaged (Thomas'-type) bagel ≈ 3, a mini ≈ 1. Whole-wheat bagel → treat as grain_whole."
+  },
+  {
+   "name": "English muffin, whole-wheat",
+   "serving_label": "1 muffin",
+   "values": {
+    "veg_dark_green": 0.0,
+    "veg_red_orange": 0.0,
+    "veg_legumes": 0.0,
+    "veg_starchy": 0.0,
+    "veg_other": 0.0,
+    "fruit": 0.0,
+    "grain_whole": 2.0,
+    "grain_refined": 0.0,
+    "dairy": 0.0,
+    "protein_meat_eggs": 0.0,
+    "protein_seafood": 0.0,
+    "seafood_albacore": 0.0,
+    "protein_nuts_seeds_soy": 0.0,
+    "oils": 0.0,
+    "calcium": 100,
+    "choline": 15
+   },
+   "breakdown": [
+    {
+     "ingredient": "whole-wheat English muffin",
+     "amount": "1 (2 halves)",
+     "key": "grain_whole",
+     "eq": 2.0
+    },
+    {
+     "ingredient": "whole-wheat English muffin",
+     "amount": "1",
+     "key": "calcium",
+     "eq": 100
+    },
+    {
+     "ingredient": "English muffin",
+     "amount": "1",
+     "key": "choline",
+     "eq": 15
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "med",
+   "notes": ""
+  },
+  {
+   "name": "Flour tortilla",
+   "serving_label": "1 medium (8-inch)",
+   "values": {
+    "veg_dark_green": 0.0,
+    "veg_red_orange": 0.0,
+    "veg_legumes": 0.0,
+    "veg_starchy": 0.0,
+    "veg_other": 0.0,
+    "fruit": 0.0,
+    "grain_whole": 0.0,
+    "grain_refined": 2.0,
+    "dairy": 0.0,
+    "protein_meat_eggs": 0.0,
+    "protein_seafood": 0.0,
+    "seafood_albacore": 0.0,
+    "protein_nuts_seeds_soy": 0.0,
+    "oils": 0.0,
+    "calcium": 60,
+    "choline": 5
+   },
+   "breakdown": [
+    {
+     "ingredient": "flour tortilla",
+     "amount": "1 × 8-inch",
+     "key": "grain_refined",
+     "eq": 2.0
+    },
+    {
+     "ingredient": "flour tortilla",
+     "amount": "1",
+     "key": "calcium",
+     "eq": 60
+    },
+    {
+     "ingredient": "flour tortilla",
+     "amount": "1",
+     "key": "choline",
+     "eq": 5
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "med",
+   "notes": "6-inch = 1 oz eq, 8-inch ≈ 2, 10-inch burrito ≈ 4."
+  },
+  {
+   "name": "Corn tortillas",
+   "serving_label": "2 tortillas (6-inch)",
+   "values": {
+    "veg_dark_green": 0.0,
+    "veg_red_orange": 0.0,
+    "veg_legumes": 0.0,
+    "veg_starchy": 0.0,
+    "veg_other": 0.0,
+    "fruit": 0.0,
+    "grain_whole": 2.0,
+    "grain_refined": 0.0,
+    "dairy": 0.0,
+    "protein_meat_eggs": 0.0,
+    "protein_seafood": 0.0,
+    "seafood_albacore": 0.0,
+    "protein_nuts_seeds_soy": 0.0,
+    "oils": 0.0,
+    "calcium": 40,
+    "choline": 7
+   },
+   "breakdown": [
+    {
+     "ingredient": "corn tortillas",
+     "amount": "2 × 6-inch",
+     "key": "grain_whole",
+     "eq": 2.0
+    },
+    {
+     "ingredient": "corn tortillas (lime-treated)",
+     "amount": "2",
+     "key": "calcium",
+     "eq": 40
+    },
+    {
+     "ingredient": "corn tortillas",
+     "amount": "2",
+     "key": "choline",
+     "eq": 7
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "high",
+   "notes": "Whole-grain corn per rules."
+  },
+  {
+   "name": "Crackers",
+   "serving_label": "7 crackers (saltine/Ritz-type)",
+   "values": {
+    "veg_dark_green": 0.0,
+    "veg_red_orange": 0.0,
+    "veg_legumes": 0.0,
+    "veg_starchy": 0.0,
+    "veg_other": 0.0,
+    "fruit": 0.0,
+    "grain_whole": 0.0,
+    "grain_refined": 1.0,
+    "dairy": 0.0,
+    "protein_meat_eggs": 0.0,
+    "protein_seafood": 0.0,
+    "seafood_albacore": 0.0,
+    "protein_nuts_seeds_soy": 0.0,
+    "oils": 3.0,
+    "calcium": 15,
+    "choline": 0
+   },
+   "breakdown": [
+    {
+     "ingredient": "refined crackers",
+     "amount": "7 crackers (~0.75 oz)",
+     "key": "grain_refined",
+     "eq": 1.0
+    },
+    {
+     "ingredient": "oil in crackers",
+     "amount": "7 crackers",
+     "key": "oils",
+     "eq": 3.0
+    },
+    {
+     "ingredient": "crackers",
+     "amount": "7",
+     "key": "calcium",
+     "eq": 15
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "med",
+   "notes": "Saltines have less oil (~1.5 g), butter-type rounds more (~5 g); averaged."
+  },
+  {
+   "name": "Crackers, whole-grain (Triscuit-type)",
+   "serving_label": "6 crackers (1 oz)",
+   "values": {
+    "veg_dark_green": 0.0,
+    "veg_red_orange": 0.0,
+    "veg_legumes": 0.0,
+    "veg_starchy": 0.0,
+    "veg_other": 0.0,
+    "fruit": 0.0,
+    "grain_whole": 1.0,
+    "grain_refined": 0.0,
+    "dairy": 0.0,
+    "protein_meat_eggs": 0.0,
+    "protein_seafood": 0.0,
+    "seafood_albacore": 0.0,
+    "protein_nuts_seeds_soy": 0.0,
+    "oils": 3.5,
+    "calcium": 10,
+    "choline": 0
+   },
+   "breakdown": [
+    {
+     "ingredient": "whole-grain wheat crackers",
+     "amount": "1 oz",
+     "key": "grain_whole",
+     "eq": 1.0
+    },
+    {
+     "ingredient": "oil in crackers",
+     "amount": "6 crackers",
+     "key": "oils",
+     "eq": 3.5
+    },
+    {
+     "ingredient": "crackers",
+     "amount": "6",
+     "key": "calcium",
+     "eq": 10
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "med",
+   "notes": ""
+  },
+  {
+   "name": "Popcorn",
+   "serving_label": "3 cups popped",
+   "values": {
+    "veg_dark_green": 0.0,
+    "veg_red_orange": 0.0,
+    "veg_legumes": 0.0,
+    "veg_starchy": 0.0,
+    "veg_other": 0.0,
+    "fruit": 0.0,
+    "grain_whole": 1.0,
+    "grain_refined": 0.0,
+    "dairy": 0.0,
+    "protein_meat_eggs": 0.0,
+    "protein_seafood": 0.0,
+    "seafood_albacore": 0.0,
+    "protein_nuts_seeds_soy": 0.0,
+    "oils": 2.5,
+    "calcium": 0,
+    "choline": 0
+   },
+   "breakdown": [
+    {
+     "ingredient": "popcorn",
+     "amount": "3 cups popped",
+     "key": "grain_whole",
+     "eq": 1.0
+    },
+    {
+     "ingredient": "popping oil",
+     "amount": "3 cups (light)",
+     "key": "oils",
+     "eq": 2.5
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "med",
+   "notes": "Assumes lightly oiled/'light' microwave. Air-popped: oils 0; regular microwave/movie popcorn has more (largely palm, not counted)."
+  },
+  {
+   "name": "Rice cakes",
+   "serving_label": "2 plain rice cakes",
+   "values": {
+    "veg_dark_green": 0.0,
+    "veg_red_orange": 0.0,
+    "veg_legumes": 0.0,
+    "veg_starchy": 0.0,
+    "veg_other": 0.0,
+    "fruit": 0.0,
+    "grain_whole": 0.64,
+    "grain_refined": 0.0,
+    "dairy": 0.0,
+    "protein_meat_eggs": 0.0,
+    "protein_seafood": 0.0,
+    "seafood_albacore": 0.0,
+    "protein_nuts_seeds_soy": 0.0,
+    "oils": 0.0,
+    "calcium": 0,
+    "choline": 0
+   },
+   "breakdown": [
+    {
+     "ingredient": "brown rice cakes",
+     "amount": "2 (~18 g)",
+     "key": "grain_whole",
+     "eq": 0.64
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "med",
+   "notes": "By weight: 18 g / 28 g. Plain brown-rice cakes are whole grain."
+  },
+  {
+   "name": "Hot oats, 1.5 servings + 1 slice whole-wheat bread",
+   "serving_label": "1 breakfast",
+   "values": {
+    "veg_dark_green": 0.0,
+    "veg_red_orange": 0.0,
+    "veg_legumes": 0.0,
+    "veg_starchy": 0.0,
+    "veg_other": 0.0,
+    "fruit": 0.0,
+    "grain_whole": 4.0,
+    "grain_refined": 0.0,
+    "dairy": 0.0,
+    "protein_meat_eggs": 0.0,
+    "protein_seafood": 0.0,
+    "seafood_albacore": 0.0,
+    "protein_nuts_seeds_soy": 0.0,
+    "oils": 0.0,
+    "calcium": 80,
+    "choline": 35
+   },
+   "breakdown": [
+    {
+     "ingredient": "rolled oats",
+     "amount": "¾ cup dry / 1.5 cups cooked",
+     "key": "grain_whole",
+     "eq": 3.0
+    },
+    {
+     "ingredient": "whole-wheat bread",
+     "amount": "1 slice",
+     "key": "grain_whole",
+     "eq": 1.0
+    },
+    {
+     "ingredient": "oats",
+     "amount": "1.5 cups cooked",
+     "key": "calcium",
+     "eq": 30
+    },
+    {
+     "ingredient": "whole-wheat bread",
+     "amount": "1 slice",
+     "key": "calcium",
+     "eq": 50
+    },
+    {
+     "ingredient": "oats",
+     "amount": "1.5 cups cooked",
+     "key": "choline",
+     "eq": 26
+    },
+    {
+     "ingredient": "whole-wheat bread",
+     "amount": "1 slice",
+     "key": "choline",
+     "eq": 9
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "high",
+   "notes": "Anny's usual: 1.5 package servings of oats (serving = ½ cup dry) + 1 slice whole-wheat toast. Oats made with water; log milk, nut butter, fruit separately."
+  },
+  {
+   "name": "Almonds",
+   "serving_label": "1 oz (~23 almonds)",
+   "values": {
+    "veg_dark_green": 0.0,
+    "veg_red_orange": 0.0,
+    "veg_legumes": 0.0,
+    "veg_starchy": 0.0,
+    "veg_other": 0.0,
+    "fruit": 0.0,
+    "grain_whole": 0.0,
+    "grain_refined": 0.0,
+    "dairy": 0.0,
+    "protein_meat_eggs": 0.0,
+    "protein_seafood": 0.0,
+    "seafood_albacore": 0.0,
+    "protein_nuts_seeds_soy": 2.0,
+    "oils": 14.0,
+    "calcium": 75,
+    "choline": 15
+   },
+   "breakdown": [
+    {
+     "ingredient": "almonds",
+     "amount": "1 oz",
+     "key": "protein_nuts_seeds_soy",
+     "eq": 2.0
+    },
+    {
+     "ingredient": "almonds",
+     "amount": "1 oz",
+     "key": "oils",
+     "eq": 14.0
+    },
+    {
+     "ingredient": "almonds",
+     "amount": "1 oz",
+     "key": "calcium",
+     "eq": 75
+    },
+    {
+     "ingredient": "almonds",
+     "amount": "1 oz",
+     "key": "choline",
+     "eq": 15
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "high",
+   "notes": ""
+  },
+  {
+   "name": "Walnuts",
+   "serving_label": "1 oz (~14 halves)",
+   "values": {
+    "veg_dark_green": 0.0,
+    "veg_red_orange": 0.0,
+    "veg_legumes": 0.0,
+    "veg_starchy": 0.0,
+    "veg_other": 0.0,
+    "fruit": 0.0,
+    "grain_whole": 0.0,
+    "grain_refined": 0.0,
+    "dairy": 0.0,
+    "protein_meat_eggs": 0.0,
+    "protein_seafood": 0.0,
+    "seafood_albacore": 0.0,
+    "protein_nuts_seeds_soy": 2.0,
+    "oils": 14.0,
+    "calcium": 28,
+    "choline": 11
+   },
+   "breakdown": [
+    {
+     "ingredient": "walnuts",
+     "amount": "1 oz",
+     "key": "protein_nuts_seeds_soy",
+     "eq": 2.0
+    },
+    {
+     "ingredient": "walnuts",
+     "amount": "1 oz",
+     "key": "oils",
+     "eq": 14.0
+    },
+    {
+     "ingredient": "walnuts",
+     "amount": "1 oz",
+     "key": "calcium",
+     "eq": 28
+    },
+    {
+     "ingredient": "walnuts",
+     "amount": "1 oz",
+     "key": "choline",
+     "eq": 11
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "high",
+   "notes": ""
+  },
+  {
+   "name": "Cashews",
+   "serving_label": "1 oz (~18 cashews)",
+   "values": {
+    "veg_dark_green": 0.0,
+    "veg_red_orange": 0.0,
+    "veg_legumes": 0.0,
+    "veg_starchy": 0.0,
+    "veg_other": 0.0,
+    "fruit": 0.0,
+    "grain_whole": 0.0,
+    "grain_refined": 0.0,
+    "dairy": 0.0,
+    "protein_meat_eggs": 0.0,
+    "protein_seafood": 0.0,
+    "seafood_albacore": 0.0,
+    "protein_nuts_seeds_soy": 2.0,
+    "oils": 14.0,
+    "calcium": 10,
+    "choline": 17
+   },
+   "breakdown": [
+    {
+     "ingredient": "cashews",
+     "amount": "1 oz",
+     "key": "protein_nuts_seeds_soy",
+     "eq": 2.0
+    },
+    {
+     "ingredient": "cashews",
+     "amount": "1 oz",
+     "key": "oils",
+     "eq": 14.0
+    },
+    {
+     "ingredient": "cashews",
+     "amount": "1 oz",
+     "key": "calcium",
+     "eq": 10
+    },
+    {
+     "ingredient": "cashews",
+     "amount": "1 oz",
+     "key": "choline",
+     "eq": 17
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "high",
+   "notes": ""
+  },
+  {
+   "name": "Peanut butter",
+   "serving_label": "2 tbsp",
+   "values": {
+    "veg_dark_green": 0.0,
+    "veg_red_orange": 0.0,
+    "veg_legumes": 0.0,
+    "veg_starchy": 0.0,
+    "veg_other": 0.0,
+    "fruit": 0.0,
+    "grain_whole": 0.0,
+    "grain_refined": 0.0,
+    "dairy": 0.0,
+    "protein_meat_eggs": 0.0,
+    "protein_seafood": 0.0,
+    "seafood_albacore": 0.0,
+    "protein_nuts_seeds_soy": 2.0,
+    "oils": 16.0,
+    "calcium": 15,
+    "choline": 20
+   },
+   "breakdown": [
+    {
+     "ingredient": "peanut butter",
+     "amount": "2 tbsp",
+     "key": "protein_nuts_seeds_soy",
+     "eq": 2.0
+    },
+    {
+     "ingredient": "peanut butter",
+     "amount": "2 tbsp",
+     "key": "oils",
+     "eq": 16.0
+    },
+    {
+     "ingredient": "peanut butter",
+     "amount": "2 tbsp",
+     "key": "calcium",
+     "eq": 15
+    },
+    {
+     "ingredient": "peanut butter",
+     "amount": "2 tbsp",
+     "key": "choline",
+     "eq": 20
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "high",
+   "notes": ""
+  },
+  {
+   "name": "Almond butter",
+   "serving_label": "2 tbsp",
+   "values": {
+    "veg_dark_green": 0.0,
+    "veg_red_orange": 0.0,
+    "veg_legumes": 0.0,
+    "veg_starchy": 0.0,
+    "veg_other": 0.0,
+    "fruit": 0.0,
+    "grain_whole": 0.0,
+    "grain_refined": 0.0,
+    "dairy": 0.0,
+    "protein_meat_eggs": 0.0,
+    "protein_seafood": 0.0,
+    "seafood_albacore": 0.0,
+    "protein_nuts_seeds_soy": 2.0,
+    "oils": 16.0,
+    "calcium": 110,
+    "choline": 17
+   },
+   "breakdown": [
+    {
+     "ingredient": "almond butter",
+     "amount": "2 tbsp",
+     "key": "protein_nuts_seeds_soy",
+     "eq": 2.0
+    },
+    {
+     "ingredient": "almond butter",
+     "amount": "2 tbsp",
+     "key": "oils",
+     "eq": 16.0
+    },
+    {
+     "ingredient": "almond butter",
+     "amount": "2 tbsp",
+     "key": "calcium",
+     "eq": 110
+    },
+    {
+     "ingredient": "almond butter",
+     "amount": "2 tbsp",
+     "key": "choline",
+     "eq": 17
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "high",
+   "notes": ""
+  },
+  {
+   "name": "Sunflower seeds",
+   "serving_label": "¼ cup kernels (1 oz)",
+   "values": {
+    "veg_dark_green": 0.0,
+    "veg_red_orange": 0.0,
+    "veg_legumes": 0.0,
+    "veg_starchy": 0.0,
+    "veg_other": 0.0,
+    "fruit": 0.0,
+    "grain_whole": 0.0,
+    "grain_refined": 0.0,
+    "dairy": 0.0,
+    "protein_meat_eggs": 0.0,
+    "protein_seafood": 0.0,
+    "seafood_albacore": 0.0,
+    "protein_nuts_seeds_soy": 2.0,
+    "oils": 14.0,
+    "calcium": 20,
+    "choline": 16
+   },
+   "breakdown": [
+    {
+     "ingredient": "sunflower kernels",
+     "amount": "1 oz",
+     "key": "protein_nuts_seeds_soy",
+     "eq": 2.0
+    },
+    {
+     "ingredient": "sunflower seeds",
+     "amount": "1 oz",
+     "key": "oils",
+     "eq": 14.0
+    },
+    {
+     "ingredient": "sunflower seeds",
+     "amount": "1 oz",
+     "key": "calcium",
+     "eq": 20
+    },
+    {
+     "ingredient": "sunflower seeds",
+     "amount": "1 oz",
+     "key": "choline",
+     "eq": 16
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "high",
+   "notes": ""
+  },
+  {
+   "name": "Chia seeds",
+   "serving_label": "1 tbsp (~10 g)",
+   "values": {
+    "veg_dark_green": 0.0,
+    "veg_red_orange": 0.0,
+    "veg_legumes": 0.0,
+    "veg_starchy": 0.0,
+    "veg_other": 0.0,
+    "fruit": 0.0,
+    "grain_whole": 0.0,
+    "grain_refined": 0.0,
+    "dairy": 0.0,
+    "protein_meat_eggs": 0.0,
+    "protein_seafood": 0.0,
+    "seafood_albacore": 0.0,
+    "protein_nuts_seeds_soy": 0.7,
+    "oils": 3.0,
+    "calcium": 63,
+    "choline": 0
+   },
+   "breakdown": [
+    {
+     "ingredient": "chia seeds",
+     "amount": "~0.35 oz",
+     "key": "protein_nuts_seeds_soy",
+     "eq": 0.7
+    },
+    {
+     "ingredient": "chia seeds",
+     "amount": "1 tbsp",
+     "key": "oils",
+     "eq": 3.0
+    },
+    {
+     "ingredient": "chia seeds",
+     "amount": "1 tbsp",
+     "key": "calcium",
+     "eq": 63
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "med",
+   "notes": "By weight (½ oz seeds = 1 oz eq); chia is denser than the 2-tbsp rule of thumb."
+  },
+  {
+   "name": "Flaxseed, ground",
+   "serving_label": "1 tbsp (7 g)",
+   "values": {
+    "veg_dark_green": 0.0,
+    "veg_red_orange": 0.0,
+    "veg_legumes": 0.0,
+    "veg_starchy": 0.0,
+    "veg_other": 0.0,
+    "fruit": 0.0,
+    "grain_whole": 0.0,
+    "grain_refined": 0.0,
+    "dairy": 0.0,
+    "protein_meat_eggs": 0.0,
+    "protein_seafood": 0.0,
+    "seafood_albacore": 0.0,
+    "protein_nuts_seeds_soy": 0.5,
+    "oils": 3.0,
+    "calcium": 18,
+    "choline": 6
+   },
+   "breakdown": [
+    {
+     "ingredient": "ground flax",
+     "amount": "0.25 oz",
+     "key": "protein_nuts_seeds_soy",
+     "eq": 0.5
+    },
+    {
+     "ingredient": "flax",
+     "amount": "1 tbsp",
+     "key": "oils",
+     "eq": 3.0
+    },
+    {
+     "ingredient": "flax",
+     "amount": "1 tbsp",
+     "key": "calcium",
+     "eq": 18
+    },
+    {
+     "ingredient": "flax",
+     "amount": "1 tbsp",
+     "key": "choline",
+     "eq": 6
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "med",
+   "notes": ""
+  },
+  {
+   "name": "Hummus",
+   "serving_label": "¼ cup",
+   "values": {
+    "veg_dark_green": 0.0,
+    "veg_red_orange": 0.0,
+    "veg_legumes": 0.25,
+    "veg_starchy": 0.0,
+    "veg_other": 0.0,
+    "fruit": 0.0,
+    "grain_whole": 0.0,
+    "grain_refined": 0.0,
+    "dairy": 0.0,
+    "protein_meat_eggs": 0.0,
+    "protein_seafood": 0.0,
+    "seafood_albacore": 0.0,
+    "protein_nuts_seeds_soy": 0.5,
+    "oils": 8.0,
+    "calcium": 23,
+    "choline": 10
+   },
+   "breakdown": [
+    {
+     "ingredient": "chickpeas (bean part)",
+     "amount": "~0.25 cup",
+     "key": "veg_legumes",
+     "eq": 0.25
+    },
+    {
+     "ingredient": "tahini",
+     "amount": "~1.5 tsp",
+     "key": "protein_nuts_seeds_soy",
+     "eq": 0.5
+    },
+    {
+     "ingredient": "tahini + olive oil",
+     "amount": "¼ cup hummus",
+     "key": "oils",
+     "eq": 8.0
+    },
+    {
+     "ingredient": "hummus",
+     "amount": "¼ cup",
+     "key": "calcium",
+     "eq": 23
+    },
+    {
+     "ingredient": "hummus",
+     "amount": "¼ cup",
+     "key": "choline",
+     "eq": 10
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "med",
+   "notes": "Bean-part estimate per rules (~60% chickpeas). MyPlate's shortcut (2 tbsp hummus = 1 oz eq protein) would give 0.5 cup eq legumes."
+  },
+  {
+   "name": "Tofu, firm",
+   "serving_label": "½ cup (~4.5 oz)",
+   "values": {
+    "veg_dark_green": 0.0,
+    "veg_red_orange": 0.0,
+    "veg_legumes": 0.0,
+    "veg_starchy": 0.0,
+    "veg_other": 0.0,
+    "fruit": 0.0,
+    "grain_whole": 0.0,
+    "grain_refined": 0.0,
+    "dairy": 0.0,
+    "protein_meat_eggs": 0.0,
+    "protein_seafood": 0.0,
+    "seafood_albacore": 0.0,
+    "protein_nuts_seeds_soy": 2.0,
+    "oils": 0.0,
+    "calcium": 250,
+    "choline": 35
+   },
+   "breakdown": [
+    {
+     "ingredient": "firm tofu",
+     "amount": "½ cup",
+     "key": "protein_nuts_seeds_soy",
+     "eq": 2.0
+    },
+    {
+     "ingredient": "calcium-set tofu",
+     "amount": "½ cup",
+     "key": "calcium",
+     "eq": 250
+    },
+    {
+     "ingredient": "tofu",
+     "amount": "½ cup",
+     "key": "choline",
+     "eq": 35
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "med",
+   "notes": "Calcium assumes calcium-set tofu (calcium sulfate on label); nigari-set ≈ 100 mg."
+  },
+  {
+   "name": "Edamame, shelled",
+   "serving_label": "½ cup",
+   "values": {
+    "veg_dark_green": 0.0,
+    "veg_red_orange": 0.0,
+    "veg_legumes": 0.0,
+    "veg_starchy": 0.0,
+    "veg_other": 0.0,
+    "fruit": 0.0,
+    "grain_whole": 0.0,
+    "grain_refined": 0.0,
+    "dairy": 0.0,
+    "protein_meat_eggs": 0.0,
+    "protein_seafood": 0.0,
+    "seafood_albacore": 0.0,
+    "protein_nuts_seeds_soy": 2.0,
+    "oils": 0.0,
+    "calcium": 49,
+    "choline": 44
+   },
+   "breakdown": [
+    {
+     "ingredient": "edamame",
+     "amount": "½ cup",
+     "key": "protein_nuts_seeds_soy",
+     "eq": 2.0
+    },
+    {
+     "ingredient": "edamame",
+     "amount": "½ cup",
+     "key": "calcium",
+     "eq": 49
+    },
+    {
+     "ingredient": "edamame",
+     "amount": "½ cup",
+     "key": "choline",
+     "eq": 44
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "high",
+   "notes": "Edamame counts as soy (protein), not legume vegetable, per rules."
+  },
+  {
+   "name": "Black beans",
+   "serving_label": "½ cup cooked/canned",
+   "values": {
+    "veg_dark_green": 0.0,
+    "veg_red_orange": 0.0,
+    "veg_legumes": 0.5,
+    "veg_starchy": 0.0,
+    "veg_other": 0.0,
+    "fruit": 0.0,
+    "grain_whole": 0.0,
+    "grain_refined": 0.0,
+    "dairy": 0.0,
+    "protein_meat_eggs": 0.0,
+    "protein_seafood": 0.0,
+    "seafood_albacore": 0.0,
+    "protein_nuts_seeds_soy": 0.0,
+    "oils": 0.0,
+    "calcium": 40,
+    "choline": 35
+   },
+   "breakdown": [
+    {
+     "ingredient": "black beans",
+     "amount": "½ cup",
+     "key": "veg_legumes",
+     "eq": 0.5
+    },
+    {
+     "ingredient": "beans",
+     "amount": "½ cup",
+     "key": "calcium",
+     "eq": 40
+    },
+    {
+     "ingredient": "beans",
+     "amount": "½ cup",
+     "key": "choline",
+     "eq": 35
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "high",
+   "notes": ""
+  },
+  {
+   "name": "Chickpeas",
+   "serving_label": "½ cup cooked/canned",
+   "values": {
+    "veg_dark_green": 0.0,
+    "veg_red_orange": 0.0,
+    "veg_legumes": 0.5,
+    "veg_starchy": 0.0,
+    "veg_other": 0.0,
+    "fruit": 0.0,
+    "grain_whole": 0.0,
+    "grain_refined": 0.0,
+    "dairy": 0.0,
+    "protein_meat_eggs": 0.0,
+    "protein_seafood": 0.0,
+    "seafood_albacore": 0.0,
+    "protein_nuts_seeds_soy": 0.0,
+    "oils": 0.0,
+    "calcium": 40,
+    "choline": 35
+   },
+   "breakdown": [
+    {
+     "ingredient": "chickpeas",
+     "amount": "½ cup",
+     "key": "veg_legumes",
+     "eq": 0.5
+    },
+    {
+     "ingredient": "chickpeas",
+     "amount": "½ cup",
+     "key": "calcium",
+     "eq": 40
+    },
+    {
+     "ingredient": "chickpeas",
+     "amount": "½ cup",
+     "key": "choline",
+     "eq": 35
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "high",
+   "notes": ""
+  },
+  {
+   "name": "Lentils",
+   "serving_label": "½ cup cooked",
+   "values": {
+    "veg_dark_green": 0.0,
+    "veg_red_orange": 0.0,
+    "veg_legumes": 0.5,
+    "veg_starchy": 0.0,
+    "veg_other": 0.0,
+    "fruit": 0.0,
+    "grain_whole": 0.0,
+    "grain_refined": 0.0,
+    "dairy": 0.0,
+    "protein_meat_eggs": 0.0,
+    "protein_seafood": 0.0,
+    "seafood_albacore": 0.0,
+    "protein_nuts_seeds_soy": 0.0,
+    "oils": 0.0,
+    "calcium": 19,
+    "choline": 32
+   },
+   "breakdown": [
+    {
+     "ingredient": "lentils",
+     "amount": "½ cup",
+     "key": "veg_legumes",
+     "eq": 0.5
+    },
+    {
+     "ingredient": "lentils",
+     "amount": "½ cup",
+     "key": "calcium",
+     "eq": 19
+    },
+    {
+     "ingredient": "lentils",
+     "amount": "½ cup",
+     "key": "choline",
+     "eq": 32
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "high",
+   "notes": ""
+  },
+  {
+   "name": "Chicken breast",
+   "serving_label": "3 oz cooked",
+   "values": {
+    "veg_dark_green": 0.0,
+    "veg_red_orange": 0.0,
+    "veg_legumes": 0.0,
+    "veg_starchy": 0.0,
+    "veg_other": 0.0,
+    "fruit": 0.0,
+    "grain_whole": 0.0,
+    "grain_refined": 0.0,
+    "dairy": 0.0,
+    "protein_meat_eggs": 3.0,
+    "protein_seafood": 0.0,
+    "seafood_albacore": 0.0,
+    "protein_nuts_seeds_soy": 0.0,
+    "oils": 0.0,
+    "calcium": 10,
+    "choline": 72
+   },
+   "breakdown": [
+    {
+     "ingredient": "chicken breast",
+     "amount": "3 oz cooked",
+     "key": "protein_meat_eggs",
+     "eq": 3.0
+    },
+    {
+     "ingredient": "chicken",
+     "amount": "3 oz",
+     "key": "calcium",
+     "eq": 10
+    },
+    {
+     "ingredient": "chicken",
+     "amount": "3 oz",
+     "key": "choline",
+     "eq": 72
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "high",
+   "notes": "Cook to 165°F."
+  },
+  {
+   "name": "Ground beef",
+   "serving_label": "3 oz cooked (85% lean)",
+   "values": {
+    "veg_dark_green": 0.0,
+    "veg_red_orange": 0.0,
+    "veg_legumes": 0.0,
+    "veg_starchy": 0.0,
+    "veg_other": 0.0,
+    "fruit": 0.0,
+    "grain_whole": 0.0,
+    "grain_refined": 0.0,
+    "dairy": 0.0,
+    "protein_meat_eggs": 3.0,
+    "protein_seafood": 0.0,
+    "seafood_albacore": 0.0,
+    "protein_nuts_seeds_soy": 0.0,
+    "oils": 0.0,
+    "calcium": 15,
+    "choline": 75
+   },
+   "breakdown": [
+    {
+     "ingredient": "ground beef",
+     "amount": "3 oz cooked",
+     "key": "protein_meat_eggs",
+     "eq": 3.0
+    },
+    {
+     "ingredient": "ground beef",
+     "amount": "3 oz",
+     "key": "calcium",
+     "eq": 15
+    },
+    {
+     "ingredient": "ground beef",
+     "amount": "3 oz",
+     "key": "choline",
+     "eq": 75
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "high",
+   "notes": "Cook to 160°F (no pink). Beef fat is not counted as oil."
+  },
+  {
+   "name": "Meat, card-deck portion",
+   "serving_label": "3 oz cooked (deck of cards)",
+   "values": {
+    "veg_dark_green": 0.0,
+    "veg_red_orange": 0.0,
+    "veg_legumes": 0.0,
+    "veg_starchy": 0.0,
+    "veg_other": 0.0,
+    "fruit": 0.0,
+    "grain_whole": 0.0,
+    "grain_refined": 0.0,
+    "dairy": 0.0,
+    "protein_meat_eggs": 3.0,
+    "protein_seafood": 0.0,
+    "seafood_albacore": 0.0,
+    "protein_nuts_seeds_soy": 0.0,
+    "oils": 0.0,
+    "calcium": 12,
+    "choline": 75
+   },
+   "breakdown": [
+    {
+     "ingredient": "chicken or beef",
+     "amount": "3 oz cooked",
+     "key": "protein_meat_eggs",
+     "eq": 3.0
+    },
+    {
+     "ingredient": "meat",
+     "amount": "3 oz",
+     "key": "calcium",
+     "eq": 12
+    },
+    {
+     "ingredient": "meat",
+     "amount": "3 oz",
+     "key": "choline",
+     "eq": 75
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "high",
+   "notes": "Anny's visual reference: palm-size / deck-of-cards piece of cooked chicken, beef or pork ≈ 3 oz."
+  },
+  {
+   "name": "Salmon",
+   "serving_label": "4 oz cooked",
+   "values": {
+    "veg_dark_green": 0.0,
+    "veg_red_orange": 0.0,
+    "veg_legumes": 0.0,
+    "veg_starchy": 0.0,
+    "veg_other": 0.0,
+    "fruit": 0.0,
+    "grain_whole": 0.0,
+    "grain_refined": 0.0,
+    "dairy": 0.0,
+    "protein_meat_eggs": 0.0,
+    "protein_seafood": 4.0,
+    "seafood_albacore": 0.0,
+    "protein_nuts_seeds_soy": 0.0,
+    "oils": 8.0,
+    "calcium": 13,
+    "choline": 120
+   },
+   "breakdown": [
+    {
+     "ingredient": "salmon",
+     "amount": "4 oz cooked",
+     "key": "protein_seafood",
+     "eq": 4.0
+    },
+    {
+     "ingredient": "salmon (fish oil)",
+     "amount": "4 oz",
+     "key": "oils",
+     "eq": 8.0
+    },
+    {
+     "ingredient": "salmon",
+     "amount": "4 oz",
+     "key": "calcium",
+     "eq": 13
+    },
+    {
+     "ingredient": "salmon",
+     "amount": "4 oz",
+     "key": "choline",
+     "eq": 120
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "high",
+   "notes": "Low-mercury. Cook to 145°F. Cold-smoked lox is a separate case (smoked_seafood)."
+  },
+  {
+   "name": "Tuna, canned light",
+   "serving_label": "3 oz drained",
+   "values": {
+    "veg_dark_green": 0.0,
+    "veg_red_orange": 0.0,
+    "veg_legumes": 0.0,
+    "veg_starchy": 0.0,
+    "veg_other": 0.0,
+    "fruit": 0.0,
+    "grain_whole": 0.0,
+    "grain_refined": 0.0,
+    "dairy": 0.0,
+    "protein_meat_eggs": 0.0,
+    "protein_seafood": 3.0,
+    "seafood_albacore": 0.0,
+    "protein_nuts_seeds_soy": 0.0,
+    "oils": 0.0,
+    "calcium": 10,
+    "choline": 25
+   },
+   "breakdown": [
+    {
+     "ingredient": "canned light tuna (skipjack)",
+     "amount": "3 oz",
+     "key": "protein_seafood",
+     "eq": 3.0
+    },
+    {
+     "ingredient": "tuna",
+     "amount": "3 oz",
+     "key": "calcium",
+     "eq": 10
+    },
+    {
+     "ingredient": "tuna",
+     "amount": "3 oz",
+     "key": "choline",
+     "eq": 25
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "high",
+   "notes": "Water-packed. A 5-oz can drains to ~4 oz. Light tuna is low-mercury; albacore is tracked separately."
+  },
+  {
+   "name": "Tuna, canned albacore",
+   "serving_label": "3 oz drained",
+   "values": {
+    "veg_dark_green": 0.0,
+    "veg_red_orange": 0.0,
+    "veg_legumes": 0.0,
+    "veg_starchy": 0.0,
+    "veg_other": 0.0,
+    "fruit": 0.0,
+    "grain_whole": 0.0,
+    "grain_refined": 0.0,
+    "dairy": 0.0,
+    "protein_meat_eggs": 0.0,
+    "protein_seafood": 3.0,
+    "seafood_albacore": 3.0,
+    "protein_nuts_seeds_soy": 0.0,
+    "oils": 0.0,
+    "calcium": 12,
+    "choline": 25
+   },
+   "breakdown": [
+    {
+     "ingredient": "canned albacore (white) tuna",
+     "amount": "3 oz",
+     "key": "protein_seafood",
+     "eq": 3.0
+    },
+    {
+     "ingredient": "albacore",
+     "amount": "3 oz",
+     "key": "seafood_albacore",
+     "eq": 3.0
+    },
+    {
+     "ingredient": "tuna",
+     "amount": "3 oz",
+     "key": "calcium",
+     "eq": 12
+    },
+    {
+     "ingredient": "tuna",
+     "amount": "3 oz",
+     "key": "choline",
+     "eq": 25
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "high",
+   "notes": "Albacore counts in seafood AND the albacore weekly cap (FDA: ≤ 4 oz/week)."
+  },
+  {
+   "name": "Salmon, canned with bones",
+   "serving_label": "3 oz drained",
+   "values": {
+    "veg_dark_green": 0.0,
+    "veg_red_orange": 0.0,
+    "veg_legumes": 0.0,
+    "veg_starchy": 0.0,
+    "veg_other": 0.0,
+    "fruit": 0.0,
+    "grain_whole": 0.0,
+    "grain_refined": 0.0,
+    "dairy": 0.0,
+    "protein_meat_eggs": 0.0,
+    "protein_seafood": 3.0,
+    "seafood_albacore": 0.0,
+    "protein_nuts_seeds_soy": 0.0,
+    "oils": 5.0,
+    "calcium": 200,
+    "choline": 90
+   },
+   "breakdown": [
+    {
+     "ingredient": "canned salmon with bones",
+     "amount": "3 oz",
+     "key": "protein_seafood",
+     "eq": 3.0
+    },
+    {
+     "ingredient": "salmon (fish oil)",
+     "amount": "3 oz",
+     "key": "oils",
+     "eq": 5.0
+    },
+    {
+     "ingredient": "salmon bones",
+     "amount": "3 oz",
+     "key": "calcium",
+     "eq": 200
+    },
+    {
+     "ingredient": "salmon",
+     "amount": "3 oz",
+     "key": "choline",
+     "eq": 90
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "high",
+   "notes": "Mash the soft bones in — that's where the calcium is."
+  },
+  {
+   "name": "Sardines, canned",
+   "serving_label": "1 can (3.75 oz), drained ≈ 3 oz",
+   "values": {
+    "veg_dark_green": 0.0,
+    "veg_red_orange": 0.0,
+    "veg_legumes": 0.0,
+    "veg_starchy": 0.0,
+    "veg_other": 0.0,
+    "fruit": 0.0,
+    "grain_whole": 0.0,
+    "grain_refined": 0.0,
+    "dairy": 0.0,
+    "protein_meat_eggs": 0.0,
+    "protein_seafood": 3.0,
+    "seafood_albacore": 0.0,
+    "protein_nuts_seeds_soy": 0.0,
+    "oils": 6.0,
+    "calcium": 325,
+    "choline": 70
+   },
+   "breakdown": [
+    {
+     "ingredient": "sardines with bones",
+     "amount": "3 oz",
+     "key": "protein_seafood",
+     "eq": 3.0
+    },
+    {
+     "ingredient": "sardines (fish oil)",
+     "amount": "3 oz",
+     "key": "oils",
+     "eq": 6.0
+    },
+    {
+     "ingredient": "sardines with bones",
+     "amount": "3 oz",
+     "key": "calcium",
+     "eq": 325
+    },
+    {
+     "ingredient": "sardines",
+     "amount": "3 oz",
+     "key": "choline",
+     "eq": 70
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "high",
+   "notes": ""
+  },
+  {
+   "name": "Shrimp",
+   "serving_label": "3 oz cooked (~8 large)",
+   "values": {
+    "veg_dark_green": 0.0,
+    "veg_red_orange": 0.0,
+    "veg_legumes": 0.0,
+    "veg_starchy": 0.0,
+    "veg_other": 0.0,
+    "fruit": 0.0,
+    "grain_whole": 0.0,
+    "grain_refined": 0.0,
+    "dairy": 0.0,
+    "protein_meat_eggs": 0.0,
+    "protein_seafood": 3.0,
+    "seafood_albacore": 0.0,
+    "protein_nuts_seeds_soy": 0.0,
+    "oils": 0.0,
+    "calcium": 75,
+    "choline": 115
+   },
+   "breakdown": [
+    {
+     "ingredient": "shrimp",
+     "amount": "3 oz cooked",
+     "key": "protein_seafood",
+     "eq": 3.0
+    },
+    {
+     "ingredient": "shrimp",
+     "amount": "3 oz",
+     "key": "calcium",
+     "eq": 75
+    },
+    {
+     "ingredient": "shrimp",
+     "amount": "3 oz",
+     "key": "choline",
+     "eq": 115
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "high",
+   "notes": "Cook until opaque; no raw shrimp/ceviche."
+  },
+  {
+   "name": "Deli turkey, heated",
+   "serving_label": "2 oz (~3 thin slices)",
+   "values": {
+    "veg_dark_green": 0.0,
+    "veg_red_orange": 0.0,
+    "veg_legumes": 0.0,
+    "veg_starchy": 0.0,
+    "veg_other": 0.0,
+    "fruit": 0.0,
+    "grain_whole": 0.0,
+    "grain_refined": 0.0,
+    "dairy": 0.0,
+    "protein_meat_eggs": 2.0,
+    "protein_seafood": 0.0,
+    "seafood_albacore": 0.0,
+    "protein_nuts_seeds_soy": 0.0,
+    "oils": 0.0,
+    "calcium": 5,
+    "choline": 23
+   },
+   "breakdown": [
+    {
+     "ingredient": "deli turkey",
+     "amount": "2 oz",
+     "key": "protein_meat_eggs",
+     "eq": 2.0
+    },
+    {
+     "ingredient": "turkey",
+     "amount": "2 oz",
+     "key": "calcium",
+     "eq": 5
+    },
+    {
+     "ingredient": "turkey",
+     "amount": "2 oz",
+     "key": "choline",
+     "eq": 23
+    }
+   ],
+   "safety_flags": [
+    "deli_meat"
+   ],
+   "confidence": "high",
+   "notes": "Flagged deli_meat: fine if heated to steaming (165°F) right before eating."
+  },
+  {
+   "name": "Beef jerky",
+   "serving_label": "1 oz",
+   "values": {
+    "veg_dark_green": 0.0,
+    "veg_red_orange": 0.0,
+    "veg_legumes": 0.0,
+    "veg_starchy": 0.0,
+    "veg_other": 0.0,
+    "fruit": 0.0,
+    "grain_whole": 0.0,
+    "grain_refined": 0.0,
+    "dairy": 0.0,
+    "protein_meat_eggs": 1.5,
+    "protein_seafood": 0.0,
+    "seafood_albacore": 0.0,
+    "protein_nuts_seeds_soy": 0.0,
+    "oils": 0.0,
+    "calcium": 3,
+    "choline": 14
+   },
+   "breakdown": [
+    {
+     "ingredient": "beef jerky",
+     "amount": "1 oz (dried)",
+     "key": "protein_meat_eggs",
+     "eq": 1.5
+    },
+    {
+     "ingredient": "jerky",
+     "amount": "1 oz",
+     "key": "calcium",
+     "eq": 3
+    },
+    {
+     "ingredient": "jerky",
+     "amount": "1 oz",
+     "key": "choline",
+     "eq": 14
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "med",
+   "notes": "Dried meat is concentrated: 1 oz ≈ 1.5 oz eq. Commercial shelf-stable jerky is cooked during processing, so not flagged; avoid homemade/refrigerated deli-style jerky. High sodium."
+  },
+  {
+   "name": "Baby carrots",
+   "serving_label": "1 cup (~12 carrots)",
+   "values": {
+    "veg_dark_green": 0.0,
+    "veg_red_orange": 1.0,
+    "veg_legumes": 0.0,
+    "veg_starchy": 0.0,
+    "veg_other": 0.0,
+    "fruit": 0.0,
+    "grain_whole": 0.0,
+    "grain_refined": 0.0,
+    "dairy": 0.0,
+    "protein_meat_eggs": 0.0,
+    "protein_seafood": 0.0,
+    "seafood_albacore": 0.0,
+    "protein_nuts_seeds_soy": 0.0,
+    "oils": 0.0,
+    "calcium": 42,
+    "choline": 11
+   },
+   "breakdown": [
+    {
+     "ingredient": "baby carrots",
+     "amount": "1 cup",
+     "key": "veg_red_orange",
+     "eq": 1.0
+    },
+    {
+     "ingredient": "carrots",
+     "amount": "1 cup",
+     "key": "calcium",
+     "eq": 42
+    },
+    {
+     "ingredient": "carrots",
+     "amount": "1 cup",
+     "key": "choline",
+     "eq": 11
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "high",
+   "notes": ""
+  },
+  {
+   "name": "Salad greens",
+   "serving_label": "2 cups raw (romaine / spring mix)",
+   "values": {
+    "veg_dark_green": 1.0,
+    "veg_red_orange": 0.0,
+    "veg_legumes": 0.0,
+    "veg_starchy": 0.0,
+    "veg_other": 0.0,
+    "fruit": 0.0,
+    "grain_whole": 0.0,
+    "grain_refined": 0.0,
+    "dairy": 0.0,
+    "protein_meat_eggs": 0.0,
+    "protein_seafood": 0.0,
+    "seafood_albacore": 0.0,
+    "protein_nuts_seeds_soy": 0.0,
+    "oils": 0.0,
+    "calcium": 35,
+    "choline": 9
+   },
+   "breakdown": [
+    {
+     "ingredient": "romaine / mixed greens",
+     "amount": "2 cups raw",
+     "key": "veg_dark_green",
+     "eq": 1.0
+    },
+    {
+     "ingredient": "greens",
+     "amount": "2 cups",
+     "key": "calcium",
+     "eq": 35
+    },
+    {
+     "ingredient": "greens",
+     "amount": "2 cups",
+     "key": "choline",
+     "eq": 9
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "high",
+   "notes": "2 cups raw leafy = 1 cup eq. Iceberg/butter lettuce → veg_other instead. Log dressing separately. Rinse bagged greens."
+  },
+  {
+   "name": "Spinach, cooked",
+   "serving_label": "½ cup",
+   "values": {
+    "veg_dark_green": 0.5,
+    "veg_red_orange": 0.0,
+    "veg_legumes": 0.0,
+    "veg_starchy": 0.0,
+    "veg_other": 0.0,
+    "fruit": 0.0,
+    "grain_whole": 0.0,
+    "grain_refined": 0.0,
+    "dairy": 0.0,
+    "protein_meat_eggs": 0.0,
+    "protein_seafood": 0.0,
+    "seafood_albacore": 0.0,
+    "protein_nuts_seeds_soy": 0.0,
+    "oils": 0.0,
+    "calcium": 125,
+    "choline": 18
+   },
+   "breakdown": [
+    {
+     "ingredient": "cooked spinach",
+     "amount": "½ cup",
+     "key": "veg_dark_green",
+     "eq": 0.5
+    },
+    {
+     "ingredient": "spinach",
+     "amount": "½ cup",
+     "key": "calcium",
+     "eq": 125
+    },
+    {
+     "ingredient": "spinach",
+     "amount": "½ cup",
+     "key": "choline",
+     "eq": 18
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "high",
+   "notes": "Spinach calcium is poorly absorbed (oxalate); value is USDA content."
+  },
+  {
+   "name": "Broccoli",
+   "serving_label": "1 cup cooked",
+   "values": {
+    "veg_dark_green": 1.0,
+    "veg_red_orange": 0.0,
+    "veg_legumes": 0.0,
+    "veg_starchy": 0.0,
+    "veg_other": 0.0,
+    "fruit": 0.0,
+    "grain_whole": 0.0,
+    "grain_refined": 0.0,
+    "dairy": 0.0,
+    "protein_meat_eggs": 0.0,
+    "protein_seafood": 0.0,
+    "seafood_albacore": 0.0,
+    "protein_nuts_seeds_soy": 0.0,
+    "oils": 0.0,
+    "calcium": 60,
+    "choline": 60
+   },
+   "breakdown": [
+    {
+     "ingredient": "broccoli",
+     "amount": "1 cup",
+     "key": "veg_dark_green",
+     "eq": 1.0
+    },
+    {
+     "ingredient": "broccoli",
+     "amount": "1 cup",
+     "key": "calcium",
+     "eq": 60
+    },
+    {
+     "ingredient": "broccoli",
+     "amount": "1 cup",
+     "key": "choline",
+     "eq": 60
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "high",
+   "notes": "Raw florets: same cup eq, choline ~17 mg."
+  },
+  {
+   "name": "Cherry tomatoes",
+   "serving_label": "1 cup (~10)",
+   "values": {
+    "veg_dark_green": 0.0,
+    "veg_red_orange": 1.0,
+    "veg_legumes": 0.0,
+    "veg_starchy": 0.0,
+    "veg_other": 0.0,
+    "fruit": 0.0,
+    "grain_whole": 0.0,
+    "grain_refined": 0.0,
+    "dairy": 0.0,
+    "protein_meat_eggs": 0.0,
+    "protein_seafood": 0.0,
+    "seafood_albacore": 0.0,
+    "protein_nuts_seeds_soy": 0.0,
+    "oils": 0.0,
+    "calcium": 15,
+    "choline": 10
+   },
+   "breakdown": [
+    {
+     "ingredient": "cherry tomatoes",
+     "amount": "1 cup",
+     "key": "veg_red_orange",
+     "eq": 1.0
+    },
+    {
+     "ingredient": "tomatoes",
+     "amount": "1 cup",
+     "key": "calcium",
+     "eq": 15
+    },
+    {
+     "ingredient": "tomatoes",
+     "amount": "1 cup",
+     "key": "choline",
+     "eq": 10
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "high",
+   "notes": ""
+  },
+  {
+   "name": "Cucumber",
+   "serving_label": "1 cup sliced (~½ cucumber)",
+   "values": {
+    "veg_dark_green": 0.0,
+    "veg_red_orange": 0.0,
+    "veg_legumes": 0.0,
+    "veg_starchy": 0.0,
+    "veg_other": 1.0,
+    "fruit": 0.0,
+    "grain_whole": 0.0,
+    "grain_refined": 0.0,
+    "dairy": 0.0,
+    "protein_meat_eggs": 0.0,
+    "protein_seafood": 0.0,
+    "seafood_albacore": 0.0,
+    "protein_nuts_seeds_soy": 0.0,
+    "oils": 0.0,
+    "calcium": 17,
+    "choline": 6
+   },
+   "breakdown": [
+    {
+     "ingredient": "cucumber",
+     "amount": "1 cup",
+     "key": "veg_other",
+     "eq": 1.0
+    },
+    {
+     "ingredient": "cucumber",
+     "amount": "1 cup",
+     "key": "calcium",
+     "eq": 17
+    },
+    {
+     "ingredient": "cucumber",
+     "amount": "1 cup",
+     "key": "choline",
+     "eq": 6
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "high",
+   "notes": ""
+  },
+  {
+   "name": "Bell pepper, red",
+   "serving_label": "1 medium (~1 cup sliced)",
+   "values": {
+    "veg_dark_green": 0.0,
+    "veg_red_orange": 1.0,
+    "veg_legumes": 0.0,
+    "veg_starchy": 0.0,
+    "veg_other": 0.0,
+    "fruit": 0.0,
+    "grain_whole": 0.0,
+    "grain_refined": 0.0,
+    "dairy": 0.0,
+    "protein_meat_eggs": 0.0,
+    "protein_seafood": 0.0,
+    "seafood_albacore": 0.0,
+    "protein_nuts_seeds_soy": 0.0,
+    "oils": 0.0,
+    "calcium": 8,
+    "choline": 7
+   },
+   "breakdown": [
+    {
+     "ingredient": "red bell pepper",
+     "amount": "1 medium",
+     "key": "veg_red_orange",
+     "eq": 1.0
+    },
+    {
+     "ingredient": "pepper",
+     "amount": "1 medium",
+     "key": "calcium",
+     "eq": 8
+    },
+    {
+     "ingredient": "pepper",
+     "amount": "1 medium",
+     "key": "choline",
+     "eq": 7
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "high",
+   "notes": "Green bell pepper → veg_other."
+  },
+  {
+   "name": "Snap peas",
+   "serving_label": "1 cup",
+   "values": {
+    "veg_dark_green": 0.0,
+    "veg_red_orange": 0.0,
+    "veg_legumes": 0.0,
+    "veg_starchy": 0.0,
+    "veg_other": 1.0,
+    "fruit": 0.0,
+    "grain_whole": 0.0,
+    "grain_refined": 0.0,
+    "dairy": 0.0,
+    "protein_meat_eggs": 0.0,
+    "protein_seafood": 0.0,
+    "seafood_albacore": 0.0,
+    "protein_nuts_seeds_soy": 0.0,
+    "oils": 0.0,
+    "calcium": 40,
+    "choline": 17
+   },
+   "breakdown": [
+    {
+     "ingredient": "sugar snap peas",
+     "amount": "1 cup",
+     "key": "veg_other",
+     "eq": 1.0
+    },
+    {
+     "ingredient": "snap peas",
+     "amount": "1 cup",
+     "key": "calcium",
+     "eq": 40
+    },
+    {
+     "ingredient": "snap peas",
+     "amount": "1 cup",
+     "key": "choline",
+     "eq": 17
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "high",
+   "notes": "Edible-pod peas are 'other' veg; shelled green peas would be starchy."
+  },
+  {
+   "name": "Green beans",
+   "serving_label": "1 cup cooked",
+   "values": {
+    "veg_dark_green": 0.0,
+    "veg_red_orange": 0.0,
+    "veg_legumes": 0.0,
+    "veg_starchy": 0.0,
+    "veg_other": 1.0,
+    "fruit": 0.0,
+    "grain_whole": 0.0,
+    "grain_refined": 0.0,
+    "dairy": 0.0,
+    "protein_meat_eggs": 0.0,
+    "protein_seafood": 0.0,
+    "seafood_albacore": 0.0,
+    "protein_nuts_seeds_soy": 0.0,
+    "oils": 0.0,
+    "calcium": 55,
+    "choline": 20
+   },
+   "breakdown": [
+    {
+     "ingredient": "green beans",
+     "amount": "1 cup",
+     "key": "veg_other",
+     "eq": 1.0
+    },
+    {
+     "ingredient": "green beans",
+     "amount": "1 cup",
+     "key": "calcium",
+     "eq": 55
+    },
+    {
+     "ingredient": "green beans",
+     "amount": "1 cup",
+     "key": "choline",
+     "eq": 20
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "high",
+   "notes": ""
+  },
+  {
+   "name": "Sweet potato",
+   "serving_label": "1 medium, baked",
+   "values": {
+    "veg_dark_green": 0.0,
+    "veg_red_orange": 0.75,
+    "veg_legumes": 0.0,
+    "veg_starchy": 0.0,
+    "veg_other": 0.0,
+    "fruit": 0.0,
+    "grain_whole": 0.0,
+    "grain_refined": 0.0,
+    "dairy": 0.0,
+    "protein_meat_eggs": 0.0,
+    "protein_seafood": 0.0,
+    "seafood_albacore": 0.0,
+    "protein_nuts_seeds_soy": 0.0,
+    "oils": 0.0,
+    "calcium": 43,
+    "choline": 15
+   },
+   "breakdown": [
+    {
+     "ingredient": "sweet potato",
+     "amount": "1 medium (~5 in)",
+     "key": "veg_red_orange",
+     "eq": 0.75
+    },
+    {
+     "ingredient": "sweet potato",
+     "amount": "1 medium",
+     "key": "calcium",
+     "eq": 43
+    },
+    {
+     "ingredient": "sweet potato",
+     "amount": "1 medium",
+     "key": "choline",
+     "eq": 15
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "med",
+   "notes": "MyPlate: 1 large baked sweet potato = 1 cup; medium ≈ ¾."
+  },
+  {
+   "name": "Baked potato",
+   "serving_label": "1 medium (2½–3 in)",
+   "values": {
+    "veg_dark_green": 0.0,
+    "veg_red_orange": 0.0,
+    "veg_legumes": 0.0,
+    "veg_starchy": 1.0,
+    "veg_other": 0.0,
+    "fruit": 0.0,
+    "grain_whole": 0.0,
+    "grain_refined": 0.0,
+    "dairy": 0.0,
+    "protein_meat_eggs": 0.0,
+    "protein_seafood": 0.0,
+    "seafood_albacore": 0.0,
+    "protein_nuts_seeds_soy": 0.0,
+    "oils": 0.0,
+    "calcium": 26,
+    "choline": 26
+   },
+   "breakdown": [
+    {
+     "ingredient": "white potato",
+     "amount": "1 medium",
+     "key": "veg_starchy",
+     "eq": 1.0
+    },
+    {
+     "ingredient": "potato",
+     "amount": "1 medium",
+     "key": "calcium",
+     "eq": 26
+    },
+    {
+     "ingredient": "potato",
+     "amount": "1 medium",
+     "key": "choline",
+     "eq": 26
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "high",
+   "notes": "Toppings (butter, sour cream, cheese) logged separately."
+  },
+  {
+   "name": "Corn on the cob",
+   "serving_label": "1 medium ear",
+   "values": {
+    "veg_dark_green": 0.0,
+    "veg_red_orange": 0.0,
+    "veg_legumes": 0.0,
+    "veg_starchy": 0.67,
+    "veg_other": 0.0,
+    "fruit": 0.0,
+    "grain_whole": 0.0,
+    "grain_refined": 0.0,
+    "dairy": 0.0,
+    "protein_meat_eggs": 0.0,
+    "protein_seafood": 0.0,
+    "seafood_albacore": 0.0,
+    "protein_nuts_seeds_soy": 0.0,
+    "oils": 0.0,
+    "calcium": 0,
+    "choline": 25
+   },
+   "breakdown": [
+    {
+     "ingredient": "sweet corn",
+     "amount": "1 medium ear (~⅔ cup kernels)",
+     "key": "veg_starchy",
+     "eq": 0.67
+    },
+    {
+     "ingredient": "corn",
+     "amount": "1 ear",
+     "key": "choline",
+     "eq": 25
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "med",
+   "notes": "Large ear (8–9 in) = 1 cup."
+  },
+  {
+   "name": "Avocado",
+   "serving_label": "½ medium",
+   "values": {
+    "veg_dark_green": 0.0,
+    "veg_red_orange": 0.0,
+    "veg_legumes": 0.0,
+    "veg_starchy": 0.0,
+    "veg_other": 0.5,
+    "fruit": 0.0,
+    "grain_whole": 0.0,
+    "grain_refined": 0.0,
+    "dairy": 0.0,
+    "protein_meat_eggs": 0.0,
+    "protein_seafood": 0.0,
+    "seafood_albacore": 0.0,
+    "protein_nuts_seeds_soy": 0.0,
+    "oils": 10.0,
+    "calcium": 9,
+    "choline": 10
+   },
+   "breakdown": [
+    {
+     "ingredient": "avocado",
+     "amount": "½ medium",
+     "key": "veg_other",
+     "eq": 0.5
+    },
+    {
+     "ingredient": "avocado",
+     "amount": "½",
+     "key": "oils",
+     "eq": 10.0
+    },
+    {
+     "ingredient": "avocado",
+     "amount": "½",
+     "key": "calcium",
+     "eq": 9
+    },
+    {
+     "ingredient": "avocado",
+     "amount": "½",
+     "key": "choline",
+     "eq": 10
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "high",
+   "notes": ""
+  },
+  {
+   "name": "Vegetable soup",
+   "serving_label": "1 cup",
+   "values": {
+    "veg_dark_green": 0.05,
+    "veg_red_orange": 0.2,
+    "veg_legumes": 0.0,
+    "veg_starchy": 0.1,
+    "veg_other": 0.15,
+    "fruit": 0.0,
+    "grain_whole": 0.0,
+    "grain_refined": 0.0,
+    "dairy": 0.0,
+    "protein_meat_eggs": 0.0,
+    "protein_seafood": 0.0,
+    "seafood_albacore": 0.0,
+    "protein_nuts_seeds_soy": 0.0,
+    "oils": 0.0,
+    "calcium": 30,
+    "choline": 10
+   },
+   "breakdown": [
+    {
+     "ingredient": "tomato/carrot",
+     "amount": "~0.2 cup",
+     "key": "veg_red_orange",
+     "eq": 0.2
+    },
+    {
+     "ingredient": "potato/corn/peas",
+     "amount": "~0.1 cup",
+     "key": "veg_starchy",
+     "eq": 0.1
+    },
+    {
+     "ingredient": "onion/celery/green beans",
+     "amount": "~0.15 cup",
+     "key": "veg_other",
+     "eq": 0.15
+    },
+    {
+     "ingredient": "greens",
+     "amount": "~0.05 cup",
+     "key": "veg_dark_green",
+     "eq": 0.05
+    },
+    {
+     "ingredient": "soup",
+     "amount": "1 cup",
+     "key": "calcium",
+     "eq": 30
+    },
+    {
+     "ingredient": "soup",
+     "amount": "1 cup",
+     "key": "choline",
+     "eq": 10
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "low",
+   "notes": "Broth-based mixed-vegetable soup, ~½ cup veg per cup. Bean soups/minestrone have legumes — log as a recipe if possible."
+  },
+  {
+   "name": "Olive oil",
+   "serving_label": "1 tbsp",
+   "values": {
+    "veg_dark_green": 0.0,
+    "veg_red_orange": 0.0,
+    "veg_legumes": 0.0,
+    "veg_starchy": 0.0,
+    "veg_other": 0.0,
+    "fruit": 0.0,
+    "grain_whole": 0.0,
+    "grain_refined": 0.0,
+    "dairy": 0.0,
+    "protein_meat_eggs": 0.0,
+    "protein_seafood": 0.0,
+    "seafood_albacore": 0.0,
+    "protein_nuts_seeds_soy": 0.0,
+    "oils": 14.0,
+    "calcium": 0,
+    "choline": 0
+   },
+   "breakdown": [
+    {
+     "ingredient": "olive oil",
+     "amount": "1 tbsp",
+     "key": "oils",
+     "eq": 14.0
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "high",
+   "notes": ""
+  },
+  {
+   "name": "Mayonnaise",
+   "serving_label": "1 tbsp",
+   "values": {
+    "veg_dark_green": 0.0,
+    "veg_red_orange": 0.0,
+    "veg_legumes": 0.0,
+    "veg_starchy": 0.0,
+    "veg_other": 0.0,
+    "fruit": 0.0,
+    "grain_whole": 0.0,
+    "grain_refined": 0.0,
+    "dairy": 0.0,
+    "protein_meat_eggs": 0.0,
+    "protein_seafood": 0.0,
+    "seafood_albacore": 0.0,
+    "protein_nuts_seeds_soy": 0.0,
+    "oils": 11.0,
+    "calcium": 0,
+    "choline": 0
+   },
+   "breakdown": [
+    {
+     "ingredient": "mayonnaise",
+     "amount": "1 tbsp",
+     "key": "oils",
+     "eq": 11.0
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "high",
+   "notes": "Commercial mayo uses pasteurized eggs. Homemade mayo/aioli with raw yolk → raw_egg."
+  },
+  {
+   "name": "Butter",
+   "serving_label": "1 tbsp",
+   "values": {
+    "veg_dark_green": 0.0,
+    "veg_red_orange": 0.0,
+    "veg_legumes": 0.0,
+    "veg_starchy": 0.0,
+    "veg_other": 0.0,
+    "fruit": 0.0,
+    "grain_whole": 0.0,
+    "grain_refined": 0.0,
+    "dairy": 0.0,
+    "protein_meat_eggs": 0.0,
+    "protein_seafood": 0.0,
+    "seafood_albacore": 0.0,
+    "protein_nuts_seeds_soy": 0.0,
+    "oils": 0.0,
+    "calcium": 0,
+    "choline": 0
+   },
+   "breakdown": [],
+   "safety_flags": [],
+   "confidence": "high",
+   "notes": "Solid fat: not counted as oil per rules."
+  },
+  {
+   "name": "Vinaigrette / salad dressing",
+   "serving_label": "2 tbsp",
+   "values": {
+    "veg_dark_green": 0.0,
+    "veg_red_orange": 0.0,
+    "veg_legumes": 0.0,
+    "veg_starchy": 0.0,
+    "veg_other": 0.0,
+    "fruit": 0.0,
+    "grain_whole": 0.0,
+    "grain_refined": 0.0,
+    "dairy": 0.0,
+    "protein_meat_eggs": 0.0,
+    "protein_seafood": 0.0,
+    "seafood_albacore": 0.0,
+    "protein_nuts_seeds_soy": 0.0,
+    "oils": 10.0,
+    "calcium": 0,
+    "choline": 0
+   },
+   "breakdown": [
+    {
+     "ingredient": "oil-based dressing",
+     "amount": "2 tbsp",
+     "key": "oils",
+     "eq": 10.0
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "med",
+   "notes": "Bottled vinaigrette ≈ 10 g oil per 2 tbsp; homemade 3:1 vinaigrette ≈ 20 g. Creamy dressings similar."
+  },
+  {
+   "name": "Trail mix",
+   "serving_label": "¼ cup (~1.3 oz)",
+   "values": {
+    "veg_dark_green": 0.0,
+    "veg_red_orange": 0.0,
+    "veg_legumes": 0.0,
+    "veg_starchy": 0.0,
+    "veg_other": 0.0,
+    "fruit": 0.13,
+    "grain_whole": 0.0,
+    "grain_refined": 0.0,
+    "dairy": 0.0,
+    "protein_meat_eggs": 0.0,
+    "protein_seafood": 0.0,
+    "seafood_albacore": 0.0,
+    "protein_nuts_seeds_soy": 1.5,
+    "oils": 11.0,
+    "calcium": 40,
+    "choline": 10
+   },
+   "breakdown": [
+    {
+     "ingredient": "mixed nuts/seeds",
+     "amount": "~0.75 oz",
+     "key": "protein_nuts_seeds_soy",
+     "eq": 1.5
+    },
+    {
+     "ingredient": "raisins",
+     "amount": "~1 tbsp",
+     "key": "fruit",
+     "eq": 0.13
+    },
+    {
+     "ingredient": "nut oil",
+     "amount": "~0.75 oz nuts",
+     "key": "oils",
+     "eq": 11.0
+    },
+    {
+     "ingredient": "trail mix",
+     "amount": "¼ cup",
+     "key": "calcium",
+     "eq": 40
+    },
+    {
+     "ingredient": "trail mix",
+     "amount": "¼ cup",
+     "key": "choline",
+     "eq": 10
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "med",
+   "notes": "Assumes nuts + raisins + a few chocolate candies."
+  },
+  {
+   "name": "Granola bar",
+   "serving_label": "1 bar (chewy, ~1 oz)",
+   "values": {
+    "veg_dark_green": 0.0,
+    "veg_red_orange": 0.0,
+    "veg_legumes": 0.0,
+    "veg_starchy": 0.0,
+    "veg_other": 0.0,
+    "fruit": 0.0,
+    "grain_whole": 0.5,
+    "grain_refined": 0.0,
+    "dairy": 0.0,
+    "protein_meat_eggs": 0.0,
+    "protein_seafood": 0.0,
+    "seafood_albacore": 0.0,
+    "protein_nuts_seeds_soy": 0.0,
+    "oils": 2.5,
+    "calcium": 20,
+    "choline": 0
+   },
+   "breakdown": [
+    {
+     "ingredient": "oats",
+     "amount": "~½ oz",
+     "key": "grain_whole",
+     "eq": 0.5
+    },
+    {
+     "ingredient": "oil",
+     "amount": "1 bar",
+     "key": "oils",
+     "eq": 2.5
+    },
+    {
+     "ingredient": "granola bar",
+     "amount": "1",
+     "key": "calcium",
+     "eq": 20
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "med",
+   "notes": "Chewy/crunchy oat bar. A crunchy 2-bar pouch ≈ 1 oz eq whole grain. Protein bars differ — log separately."
+  },
+  {
+   "name": "Dark chocolate",
+   "serving_label": "1 oz (70–85%)",
+   "values": {
+    "veg_dark_green": 0.0,
+    "veg_red_orange": 0.0,
+    "veg_legumes": 0.0,
+    "veg_starchy": 0.0,
+    "veg_other": 0.0,
+    "fruit": 0.0,
+    "grain_whole": 0.0,
+    "grain_refined": 0.0,
+    "dairy": 0.0,
+    "protein_meat_eggs": 0.0,
+    "protein_seafood": 0.0,
+    "seafood_albacore": 0.0,
+    "protein_nuts_seeds_soy": 0.0,
+    "oils": 0.0,
+    "calcium": 21,
+    "choline": 3
+   },
+   "breakdown": [
+    {
+     "ingredient": "dark chocolate",
+     "amount": "1 oz",
+     "key": "calcium",
+     "eq": 21
+    },
+    {
+     "ingredient": "dark chocolate",
+     "amount": "1 oz",
+     "key": "choline",
+     "eq": 3
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "high",
+   "notes": "Cocoa butter is a solid fat (not counted). ~20–25 mg caffeine per oz."
+  },
+  {
+   "name": "Cheese and crackers",
+   "serving_label": "1 oz cheddar + 7 crackers",
+   "values": {
+    "veg_dark_green": 0.0,
+    "veg_red_orange": 0.0,
+    "veg_legumes": 0.0,
+    "veg_starchy": 0.0,
+    "veg_other": 0.0,
+    "fruit": 0.0,
+    "grain_whole": 0.0,
+    "grain_refined": 1.0,
+    "dairy": 0.67,
+    "protein_meat_eggs": 0.0,
+    "protein_seafood": 0.0,
+    "seafood_albacore": 0.0,
+    "protein_nuts_seeds_soy": 0.0,
+    "oils": 3.0,
+    "calcium": 215,
+    "choline": 7
+   },
+   "breakdown": [
+    {
+     "ingredient": "cheddar",
+     "amount": "1 oz",
+     "key": "dairy",
+     "eq": 0.67
+    },
+    {
+     "ingredient": "crackers",
+     "amount": "7",
+     "key": "grain_refined",
+     "eq": 1.0
+    },
+    {
+     "ingredient": "oil in crackers",
+     "amount": "7 crackers",
+     "key": "oils",
+     "eq": 3.0
+    },
+    {
+     "ingredient": "cheddar",
+     "amount": "1 oz",
+     "key": "calcium",
+     "eq": 200
+    },
+    {
+     "ingredient": "crackers",
+     "amount": "7",
+     "key": "calcium",
+     "eq": 15
+    },
+    {
+     "ingredient": "cheddar",
+     "amount": "1 oz",
+     "key": "choline",
+     "eq": 7
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "med",
+   "notes": ""
+  },
+  {
+   "name": "Smoothie, fruit + yogurt",
+   "serving_label": "12 oz",
+   "values": {
+    "veg_dark_green": 0.0,
+    "veg_red_orange": 0.0,
+    "veg_legumes": 0.0,
+    "veg_starchy": 0.0,
+    "veg_other": 0.0,
+    "fruit": 1.0,
+    "grain_whole": 0.0,
+    "grain_refined": 0.0,
+    "dairy": 1.0,
+    "protein_meat_eggs": 0.0,
+    "protein_seafood": 0.0,
+    "seafood_albacore": 0.0,
+    "protein_nuts_seeds_soy": 0.0,
+    "oils": 0.0,
+    "calcium": 320,
+    "choline": 50
+   },
+   "breakdown": [
+    {
+     "ingredient": "yogurt",
+     "amount": "½ cup",
+     "key": "dairy",
+     "eq": 0.5
+    },
+    {
+     "ingredient": "milk",
+     "amount": "½ cup",
+     "key": "dairy",
+     "eq": 0.5
+    },
+    {
+     "ingredient": "banana + berries",
+     "amount": "1 cup",
+     "key": "fruit",
+     "eq": 1.0
+    },
+    {
+     "ingredient": "yogurt + milk",
+     "amount": "1 cup dairy",
+     "key": "calcium",
+     "eq": 300
+    },
+    {
+     "ingredient": "fruit",
+     "amount": "1 cup",
+     "key": "calcium",
+     "eq": 20
+    },
+    {
+     "ingredient": "yogurt + milk",
+     "amount": "1 cup dairy",
+     "key": "choline",
+     "eq": 40
+    },
+    {
+     "ingredient": "fruit",
+     "amount": "1 cup",
+     "key": "choline",
+     "eq": 10
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "med",
+   "notes": "Homemade: ½ cup yogurt + ½ cup milk + 1 cup fruit. Shop smoothies made with juice/sherbet have less dairy."
+  },
+  {
+   "name": "Chocolate milk",
+   "serving_label": "1 cup (8 oz)",
+   "values": {
+    "veg_dark_green": 0.0,
+    "veg_red_orange": 0.0,
+    "veg_legumes": 0.0,
+    "veg_starchy": 0.0,
+    "veg_other": 0.0,
+    "fruit": 0.0,
+    "grain_whole": 0.0,
+    "grain_refined": 0.0,
+    "dairy": 1.0,
+    "protein_meat_eggs": 0.0,
+    "protein_seafood": 0.0,
+    "seafood_albacore": 0.0,
+    "protein_nuts_seeds_soy": 0.0,
+    "oils": 0.0,
+    "calcium": 290,
+    "choline": 40
+   },
+   "breakdown": [
+    {
+     "ingredient": "chocolate milk",
+     "amount": "1 cup",
+     "key": "dairy",
+     "eq": 1.0
+    },
+    {
+     "ingredient": "chocolate milk",
+     "amount": "1 cup",
+     "key": "calcium",
+     "eq": 290
+    },
+    {
+     "ingredient": "chocolate milk",
+     "amount": "1 cup",
+     "key": "choline",
+     "eq": 40
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "high",
+   "notes": ""
+  },
+  {
+   "name": "Latte",
+   "serving_label": "12 oz (tall) with dairy milk",
+   "values": {
+    "veg_dark_green": 0.0,
+    "veg_red_orange": 0.0,
+    "veg_legumes": 0.0,
+    "veg_starchy": 0.0,
+    "veg_other": 0.0,
+    "fruit": 0.0,
+    "grain_whole": 0.0,
+    "grain_refined": 0.0,
+    "dairy": 1.0,
+    "protein_meat_eggs": 0.0,
+    "protein_seafood": 0.0,
+    "seafood_albacore": 0.0,
+    "protein_nuts_seeds_soy": 0.0,
+    "oils": 0.0,
+    "calcium": 300,
+    "choline": 40
+   },
+   "breakdown": [
+    {
+     "ingredient": "steamed milk",
+     "amount": "~1 cup",
+     "key": "dairy",
+     "eq": 1.0
+    },
+    {
+     "ingredient": "milk",
+     "amount": "1 cup",
+     "key": "calcium",
+     "eq": 300
+    },
+    {
+     "ingredient": "milk",
+     "amount": "1 cup",
+     "key": "choline",
+     "eq": 40
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "med",
+   "notes": "~75 mg caffeine (1 shot) toward the 200 mg/day limit. Oat/almond milk lattes: dairy 0; soy only if calcium-fortified."
+  },
+  {
+   "name": "Pizza, cheese",
+   "serving_label": "1 slice (⅛ of 14-inch)",
+   "values": {
+    "veg_dark_green": 0.0,
+    "veg_red_orange": 0.13,
+    "veg_legumes": 0.0,
+    "veg_starchy": 0.0,
+    "veg_other": 0.0,
+    "fruit": 0.0,
+    "grain_whole": 0.0,
+    "grain_refined": 2.0,
+    "dairy": 0.67,
+    "protein_meat_eggs": 0.0,
+    "protein_seafood": 0.0,
+    "seafood_albacore": 0.0,
+    "protein_nuts_seeds_soy": 0.0,
+    "oils": 3.0,
+    "calcium": 200,
+    "choline": 20
+   },
+   "breakdown": [
+    {
+     "ingredient": "crust",
+     "amount": "1 slice",
+     "key": "grain_refined",
+     "eq": 2.0
+    },
+    {
+     "ingredient": "mozzarella",
+     "amount": "~1 oz",
+     "key": "dairy",
+     "eq": 0.67
+    },
+    {
+     "ingredient": "tomato sauce",
+     "amount": "~2 tbsp",
+     "key": "veg_red_orange",
+     "eq": 0.13
+    },
+    {
+     "ingredient": "oil in crust",
+     "amount": "1 slice",
+     "key": "oils",
+     "eq": 3.0
+    },
+    {
+     "ingredient": "mozzarella",
+     "amount": "1 oz",
+     "key": "calcium",
+     "eq": 200
+    },
+    {
+     "ingredient": "pizza",
+     "amount": "1 slice",
+     "key": "choline",
+     "eq": 20
+    }
+   ],
+   "safety_flags": [],
+   "confidence": "med",
+   "notes": "Large-pizza slice; thin crust ≈ 1.5 oz eq grain."
+  }
+ ]
+}
