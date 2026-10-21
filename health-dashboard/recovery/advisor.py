@@ -10,6 +10,7 @@ import sqlite3
 from datetime import date, timedelta
 
 from .engine import get_full_recovery_report, get_connection
+from .resting_hr import daily_resting_hr
 
 SLEEP_TARGET_HOURS = 8.0
 
@@ -90,8 +91,7 @@ def get_overview(since: date | None = None) -> dict:
         hrv_daily = _daily(conn, "SELECT date, hrv FROM wellness WHERE hrv IS NOT NULL ORDER BY date")
         steps_daily = _daily(conn, "SELECT date, steps FROM wellness WHERE steps IS NOT NULL ORDER BY date")
         sleep_daily = _daily(conn, "SELECT date, MAX(total_minutes)/60.0 FROM sleep GROUP BY date ORDER BY date")
-        rhr_daily = _daily(conn, "SELECT substr(timestamp,1,10) d, AVG(bpm) FROM heart_rate "
-                                 "WHERE context='resting' GROUP BY d ORDER BY d")
+        rhr_daily = daily_resting_hr(conn)
         ctl_daily = {row["date"]: row["ctl"] for row in report["tsb_history"]}
 
         def tile(daily, higher_is_better, unit, label, fmt="{:.0f}"):

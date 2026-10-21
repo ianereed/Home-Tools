@@ -108,7 +108,6 @@ def check_staleness(now: datetime | None = None) -> list[str]:
     conn = sqlite3.connect(DB_PATH)
     cutoff = now - timedelta(hours=STALE_THRESHOLD_HOURS)
     cutoff_date = cutoff.strftime("%Y-%m-%d")
-    cutoff_ts = cutoff.strftime("%Y-%m-%dT%H:%M:%S")
     stale = []
 
     # Sleep
@@ -118,11 +117,14 @@ def check_staleness(now: datetime | None = None) -> list[str]:
         stale.append(f"Sleep (last: {last})")
 
     # Heart rate
+    # Resting HR is one value per day stamped at midnight, so it's dated like
+    # sleep/HRV (intraday Apple samples are context='intraday' and don't count).
     row = conn.execute(
-        "SELECT timestamp FROM heart_rate WHERE context = 'resting' ORDER BY timestamp DESC LIMIT 1"
+        "SELECT substr(timestamp, 1, 10) FROM heart_rate WHERE context = 'resting' "
+        "ORDER BY timestamp DESC LIMIT 1"
     ).fetchone()
-    if not row or row[0] < cutoff_ts:
-        last = row[0][:10] if row else "never"
+    if not row or row[0] < cutoff_date:
+        last = row[0] if row else "never"
         stale.append(f"Resting HR (last: {last})")
 
     # HRV

@@ -9,7 +9,7 @@ glance, and every data page favours long-range trends over today's number.
 import os
 import sqlite3
 import sys
-from datetime import datetime
+from datetime import date, datetime, timedelta
 
 import pandas as pd
 import plotly.express as px
@@ -20,6 +20,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from collectors.db import DB_PATH                                  # noqa: E402
 from recovery.engine import get_full_recovery_report              # noqa: E402
 from recovery.advisor import get_overview                         # noqa: E402
+from recovery.resting_hr import DAILY_RESTING_HR_SQL              # noqa: E402
 from dashboard import lib                                         # noqa: E402
 from dashboard import diet_view                                    # noqa: E402
 
@@ -66,6 +67,11 @@ def load_data(query: str, params: tuple = ()) -> pd.DataFrame:
         return pd.read_sql_query(query, conn, params=params)
     finally:
         conn.close()
+
+
+def _since(days: int) -> str:
+    """First date of a `days`-long range as 'YYYY-MM-DD' (the "All" range clamps to 1900)."""
+    return max(date.today() - timedelta(days=days), date(1900, 1, 1)).isoformat()
 
 
 @st.cache_data(ttl=300)
@@ -320,9 +326,7 @@ def render_heart():
                       annotation_text=f"avg {baseline:.0f} ms")
         st.plotly_chart(lib.apply_theme(fig, 230, legend=True), use_container_width=True, key="hr_hrv")
 
-    rhr = load_data("SELECT substr(timestamp,1,10) date, ROUND(AVG(bpm)) rhr FROM heart_rate "
-                    "WHERE context='resting' AND timestamp >= date('now', ?) "
-                    "GROUP BY date ORDER BY date", (f"-{days} days",))
+    rhr = load_data(DAILY_RESTING_HR_SQL, (_since(days),))
     if not rhr.empty and len(rhr) > 1:
         st.markdown("## Resting heart rate")
         rhr["roll"] = rhr["rhr"].rolling(7, min_periods=1).mean()

@@ -77,6 +77,9 @@ class HealthDataHandler(BaseHTTPRequestHandler):
                 samples = metric.get("data", [])
 
                 if name == "heart_rate":
+                    # Every intraday sample (walking, riding, asleep) — NOT a
+                    # resting value. Readers that want resting HR filter on
+                    # context='resting', so these must never carry that tag.
                     for sample in samples:
                         timestamp = sample.get("date", "")
                         # Handle both "qty" (single value) and "Avg" (aggregated) formats
@@ -87,7 +90,7 @@ class HealthDataHandler(BaseHTTPRequestHandler):
                                 """INSERT OR IGNORE INTO heart_rate
                                    (timestamp, bpm, context, source)
                                    VALUES (?, ?, ?, ?)""",
-                                (ts, int(float(bpm)), "resting", "apple"),
+                                (ts, int(float(bpm)), "intraday", "apple"),
                             )
                             hr_count += 1
 
@@ -97,10 +100,16 @@ class HealthDataHandler(BaseHTTPRequestHandler):
                         bpm = sample.get("qty")
                         if timestamp and bpm:
                             ts = _normalize_timestamp(timestamp)
+                            # The daily value is stamped at midnight, the same
+                            # timestamp as that minute's intraday sample, and
+                            # UNIQUE(timestamp, source) holds only one: the
+                            # resting value wins whichever metric arrives first.
                             conn.execute(
-                                """INSERT OR IGNORE INTO heart_rate
+                                """INSERT INTO heart_rate
                                    (timestamp, bpm, context, source)
-                                   VALUES (?, ?, ?, ?)""",
+                                   VALUES (?, ?, ?, ?)
+                                   ON CONFLICT(timestamp, source) DO UPDATE SET
+                                     bpm = excluded.bpm, context = excluded.context""",
                                 (ts, int(float(bpm)), "resting", "apple"),
                             )
                             hr_count += 1
