@@ -358,6 +358,19 @@ def weight_now(today: date | None = None) -> dict | None:
             "latest_lb": latest["lb"], "age_days": age, "stale": stale}
 
 
+def weight_weekly(start: str = "") -> pd.DataFrame:
+    """Per Monday-week: mean of the daily means, the lowest single reading, and
+    the number of weigh-in days. Weeks with no weigh-ins are kept as gaps."""
+    w = weight_daily(start)
+    if w.empty:
+        return pd.DataFrame(columns=["week", "lb", "low", "n"])
+    wk = (w.assign(week=week_start(w["date"]))
+           .groupby("week").agg(lb=("lb", "mean"), low=("low", "min"), n=("lb", "count")))
+    wk = wk.reindex(pd.date_range(wk.index.min(), wk.index.max(), freq="W-MON"))
+    wk.index.name = "week"
+    return wk.reset_index()
+
+
 # =============================================================================
 # Blood pressure
 # =============================================================================

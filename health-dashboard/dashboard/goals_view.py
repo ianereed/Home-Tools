@@ -532,6 +532,85 @@ def _render_bp_section(goals, today):
 
 
 # =============================================================================
+# Goal 3 — weight pace (section ③b, same shape as the BP chart)
+# =============================================================================
+
+_WEIGHT_CHART_WEEKS = 26
+
+
+def _weight_figure(weekly, band, now_w, today, deadline):
+    """Weekly mean (labeled) and weekly low (dotted) against the goal band, plus
+    the arithmetic pace from today's 7-day mean to the top of the band."""
+    x_end = today + pd.Timedelta(days=60)
+    color = lib.SERIES["weight"]
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=weekly["week"], y=weekly["lb"], name="weekly mean",
+        mode="lines+markers+text",
+        text=[f"{v:.1f}" if pd.notna(v) else "" for v in weekly["lb"]],
+        textposition="top center", textfont=dict(size=9, color=lib.MUTED),
+        connectgaps=False, line=dict(color=color, width=2), marker=dict(size=7),
+        customdata=weekly["n"],
+        hovertemplate="wk of %{x|%b %d} · mean %{y:.1f} lb (%{customdata} weigh-in days)<extra></extra>"))
+    fig.add_trace(go.Scatter(
+        x=weekly["week"], y=weekly["low"], name="weekly low",
+        mode="lines+markers", connectgaps=False,
+        line=dict(color=color, width=1.5, dash="dot"), marker=dict(size=5),
+        hovertemplate="wk of %{x|%b %d} · low %{y:.1f} lb<extra></extra>"))
+    if band:
+        lo, hi = band
+        fig.add_hrect(y0=lo, y1=hi, fillcolor=lib.GOOD, opacity=0.06, line_width=0)
+        fig.add_hline(y=hi, line_dash="dash", line_color=lib.GOOD, opacity=0.8,
+                      annotation_text=f"goal ≤{hi:.0f}", annotation_position="bottom right",
+                      annotation_font_size=10, annotation_font_color=lib.GOOD)
+        pace = _pace_per_week(now_w["lb"], hi, today, deadline) if now_w else None
+        if pace is not None:
+            fig.add_trace(go.Scatter(
+                x=[today, x_end], y=[now_w["lb"], now_w["lb"] + pace * (x_end - today).days / 7],
+                mode="lines", line=dict(color=lib.INK, width=1.5, dash="dash"), opacity=0.55,
+                showlegend=False, hovertemplate=f"pace {pace:+.2f} lb/wk<extra></extra>"))
+    if weekly["lb"].notna().any():
+        fig.update_xaxes(range=[weekly["week"].min() - pd.Timedelta(days=3), x_end])
+        lows = [weekly["low"].min(), band[0] if band else weekly["low"].min()]
+        fig.update_yaxes(range=[min(lows) - 2, weekly["lb"].max() + 3])
+    return lib.apply_theme(fig, 300, legend=True)
+
+
+def _render_weight_section(goals, today):
+    st.markdown("## Goal 3 — Weight")
+    weekly = M.weight_weekly(M.since(_WEIGHT_CHART_WEEKS * 7, today))
+    now_w = M.weight_now(today)
+    if now_w is None or weekly.empty:
+        st.caption("No weigh-ins yet — they sync from the Garmin scale.")
+        return
+    band = T.weight_band_lb(goals)
+    deadline = pd.Timestamp(goals["deadline"]) if goals and goals.get("deadline") else None
+
+    tiles = []
+    if band:
+        hi = band[1]
+        tiles.append(lib.card(
+            "To goal", f'{max(now_w["lb"] - hi, 0):.1f} / {max(now_w["low_lb"] - hi, 0):.1f} <small>lb</small>',
+            f"mean / low above the band top ({hi:.0f} lb)",
+            lib.GOOD if now_w["lb"] <= hi else lib.WARN))
+        pace = _pace_per_week(now_w["lb"], hi, today, deadline)
+        if pace is not None:
+            tiles.append(lib.card("Pace needed", f"{pace:+.2f} <small>lb/wk</small>",
+                                  "from the 7-day mean to the band top by the deadline — "
+                                  "arithmetic, not a forecast"))
+    recent = weekly[weekly["week"] >= M.this_monday(today) - pd.Timedelta(weeks=3)]
+    tiles.append(lib.card("Weigh-in days", f'{int(recent["n"].fillna(0).sum())}',
+                          "last 4 weeks · a gap breaks the trend"))
+    lib.cards(tiles)
+
+    lib.chart(_weight_figure(weekly, band, now_w, today, deadline), "goals_weight")
+    st.caption("Solid = weekly mean of daily weigh-ins (labeled); dotted = the week's lowest "
+               "reading, the closest to true weight. Green band = goal range. Dashed white "
+               "line = required pace from today's 7-day mean to the top of the band by the "
+               "deadline. Full history and body composition are on Nutrition → Body.")
+
+
+# =============================================================================
 # Weekly review (section ④ — levers × BP on one time base)
 # =============================================================================
 
@@ -544,8 +623,7 @@ def _weekly_review(today, n_weeks=8):
 
     bp = M.bp_readings()
     bp = bp.assign(week=M.week_start(bp["timestamp"])) if not bp.empty else bp
-    wt = M.weight_daily(start)
-    wt = wt.assign(week=M.week_start(wt["date"])) if not wt.empty else wt
+    wt = M.weight_weekly(start).set_index("week")
     zw = M.zone_minutes_weekly(start).set_index("week")
     al = M.alcohol_weekly()
     na = M.nutrition_daily(start)
@@ -558,9 +636,8 @@ def _weekly_review(today, n_weeks=8):
         row["BP mean"] = (f'{g["systolic"].mean():.0f} / {g["diastolic"].mean():.0f}'
                           if not g.empty else "—")
         row["Cuff readings"] = f"{len(g)}"
-        g = wt[wt["week"] == wk] if not wt.empty else pd.DataFrame()
-        row["Weight mean / low (lb)"] = (f'{g["lb"].mean():.1f} / {g["low"].min():.1f}'
-                                         if not g.empty else "—")
+        row["Weight mean / low (lb)"] = (f'{wt.loc[wk, "lb"]:.1f} / {wt.loc[wk, "low"]:.1f}'
+                                         if wk in wt.index and pd.notna(wt.loc[wk, "lb"]) else "—")
         row["Z3–5 min"] = f'{zw.loc[wk, "modvig"]:.0f}' if wk in zw.index else "—"
         row["Drinks"] = f"{al.get(wk, 0):.0f}" if not al.empty else "—"
         g = na[(na["week"] == wk) & na["sodium_mg"].notna()] if not na.empty else pd.DataFrame()
@@ -603,6 +680,7 @@ def render_goals():
     _render_levers(goals, lip, today)
     _render_ldl_section(lip, goals, today)
     _render_bp_section(goals, today)
+    _render_weight_section(goals, today)
     _render_weekly_review(today)
 
     st.caption("Honesty rules: the LDL band is a published trial range, never a "
