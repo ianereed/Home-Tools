@@ -450,6 +450,52 @@ def _render_ldl_section(lip, goals, today):
 
 
 # =============================================================================
+# Weekly tracker charts (BP, weight and the levers share one time axis)
+# =============================================================================
+
+# Every weekly tracker starts here so the charts line up when read top to
+# bottom (the LDL chart keeps its own multi-year axis: draws are rare).
+TRACKER_START = pd.Timestamp("2026-06-01")
+
+
+def _tracker_range(today):
+    return [TRACKER_START - pd.Timedelta(days=3), today + pd.Timedelta(days=60)]
+
+
+def _tracker_figure(week, y, *, name, color, fmt, today, unit="", n=None, n_label="",
+                    goal=None, goal_text=None, ref=None, ref_text=None,
+                    second=None, second_name=None, height=240):
+    """A BP-style weekly tracker: labeled weekly points (gaps break the
+    line), a dashed green goal line, an optional muted reference line and an
+    optional dotted companion series."""
+    fig = go.Figure()
+    hover = f"wk of %{{x|%b %d}} · %{{y:{fmt[2:-1]}}}{unit}"
+    if n is not None:
+        hover += f" (%{{customdata}} {n_label})"
+    fig.add_trace(go.Scatter(
+        x=week, y=y, name=name, mode="lines+markers+text",
+        text=[fmt.format(v) if pd.notna(v) else "" for v in y],
+        textposition="top center", textfont=dict(size=9, color=lib.MUTED),
+        connectgaps=False, line=dict(color=color, width=2), marker=dict(size=7),
+        customdata=n, hovertemplate=hover + "<extra></extra>"))
+    if second is not None:
+        fig.add_trace(go.Scatter(
+            x=week, y=second, name=second_name, mode="lines+markers", connectgaps=False,
+            line=dict(color=color, width=1.5, dash="dot"), marker=dict(size=5),
+            hovertemplate=f"wk of %{{x|%b %d}} · %{{y:{fmt[2:-1]}}}{unit}<extra></extra>"))
+    if goal is not None:
+        fig.add_hline(y=goal, line_dash="dash", line_color=lib.GOOD, opacity=0.8,
+                      annotation_text=goal_text, annotation_position="bottom right",
+                      annotation_font_size=10, annotation_font_color=lib.GOOD)
+    if ref is not None:
+        fig.add_hline(y=ref, line_dash="dot", line_color=lib.MUTED, opacity=0.7,
+                      annotation_text=ref_text, annotation_position="top right",
+                      annotation_font_size=10, annotation_font_color=lib.MUTED)
+    fig.update_xaxes(range=_tracker_range(today))
+    return lib.apply_theme(fig, height, legend=second is not None)
+
+
+# =============================================================================
 # Goal 2 — blood pressure pace (section ③)
 # =============================================================================
 
@@ -490,8 +536,7 @@ def _bp_figure(weekly, goals, mean14, today):
                 hovertemplate=f"pace {pace:+.2f} mmHg/wk<extra></extra>"),
                 row=row, col=1)
 
-    if not weekly.empty:
-        fig.update_xaxes(range=[weekly["week"].min() - pd.Timedelta(days=3), x_end])
+    fig.update_xaxes(range=_tracker_range(today))
     fig.update_annotations(font_size=11)
     return lib.apply_theme(fig, 380)
 
@@ -508,6 +553,7 @@ def _render_bp_section(goals, today):
     deadline = pd.Timestamp(goals["deadline"]) if goals and goals.get("deadline") else None
 
     weekly = M.bp_weekly(bp)
+    weekly = weekly[weekly["week"] >= TRACKER_START - pd.Timedelta(days=7)]
     gap_weeks = int(weekly["n"].isna().sum()) if not weekly.empty else 0
 
     tiles = [lib.card("Blood pressure", f'{win["sys"]:.0f}/{win["dia"]:.0f}',
@@ -534,9 +580,6 @@ def _render_bp_section(goals, today):
 # =============================================================================
 # Goal 3 — weight pace (section ③b, same shape as the BP chart)
 # =============================================================================
-
-_WEIGHT_CHART_WEEKS = 26
-
 
 def _weight_figure(weekly, band, now_w, today, deadline):
     """Weekly mean (labeled) and weekly low (dotted) against the goal band, plus
@@ -569,8 +612,8 @@ def _weight_figure(weekly, band, now_w, today, deadline):
                 x=[today, x_end], y=[now_w["lb"], now_w["lb"] + pace * (x_end - today).days / 7],
                 mode="lines", line=dict(color=lib.INK, width=1.5, dash="dash"), opacity=0.55,
                 showlegend=False, hovertemplate=f"pace {pace:+.2f} lb/wk<extra></extra>"))
+    fig.update_xaxes(range=_tracker_range(today))
     if weekly["lb"].notna().any():
-        fig.update_xaxes(range=[weekly["week"].min() - pd.Timedelta(days=3), x_end])
         lows = [weekly["low"].min(), band[0] if band else weekly["low"].min()]
         fig.update_yaxes(range=[min(lows) - 2, weekly["lb"].max() + 3])
     return lib.apply_theme(fig, 300, legend=True)
@@ -578,7 +621,7 @@ def _weight_figure(weekly, band, now_w, today, deadline):
 
 def _render_weight_section(goals, today):
     st.markdown("## Goal 3 — Weight")
-    weekly = M.weight_weekly(M.since(_WEIGHT_CHART_WEEKS * 7, today))
+    weekly = M.weight_weekly(TRACKER_START.date().isoformat())
     now_w = M.weight_now(today)
     if now_w is None or weekly.empty:
         st.caption("No weigh-ins yet — they sync from the Garmin scale.")
@@ -608,6 +651,62 @@ def _render_weight_section(goals, today):
                "reading, the closest to true weight. Green band = goal range. Dashed white "
                "line = required pace from today's 7-day mean to the top of the band by the "
                "deadline. Full history and body composition are on Nutrition → Body.")
+
+
+# =============================================================================
+# Lever trackers — exercise, sodium, alcohol, on the same weekly axis
+# =============================================================================
+
+def _render_lever_trackers(today):
+    st.markdown("## Lever trackers")
+    st.caption("The levers' weekly history on the same time axis as BP and weight, from June 2026. "
+               "The current week is still filling in.")
+    start = TRACKER_START.date().isoformat()
+
+    st.markdown("### Exercise — moderate-vigorous minutes per week")
+    zw = M.zone_minutes_weekly(start)
+    if zw.empty:
+        st.caption("No activities with heart-rate streams yet.")
+    else:
+        lib.chart(_tracker_figure(
+            zw["week"], zw["modvig"], name="Z3–5 min", color=lib.ZONE_COLORS["Z3"], fmt="{:.0f}",
+            today=today, unit=" min", second=zw["vig"], second_name="Z4–5 (vigorous)",
+            goal=T.AHA_MODERATE_MIN_WK, goal_text=f"AHA ≥{T.AHA_MODERATE_MIN_WK} moderate",
+            ref=T.AHA_VIGOROUS_MIN_WK, ref_text=f"≥{T.AHA_VIGOROUS_MIN_WK} vigorous"), "goals_tr_exercise")
+        st.caption(f"Heart-rate-zone minutes (max HR {T.HRMAX}). Either line clearing its guideline meets "
+                   "the AHA minimum. Detail by zone is on Training.")
+
+    st.markdown("### Sodium — daily average per week")
+    na = M.nutrition_daily(start)
+    na = na[na["sodium_mg"].notna()] if not na.empty else na
+    if na.empty:
+        st.caption("No days logged yet.")
+    else:
+        wk = (na.assign(week=M.week_start(na["date"])).groupby("week")["sodium_mg"]
+                .agg(["mean", "count"]))
+        wk = wk.reindex(pd.date_range(wk.index.min(), M.this_monday(today), freq="W-MON"))
+        lib.chart(_tracker_figure(
+            wk.index, wk["mean"], name="mg/day", color=lib.SERIES["sodium"], fmt="{:,.0f}", today=today,
+            unit=" mg", n=wk["count"], n_label="days logged",
+            goal=T.SODIUM_MG_CEILING, goal_text=f"DASH ≤{T.SODIUM_MG_CEILING:,}",
+            ref=T.SODIUM_MG_IDEAL, ref_text=f"ideal {T.SODIUM_MG_IDEAL:,}"), "goals_tr_sodium")
+        st.caption("Mean of the days logged that week, net of ride sweat sodium (hover for how many "
+                   "days). Weeks with nothing logged are gaps.")
+
+    st.markdown("### Alcohol — drinks per week")
+    weekly = M.alcohol_weekly()
+    if weekly.empty:
+        st.caption("No drinks logged yet — tracked via Garmin Lifestyle Logging.")
+    else:
+        first = max(weekly.index.min(), TRACKER_START)
+        weekly = weekly.reindex(pd.date_range(M.week_start(pd.Series([first]))[0], M.this_monday(today),
+                                              freq="W-MON"), fill_value=0)
+        lib.chart(_tracker_figure(
+            weekly.index, weekly.values, name="drinks", color=lib.SERIES["alcohol"], fmt="{:.0f}",
+            today=today, goal=T.ALCOHOL_DRINKS_WK, goal_text=f"guideline ≤{T.ALCOHOL_DRINKS_WK}"),
+            "goals_tr_alcohol")
+        st.caption("Garmin serving counts; a week with nothing logged counts as zero. For BP, lower "
+                   "beats “under the guideline”.")
 
 
 # =============================================================================
@@ -681,6 +780,7 @@ def render_goals():
     _render_ldl_section(lip, goals, today)
     _render_bp_section(goals, today)
     _render_weight_section(goals, today)
+    _render_lever_trackers(today)
     _render_weekly_review(today)
 
     st.caption("Honesty rules: the LDL band is a published trial range, never a "
