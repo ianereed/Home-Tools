@@ -471,7 +471,7 @@ def _lipid_history_fig(q: pd.DataFrame, lip: pd.DataFrame, end_ts) -> "go.Figure
 
     lanes = _lipid_lanes()
     lane_order = list(dict.fromkeys(seg["lane"] for seg in lanes))
-    fig = make_subplots(rows=3, cols=1, shared_xaxes=True, vertical_spacing=0.06,
+    fig = make_subplots(rows=3, cols=1, shared_xaxes=True, vertical_spacing=0.08,
                         row_heights=[0.48, 0.07 + 0.05 * max(len(lane_order), 1), 0.32])
     x0 = min([lip["date"].min(), pd.to_datetime(q["bucket_start"]).min()]
              + [seg["start"] for seg in lanes]) - pd.Timedelta(days=30)
@@ -492,7 +492,7 @@ def _lipid_history_fig(q: pd.DataFrame, lip: pd.DataFrame, end_ts) -> "go.Figure
             textfont=dict(size=9, color=lib.SERIES["apob"]),
             line=dict(color=lib.SERIES["apob"], width=1.5, dash="dot"), marker=dict(size=6),
             hovertemplate="%{x|%b %d, %Y} · ApoB %{y:.0f} mg/dL<extra></extra>"), row=1, col=1)
-    from dashboard.goals_view import add_ldl_goal_line, add_zero_line, draw_med_lanes
+    from dashboard.goals_view import add_ldl_goal_line, add_panel_tag, add_zero_line, draw_med_lanes
     add_ldl_goal_line(fig, getattr(CD, "CARDIO_GOALS", None))
     add_zero_line(fig)
     top = max(lip["ldl"].max(), apo["apob"].max() if not apo.empty else 0)
@@ -529,10 +529,13 @@ def _lipid_history_fig(q: pd.DataFrame, lip: pd.DataFrame, end_ts) -> "go.Figure
             hovertemplate="%{x|%b %d, %Y} · %{customdata}<extra></extra>"), row=1, col=1)
 
     fig.update_xaxes(range=[x0, x1])
-    fig.update_yaxes(title_text="mg/dL", range=[0, top * 1.2], row=1, col=1)
-    fig.update_yaxes(title_text="min/wk", row=3, col=1)
-    fig = lib.apply_theme(fig, 640, legend=True)
-    fig.update_layout(barmode="overlay", hovermode="closest", legend=dict(y=-0.08))
+    fig.update_yaxes(range=[0, top * 1.2], row=1, col=1)
+    add_panel_tag(fig, 1, "CHOLESTEROL — LDL-C & ApoB, mg/dL")
+    add_panel_tag(fig, 2, "MEDICATIONS — lipid-lowering")
+    add_panel_tag(fig, 3, "EXERCISE — minutes per week, by quarter")
+    fig = lib.apply_theme(fig, 660, legend=True)
+    fig.update_layout(barmode="overlay", hovermode="closest", legend=dict(y=-0.08),
+                      margin=dict(l=8, r=8, t=28, b=8))
     return fig
 
 
@@ -553,10 +556,11 @@ def _only_ldl_goal(fig) -> "go.Figure":
 
 def _render_lipid_history(q, lip, end_ts):
     st.markdown("## Lipid response to therapy × exercise")
-    st.caption("Three panels on one timeline: LDL-C and ApoB draws (top, with the goal lines), the "
-               f"lipid-lowering regimen ({CD.STATIN} lane shaded by dose), and quarterly exercise "
-               "intensity from heart-rate zones. Pink triangles and dotted lines = clinical events "
-               "(hover for the name; listed below).")
+    st.caption("Three panels on one timeline: cholesterol (LDL-C and ApoB draws, with the goal "
+               "line), the lipid-lowering medications (one color per medication, alternating "
+               "shades at each dose change), and exercise intensity by quarter from heart-rate "
+               "zones. Pink triangles and dotted lines = clinical events (hover for the name; "
+               "listed below).")
     lib.chart(_lipid_history_fig(q, lip, end_ts), "cardio_lipid_history")
     events = sorted(getattr(CD, "EVENTS", []), key=lambda e: e[0])
     if events:
