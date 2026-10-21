@@ -304,3 +304,29 @@ def test_dosing_time_change_is_marked(fake_clinical_no_goals, monkeypatch):
     texts = [a.text for a in cardiology_view._bp_history_fig(bp, starts, timing_changes=changes).layout.annotations]
     assert "Fakenicar (bedtime)" in texts and "Fakenicar → morning" in texts
     assert "bedtime from 2025-06-10 → morning from 2025-06-20" in cardiology_view._medication_history_html()
+
+
+def test_lipid_history_split_into_panels(fake_clinical, monkeypatch):
+    """Lipids, regimen lanes and exercise sit in their own panels on one date
+    axis; events are hover markers (no stacked labels); BP meds stay off the
+    lipid regimen lanes."""
+    import pandas as pd
+
+    import build_report
+    import dashboard.cardiology_view as cardiology_view
+
+    monkeypatch.setattr(cardiology_view, "CD", fake_clinical)
+    monkeypatch.setattr(build_report, "CD", fake_clinical)
+    fake_clinical.MEDICATIONS = fake_clinical.MEDICATIONS + [{
+        "name": "fakesartan", "brand": "Fakenicar", "dose": "0 mg", "start": "2025-07-01",
+        "status": "active", "purpose": "blood-pressure lowering"}]
+    for m in fake_clinical.MEDICATIONS:
+        m.setdefault("purpose", "")
+    lip = build_report.lipids_df()
+    q = pd.DataFrame({"bucket": ["2025Q1", "2025Q2"], "bucket_start": pd.to_datetime(["2025-01-01", "2025-04-01"]),
+                      "mod_vigorous_min_per_week": [120, 180], "vigorous_min_per_week": [60, 90]})
+    fig = cardiology_view._lipid_history_fig(q, lip, pd.Timestamp("2025-09-01"))
+    assert {t.yaxis for t in fig.data} == {"y", "y2", "y3"}
+    lanes = {t.y[0] for t in fig.data if t.yaxis == "y2"}
+    assert "Fakenicar" not in lanes
+    assert not [a for a in fig.layout.annotations if a.yref == "paper"]   # no event labels on the plot
