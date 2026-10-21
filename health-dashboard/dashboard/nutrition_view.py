@@ -246,14 +246,15 @@ def _body(p: dict):
     w = M.weight_now()
     kg = w["lb"] / KG_LB if w else dexa.get("total_mass_kg")
     _metrics([("Weight", lib.weight_value(w) if w else "—", lib.weight_basis(w) if w else "no weigh-ins"),
-              ("Body fat", f"{dexa.get('tissue_fat_pct')}%" if dexa.get("tissue_fat_pct") else "—",
-               f"DEXA {dexa.get('date', '')}"),
-              ("Lean mass", f"{dexa.get('lean_mass_kg', 0) * KG_LB:.0f} lb" if dexa.get("lean_mass_kg") else "—",
-               f"DEXA {dexa.get('date', '')}"),
-              ("FTP", f"{ftp:.0f} W" if ftp else "—", f"{ftp / kg:.2f} W/kg" if ftp and kg else "")])
+              ("FTP", f"{ftp:.0f} W" if ftp else "—", f"{ftp / kg:.2f} W/kg at the 7-day mean" if ftp and kg else "")])
     _weight_section()
-    _body_composition_section()
+    _dexa_section()
+    _scale_section()
     st.markdown("## Body-fat targets")
+    if dexa:
+        src = "DEXA scan" if dexa.get("source") == "dexa" else f"{dexa.get('source')} reading"
+        st.caption(f"Computed from the {src} of {H.fdate(dexa['date'], '%b %-d, %Y')}: fat to lose while "
+                   "holding its lean mass.")
     sched = p.get("pace_schedule") or []
     st.caption("Pace schedule: " + " → ".join(f"{v} lb/wk from {H.fdate(d, '%b %-d')}" for d, v in sched))
     t_rows = []
@@ -287,9 +288,9 @@ def _body(p: dict):
         lb_wk = (wt["kg"].iloc[0] - wt["kg"].iloc[-1]) * KG_LB / span * 7
         mean_in = sum(v["calories_kcal"] for v in logged.values()) / len(logged)
         _metrics([("Measured maintenance", f"{H.g(mean_in + lb_wk * 500)} kcal/day",
-                   f"{len(wt)} weigh-ins, {len(logged)} logged days")])
+                   f"{len(wt)} weigh-in days, {len(logged)} logged days")])
     else:
-        st.caption(f"Needs ≥10 weigh-ins and ≥10 logged days in the last 4 weeks (now {len(wt)} and {len(logged)}). "
+        st.caption(f"Needs ≥10 weigh-in days and ≥10 logged days in the last 4 weeks (now {len(wt)} and {len(logged)}). "
                    "Until then maintenance is the formula estimate (±200–300 kcal/day).")
 
 
@@ -336,47 +337,89 @@ def _weight_section():
                "post-ride weigh-in can pull the low down.")
 
 
-def _body_composition_section():
-    """BIA (Garmin scale) and DEXA as separate traces: different measurement
-    physics, never merged into one series. Rendered only when there are rows."""
-    bc = M.read("SELECT timestamp, body_fat_pct, lean_mass_kg, visceral_fat_rating, "
-                "visceral_fat_mass_kg, source FROM body_composition ORDER BY timestamp")
-    if bc.empty:
+def _dexa_section():
+    """DEXA: the reference measurement — highly reliable, every few months."""
+    st.markdown("## DEXA scans")
+    scans = M.dexa_scans()
+    if scans.empty:
+        st.caption("No DEXA scan on file. Add one to cardiology/dexa_scans.csv and run "
+                   "cardiology/import_dexa.py (see the README).")
         return
-    st.markdown("## Body composition")
-    bc["timestamp"] = pd.to_datetime(bc["timestamp"])
-    st.caption("BIA (Garmin scale) and DEXA measure body fat with different physics and "
-               "are not directly comparable — shown as separate traces, never merged.")
+    last = scans.iloc[-1]
+    st.caption(f"The reference measurement: highly reliable, every few months. "
+               f"Latest scan {last['date']:%b %-d, %Y}"
+               + (f" ({last['note']})" if isinstance(last["note"], str) and last["note"] else "")
+               + f" · {len(scans)} scan{'s' if len(scans) != 1 else ''} on file.")
+
+    def delta(col, fmt_, unit, lower_is_better):
+        if len(scans) < 2 or pd.isna(last[col]) or pd.isna(scans.iloc[-2][col]):
+            return None
+        d = last[col] - scans.iloc[-2][col]
+        good = (d < 0) == lower_is_better
+        return (f"{d:+{fmt_}}{unit} since {scans.iloc[-2]['date']:%b %Y}", lib.GOOD if good else lib.BAD)
+
+    lib.cards([
+        lib.card("Body fat", f"{last['body_fat_pct']:.1f}%", "of fat + lean tissue",
+                 delta=delta("body_fat_pct", ".1f", " pts", True)),
+        lib.card("Lean mass", lib.fmt(last["lean"], "{:.1f}") + " <small>lb</small>", "lean soft tissue",
+                 delta=delta("lean", ".1f", " lb", False)),
+        lib.card("Fat mass", lib.fmt(last["fat"], "{:.1f}") + " <small>lb</small>", "",
+                 delta=delta("fat", ".1f", " lb", True)),
+        lib.card("Bone", lib.fmt(last["bone"], "{:.1f}") + " <small>lb</small>", "bone mineral content"),
+        lib.card("Visceral fat", lib.fmt(last["visceral"], "{:.2f}") + " <small>lb</small>"
+                 if pd.notna(last["visceral"]) else "—", "VAT mass"),
+    ])
+    if len(scans) >= 2:
+        fig = go.Figure()
+        for col, name, key in (("lean", "Lean mass (lb)", "lean"), ("fat", "Fat mass (lb)", "bodyfat")):
+            fig.add_trace(go.Scatter(x=scans["date"], y=scans[col], name=name, mode="lines+markers+text",
+                                     text=[lib.fmt(v, "{:.1f}", "") for v in scans[col]],
+                                     textposition="top center", textfont=dict(size=9, color=lib.MUTED),
+                                     line=dict(color=lib.SERIES[key], width=2),
+                                     marker=dict(symbol="diamond", size=10)))
+        lib.chart(lib.apply_theme(fig, 240, legend=True), "nu_dexa")
+    else:
+        st.caption("The trend chart appears after the second scan.")
+    with st.expander("All scans"):
+        t = scans[["date", "weight", "body_fat_pct", "lean", "fat", "bone", "visceral", "note"]].copy()
+        t["date"] = t["date"].dt.strftime("%Y-%m-%d")
+        t.columns = ["Date", "Weight (lb)", "Body fat %", "Lean (lb)", "Fat (lb)", "Bone (lb)", "Visceral (lb)", "Note"]
+        st.dataframe(t, use_container_width=True, hide_index=True, column_config={
+            c: st.column_config.NumberColumn(format="%.1f") for c in t.columns if c not in ("Date", "Note")})
+
+
+def _scale_section():
+    """Garmin scale: bioimpedance every day — noisy, so read the 7-day average."""
+    st.markdown("## Garmin scale (daily)")
+    sc = M.scale_composition(M.since(120))
+    if sc.empty:
+        st.caption("No scale readings with body composition yet.")
+        return
+    st.caption("Bioimpedance from the Index scale: every day, but less reliable — hydration "
+               "alone moves body fat % by a point or two, so read the 7-day average, not single "
+               "days, and compare it with itself rather than with DEXA. Muscle mass is Garmin's "
+               "skeletal-muscle estimate, a different measure from DEXA lean mass.")
+
+    def tile(col, label, fmt_, unit, sub=""):
+        stt = M.window_stats(sc, col)
+        if stt["avg7"] is None:
+            return lib.card(label, "—", "no readings in the last 7 days")
+        return lib.card(label, lib.fmt(stt["avg7"], fmt_) + (f" <small>{unit}</small>" if unit else ""),
+                        f"7-day avg · latest {lib.fmt(stt['latest'], fmt_)}{unit if unit == '%' else ''}"
+                        + (f" · {sub}" if sub else ""),
+                        spark=lib.spark_svg(sc[col].tolist()[-30:], lib.SERIES.get(
+                            {"body_fat_pct": "bodyfat", "muscle": "lean"}.get(col, "weight"), lib.MUTED)))
+    lib.cards([tile("body_fat_pct", "Body fat (scale)", "{:.1f}", "%"),
+               tile("muscle", "Skeletal muscle", "{:.1f}", "lb", "not lean mass"),
+               tile("water_pct", "Body water", "{:.1f}", "%"),
+               tile("bone", "Bone (scale)", "{:.1f}", "lb")])
     cc = st.columns(2)
-    with cc[0]:
-        st.markdown("### Body fat %")
-        fig = go.Figure()
-        for src, name, mode, marker in (("garmin", "BIA (Garmin scale)", "lines+markers", dict(size=5)),
-                                        ("dexa", "DEXA", "markers", dict(size=11, symbol="diamond"))):
-            d = bc[(bc["source"] == src) & bc["body_fat_pct"].notna()]
-            if not d.empty:
-                fig.add_trace(go.Scatter(x=d["timestamp"], y=d["body_fat_pct"], mode=mode, name=name,
-                                         line=dict(color=lib.SERIES["bodyfat"]),
-                                         marker=dict(color=lib.SERIES["bodyfat"], **marker)))
-        lib.chart(lib.apply_theme(fig, 200, legend=True), "nu_bodyfat")
-    with cc[1]:
-        st.markdown("### Lean mass (lb)")
-        fig = go.Figure()
-        for src, name, mode, marker in (("garmin", "BIA (Garmin scale)", "lines+markers", dict(size=5)),
-                                        ("dexa", "DEXA", "markers", dict(size=11, symbol="diamond"))):
-            d = bc[(bc["source"] == src) & bc["lean_mass_kg"].notna()]
-            if not d.empty:
-                fig.add_trace(go.Scatter(x=d["timestamp"], y=d["lean_mass_kg"] * KG_LB, mode=mode, name=name,
-                                         line=dict(color=lib.SERIES["lean"]),
-                                         marker=dict(color=lib.SERIES["lean"], **marker)))
-        lib.chart(lib.apply_theme(fig, 200, legend=True), "nu_lean")
-    dexa = bc[bc["source"] == "dexa"]
-    if not dexa.empty:
-        with st.expander("DEXA history"):
-            t = dexa.copy()
-            t["timestamp"] = t["timestamp"].dt.strftime("%Y-%m-%d")
-            st.dataframe(t[["timestamp", "body_fat_pct", "lean_mass_kg", "visceral_fat_mass_kg"]],
-                         use_container_width=True, hide_index=True)
+    for i, (col, title, key, unit) in enumerate((("body_fat_pct", "Body fat % (scale)", "bodyfat", "%"),
+                                                  ("muscle", "Skeletal muscle (lb)", "lean", "lb"))):
+        with cc[i]:
+            st.markdown(f"### {title}")
+            d = sc[sc[col].notna()]
+            lib.chart(lib.line_with_avg(d, col, lib.SERIES[key], title, 200), f"nu_scale_{col}")
 
 
 def baseline_summary(intake: dict, retro: list[dict], today: str, kg: float | None) -> dict | None:
@@ -572,7 +615,8 @@ def render_nutrition():
         tabs = st.tabs(["Body", "Reference"])
         with tabs[0]:
             _weight_section()
-            _body_composition_section()
+            _dexa_section()
+            _scale_section()
         with tabs[1]:
             _reference({})
         return

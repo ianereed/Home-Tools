@@ -176,19 +176,16 @@ class TestWeightRows:
         weight_rows, comp_rows = _weight_rows(payload)
         assert weight_rows == [("2026-01-23T00:00:00", 80.2, 24.1, "garmin", "111222444")]
         assert len(comp_rows) == 1
-        (ts, weight_kg, body_fat_pct, lean_mass_kg, fat_mass_kg, bone_mass_kg,
-         visceral_fat_rating, visceral_fat_mass_kg, body_water_pct, note, source) = comp_rows[0]
+        (ts, weight_kg, body_fat_pct, muscle_mass_kg, bone_mass_kg,
+         visceral_fat_rating, body_water_pct, source, source_id) = comp_rows[0]
         assert ts == "2026-01-23T00:00:00"
         assert weight_kg == 80.2
         assert body_fat_pct == 21.3
-        assert lean_mass_kg == 34.5   # muscleMass grams -> kg
-        assert fat_mass_kg is None    # DEXA-direct only, never from Garmin
-        assert bone_mass_kg == 3.1    # boneMass grams -> kg
+        assert muscle_mass_kg == 34.5   # muscleMass grams -> kg, never lean mass
+        assert bone_mass_kg == 3.1      # boneMass grams -> kg
         assert visceral_fat_rating == 8.0
-        assert visceral_fat_mass_kg is None
         assert body_water_pct == 55.2
-        assert note is None
-        assert source == "garmin"
+        assert source == "garmin" and source_id == "111222444"
 
     def test_grams_to_kg_conversion(self):
         payload = _comp_payload([_weigh_in(weight=78400.0)])
@@ -208,7 +205,7 @@ class TestWeightRows:
         assert comp_rows == []
 
     def test_missing_calendar_date_and_gmt_row_skipped(self):
-        payload = _comp_payload([_weigh_in(calendarDate=None, timestampGMT=None)])
+        payload = _comp_payload([_weigh_in(date=None, calendarDate=None, timestampGMT=None)])
         weight_rows, comp_rows = _weight_rows(payload)
         assert weight_rows == []
         assert comp_rows == []
@@ -220,6 +217,18 @@ class TestWeightRows:
     def test_empty_date_weight_list_returns_empty_lists(self):
         payload = _comp_payload([])
         assert _weight_rows(payload) == ([], [])
+
+    def test_weigh_in_keeps_its_local_time(self):
+        # 2026-10-21 07:59:42 local, as Garmin encodes it in `date`
+        row = _weigh_in(calendarDate="2026-10-21", date=1792569582000, timestampGMT=1792594782000)
+        weight_rows, _ = _weight_rows(_comp_payload([row]))
+        assert weight_rows[0][0] == "2026-10-21T07:59:42"
+
+    def test_two_weigh_ins_on_one_day_are_both_kept(self):
+        rows = [_weigh_in(samplePk=1, calendarDate="2026-10-21", date=1792569582000, weight=83500.0),
+                _weigh_in(samplePk=2, calendarDate="2026-10-21", date=1792605582000, weight=84600.0)]
+        weight_rows, _ = _weight_rows(_comp_payload(rows))
+        assert [r[0] for r in weight_rows] == ["2026-10-21T07:59:42", "2026-10-21T17:59:42"]
 
     def test_single_bia_field_present_still_writes_composition(self):
         """Only one BIA field populated (e.g. visceralFat alone) should still
@@ -489,3 +498,43 @@ def test_daily_energy_row():
     assert _daily_energy_row(stats, "2026-10-13") == ("2026-10-13", 2600.0, 400.0, 2200.0, None, "garmin")
     assert _daily_energy_row({"totalKilocalories": None}, "2026-10-13") is None
     assert _daily_energy_row(None, "2026-10-13") is None
+
+
+# --- Saving weigh-ins: every reading kept, re-collection converges ---------------
+
+def test_save_weigh_ins_replaces_legacy_midnight_rows(empty_db):
+    """A weigh-in first stored the old way (midnight stamp, lean_mass_kg) is
+    replaced, not duplicated, when re-collected with its real time."""
+    import sqlite3
+
+    from collectors.garmin_collector import save_weigh_ins
+
+    conn = sqlite3.connect(empty_db)
+    conn.execute("INSERT INTO body_weight (timestamp, weight_kg, source, source_id) "
+                 "VALUES ('2026-10-21T00:00:00', 83.5, 'garmin', '1')")
+    conn.execute("INSERT INTO body_composition (timestamp, weight_kg, body_fat_pct, source) "
+                 "VALUES ('2026-10-21T00:00:00', 83.5, 22.8, 'garmin')")
+    rows = [_weigh_in(samplePk=1, calendarDate="2026-10-21", date=1792569582000, weight=83500.0, bodyFat=22.8),
+            _weigh_in(samplePk=2, calendarDate="2026-10-21", date=1792605582000, weight=84600.0, bodyFat=23.5)]
+    save_weigh_ins(conn, *_weight_rows(_comp_payload(rows)))
+    save_weigh_ins(conn, *_weight_rows(_comp_payload(rows)))     # idempotent
+    assert conn.execute("SELECT timestamp, source_id FROM body_weight ORDER BY timestamp").fetchall() == [
+        ("2026-10-21T07:59:42", "1"), ("2026-10-21T17:59:42", "2")]
+    assert conn.execute("SELECT COUNT(*) FROM body_composition").fetchone()[0] == 2
+    conn.close()
+
+
+def test_migration_moves_garmin_muscle_out_of_lean_mass(empty_db):
+    import sqlite3
+
+    import collectors.db as db
+
+    conn = sqlite3.connect(empty_db)
+    conn.execute("PRAGMA user_version = 1")
+    conn.execute("INSERT INTO body_composition (timestamp, lean_mass_kg, source) VALUES ('2026-10-19T00:00:00', 34.3, 'garmin')")
+    conn.execute("INSERT INTO body_composition (timestamp, lean_mass_kg, source) VALUES ('2026-10-13T00:00:00', 56.8, 'dexa')")
+    conn.commit()
+    db.init_db()
+    assert conn.execute("SELECT source, lean_mass_kg, muscle_mass_kg FROM body_composition ORDER BY source").fetchall() == [
+        ("dexa", 56.8, None), ("garmin", None, 34.3)]
+    conn.close()

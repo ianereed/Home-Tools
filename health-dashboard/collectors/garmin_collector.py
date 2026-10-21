@@ -381,32 +381,49 @@ def _bp_rows(payload: dict | None) -> list[tuple]:
     return rows
 
 
+def _weigh_in_timestamp(row: dict) -> str | None:
+    """Local wall-clock time of one weigh-in, 'YYYY-MM-DDTHH:MM:SS'.
+
+    Garmin's `date` is the local time encoded as epoch ms (timestampGMT is
+    the same instant in UTC), so reading it as UTC gives local wall time.
+    Used only when it agrees with `calendarDate`; otherwise (or when absent)
+    fall back to the calendar date at midnight, then to the GMT date.
+    """
+    calendar_date = row.get("calendarDate")
+    local_ms = row.get("date")
+    if local_ms is not None:
+        local = datetime.fromtimestamp(local_ms / 1000, tz=timezone.utc)
+        if calendar_date is None or local.date().isoformat() == calendar_date:
+            return local.strftime("%Y-%m-%dT%H:%M:%S")
+    if calendar_date:
+        return f"{calendar_date}T00:00:00"
+    gmt_ms = row.get("timestampGMT")
+    if gmt_ms is None:
+        return None
+    return datetime.fromtimestamp(gmt_ms / 1000, tz=timezone.utc).date().isoformat() + "T00:00:00"
+
+
 def _weight_rows(payload: dict | None) -> tuple[list[tuple], list[tuple]]:
     """Map a get_body_composition(...) payload into (body_weight, body_composition) rows.
 
+    One row per weigh-in, stamped with its own local time (see
+    _weigh_in_timestamp), so several weigh-ins on one day are all kept.
     Garmin reports weight/muscleMass/boneMass in grams; convert to kg here.
-    Prefers local calendarDate over the GMT epoch fields (Appendix D gotcha);
-    falls back to a date derived from timestampGMT with a T00:00:00 time-of-day
-    when calendarDate is absent. A body_composition row is written only when at
-    least one BIA field is present — the observed payload returns an
-    all-BIA-None day-summary row for manual (non-scale) weigh-ins rather than
-    omitting it, and that's not a composition reading.
+    muscleMass is the scale's skeletal-muscle estimate and goes to
+    muscle_mass_kg, never lean_mass_kg (that is DEXA lean soft tissue).
+    A body_composition row is written only when at least one BIA field is
+    present — the observed payload returns an all-BIA-None day-summary row
+    for manual (non-scale) weigh-ins rather than omitting it, and that's not
+    a composition reading. Both row kinds carry the samplePk as source_id.
     """
     weight_rows, comp_rows = [], []
     for row in (payload or {}).get("dateWeightList") or []:
         weight_g = row.get("weight")
         if weight_g is None:
             continue
-
-        calendar_date = row.get("calendarDate")
-        if calendar_date:
-            ts = f"{calendar_date}T00:00:00"
-        else:
-            gmt_ms = row.get("timestampGMT")
-            if gmt_ms is None:
-                continue
-            gmt_date = datetime.fromtimestamp(gmt_ms / 1000, tz=timezone.utc).date()
-            ts = f"{gmt_date.isoformat()}T00:00:00"
+        ts = _weigh_in_timestamp(row)
+        if ts is None:
+            continue
 
         weight_kg = weight_g / 1000
         sample_pk = row.get("samplePk")
@@ -425,15 +442,40 @@ def _weight_rows(payload: dict | None) -> tuple[list[tuple], list[tuple]]:
                 weight_kg,
                 row.get("bodyFat"),
                 muscle_mass / 1000 if muscle_mass is not None else None,
-                None,  # fat_mass_kg: DEXA-direct only, never reported by Garmin
                 bone_mass / 1000 if bone_mass is not None else None,
                 row.get("visceralFat"),
-                None,  # visceral_fat_mass_kg: DEXA only
                 row.get("bodyWater"),
-                None,  # note
                 "garmin",
+                source_id,
             ))
     return weight_rows, comp_rows
+
+
+def save_weigh_ins(conn, weight_rows: list[tuple], comp_rows: list[tuple]) -> None:
+    """Upsert Garmin weigh-ins keyed on samplePk. A re-collected weigh-in
+    replaces its earlier copy, including the old midnight-stamped rows from
+    before weigh-ins kept their time of day."""
+    for ts, *_rest, source_id in weight_rows:
+        if source_id is not None:
+            conn.execute("DELETE FROM body_weight WHERE source = 'garmin' AND source_id = ?", (source_id,))
+            # legacy body_composition rows have no source_id: match the midnight stamp
+            conn.execute(
+                "DELETE FROM body_composition WHERE source = 'garmin' AND "
+                "(source_id = ? OR (source_id IS NULL AND timestamp = ?))",
+                (source_id, f"{ts[:10]}T00:00:00"))
+    conn.executemany(
+        """INSERT OR REPLACE INTO body_weight
+           (timestamp, weight_kg, bmi, source, source_id)
+           VALUES (?, ?, ?, ?, ?)""",
+        weight_rows,
+    )
+    conn.executemany(
+        """INSERT OR REPLACE INTO body_composition
+           (timestamp, weight_kg, body_fat_pct, muscle_mass_kg, bone_mass_kg,
+            visceral_fat_rating, body_water_pct, source, source_id)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+        comp_rows,
+    )
 
 
 # mealNutritionContent field -> nutrition_daily column, in insert order after
@@ -665,8 +707,9 @@ def collect_body_composition(client, start_date: str, end_date: str):
     """Collect weight + body-composition data for a date range (single range call).
 
     A Garmin weigh-in with BIA data writes BOTH a body_weight row and a
-    body_composition row (same timestamp/source); a manual weigh-in with no
-    BIA fields only gets the body_weight row.
+    body_composition row (same timestamp/source/samplePk); a manual weigh-in
+    with no BIA fields only gets the body_weight row. Every weigh-in is kept
+    with its time of day.
     """
     conn = get_connection()
     try:
@@ -676,21 +719,7 @@ def collect_body_composition(client, start_date: str, end_date: str):
             logger.info(f"No Garmin weigh-ins from {start_date} to {end_date}")
             return
 
-        conn.executemany(
-            """INSERT OR REPLACE INTO body_weight
-               (timestamp, weight_kg, bmi, source, source_id)
-               VALUES (?, ?, ?, ?, ?)""",
-            weight_rows,
-        )
-        if comp_rows:
-            conn.executemany(
-                """INSERT OR REPLACE INTO body_composition
-                   (timestamp, weight_kg, body_fat_pct, lean_mass_kg, fat_mass_kg,
-                    bone_mass_kg, visceral_fat_rating, visceral_fat_mass_kg,
-                    body_water_pct, note, source)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                comp_rows,
-            )
+        save_weigh_ins(conn, weight_rows, comp_rows)
         conn.commit()
         logger.info(f"Saved {len(weight_rows)} Garmin weigh-ins ({len(comp_rows)} with BIA)")
     except Exception as e:
