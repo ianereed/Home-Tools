@@ -407,6 +407,30 @@ def weight_goals() -> list[dict]:
     return out
 
 
+def body_fat_estimate_weekly(start: str = "") -> pd.DataFrame:
+    """Per week: the body fat implied by that week's 7-day-average weight if
+    lean and bone mass are unchanged since the most recent DEXA scan on or
+    before that week (the same assumption the weight goals make, so reaching a
+    goal weight and reaching its body fat line coincide). Weeks before the
+    first scan get no estimate. Columns: week, pct (fraction), scan_date."""
+    w = weight_weekly(start)
+    scans = dexa_scans()
+    scans = scans[scans["lean"].notna()] if not scans.empty else scans
+    rows = []
+    if not w.empty and not scans.empty:
+        for wk, lb in zip(w["week"], w["lb"]):
+            if pd.isna(lb):
+                continue
+            prior = scans[scans["date"] <= wk + pd.Timedelta(days=6)]
+            if prior.empty:
+                continue
+            s = prior.iloc[-1]
+            bone = s["bone"] if pd.notna(s["bone"]) else 0.0
+            rows.append({"week": wk, "pct": T.body_fat_at_weight(lb, s["lean"], bone),
+                         "scan_date": s["date"]})
+    return pd.DataFrame(rows, columns=["week", "pct", "scan_date"])
+
+
 def scale_composition(start: str = "") -> pd.DataFrame:
     """Garmin scale (bioimpedance) readings, one row per day (mean of that day's
     weigh-ins). Days with a DEXA scan are left out: that day's Garmin entry is

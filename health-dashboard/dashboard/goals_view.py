@@ -644,6 +644,70 @@ def _render_weight_section(goals, today):
 
 
 # =============================================================================
+# Goal 4 — body fat (DEXA measured; weight-implied estimate between scans)
+# =============================================================================
+
+def _body_fat_figure(scans, est, today):
+    fig = go.Figure()
+    if not est.empty:
+        fig.add_trace(go.Scatter(
+            x=est["week"], y=est["pct"] * 100, name="estimate from weight",
+            mode="lines+markers", line=dict(color=lib.SERIES["bodyfat"], width=1.5, dash="dot"),
+            marker=dict(size=5),
+            hovertemplate="wk of %{x|%b %d} · ~%{y:.1f}% (from 7-day avg weight)<extra></extra>"))
+    fig.add_trace(go.Scatter(
+        x=scans["date"], y=scans["body_fat_pct"], name="DEXA (measured)", mode="markers+text",
+        text=[f"{v:.1f}%" for v in scans["body_fat_pct"]], textposition="top center",
+        textfont=dict(size=10, color=lib.INK),
+        marker=dict(symbol="diamond", size=12, color=lib.SERIES["bodyfat"]),
+        hovertemplate="DEXA %{x|%b %d, %Y} · %{y:.1f}%<extra></extra>"))
+    for (label, pct), dash in zip(T.BODY_FAT_GOALS, ("dash", "dot")):
+        fig.add_hline(y=pct * 100, line_dash=dash, line_color=lib.GOOD, opacity=0.8,
+                      annotation_text=f"{label.lower()} · {pct * 100:.0f}%",
+                      annotation_position="bottom right",
+                      annotation_font_size=10, annotation_font_color=lib.GOOD)
+    fig.update_xaxes(range=_tracker_range(today))
+    vals = list(scans["body_fat_pct"]) + list(est["pct"] * 100) + [p * 100 for _, p in T.BODY_FAT_GOALS]
+    fig.update_yaxes(range=[min(vals) - 2, max(vals) + 3], ticksuffix="%")
+    return lib.apply_theme(fig, 260, legend=True)
+
+
+def _render_body_fat_section(today):
+    st.markdown("## Goal 4 — Body fat")
+    scans = M.dexa_scans()
+    scans = scans[scans["body_fat_pct"].notna()] if not scans.empty else scans
+    if scans.empty:
+        st.caption("No DEXA scan on file yet — body fat goals need one.")
+        return
+    last = scans.iloc[-1]
+    est = M.body_fat_estimate_weekly(TRACKER_START.date().isoformat())
+    w = M.weight_now(today)
+    now = None
+    if w and not w["stale"] and pd.notna(last["lean"]):
+        now = T.body_fat_at_weight(w["lb"], last["lean"], last["bone"] if pd.notna(last["bone"]) else 0.0) * 100
+
+    tiles = [lib.card("DEXA (measured)", f"{last['body_fat_pct']:.1f}%", f"scan of {last['date']:%b %-d, %Y}")]
+    if now is not None:
+        tiles.append(lib.card("Estimate now", f"~{now:.1f}%",
+                              "from the 7-day mean weight, lean and bone held at the last scan"))
+    cur = now if now is not None else last["body_fat_pct"]
+    for label, pct in T.BODY_FAT_GOALS:
+        tiles.append(lib.card(f"To {label.lower()} · {pct * 100:.0f}%",
+                              f"{max(cur - pct * 100, 0):.1f} <small>pts</small>",
+                              "from the estimate" if now is not None else "from the last scan",
+                              lib.GOOD if cur <= pct * 100 else lib.WARN))
+    lib.cards(tiles)
+
+    lib.chart(_body_fat_figure(scans, est, today), "goals_body_fat")
+    st.caption("Diamonds = DEXA scans, the measurement of record. Dotted line = an estimate between "
+               "scans from the scale's weight (each week's 7-day average) with lean and bone held at "
+               "the last scan — the same assumption as the weight goals, so the two goals move "
+               "together. It reads too low if you lose muscle; the next scan corrects it. The scale's "
+               "own body-fat % (bioimpedance) stays off this chart: it read 22.8–24% the week DEXA "
+               "measured 30.3%. It's on Nutrition → Body.")
+
+
+# =============================================================================
 # Lever trackers — exercise, sodium, alcohol, on the same weekly axis
 # =============================================================================
 
@@ -767,6 +831,7 @@ def render_goals():
     if wg:
         intro_bits.append("weight ≤" + " then ≤".join(
             f'{g["lb"]:.1f} lb ({g["pct"] * 100:.0f}% fat)' for g in wg))
+        intro_bits.append("body fat ≤" + " then ≤".join(f"{p * 100:.0f}%" for _, p in T.BODY_FAT_GOALS))
     if goals and goals.get("deadline"):
         dl = pd.Timestamp(goals["deadline"])
         intro_bits.append(f"by {dl:%b %Y} · <b>{(dl - today).days} days</b>")
@@ -779,6 +844,7 @@ def render_goals():
     _render_ldl_section(lip, goals, today)
     _render_bp_section(goals, today)
     _render_weight_section(goals, today)
+    _render_body_fat_section(today)
     _render_lever_trackers(today)
     _render_weekly_review(today)
 
