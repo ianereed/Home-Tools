@@ -79,3 +79,9 @@ BODY_FAT_GOALS = (("Goal 1", 0.24), ("Goal 2", 0.20))
 def weight_at_body_fat(lean: float, bone: float, pct: float) -> float:
     """Total mass with `lean` and `bone` unchanged and fat at `pct` of fat + lean (any unit)."""
     return lean / (1 - pct) + bone
+
+
+def body_fat_at_weight(weight: float, lean: float, bone: float) -> float:
+    """Inverse of weight_at_body_fat: body fat (fraction of fat + lean) at
+    `weight` if lean and bone are unchanged (any unit)."""
+    return (weight - lean - bone) / (weight - bone)

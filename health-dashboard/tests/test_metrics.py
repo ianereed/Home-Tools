@@ -170,3 +170,22 @@ def test_weight_goals_hold_dexa_lean_and_bone(conn):
 
 def test_no_dexa_no_weight_goals(conn):
     assert M.weight_goals() == []
+
+
+def test_body_fat_at_weight_inverts_the_goal_weight():
+    w = T.weight_at_body_fat(125.2, 7.1, 0.24)
+    assert T.body_fat_at_weight(w, 125.2, 7.1) == pytest.approx(0.24)
+
+
+def test_body_fat_estimate_starts_at_the_scan(conn):
+    _rows(conn, "INSERT INTO body_composition (timestamp, weight_kg, body_fat_pct, lean_mass_kg, fat_mass_kg, "
+                "bone_mass_kg, source) VALUES (?,?,?,?,?,?,'dexa')",
+          [("2026-10-13T00:00:00", 84.73, 30.3, 56.79, 24.72, 3.22)])
+    _rows(conn, "INSERT INTO body_weight (timestamp, weight_kg, source) VALUES (?,?,'garmin')",
+          [("2026-09-30T07:00:00", 86.0),           # week of Sep 28: before the scan -> no estimate
+           ("2026-10-14T07:00:00", 84.73),          # week of Oct 12: the scan's own weight
+           ("2026-10-20T07:00:00", 80.0)])          # week of Oct 19: 4.7 kg of fat lost
+    e = M.body_fat_estimate_weekly()
+    assert e["week"].dt.strftime("%m-%d").tolist() == ["10-12", "10-19"]
+    assert e["pct"].iloc[0] == pytest.approx(24.72 / (24.72 + 56.79), abs=1e-3)   # ~30.3%
+    assert e["pct"].iloc[1] == pytest.approx((80.0 - 56.79 - 3.22) / (80.0 - 3.22))
