@@ -607,7 +607,7 @@ def _weight_figure(weekly, wgoals, today):
 
 def _render_weight_section(goals, today):
     st.markdown("## Goal 3 — Weight")
-    weekly = M.weight_weekly(TRACKER_START.date().isoformat())
+    weekly = M.weight_weekly(TRACKER_START.date().isoformat(), as_of_today=True, today=today)
     now_w = M.weight_now(today)
     if now_w is None or weekly.empty:
         st.caption("No weigh-ins yet — they sync from the Garmin scale.")
@@ -641,28 +641,46 @@ def _render_weight_section(goals, today):
 # =============================================================================
 
 def _body_fat_figure(scans, est, today):
+    """DEXA scans (white diamonds, the measurement of record) and the weekly
+    weight-based estimate (solid labeled line) against shaded goal zones."""
     fig = go.Figure()
-    if not est.empty:
-        fig.add_trace(go.Scatter(
-            x=est["week"], y=est["pct"] * 100, name="estimate from weight",
-            mode="lines+markers", line=dict(color=lib.SERIES["bodyfat"], width=1.5, dash="dot"),
-            marker=dict(size=5),
-            hovertemplate="wk of %{x|%b %d} · ~%{y:.1f}% (from 7-day avg weight)<extra></extra>"))
-    fig.add_trace(go.Scatter(
-        x=scans["date"], y=scans["body_fat_pct"], name="DEXA (measured)", mode="markers+text",
-        text=[f"{v:.1f}%" for v in scans["body_fat_pct"]], textposition="top center",
-        textfont=dict(size=10, color=lib.INK),
-        marker=dict(symbol="diamond", size=12, color=lib.SERIES["bodyfat"]),
-        hovertemplate="DEXA %{x|%b %d, %Y} · %{y:.1f}%<extra></extra>"))
-    for (label, pct), dash in zip(T.BODY_FAT_GOALS, ("dash", "dot")):
-        fig.add_hline(y=pct * 100, line_dash=dash, line_color=lib.GOOD, opacity=0.8,
+    (g1_label, g1), (g2_label, g2) = T.BODY_FAT_GOALS
+    vals = list(scans["body_fat_pct"]) + list(est["pct"] * 100)
+    y_lo = min(vals + [g2 * 100]) - 3
+    y_hi = max(vals + [g1 * 100]) + 3
+    # goal zones, light: under 24% (goal 1), a touch deeper under 20% (goal 2)
+    fig.add_hrect(y0=y_lo, y1=g1 * 100, fillcolor=lib.GOOD, opacity=0.035, line_width=0)
+    fig.add_hrect(y0=y_lo, y1=g2 * 100, fillcolor=lib.GOOD, opacity=0.035, line_width=0)
+    for (label, pct), dash in ((T.BODY_FAT_GOALS[0], "dash"), (T.BODY_FAT_GOALS[1], "dot")):
+        fig.add_hline(y=pct * 100, line_dash=dash, line_color=lib.GOOD, opacity=0.9,
                       annotation_text=f"{label.lower()} · {pct * 100:.0f}%",
-                      annotation_position="bottom right",
-                      annotation_font_size=10, annotation_font_color=lib.GOOD)
+                      annotation_position="top right",
+                      annotation_font_size=11, annotation_font_color=lib.GOOD)
+    if not est.empty:
+        # the estimate continues from the latest scan: leave out the scan's own
+        # week (it would sit on the diamond) and start the line at the scan
+        last = scans.iloc[-1]
+        after = est[est["week"] > M.week_start(pd.Series([last["date"]]))[0]]
+        if not after.empty:
+            xs = [last["date"]] + list(after["week"])
+            ys = [last["body_fat_pct"]] + list(after["pct"] * 100)
+            text = [""] * (len(xs) - 1) + [f"~{ys[-1]:.1f}% now"]
+            fig.add_trace(go.Scatter(
+                x=xs, y=ys, name="estimate from weight (weekly)", mode="lines+markers+text",
+                text=text, textposition="middle right", textfont=dict(size=11, color=lib.SERIES["bodyfat"]),
+                line=dict(color=lib.SERIES["bodyfat"], width=2.5), marker=dict(size=7),
+                hovertemplate="wk of %{x|%b %d} · ~%{y:.1f}% (from 7-day avg weight)<extra></extra>"))
+    fig.add_trace(go.Scatter(
+        x=scans["date"], y=scans["body_fat_pct"], name="DEXA scan (measured)", mode="markers+text",
+        text=[f"DEXA {v:.1f}%" for v in scans["body_fat_pct"]], textposition="top center",
+        textfont=dict(size=11, color=lib.INK),
+        marker=dict(symbol="diamond", size=15, color=lib.INK, line=dict(color=lib.BG, width=1.5)),
+        hovertemplate="DEXA %{x|%b %d, %Y} · %{y:.1f}%<extra></extra>"))
     fig.update_xaxes(range=_tracker_range(today))
-    vals = list(scans["body_fat_pct"]) + list(est["pct"] * 100) + [p * 100 for _, p in T.BODY_FAT_GOALS]
-    fig.update_yaxes(range=[min(vals) - 2, max(vals) + 3], ticksuffix="%")
-    return lib.apply_theme(fig, 260, legend=True)
+    fig.update_yaxes(range=[y_lo, y_hi], ticksuffix="%", dtick=5)
+    fig = lib.apply_theme(fig, 300, legend=True)
+    fig.update_layout(hovermode="closest")
+    return fig
 
 
 def _render_body_fat_section(today):
@@ -673,7 +691,7 @@ def _render_body_fat_section(today):
         st.caption("No DEXA scan on file yet — body fat goals need one.")
         return
     last = scans.iloc[-1]
-    est = M.body_fat_estimate_weekly(TRACKER_START.date().isoformat())
+    est = M.body_fat_estimate_weekly(TRACKER_START.date().isoformat(), as_of_today=True)
     w = M.weight_now(today)
     now = None
     if w and not w["stale"] and pd.notna(last["lean"]):
@@ -692,8 +710,9 @@ def _render_body_fat_section(today):
     lib.cards(tiles)
 
     lib.chart(_body_fat_figure(scans, est, today), "goals_body_fat")
-    st.caption("Diamonds = DEXA scans, the measurement of record. Dotted line = an estimate between "
-               "scans from the scale's weight (each week's 7-day average) with lean and bone held at "
+    st.caption("White diamonds = DEXA scans, the measurement of record. Pink line = an estimate between "
+               "scans from the scale's weight (each week's 7-day average; the current week's is the "
+               "same 7-day average as the card) with lean and bone held at "
                "the last scan — the same assumption as the weight goals, so the two goals move "
                "together. It reads too low if you lose muscle; the next scan corrects it. The scale's "
                "own body-fat % (bioimpedance) stays off this chart: it read 22.8–24% the week DEXA "

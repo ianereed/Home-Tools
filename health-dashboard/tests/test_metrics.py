@@ -57,6 +57,16 @@ class TestWeight:
         assert pd.isna(w["lb"].iloc[1])            # no weigh-ins: a gap, not zero
         assert w["n"].iloc[2] == 1
 
+    def test_current_week_point_matches_the_7_day_card(self, conn):
+        # TODAY is Wed Oct 21: Monday-to-today has one weigh-in, the trailing 7 days three
+        _rows(conn, "INSERT INTO body_weight (timestamp, weight_kg, source) VALUES (?,?,'garmin')",
+              [("2026-10-16T07:00:00", 86.0), ("2026-10-18T07:00:00", 85.0), ("2026-10-21T07:00:00", 83.0)])
+        cal = M.weight_weekly(today=TODAY)
+        asof = M.weight_weekly(as_of_today=True, today=TODAY)
+        assert cal["lb"].iloc[-1] == pytest.approx(83.0 * T.KG_TO_LB)
+        assert asof["lb"].iloc[-1] == pytest.approx(M.weight_now(TODAY)["lb"])
+        assert asof["lb"].iloc[0] == cal["lb"].iloc[0]        # complete weeks unchanged
+
     def test_rolling_low_is_a_seven_calendar_day_minimum(self):
         df = pd.DataFrame({"date": pd.to_datetime(["2026-10-01", "2026-10-03", "2026-10-09", "2026-10-30"]),
                            "low": [80.0, 79.0, 81.0, 78.0]})
