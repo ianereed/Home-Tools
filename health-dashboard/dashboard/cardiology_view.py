@@ -97,6 +97,15 @@ def _lab_table_html(lip: pd.DataFrame) -> str:
     return f"<table class=lipid><thead><tr>{thead}</tr></thead><tbody>{rows}</tbody></table>"
 
 
+def _timing_history(m: dict) -> str:
+    """'<br>bedtime from 2026-08-27 → morning from 2026-10-04' when the dosing time changed."""
+    history = m.get("dosing_history") or []
+    if len(history) < 2:
+        return ""
+    return "<br><span class=meta>" + " → ".join(
+        f"{_short_timing(t)} from {d}" for d, t in history) + "</span>"
+
+
 def _medication_history_html() -> str:
     """Every recorded medication, current and past, oldest first — the record,
     not the regimen (current cards are on Goals)."""
@@ -105,7 +114,7 @@ def _medication_history_html() -> str:
         return ""
     rows = "".join(
         f'<tr><td>{m.get("name", "")}{" (" + m["brand"] + ")" if m.get("brand") else ""}</td>'
-        f'<td>{m.get("dose", "")} · {m.get("frequency", "")}</td>'
+        f'<td>{m.get("dose", "")} · {m.get("frequency", "")}{_timing_history(m)}</td>'
         f'<td>{m.get("start") or "—"}</td><td>{m.get("stop") or ""}</td>'
         f'<td class=meta>{m.get("status", "")} · {m.get("purpose", "")}</td></tr>' for m in meds)
     return ('<table class=lipid><thead><tr><th>Medication</th><th>Dose</th><th>Start</th>'
@@ -139,13 +148,33 @@ def _bp_med_starts() -> list[tuple[pd.Timestamp, str, str]]:
     "start_time" key): a bedtime regimen can begin after midnight, which
     changes which mornings count as post-med."""
     starts = []
-    for m in getattr(CD, "MEDICATIONS", []):
-        purpose = (m.get("purpose") or "").lower()
-        if ("blood-pressure" in purpose or "blood pressure" in purpose) and m.get("start"):
-            ts = pd.Timestamp(f'{m["start"]} {m.get("start_time") or "00:00"}')
-            starts.append((ts, m.get("brand") or m.get("name", ""),
-                           (m.get("frequency") or "").lower()))
+    for m in _bp_meds():
+        ts = pd.Timestamp(f'{m["start"]} {m.get("start_time") or "00:00"}')
+        history = m.get("dosing_history") or []
+        timing = history[0][1] if history else (m.get("frequency") or "")
+        starts.append((ts, m.get("brand") or m.get("name", ""), timing.lower()))
     return sorted(starts)
+
+
+def _bp_meds() -> list[dict]:
+    return [m for m in getattr(CD, "MEDICATIONS", [])
+            if any(k in (m.get("purpose") or "").lower() for k in ("blood-pressure", "blood pressure"))
+            and m.get("start")]
+
+
+def _bp_med_timing_changes() -> list[tuple[pd.Timestamp, str, str]]:
+    """(date, display name, new timing) for every change of dosing time after
+    the first, from the optional "dosing_history" key: [(date, timing), ...]."""
+    out = []
+    for m in _bp_meds():
+        for d, timing in (m.get("dosing_history") or [])[1:]:
+            out.append((pd.Timestamp(d), m.get("brand") or m.get("name", ""), timing))
+    return sorted(out)
+
+
+def _short_timing(timing: str) -> str:
+    t = timing.lower()
+    return "morning" if "morning" in t else "bedtime" if "bedtime" in t else t
 
 
 def _panel_chrome(fig, row, label, goal, y_lo, y_hi):
@@ -190,9 +219,20 @@ def _bp_goal() -> tuple[int, int]:
     return T.bp_goal(getattr(CD, "CARDIO_GOALS", None))
 
 
-def _med_markers(fig, med_starts):
+def _med_markers(fig, med_starts, timing_changes=()):
     """Dotted start marker in both panels per BP med, labeled (bedtime-aware)
-    in the top panel. Shape + annotation, never add_vline (date-axis crash)."""
+    in the top panel, plus a dashed marker wherever the dosing time changed.
+    Shape + annotation, never add_vline (date-axis crash)."""
+    for when, name, timing in timing_changes:
+        for row in (1, 2):
+            fig.add_shape(type="line", x0=when, x1=when, y0=0, y1=1,
+                          xref="x", yref="y domain",
+                          line=dict(color=lib.GOOD, dash="dash", width=1),
+                          opacity=0.7, row=row, col=1)
+        fig.add_annotation(x=when, y=1, yref="y domain", yanchor="bottom",
+                           yshift=14, text=f"{name} → {_short_timing(timing)}", showarrow=False,
+                           xanchor="left", xshift=4,
+                           font=dict(size=10, color=lib.GOOD), row=1, col=1)
     for start, name, freq in med_starts:
         for row in (1, 2):
             fig.add_shape(type="line", x0=start, x1=start, y0=0, y1=1,
@@ -218,7 +258,8 @@ def _bp_daily_smooth(bp: pd.DataFrame, window_days: int) -> pd.DataFrame:
     return daily.rolling(f"{window_days}D", min_periods=1).mean()
 
 
-def _bp_history_fig(bp: pd.DataFrame, med_starts, window_days: int = 3) -> "go.Figure":
+def _bp_history_fig(bp: pd.DataFrame, med_starts, window_days: int = 3,
+                    timing_changes=()) -> "go.Figure":
     """The section's headline chart: every reading + a running average, as
     stacked SYSTOLIC/DIASTOLIC panels with data-clamped axes, one goal line
     each, and a stage-2 reference instead of the full band overlay (which
@@ -253,14 +294,14 @@ def _bp_history_fig(bp: pd.DataFrame, med_starts, window_days: int = 3) -> "go.F
     dlo, dhi = _yrange([d["diastolic"]], gd)
     _panel_chrome(fig, 1, "SYSTOLIC — mmHg", gs, slo, shi)
     _panel_chrome(fig, 2, "DIASTOLIC — mmHg", gd, dlo, dhi)
-    _med_markers(fig, med_starts)
+    _med_markers(fig, med_starts, timing_changes)
     fig.update_layout(hovermode="x unified")
     fig = _daypart_theme(fig, 430)
     fig.update_layout(showlegend=False)
     return fig
 
 
-def _daypart_weekly_fig(bp: pd.DataFrame, med_starts) -> "go.Figure":
+def _daypart_weekly_fig(bp: pd.DataFrame, med_starts, timing_changes=()) -> "go.Figure":
     """Weekly AM/PM means as stacked SYSTOLIC/DIASTOLIC panels, each with its
     own data-clamped axis and goal line, plus BP-med start markers. Pure
     figure builder (no Streamlit) so tests and the mini can run it headless."""
@@ -290,7 +331,7 @@ def _daypart_weekly_fig(bp: pd.DataFrame, med_starts) -> "go.Figure":
     dlo, dhi = _yrange([am["diastolic"], pm["diastolic"]], gd)
     _panel_chrome(fig, 1, "SYSTOLIC — weekly mean, mmHg", gs, slo, shi)
     _panel_chrome(fig, 2, "DIASTOLIC — weekly mean, mmHg", gd, dlo, dhi)
-    _med_markers(fig, med_starts)
+    _med_markers(fig, med_starts, timing_changes)
     fig.update_layout(hovermode="x unified")
     return _daypart_theme(fig, 430)
 
@@ -367,8 +408,8 @@ def _render_bp_am_pm(bp: pd.DataFrame):
     """Morning-vs-evening split: daypart metrics (trailing 90 days), weekly
     AM/PM mean trends with BP-medication start markers, and a reading-by-
     clock-time scatter. Motivated by the morning-surge pattern (readings
-    before noon run ~9/5 mmHg higher) and a bedtime-dosed BP med whose effect
-    should show in the mornings first."""
+    before noon run ~9/5 mmHg higher) and the BP med's dosing time (bedtime at
+    the start, later moved to the morning; see the dosing-time marker)."""
     st.markdown("### Morning vs evening")
     stats = _bp_daypart_stats(bp)
     med_starts = _bp_med_starts()
@@ -397,9 +438,10 @@ def _render_bp_am_pm(bp: pd.DataFrame):
                               f"n={len(post)} · {when} — the number the med should move"))
     lib.cards(tiles)
 
-    lib.chart(_daypart_weekly_fig(bp, med_starts), "cardio_bp_daypart_weekly")
+    lib.chart(_daypart_weekly_fig(bp, med_starts, _bp_med_timing_changes()), "cardio_bp_daypart_weekly")
     st.caption("Weekly means, split at noon — systolic and diastolic each get "
-               "their own axis and goal line. Green marker: BP-medication start.")
+               "their own axis and goal line. Dotted green marker: BP-medication start; "
+               "dashed: a change in when it's taken.")
 
     fig_clock = _daypart_clock_fig(bp)
     if fig_clock.data:
@@ -428,9 +470,10 @@ def _render_bp_section():
     ])
     st.caption("The current 14-day mean against the goal is on Goals.")
 
-    lib.chart(_bp_history_fig(bp, _bp_med_starts()), "cardio_bp")
+    lib.chart(_bp_history_fig(bp, _bp_med_starts(), timing_changes=_bp_med_timing_changes()), "cardio_bp")
     st.caption("Dots are readings, the line is a 3-day running average of "
-               "daily means. Dashed green = goal; dotted red = AHA stage 2.")
+               "daily means. Dashed green = goal; dotted red = AHA stage 2; green verticals = "
+               "BP-medication start (dotted) and dosing-time changes (dashed).")
 
     _render_bp_am_pm(bp)
 

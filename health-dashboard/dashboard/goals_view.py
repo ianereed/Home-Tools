@@ -465,30 +465,38 @@ def _tracker_range(today):
 
 
 def _tracker_figure(week, y, *, name, color, fmt, today, unit="", n=None, n_label="",
-                    goal=None, goal_text=None, ref=None, ref_text=None,
-                    second=None, second_name=None, height=240):
-    """A BP-style weekly tracker: labeled weekly points (gaps break the
-    line), a dashed green goal line, an optional muted reference line and an
-    optional dotted companion series."""
+                    goal=None, goal_text=None, goal_color=None, ref=None, ref_text=None,
+                    second=None, second_name=None, second_color=None, second_goal=None,
+                    second_goal_text=None, lines=True, height=240):
+    """A BP-style weekly tracker: labeled weekly points (gaps break the line,
+    or points only with lines=False), a dashed goal line (green unless
+    goal_color is given), an optional muted reference line, and an optional
+    companion series in its own color with its own goal line."""
     fig = go.Figure()
     hover = f"wk of %{{x|%b %d}} · %{{y:{fmt[2:-1]}}}{unit}"
     if n is not None:
         hover += f" (%{{customdata}} {n_label})"
     fig.add_trace(go.Scatter(
-        x=week, y=y, name=name, mode="lines+markers+text",
+        x=week, y=y, name=name, mode=("lines+" if lines else "") + "markers+text",
         text=[fmt.format(v) if pd.notna(v) else "" for v in y],
         textposition="top center", textfont=dict(size=9, color=lib.MUTED),
         connectgaps=False, line=dict(color=color, width=2), marker=dict(size=7),
         customdata=n, hovertemplate=hover + "<extra></extra>"))
     if second is not None:
+        c2 = second_color or color
         fig.add_trace(go.Scatter(
             x=week, y=second, name=second_name, mode="lines+markers", connectgaps=False,
-            line=dict(color=color, width=1.5, dash="dot"), marker=dict(size=5),
+            line=dict(color=c2, width=1.5, dash=None if second_color else "dot"), marker=dict(size=5),
             hovertemplate=f"wk of %{{x|%b %d}} · %{{y:{fmt[2:-1]}}}{unit}<extra></extra>"))
+        if second_goal is not None:
+            fig.add_hline(y=second_goal, line_dash="dash", line_color=c2, opacity=0.6,
+                          annotation_text=second_goal_text, annotation_position="top right",
+                          annotation_font_size=10, annotation_font_color=c2)
     if goal is not None:
-        fig.add_hline(y=goal, line_dash="dash", line_color=lib.GOOD, opacity=0.8,
+        gc = goal_color or lib.GOOD
+        fig.add_hline(y=goal, line_dash="dash", line_color=gc, opacity=0.6 if goal_color else 0.8,
                       annotation_text=goal_text, annotation_position="bottom right",
-                      annotation_font_size=10, annotation_font_color=lib.GOOD)
+                      annotation_font_size=10, annotation_font_color=gc)
     if ref is not None:
         fig.add_hline(y=ref, line_dash="dot", line_color=lib.MUTED, opacity=0.7,
                       annotation_text=ref_text, annotation_position="top right",
@@ -650,13 +658,18 @@ def _render_lever_trackers(today):
     if zw.empty:
         st.caption("No activities with heart-rate streams yet.")
     else:
+        mv_c, vg_c = lib.ZONE_COLORS["Z3"], lib.ZONE_COLORS["Z4"]
         lib.chart(_tracker_figure(
-            zw["week"], zw["modvig"], name="Z3–5 min", color=lib.ZONE_COLORS["Z3"], fmt="{:.0f}",
-            today=today, unit=" min", second=zw["vig"], second_name="Z4–5 (vigorous)",
-            goal=T.AHA_MODERATE_MIN_WK, goal_text=f"AHA ≥{T.AHA_MODERATE_MIN_WK} moderate",
-            ref=T.AHA_VIGOROUS_MIN_WK, ref_text=f"≥{T.AHA_VIGOROUS_MIN_WK} vigorous"), "goals_tr_exercise")
-        st.caption(f"Heart-rate-zone minutes (max HR {T.HRMAX}). Either line clearing its guideline meets "
-                   "the AHA minimum. Detail by zone is on Training.")
+            zw["week"], zw["modvig"], name="Z3–5 moderate-vigorous", color=mv_c, fmt="{:.0f}",
+            today=today, unit=" min",
+            goal=T.AHA_MODERATE_MIN_WK, goal_text=f"AHA ≥{T.AHA_MODERATE_MIN_WK} moderate-vigorous",
+            goal_color=mv_c,
+            second=zw["vig"], second_name="Z4–5 vigorous", second_color=vg_c,
+            second_goal=T.AHA_VIGOROUS_MIN_WK, second_goal_text=f"AHA ≥{T.AHA_VIGOROUS_MIN_WK} vigorous"),
+            "goals_tr_exercise")
+        st.caption(f"Heart-rate-zone minutes (max HR {T.HRMAX}). Each line has its guideline in the "
+                   "matching color; either one clearing its line meets the AHA minimum. Detail by "
+                   "zone is on Training.")
 
     st.markdown("### Sodium — daily average per week")
     na = M.nutrition_daily(start)
@@ -671,9 +684,9 @@ def _render_lever_trackers(today):
             wk.index, wk["mean"], name="mg/day", color=lib.SERIES["sodium"], fmt="{:,.0f}", today=today,
             unit=" mg", n=wk["count"], n_label="days logged",
             goal=T.SODIUM_MG_CEILING, goal_text=f"DASH ≤{T.SODIUM_MG_CEILING:,}",
-            ref=T.SODIUM_MG_IDEAL, ref_text=f"ideal {T.SODIUM_MG_IDEAL:,}"), "goals_tr_sodium")
-        st.caption("Mean of the days logged that week, net of ride sweat sodium (hover for how many "
-                   "days). Weeks with nothing logged are gaps.")
+            ref=T.SODIUM_MG_IDEAL, ref_text=f"ideal {T.SODIUM_MG_IDEAL:,}", lines=False), "goals_tr_sodium")
+        st.caption("Each point is the mean of the days logged that week, net of ride sweat sodium "
+                   "(hover for how many days). Weeks with nothing logged have no point.")
 
     st.markdown("### Alcohol — drinks per week")
     weekly = M.alcohol_weekly()

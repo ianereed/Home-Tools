@@ -280,3 +280,27 @@ def test_bp_goal_line_follows_physician_goal(fake_clinical, monkeypatch):
                        "systolic": [130, 128], "diastolic": [85, 84]})
     texts = [a.text for a in cardiology_view._bp_history_fig(bp, []).layout.annotations]
     assert "goal <999" in texts
+
+
+def test_dosing_time_change_is_marked(fake_clinical_no_goals, monkeypatch):
+    """A change in when a BP med is taken (dosing_history) gets its own labeled
+    marker on the BP charts and shows in the medication history."""
+    import pandas as pd
+
+    import dashboard.cardiology_view as cardiology_view
+
+    fake_clinical_no_goals.MEDICATIONS = [{
+        "name": "fakesartan", "brand": "Fakenicar", "dose": "0 mg", "frequency": "daily, morning",
+        "start": "2025-06-10", "status": "active", "purpose": "blood-pressure lowering",
+        "dosing_history": [("2025-06-10", "bedtime"), ("2025-06-20", "morning, 30 min before eating")],
+    }]
+    monkeypatch.setattr(cardiology_view, "CD", fake_clinical_no_goals)
+    bp = pd.DataFrame({"timestamp": pd.to_datetime(["2025-06-01 07:00", "2025-06-25 07:00"]),
+                       "systolic": [130, 120], "diastolic": [85, 78]})
+    starts = cardiology_view._bp_med_starts()
+    assert starts[0][2] == "bedtime"                        # label reflects timing at the start
+    changes = cardiology_view._bp_med_timing_changes()
+    assert changes == [(pd.Timestamp("2025-06-20"), "Fakenicar", "morning, 30 min before eating")]
+    texts = [a.text for a in cardiology_view._bp_history_fig(bp, starts, timing_changes=changes).layout.annotations]
+    assert "Fakenicar (bedtime)" in texts and "Fakenicar → morning" in texts
+    assert "bedtime from 2025-06-10 → morning from 2025-06-20" in cardiology_view._medication_history_html()
