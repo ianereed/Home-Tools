@@ -450,6 +450,121 @@ def _render_bp_am_pm(bp: pd.DataFrame):
                    "line is the 3-hour average, the shape of your day.")
 
 
+_LANE_COLORS = ["#38bdf8", "#5eead4", "#f0abfc", "#fcd34d"]
+_EVENT_COLOR = "#f0abfc"
+
+
+def _lipid_lanes():
+    """Regimen lanes for the lipid-lowering medications only (BP meds stay off)."""
+    from dashboard.goals_view import _med_lanes
+    meds = [m for m in getattr(CD, "MEDICATIONS", [])
+            if "ldl" in (m.get("purpose") or "").lower()]
+    return _med_lanes(getattr(CD, "STATIN_EVENTS", []), meds, getattr(CD, "STATIN", None))
+
+
+def _lipid_history_fig(q: pd.DataFrame, lip: pd.DataFrame, end_ts) -> "go.Figure":
+    """The therapy × lipids × exercise history as three stacked panels on one
+    real-date axis: LDL-C/ApoB draws with the goal lines, the lipid regimen
+    as lanes, and quarterly exercise intensity. Clinical events are dotted
+    verticals through all three, named on hover (and listed under the chart)
+    rather than in labels that pile up."""
+    from plotly.subplots import make_subplots
+
+    lanes = _lipid_lanes()
+    lane_order = list(dict.fromkeys(seg["lane"] for seg in lanes))
+    fig = make_subplots(rows=3, cols=1, shared_xaxes=True, vertical_spacing=0.06,
+                        row_heights=[0.48, 0.07 + 0.05 * max(len(lane_order), 1), 0.32])
+    x0 = min([lip["date"].min(), pd.to_datetime(q["bucket_start"]).min()]
+             + [seg["start"] for seg in lanes]) - pd.Timedelta(days=30)
+    x1 = pd.Timestamp(end_ts) + pd.Timedelta(days=45)
+
+    # ① lipids
+    fig.add_trace(go.Scatter(
+        x=lip["date"], y=lip["ldl"], name="LDL-C", mode="lines+markers+text",
+        text=[lib.fmt(v, "{:.0f}", "") for v in lip["ldl"]], textposition="top center",
+        textfont=dict(size=10, color=lib.SERIES["ldl"]),
+        line=dict(color=lib.SERIES["ldl"], width=2), marker=dict(size=8),
+        hovertemplate="%{x|%b %d, %Y} · LDL-C %{y:.0f} mg/dL<extra></extra>"), row=1, col=1)
+    apo = lip[lip["apob"].notna()]
+    if not apo.empty:
+        fig.add_trace(go.Scatter(
+            x=apo["date"], y=apo["apob"], name="ApoB", mode="lines+markers+text",
+            text=[f"{v:.0f}" for v in apo["apob"]], textposition="bottom center",
+            textfont=dict(size=9, color=lib.SERIES["apob"]),
+            line=dict(color=lib.SERIES["apob"], width=1.5, dash="dot"), marker=dict(size=6),
+            hovertemplate="%{x|%b %d, %Y} · ApoB %{y:.0f} mg/dL<extra></extra>"), row=1, col=1)
+    ldl = (getattr(CD, "CARDIO_GOALS", None) or {}).get("ldl") or {}
+    for key, dash, word in (("target", "dash", "target"), ("stretch", "dot", "stretch")):
+        if ldl.get(key) is not None:
+            fig.add_hline(y=ldl[key], line_dash=dash, line_color=lib.GOOD, opacity=0.8, row=1, col=1,
+                          annotation_text=f"LDL {word} <{ldl[key]}", annotation_position="bottom left",
+                          annotation_font_size=10, annotation_font_color=lib.GOOD)
+    top = max(lip["ldl"].max(), apo["apob"].max() if not apo.empty else 0)
+
+    # ② regimen lanes
+    for seg in lanes:
+        end = seg["end"] if seg["end"] is not None else pd.Timestamp(end_ts)
+        color = lib.rgba(_LANE_COLORS[lane_order.index(seg["lane"]) % len(_LANE_COLORS)], seg["frac"] * 0.85)
+        fig.add_trace(go.Scatter(
+            x=[seg["start"], end], y=[seg["lane"]] * 2, mode="lines", showlegend=False,
+            line=dict(width=11, color=color),
+            hovertemplate=f'{seg["lane"]} · {seg["label"]}<br>%{{x|%Y-%m-%d}}<extra></extra>'), row=2, col=1)
+        if seg["lane"] == lane_order[0] and (end - seg["start"]).days > 75:
+            fig.add_annotation(x=seg["start"] + (end - seg["start"]) / 2, y=seg["lane"], text=seg["label"],
+                               showarrow=False, font=dict(size=9, color=lib.INK), row=2, col=1)
+
+    # ③ quarterly exercise intensity
+    qq = q.copy()
+    qq["mid"] = pd.to_datetime(qq["bucket_start"]) + pd.Timedelta(days=45)
+    for col, name, color, off in (("mod_vigorous_min_per_week", "Moderate-vigorous min/wk (Z3–5)", lib.ZONE_COLORS["Z3"], -17),
+                                  ("vigorous_min_per_week", "Vigorous min/wk (Z4–5)", lib.ZONE_COLORS["Z4"], 17)):
+        fig.add_trace(go.Bar(
+            x=qq["mid"] + pd.Timedelta(days=off), y=qq[col], name=name, marker_color=color, opacity=0.85,
+            width=30 * 86400000,
+            customdata=qq["bucket"].map(br.quarter_short),
+            hovertemplate="%{customdata} · %{y:.0f} min/wk<extra>" + name + "</extra>"), row=3, col=1)
+    for y, color, text in ((T.AHA_MODERATE_MIN_WK, lib.ZONE_COLORS["Z3"], f"AHA ≥{T.AHA_MODERATE_MIN_WK}"),
+                           (T.AHA_VIGOROUS_MIN_WK, lib.ZONE_COLORS["Z4"], f"AHA ≥{T.AHA_VIGOROUS_MIN_WK} vigorous")):
+        fig.add_hline(y=y, line_dash="dash", line_color=color, opacity=0.6, row=3, col=1,
+                      annotation_text=text, annotation_position="top left",
+                      annotation_font_size=9, annotation_font_color=color)
+
+    # clinical events: dotted verticals through every panel, named on hover
+    events = sorted(getattr(CD, "EVENTS", []), key=lambda e: e[0])
+    for d, label, _note in events:
+        fig.add_shape(type="line", x0=pd.Timestamp(d), x1=pd.Timestamp(d), y0=0, y1=1, xref="x", yref="paper",
+                      line=dict(color=_EVENT_COLOR, dash="dot", width=1), opacity=0.45)
+    if events:
+        fig.add_trace(go.Scatter(
+            x=[pd.Timestamp(d) for d, *_ in events], y=[top * 1.12] * len(events), mode="markers",
+            name="clinical event", marker=dict(symbol="triangle-down", size=9, color=_EVENT_COLOR),
+            customdata=[label for _, label, _ in events],
+            hovertemplate="%{x|%b %d, %Y} · %{customdata}<extra></extra>"), row=1, col=1)
+
+    fig.update_xaxes(range=[x0, x1])
+    fig.update_yaxes(title_text="mg/dL", range=[0, top * 1.2], row=1, col=1)
+    fig.update_yaxes(showgrid=False, tickfont=dict(size=10), autorange="reversed", row=2, col=1)
+    fig.update_yaxes(title_text="min/wk", row=3, col=1)
+    fig = lib.apply_theme(fig, 640, legend=True)
+    fig.update_layout(barmode="overlay", hovermode="closest", legend=dict(y=-0.08))
+    return fig
+
+
+def _render_lipid_history(q, lip, end_ts):
+    st.markdown("## Lipid response to therapy × exercise")
+    st.caption("Three panels on one timeline: LDL-C and ApoB draws (top, with the goal lines), the "
+               f"lipid-lowering regimen ({CD.STATIN} lane shaded by dose), and quarterly exercise "
+               "intensity from heart-rate zones. Pink triangles and dotted lines = clinical events "
+               "(hover for the name; listed below).")
+    lib.chart(_lipid_history_fig(q, lip, end_ts), "cardio_lipid_history")
+    events = sorted(getattr(CD, "EVENTS", []), key=lambda e: e[0])
+    if events:
+        with st.expander("Clinical events on this chart"):
+            st.markdown("".join(f"<div style='font-size:13px;margin:2px 0'><b>{pd.Timestamp(d):%b %-d, %Y}</b> · "
+                                f"{label} <span class=meta>— {note}</span></div>" for d, label, note in events),
+                        unsafe_allow_html=True)
+
+
 def _render_bp_section():
     """Blood-pressure history: every reading with a running average, the
     morning-vs-evening split, and the raw readings. Empty-safe."""
@@ -529,11 +644,7 @@ def render_cardiology():
         end_ts = pd.Timestamp(meta["data_max"])
 
         # ---- headline overlay ------------------------------------------------
-        st.markdown("## Lipid response to therapy × exercise")
-        st.caption(f"Quarterly exercise intensity (bars, left axis), labeled LDL-C / ApoB draws "
-                   f"(left axis, mg/dL), {CD.STATIN} dose step (right axis). Pink dotted "
-                   "verticals = clinical events.")
-        lib.chart(lib.restyle_report_fig(br.exec_overlay(q, lip, end_ts), 480), "cardio_exec")
+        _render_lipid_history(q, lip, end_ts)
 
         # ---- quarterly summary table ----------------------------------------
         st.markdown("## Quarterly summary — therapy, labs & lifestyle")
