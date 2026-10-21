@@ -5,8 +5,9 @@ Ordering is deliberate (actionable first): ① levers row (weight, exercise,
 sodium, alcohol, bloodwork cadence, medications), ② LDL trajectory with the
 medication regimen as lanes sharing the same time axis, ③ blood-pressure
 weekly means with the required pace to goal, ④ a weekly review table putting
-BP next to the levers on one time base. The historical/retrospective views
-stay on the Cardiology page untouched.
+BP next to the levers on one time base. This is the only page that compares
+a current value with a target; every value comes from dashboard.metrics and
+every target from dashboard.targets. History lives on Cardiology.
 
 PHI posture (CARDIO_PLAN.md Standing rule 2): this module is committed and
 must contain no PHI literals — no goal values, medication names, doctor
@@ -14,8 +15,7 @@ names, or lab values. Everything clinical is read from the gitignored
 `cardiology/clinical_data.py` at runtime via getattr with safe fallbacks, and
 app.py only wires this page in when that module exists on the host. The only
 numeric constants here are public references (trial-published PCSK9i response
-range, AHA activity minutes, US dietary-guideline drink ceiling, DASH sodium
-targets via diet_content).
+range); guideline numbers come from dashboard.targets.
 """
 import os
 import sys
@@ -33,7 +33,8 @@ if _CARDIO_DIR not in sys.path:
 import build_report as br      # noqa: E402  (cardiology/build_report.py)
 import clinical_data as CD     # noqa: E402  (cardiology/clinical_data.py, gitignored)
 from dashboard import lib      # noqa: E402
-from dashboard.diet_content import DASH_TARGETS  # noqa: E402  (public constants)
+from dashboard import metrics as M   # noqa: E402
+from dashboard import targets as T   # noqa: E402
 
 # --- Public reference constants (no personal values) -------------------------
 # PCSK9-inhibitor add-on LDL response, published trial range (FOURIER-class
@@ -43,42 +44,9 @@ from dashboard.diet_content import DASH_TARGETS  # noqa: E402  (public constants
 PCSK9I_LDL_REDUCTION = (0.50, 0.65)
 # Standard lipid-panel re-check window after a therapy change (weeks).
 DRAW_WINDOW_WEEKS = (8, 12)
-# AHA weekly aerobic-activity guideline (see br.AHA_GUIDES for the chart lines).
-AHA_MODERATE_MIN_WK = 150
-AHA_VIGOROUS_MIN_WK = 75
-# US Dietary Guidelines: <=2 drinks/day for men -> 14/week (public reference).
-ALCOHOL_WEEKLY_GUIDELINE = 14
 # Regimen-lane colors (match build_report's statin cyan; teal/pink from
 # lib.COLORWAY for the non-statin lanes).
 _LANE_COLORS = ["#38bdf8", "#5eead4", "#f0abfc"]
-
-_LEVERS_CSS = """
-<style>
-.glevers{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:8px 0 4px;}
-@media (max-width:900px){.glevers{grid-template-columns:repeat(2,1fr);}}
-.glever{background:#161b26;border:1px solid #2a2f3a;border-radius:8px;padding:10px 12px 8px;}
-.glever .lab{font-size:10px;letter-spacing:1px;text-transform:uppercase;color:#8b93a7;
-  display:flex;justify-content:space-between;align-items:center;}
-.glever .val{font-size:20px;font-weight:650;margin:2px 0 0;color:#e6e9ef;
-  font-variant-numeric:tabular-nums;}
-.glever .val small{font-size:12px;color:#8b93a7;font-weight:500;}
-.glever .tgt{font-size:11px;color:#8b93a7;margin:0 0 4px;line-height:1.45;}
-.glever .tgt b{color:#e6e9ef;}
-.gdot{width:8px;height:8px;border-radius:50%;display:inline-block;flex:none;}
-</style>
-"""
-
-
-def _safe_load(query, params=()):
-    """lib.load_df, degrading to an empty frame on a pre-migration DB (missing
-    table -> pandas DatabaseError). Mirrors staleness_check's posture: a host
-    whose health.db predates the cardio schema renders empty states, never a
-    stack trace."""
-    try:
-        return lib.load_df(query, params)
-    except Exception:
-        return pd.DataFrame()
-
 
 # =============================================================================
 # Pure helpers (unit-tested with synthetic values; no I/O, no CD access)
@@ -190,162 +158,73 @@ def _pace_per_week(current, goal, today, deadline):
     return (goal - current) / weeks
 
 
-def _spark_svg(values, color, width=140, height=26):
-    """Tiny inline-SVG trend line for a lever tile. Empty string when there
-    aren't at least 2 points."""
-    vals = [v for v in (values or []) if v is not None and not pd.isna(v)]
-    if len(vals) < 2:
-        return ""
-    lo, hi = min(vals), max(vals)
-    span = (hi - lo) or 1.0
-    step = width / (len(vals) - 1)
-    pts = " ".join(
-        f"{i * step:.1f},{height - 3 - (v - lo) / span * (height - 6):.1f}"
-        for i, v in enumerate(vals))
-    return (f'<svg width="{width}" height="{height}" viewBox="0 0 {width} {height}" '
-            f'style="display:block;margin-top:4px">'
-            f'<polyline points="{pts}" fill="none" stroke="{color}" '
-            f'stroke-width="2" stroke-linejoin="round"/></svg>')
-
-
-def _week_start(ts_series):
-    """Monday of each timestamp's week (matches the Cardiology alcohol view)."""
-    return ts_series.dt.to_period("W-SUN").dt.start_time
-
-
 # =============================================================================
 # Levers row (section ① — actionable data first)
 # =============================================================================
 
-def _tile(label, value, target_html, color, spark=""):
-    return (f'<div class="glever"><div class="lab">{label}'
-            f'<span class="gdot" style="background:{color}"></span></div>'
-            f'<div class="val">{value}</div>'
-            f'<div class="tgt">{target_html}</div>{spark}</div>')
-
-
 def _weight_tile(goals, today):
-    w = _safe_load(
-        "SELECT timestamp, weight_kg FROM body_weight "
-        "WHERE timestamp >= ? ORDER BY timestamp",
-        ((today - pd.Timedelta(days=365)).isoformat(),))
-    wg = (goals or {}).get("weight", {})
-    baseline_kg = wg.get("baseline_kg")
-    band = None
-    if baseline_kg and wg.get("lose_lb_min") is not None and wg.get("lose_lb_max") is not None:
-        baseline_lb = baseline_kg * lib.KG_TO_LB
-        band = (baseline_lb - wg["lose_lb_max"], baseline_lb - wg["lose_lb_min"])
-    if w.empty:
-        return _tile("Weight", "—", "no weigh-ins yet · Garmin scale pending", lib.MUTED)
-    w["timestamp"] = pd.to_datetime(w["timestamp"])
-    w["lb"] = w["weight_kg"] * lib.KG_TO_LB
-    latest = w.iloc[-1]
-    age_d = (today.normalize() - latest["timestamp"].normalize()).days
+    w = M.weight_now(today)
+    if w is None:
+        return lib.card("Weight", "—", "no weigh-ins yet", lib.MUTED)
+    band = T.weight_band_lb(goals)
     if band:
         lo, hi = band
-        if latest["lb"] <= hi:
+        if w["lb"] <= hi:
             color, gap = lib.GOOD, "in the goal band"
         else:
-            color = lib.WARN
-            gap = f'<b>{latest["lb"] - hi:.0f}–{latest["lb"] - lo:.0f} lb to go</b>'
+            color, gap = lib.WARN, f'<b>{w["lb"] - hi:.0f}–{w["lb"] - lo:.0f} lb to go</b>'
         tgt = f"band {lo:.0f}–{hi:.0f} lb · {gap}"
     else:
         color, tgt = lib.MUTED, "no goal band configured"
-    stale = f" · last {age_d} d ago (scale pending)" if age_d > 10 else ""
-    return _tile("Weight", f'{latest["lb"]:.1f} <small>lb</small>', tgt + stale,
-                 color, _spark_svg(w["lb"].tolist()[-14:], lib.WARN))
+    basis = (f'{w["basis"]} · latest {w["latest_lb"]:.1f}, {w["age_days"]} d ago' if not w["stale"]
+             else f'last weigh-in {w["age_days"]} d ago')
+    spark = M.weight_daily(M.since(30, today))["lb"].tolist()
+    return lib.card("Weight", f'{w["lb"]:.1f} <small>lb</small>', f"{tgt}<br>{basis}",
+                    color, lib.spark_svg(spark, lib.SERIES["weight"]))
 
 
 def _exercise_tile(today):
-    """Moderate-vigorous HR-zone minutes/week vs the AHA guideline, from the
-    Cardiology page's cached weekly frame; falls back to raw activity duration
-    when the zone pipeline has nothing (e.g. empty DB)."""
-    try:
-        from dashboard.cardiology_view import _frames
-        _, w, _ = _frames()
-        w = w.copy()
-        w["bucket_start"] = pd.to_datetime(w["bucket_start"])
-        this_monday = (today - pd.Timedelta(days=today.weekday())).normalize()
-        done = w[w["bucket_start"] < this_monday].tail(4)
-        modvig = done["mod_vigorous_min_per_week"].dropna()
-        vig = done["vigorous_min_per_week"].dropna()
-        if not modvig.empty:
-            mv, vg = modvig.mean(), (vig.mean() if not vig.empty else 0)
-            color = lib.GOOD if (mv >= AHA_MODERATE_MIN_WK or vg >= AHA_VIGOROUS_MIN_WK) else lib.WARN
-            spark_vals = w["mod_vigorous_min_per_week"].dropna().tolist()[-12:]
-            return _tile(
-                "Exercise", f"{mv:.0f} <small>Z3–5 min/wk</small>",
-                f"AHA ≥{AHA_MODERATE_MIN_WK} moderate (or ≥{AHA_VIGOROUS_MIN_WK} vigorous) · "
-                f"4-wk avg · vigorous {vg:.0f}",
-                color, _spark_svg(spark_vals, lib.ACCENT))
-    except (Exception, SystemExit):
-        pass
-    acts = _safe_load(
-        "SELECT date, duration_minutes FROM activities "
-        "WHERE date >= ? AND dup_of IS NULL ORDER BY date",
-        ((today - pd.Timedelta(days=28)).date().isoformat(),))
-    if acts.empty:
-        return _tile("Exercise", "—", "no activity data yet", lib.MUTED)
-    per_wk = acts["duration_minutes"].sum() / 4
-    return _tile("Exercise", f"{per_wk:.0f} <small>min/wk</small>",
-                 "raw duration (HR-zone minutes unavailable) · "
-                 f"AHA ≥{AHA_MODERATE_MIN_WK} moderate", lib.MUTED)
+    ex = M.exercise_summary(today)
+    if ex is None:
+        return lib.card("Exercise", "—", "no heart-rate-stream activities yet", lib.MUTED)
+    return lib.card(
+        "Exercise", f'{ex["modvig"]:.0f} <small>Z3–5 min/wk</small>',
+        f"AHA ≥{T.AHA_MODERATE_MIN_WK} moderate (or ≥{T.AHA_VIGOROUS_MIN_WK} vigorous) · "
+        f'4-wk avg · vigorous {ex["vig"]:.0f}',
+        lib.GOOD if ex["meets_aha"] else lib.WARN, lib.spark_svg(ex["spark"], lib.ZONE_COLORS["Z3"]))
 
 
 def _sodium_tile(today):
-    n = _safe_load(
-        "SELECT date, sodium_mg FROM nutrition_daily WHERE date >= ? ORDER BY date",
-        ((today - pd.Timedelta(days=7)).date().isoformat(),))
-    logged = n[n["sodium_mg"].notna()] if not n.empty else n
-    if n.empty or logged.empty:
-        return _tile("Sodium", "—",
-                     f'no days logged this week · DASH ≤{DASH_TARGETS["sodium_mg_ceiling"]:,} mg',
-                     lib.MUTED)
-    mean = logged["sodium_mg"].mean()
-    cov = len(logged)
-    if cov < 4:
-        color = lib.MUTED
-    else:
-        color = lib.GOOD if mean <= DASH_TARGETS["sodium_mg_ceiling"] else lib.BAD
-    spark = _safe_load(
-        "SELECT sodium_mg FROM nutrition_daily WHERE date >= ? ORDER BY date",
-        ((today - pd.Timedelta(days=14)).date().isoformat(),))
-    return _tile(
-        "Sodium", f"{mean:,.0f} <small>mg/day</small>",
-        f'net of ride sweat · DASH ≤{DASH_TARGETS["sodium_mg_ceiling"]:,} · ideal '
-        f'{DASH_TARGETS["sodium_mg_ideal"]:,} · <b>coverage {cov}/7 days</b>'
+    na = M.sodium_week(today)
+    if na is None:
+        return lib.card("Sodium", "—",
+                        f"no days logged this week · DASH ≤{T.SODIUM_MG_CEILING:,} mg", lib.MUTED)
+    cov = na["days"]
+    color = lib.MUTED if cov < 4 else lib.GOOD if na["mean"] <= T.SODIUM_MG_CEILING else lib.BAD
+    return lib.card(
+        "Sodium", f'{na["mean"]:,.0f} <small>mg/day</small>',
+        f"7-day avg, net of ride sweat · DASH ≤{T.SODIUM_MG_CEILING:,} · ideal "
+        f"{T.SODIUM_MG_IDEAL:,} · <b>logged {cov}/7 days</b>"
         + ("" if cov >= 4 else " — trend unlocks at 4/7"),
-        color, _spark_svg(spark["sodium_mg"].tolist(), lib.ACCENT))
+        color, lib.spark_svg(na["series"], lib.SERIES["sodium"]))
 
 
 def _alcohol_tile(today):
-    df = _safe_load(
-        "SELECT date, amount FROM lifestyle_log "
-        "WHERE name = 'Alcohol' AND source = 'garmin' ORDER BY date")
-    if df.empty:
-        return _tile("Alcohol", "—",
-                     "no drinks logged · tracked via Garmin Lifestyle Logging", lib.MUTED)
-    df["date"] = pd.to_datetime(df["date"])
-    df["week"] = _week_start(df["date"])
-    weekly = df.groupby("week")["amount"].sum()
-    this_week = (today - pd.Timedelta(days=today.weekday())).normalize()
-    current = weekly.get(this_week, 0)
-    prior4 = weekly[weekly.index < this_week].tail(4)
-    avg4 = prior4.mean() if not prior4.empty else None
-    over = (current > ALCOHOL_WEEKLY_GUIDELINE
-            or (avg4 is not None and avg4 > ALCOHOL_WEEKLY_GUIDELINE))
-    color = lib.WARN if over else lib.GOOD
-    avg_txt = f"{avg4:.0f}" if avg4 is not None else "—"
-    return _tile(
-        "Alcohol", f"{current:.0f} <small>drinks this wk</small>",
-        f"≤{ALCOHOL_WEEKLY_GUIDELINE}/wk guideline · prior 4-wk avg <b>{avg_txt}</b> · "
+    a = M.alcohol_summary(today)
+    if a is None:
+        return lib.card("Alcohol", "—",
+                        "no drinks logged · tracked via Garmin Lifestyle Logging", lib.MUTED)
+    over = a["this_week"] > T.ALCOHOL_DRINKS_WK or a["prior4_avg"] > T.ALCOHOL_DRINKS_WK
+    return lib.card(
+        "Alcohol", f'{a["this_week"]:.0f} <small>drinks this wk</small>',
+        f'≤{T.ALCOHOL_DRINKS_WK}/wk guideline · prior 4-wk avg <b>{a["prior4_avg"]:.0f}</b> · '
         "for BP, lower beats “under guideline”",
-        color, _spark_svg(weekly.tolist()[-8:], lib.ACCENT))
+        lib.WARN if over else lib.GOOD, lib.spark_svg(a["weekly"].tolist()[-8:], lib.SERIES["alcohol"]))
 
 
 def _bloodwork_tile(lip, today):
     if lip.empty:
-        return _tile("Bloodwork", "—", "no lab draws recorded", lib.MUTED)
+        return lib.card("Bloodwork", "—", "no lab draws recorded", lib.MUTED)
     last_draw = lip["date"].max()
     days_since = (today.normalize() - last_draw.normalize()).days
     change = _therapy_change_date(getattr(CD, "STATIN_EVENTS", []),
@@ -363,13 +242,13 @@ def _bloodwork_tile(lip, today):
         else:
             tgt = f"next draw due {w0:%b %d} – {w1:%b %d} (post-change re-check)"
             color = lib.GOOD
-    return _tile("Bloodwork", f"{days_since} <small>d since draw</small>", tgt, color)
+    return lib.card("Bloodwork", f"{days_since} <small>d since draw</small>", tgt, color)
 
 
 def _meds_tile(meds, today):
     active = [m for m in meds if (m.get("status") or "").lower().startswith("active")]
     if not active:
-        return _tile("Medications", "—", "no active medications recorded", lib.MUTED)
+        return lib.card("Medications", "—", "no active medications recorded", lib.MUTED)
     lines = "<br>".join(
         f'{m.get("brand") or m.get("name")} {m.get("dose", "")} '
         f'<small>{m.get("frequency", "")}</small>' for m in active)
@@ -380,36 +259,54 @@ def _meds_tile(meds, today):
     nxt = _next_injection(meds, today)
     if nxt:
         bits.append(f"next {nxt[0]} injection <b>{nxt[1]:%b %d}</b>")
-    return _tile("Medications", f'<span style="font-size:14px">{lines}</span>',
-                 " · ".join(bits) or "current regimen", lib.GOOD)
+    return lib.card("Medications", f'<span style="font-size:14px">{lines}</span>',
+                    " · ".join(bits) or "current regimen", lib.GOOD)
+
+
+def _medications_html() -> str:
+    """One card per current-regimen medication. Discontinued therapies stay in
+    MEDICATIONS for the regimen lanes and projection but get no card here;
+    prescribed-not-yet-started meds do. Empty/absent MEDICATIONS renders nothing."""
+    meds = [m for m in getattr(CD, "MEDICATIONS", [])
+            if not m.get("stop")
+            and not (m.get("status") or "").lower().startswith("discontinued")]
+    if not meds:
+        return ""
+    cards = []
+    for m in meds:
+        started = m.get("start")
+        status = m.get("status", "")
+        started_line = f"Started {started} ({status})" if started else f"<b>{status}</b>"
+        sub = (f'{m.get("form", "")} · {m.get("frequency", "")}<br>{started_line}<br>'
+               f'{m.get("prescriber", "")} · {m.get("purpose", "")}')
+        label = f'{m.get("name", "")} ({m.get("brand", "")})' if m.get("brand") else m.get("name", "")
+        cards.append(lib.card(label, m.get("dose", "—"), sub))
+    return f'<div class="cards c3">{"".join(cards)}</div>'
 
 
 def _render_levers(goals, lip, today):
     st.markdown("## Levers — this week")
     st.caption("The six trackers of the treatment plan, current value vs target. "
-               "Gray dot = not enough data yet; details live in the sections below "
-               "and on the Cardiology/Diet pages.")
+               "Gray dot = not enough data yet. History: weight on Nutrition → Body, "
+               "exercise on Training, sodium and alcohol on Nutrition → History, labs on Cardiology.")
     meds = getattr(CD, "MEDICATIONS", [])
-    tiles = "".join([
+    lib.cards([
         _weight_tile(goals, today),
         _exercise_tile(today),
         _sodium_tile(today),
         _alcohol_tile(today),
         _bloodwork_tile(lip, today),
         _meds_tile(meds, today),
-    ])
-    st.markdown(f'<div class="glevers">{tiles}</div>', unsafe_allow_html=True)
+    ], cols3=True)
+    cur = _medications_html()
+    if cur:
+        with st.expander("Current medications"):
+            st.markdown(cur, unsafe_allow_html=True)
 
 
 # =============================================================================
 # Goal 1 — LDL trajectory × regimen (section ②)
 # =============================================================================
-
-def _rgba(hex_color, alpha):
-    h = hex_color.lstrip("#")
-    r, g, b = int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
-    return f"rgba({r},{g},{b},{alpha:.2f})"
-
 
 def _time_marker(fig, x, text, color, dash, opacity=0.5, xanchor="left"):
     """Full-height vertical time marker (today / deadline).
@@ -444,12 +341,12 @@ def _ldl_figure(lip, goals, today):
         x=lip["date"], y=lip["ldl"], name="LDL-C",
         mode="lines+markers+text", text=[f"{v:.0f}" if pd.notna(v) else "" for v in lip["ldl"]],
         textposition="top center", textfont=dict(size=10, color=lib.MUTED),
-        line=dict(color=lib.BAD, width=2), marker=dict(size=8)), row=1, col=1)
+        line=dict(color=lib.SERIES["ldl"], width=2), marker=dict(size=8)), row=1, col=1)
     apo = lip[lip["apob"].notna()]
     if not apo.empty:
         fig.add_trace(go.Scatter(
             x=apo["date"], y=apo["apob"], name="ApoB",
-            mode="lines+markers", line=dict(color=lib.WARN, width=1.5, dash="dot"),
+            mode="lines+markers", line=dict(color=lib.SERIES["apob"], width=1.5, dash="dot"),
             marker=dict(size=6)), row=1, col=1)
     br.add_ldl_goal_lines(fig, row=1, col=1)
 
@@ -483,7 +380,7 @@ def _ldl_figure(lip, goals, today):
             lane_order.append(seg["lane"])
         solid_end = seg["end"] if seg["end"] is not None else today
         lane_color = _LANE_COLORS[lane_order.index(seg["lane"]) % len(_LANE_COLORS)]
-        color = _rgba(lane_color, seg["frac"] * 0.85)
+        color = lib.rgba(lane_color, seg["frac"] * 0.85)
         fig.add_trace(go.Scatter(
             x=[seg["start"], solid_end], y=[seg["lane"]] * 2, mode="lines",
             line=dict(width=12, color=color), showlegend=False,
@@ -521,31 +418,30 @@ def _render_ldl_section(lip, goals, today):
         st.caption("No lipid draws recorded yet.")
         return
     latest = lip.iloc[-1]
-    ldl_goal = (goals or {}).get("ldl", {})
-    goal_val = ldl_goal.get("stretch") or ldl_goal.get("target")
+    goal_val = T.ldl_goal(goals)
     deadline = pd.Timestamp(goals["deadline"]) if goals and goals.get("deadline") else None
 
-    c = st.columns(4)
-    c[0].metric("Latest LDL", f'{latest["ldl"]:.0f} mg/dL',
-                help=f'drawn {latest["date"]:%Y-%m-%d}')
+    tiles = [lib.card("Latest LDL", f'{latest["ldl"]:.0f} <small>mg/dL</small>',
+                      f'drawn {latest["date"]:%Y-%m-%d}')]
     if goal_val is not None and pd.notna(latest["ldl"]):
-        c[1].metric("To goal", f'{latest["ldl"] - goal_val:+.0f}',
-                    help=f"goal <{goal_val} mg/dL")
+        tiles.append(lib.card("To goal", f'{latest["ldl"] - goal_val:+.0f} <small>mg/dL</small>',
+                              f"goal &lt;{goal_val} mg/dL",
+                              lib.GOOD if latest["ldl"] < goal_val else lib.WARN))
     change = _therapy_change_date(getattr(CD, "STATIN_EVENTS", []),
                                   getattr(CD, "MEDICATIONS", []))
     if change is not None:
         w0 = change + pd.Timedelta(weeks=DRAW_WINDOW_WEEKS[0])
         w1 = change + pd.Timedelta(weeks=DRAW_WINDOW_WEEKS[1])
-        c[2].metric("Next draw window", f"{w0:%b %d} – {w1:%b %d}",
-                    help=f"{DRAW_WINDOW_WEEKS[0]}–{DRAW_WINDOW_WEEKS[1]} weeks after "
-                         f"the regimen change on {change:%Y-%m-%d}")
+        tiles.append(lib.card("Next draw window", f"{w0:%b %d} – {w1:%b %d}",
+                              f"{DRAW_WINDOW_WEEKS[0]}–{DRAW_WINDOW_WEEKS[1]} weeks after the "
+                              f"regimen change on {change:%Y-%m-%d}"))
     if deadline is not None:
-        c[3].metric("Deadline", f"{(deadline - today).days} days",
-                    help=f"{deadline:%Y-%m-%d}")
+        tiles.append(lib.card("Deadline", f"{(deadline - today).days} <small>days</small>",
+                              f"{deadline:%Y-%m-%d}"))
+    lib.cards(tiles)
 
-    st.plotly_chart(_ldl_figure(lip, goals, today), use_container_width=True,
-                    key="goals_ldl")
-    st.caption("Red = LDL-C draws · amber = ApoB · lanes = medication regimen on the "
+    lib.chart(_ldl_figure(lip, goals, today), "goals_ldl")
+    st.caption("Rose = LDL-C draws · amber = ApoB · lanes = medication regimen on the "
                "same time axis (opacity tracks dose; dotted = ongoing). The blue band "
                "is the published PCSK9-inhibitor response range applied to the latest "
                "draw — a reference, not a prediction; it ignores the concurrent statin "
@@ -558,30 +454,15 @@ def _render_ldl_section(lip, goals, today):
 # Goal 2 — blood pressure pace (section ③)
 # =============================================================================
 
-def _weekly_bp(bp):
-    bp = bp.copy()
-    bp["timestamp"] = pd.to_datetime(bp["timestamp"])
-    bp["week"] = _week_start(bp["timestamp"])
-    weekly = bp.groupby("week").agg(
-        sys=("systolic", "mean"), dia=("diastolic", "mean"),
-        n=("systolic", "count")).reset_index()
-    if weekly.empty:
-        return weekly
-    full = pd.DataFrame({"week": pd.date_range(
-        weekly["week"].min(), weekly["week"].max(), freq="W-MON")})
-    return full.merge(weekly, on="week", how="left")
-
-
 def _bp_figure(weekly, goals, mean14, today):
-    bp_goal = (goals or {}).get("bp", {})
-    sys_goal, dia_goal = bp_goal.get("systolic"), bp_goal.get("diastolic")
+    sys_goal, dia_goal = T.bp_goal(goals)
     deadline = pd.Timestamp(goals["deadline"]) if goals and goals.get("deadline") else None
     x_end = today + pd.Timedelta(days=60)
 
     fig = make_subplots(rows=2, cols=1, shared_xaxes=True,
                         row_heights=[0.5, 0.5], vertical_spacing=0.12,
                         subplot_titles=("Systolic", "Diastolic"))
-    series = [("sys", lib.ACCENT, sys_goal, 1), ("dia", lib.HRV, dia_goal, 2)]
+    series = [("sys", lib.SERIES["sys"], sys_goal, 1), ("dia", lib.SERIES["dia"], dia_goal, 2)]
     for col_name, color, goal_val, row in series:
         fig.add_trace(go.Scatter(
             x=weekly["week"], y=weekly[col_name], name=col_name.upper(),
@@ -618,49 +499,37 @@ def _bp_figure(weekly, goals, mean14, today):
 
 def _render_bp_section(goals, today):
     st.markdown("## Goal 2 — Blood pressure")
-    bp = _safe_load(
-        "SELECT timestamp, systolic, diastolic FROM blood_pressure ORDER BY timestamp")
-    if bp.empty:
+    bp = M.bp_readings()
+    win = M.bp_window(14)
+    if win is None:
         st.caption("No blood-pressure readings yet — they sync from Garmin Connect.")
         return
-    bp["timestamp"] = pd.to_datetime(bp["timestamp"])
-    last14 = bp[bp["timestamp"] >= today - pd.Timedelta(days=14)]
-    src = last14 if not last14.empty else bp
-    mean14 = {"sys": src["systolic"].mean(), "dia": src["diastolic"].mean()}
-    cat, color = lib.bp_category(mean14["sys"], mean14["dia"])
-    bp_goal = (goals or {}).get("bp", {})
-    sys_goal, dia_goal = bp_goal.get("systolic"), bp_goal.get("diastolic")
+    mean14 = {"sys": win["sys"], "dia": win["dia"]}
+    sys_goal, dia_goal = T.bp_goal(goals)
     deadline = pd.Timestamp(goals["deadline"]) if goals and goals.get("deadline") else None
 
-    weekly = _weekly_bp(bp)
+    weekly = M.bp_weekly(bp)
     gap_weeks = int(weekly["n"].isna().sum()) if not weekly.empty else 0
 
-    c = st.columns(4)
-    c[0].metric("14-day mean", f'{mean14["sys"]:.0f}/{mean14["dia"]:.0f}')
-    c[0].markdown(f'<span style="color:{color};font-size:12px;">{cat}</span>',
-                  unsafe_allow_html=True)
-    if sys_goal and dia_goal:
-        c[1].metric("To goal",
-                    f'{max(mean14["sys"] - sys_goal, 0):.0f} sys · '
-                    f'{max(mean14["dia"] - dia_goal, 0):.0f} dia',
-                    help=f"vs <{sys_goal}/{dia_goal}")
-        sp = _pace_per_week(mean14["sys"], sys_goal, today, deadline)
-        dp = _pace_per_week(mean14["dia"], dia_goal, today, deadline)
-        if sp is not None or dp is not None:
-            c[2].metric("Pace needed",
-                        f"{sp:+.2f} / {dp:+.2f}" if sp and dp else
-                        f"{(sp or dp):+.2f}",
-                        help="mmHg per week, to reach goal by the deadline — "
-                             "arithmetic, not a forecast")
-    c[3].metric("Readings", f"{len(bp)}",
-                help=f"{gap_weeks} week(s) in range with no readings")
+    tiles = [lib.card("Blood pressure", f'{win["sys"]:.0f}/{win["dia"]:.0f}',
+                      f'{win["category"]} · {win["basis"]} ({win["n"]} readings)', win["color"]),
+             lib.card("To goal", f'{max(win["sys"] - sys_goal, 0):.0f} / {max(win["dia"] - dia_goal, 0):.0f}',
+                      f"mmHg above &lt;{sys_goal}/{dia_goal}",
+                      lib.GOOD if win["sys"] < sys_goal and win["dia"] < dia_goal else lib.WARN)]
+    sp = _pace_per_week(win["sys"], sys_goal, today, deadline)
+    dp = _pace_per_week(win["dia"], dia_goal, today, deadline)
+    if sp is not None or dp is not None:
+        tiles.append(lib.card("Pace needed", f"{sp or 0:+.2f} / {dp or 0:+.2f}",
+                              "mmHg per week to reach goal by the deadline — arithmetic, not a forecast"))
+    tiles.append(lib.card("Cuff readings", f"{len(bp)}",
+                          f"all time · {gap_weeks} week(s) without a reading"))
+    lib.cards(tiles)
 
-    st.plotly_chart(_bp_figure(weekly, goals, mean14, today),
-                    use_container_width=True, key="goals_bp")
+    lib.chart(_bp_figure(weekly, goals, mean14, today), "goals_bp")
     st.caption("Points = weekly means of cuff readings (hover for n; gaps = weeks "
                "with no readings — a gap breaks the trend, keep the cuff habit). "
                "Dashed white line = required pace to the goal by the deadline. "
-               "Daily readings and AHA category bands stay on the Cardiology page.")
+               "Every reading and the morning/evening analysis are on the Cardiology page.")
 
 
 # =============================================================================
@@ -668,53 +537,35 @@ def _render_bp_section(goals, today):
 # =============================================================================
 
 def _weekly_review(today, n_weeks=8):
-    this_monday = (today - pd.Timedelta(days=today.weekday())).normalize()
-    weeks = [this_monday - pd.Timedelta(weeks=i) for i in range(n_weeks)]
-    start_iso = min(weeks).isoformat()
+    """One row per Monday-week: BP mean and readings, weight, Z3–5 minutes,
+    drinks and logged sodium, all from the same metric functions as the tiles."""
+    monday = M.this_monday(today)
+    weeks = [monday - pd.Timedelta(weeks=i) for i in range(n_weeks)]
+    start = min(weeks).date().isoformat()
 
-    def by_week(df, ts_col):
-        if df.empty:
-            return df
-        df = df.copy()
-        df[ts_col] = pd.to_datetime(df[ts_col])
-        df["week"] = _week_start(df[ts_col])
-        return df
-
-    bp = by_week(_safe_load(
-        "SELECT timestamp, systolic, diastolic FROM blood_pressure "
-        "WHERE timestamp >= ?", (start_iso,)), "timestamp")
-    wt = by_week(_safe_load(
-        "SELECT timestamp, weight_kg FROM body_weight WHERE timestamp >= ?",
-        (start_iso,)), "timestamp")
-    ac = by_week(_safe_load(
-        "SELECT date, duration_minutes FROM activities "
-        "WHERE date >= ? AND dup_of IS NULL", (start_iso[:10],)), "date")
-    al = by_week(_safe_load(
-        "SELECT date, amount FROM lifestyle_log "
-        "WHERE name = 'Alcohol' AND source = 'garmin' AND date >= ?",
-        (start_iso[:10],)), "date")
-    na = by_week(_safe_load(
-        "SELECT date, sodium_mg FROM nutrition_daily WHERE date >= ?",
-        (start_iso[:10],)), "date")
+    bp = M.bp_readings()
+    bp = bp.assign(week=M.week_start(bp["timestamp"])) if not bp.empty else bp
+    wt = M.weight_daily(start)
+    wt = wt.assign(week=M.week_start(wt["date"])) if not wt.empty else wt
+    zw = M.zone_minutes_weekly(start).set_index("week")
+    al = M.alcohol_weekly()
+    na = M.nutrition_daily(start)
+    na = na.assign(week=M.week_start(na["date"])) if not na.empty else na
 
     rows = []
     for wk in weeks:
-        row = {"Week of": f"{wk:%b %d ’%y}" + (" (current)" if wk == this_monday else "")}
+        row = {"Week of": f"{wk:%b %d ’%y}" + (" (current)" if wk == monday else "")}
         g = bp[bp["week"] == wk] if not bp.empty else pd.DataFrame()
         row["BP mean"] = (f'{g["systolic"].mean():.0f} / {g["diastolic"].mean():.0f}'
                           if not g.empty else "—")
-        row["Cuff readings"] = f"{len(g)}" if not g.empty else "0"
+        row["Cuff readings"] = f"{len(g)}"
         g = wt[wt["week"] == wk] if not wt.empty else pd.DataFrame()
-        row["Weight (lb)"] = (f'{g["weight_kg"].mean() * lib.KG_TO_LB:.1f}'
-                              if not g.empty else "—")
-        g = ac[ac["week"] == wk] if not ac.empty else pd.DataFrame()
-        row["Active min"] = f'{g["duration_minutes"].sum():.0f}' if not g.empty else "—"
-        g = al[al["week"] == wk] if not al.empty else pd.DataFrame()
-        row["Drinks"] = f'{g["amount"].sum():.0f}' if not g.empty else "—"
-        g = na[na["week"] == wk] if not na.empty else pd.DataFrame()
-        row["Sodium (net mg, logged days)"] = (
-            f'{g["sodium_mg"].mean():,.0f} · {g["sodium_mg"].notna().sum()} d'
-            if not g.empty and g["sodium_mg"].notna().any() else "—")
+        row["Weight (lb)"] = f'{g["lb"].mean():.1f}' if not g.empty else "—"
+        row["Z3–5 min"] = f'{zw.loc[wk, "modvig"]:.0f}' if wk in zw.index else "—"
+        row["Drinks"] = f"{al.get(wk, 0):.0f}" if not al.empty else "—"
+        g = na[(na["week"] == wk) & na["sodium_mg"].notna()] if not na.empty else pd.DataFrame()
+        row["Sodium (net mg, logged days)"] = (f'{g["sodium_mg"].mean():,.0f} · {len(g)} d'
+                                               if not g.empty else "—")
         rows.append(row)
     return pd.DataFrame(rows)
 
@@ -723,8 +574,7 @@ def _render_weekly_review(today):
     st.markdown("## Weekly review — levers × BP")
     st.caption("One row per week, newest first. A “—” is this week's to-do, not "
                "missing history: the row fills in as habits and devices come online. "
-               "Active min is raw duration (all activities); the AHA comparison uses "
-               "HR-zone minutes in the Exercise tile above.")
+               "Z3–5 min is the same HR-zone count as the Exercise tile.")
     st.dataframe(_weekly_review(today), use_container_width=True, hide_index=True)
 
 
@@ -733,30 +583,22 @@ def _render_weekly_review(today):
 # =============================================================================
 
 def render_goals():
-    st.markdown(_LEVERS_CSS, unsafe_allow_html=True)
-    st.markdown("# Goals")
-
     today = pd.Timestamp.now().normalize()
     goals = getattr(CD, "CARDIO_GOALS", None)
     lip = br.lipids_df()
 
     intro_bits = []
-    ldl_goal = (goals or {}).get("ldl", {})
-    if ldl_goal.get("stretch") or ldl_goal.get("target"):
-        intro_bits.append(
-            f'LDL &lt; {ldl_goal.get("stretch") or ldl_goal.get("target")} mg/dL')
-    bp_goal = (goals or {}).get("bp", {})
-    if bp_goal.get("systolic") and bp_goal.get("diastolic"):
-        intro_bits.append(f'BP &lt; {bp_goal["systolic"]}/{bp_goal["diastolic"]}')
+    if T.ldl_goal(goals):
+        intro_bits.append(f"LDL &lt; {T.ldl_goal(goals)} mg/dL")
+    if (goals or {}).get("bp"):
+        intro_bits.append("BP &lt; {}/{}".format(*T.bp_goal(goals)))
     if goals and goals.get("deadline"):
         dl = pd.Timestamp(goals["deadline"])
         intro_bits.append(f"by {dl:%b %Y} · <b>{(dl - today).days} days</b>")
-    if intro_bits:
-        st.markdown(
-            f'<div style="color:#8b93a7;font-size:13px;margin:-6px 0 10px;">'
-            f'{" &nbsp;·&nbsp; ".join(intro_bits)}'
-            f'{" &nbsp;·&nbsp; set by " + goals.get("set_by", "") if goals and goals.get("set_by") else ""}'
-            f'</div>', unsafe_allow_html=True)
+    if goals and goals.get("set_by"):
+        intro_bits.append(f'set by {goals["set_by"]}')
+    lib.page_header("Goals", "Where each target stands now, and the levers that move it. "
+                    + (" · ".join(intro_bits) if intro_bits else "No physician goals recorded yet."))
 
     _render_levers(goals, lip, today)
     _render_ldl_section(lip, goals, today)
@@ -766,5 +608,4 @@ def render_goals():
     st.caption("Honesty rules: the LDL band is a published trial range, never a "
                "personal prediction; pace lines are arithmetic (gap ÷ weeks left), "
                "not forecasts; coverage counts stop absent data from reading as "
-               "good behavior. Historical detail lives on the Cardiology and Diet "
-               "pages.")
+               "good behavior. History lives on Cardiology, Training and Nutrition.")

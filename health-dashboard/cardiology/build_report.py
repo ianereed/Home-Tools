@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import sys
 import sqlite3
 from collections import defaultdict
 from datetime import date, datetime, timedelta
@@ -28,16 +29,17 @@ from plotly.subplots import make_subplots
 import clinical_data as CD
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+if os.path.dirname(HERE) not in sys.path:      # health-dashboard root, for dashboard.targets
+    sys.path.insert(0, os.path.dirname(HERE))
+from dashboard.targets import (  # noqa: E402  (one max HR, zone table and AHA line set everywhere)
+    AHA_GOAL_MIN_WK, AHA_MODERATE_MIN_WK, AHA_VIGOROUS_MIN_WK, HRMAX, ZONE_PCT)
 OUT = os.path.join(HERE, "out")
 
 # --- Tunable definitions ---------------------------------------------------
 HISTORY_START = date(2020, 1, 1)        # quarterly look-back floor
 WEEKLY_START = date(2025, 4, 1)         # detailed weekly timeline floor (statin era)
-HRMAX = 193                             # observed peak max_hr; empirical, refine w/ exports
 RESTING_PCTL = 0.07                     # Apple intraday -> daily resting proxy (overnight low)
 STREAM_GAP_CAP_S = 60                   # cap per-sample dt so stream gaps don't inflate a zone
-# %HRmax zone lower bounds
-ZONE_PCT = {"Z1": 0.50, "Z2": 0.60, "Z3": 0.70, "Z4": 0.80, "Z5": 0.90}
 # Source preference when multiple devices cover the same day (best first)
 RESTING_SRC_PREF = ["garmin", "suunto", "apple-official", "apple"]
 SLEEP_SRC_PREF = ["garmin", "apple", "apple-export", "suunto"]
@@ -492,9 +494,9 @@ def _dark(fig, height, title, ytitle, y2title=None):
 #   • >=300 min/wk for even greater benefit
 # (date, label, color, which-charts-it-applies-to)
 AHA_GUIDES = [
-    (75,  "AHA min: 75 min/wk vigorous",      "#a78bfa", "vig"),
-    (150, "AHA min: 150 min/wk moderate",     "#4ade80", "mod"),
-    (300, "AHA goal: 300 min/wk (more benefit)", "#22d3ee", "mod"),
+    (AHA_VIGOROUS_MIN_WK, f"AHA min: {AHA_VIGOROUS_MIN_WK} min/wk vigorous", "#a78bfa", "vig"),
+    (AHA_MODERATE_MIN_WK, f"AHA min: {AHA_MODERATE_MIN_WK} min/wk moderate", "#4ade80", "mod"),
+    (AHA_GOAL_MIN_WK, f"AHA goal: {AHA_GOAL_MIN_WK} min/wk (more benefit)", "#22d3ee", "mod"),
 ]
 
 

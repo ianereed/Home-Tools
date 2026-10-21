@@ -1,4 +1,4 @@
-"""Fuel page smoke tests: empty DB, a real (synthetic) plan run, and the ?page=fuel slug route."""
+"""Nutrition page smoke tests: empty DB, a real (synthetic) plan run, and the old ?page=fuel link."""
 import sqlite3
 from datetime import date
 
@@ -25,29 +25,25 @@ def _seed_run(db_path, monkeypatch):
 
 
 def _render(db_path, monkeypatch):
-    import dashboard.fuel_view as fv
-    from dashboard import lib
-    monkeypatch.setattr(lib, "DB_PATH", db_path)
+    import dashboard.nutrition_view as nv
     st.cache_data.clear()
-    fv.render_fuel()
+    nv.render_nutrition()
 
 
-def test_render_fuel_empty_db(empty_db, monkeypatch):
+def test_render_nutrition_empty_db(empty_db, monkeypatch):
     _render(empty_db, monkeypatch)
 
 
-def test_render_fuel_with_run(fake_db, monkeypatch):
+def test_render_nutrition_with_run(fake_db, monkeypatch):
     out = _seed_run(fake_db, monkeypatch)
     assert out["ok"]
     _render(fake_db, monkeypatch)
 
 
 def test_request_refresh_sets_flag(empty_db, monkeypatch):
-    import dashboard.fuel_view as fv
-    from dashboard import lib
+    import dashboard.nutrition_view as nv
     from nutrition import store
-    monkeypatch.setattr(lib, "DB_PATH", empty_db)
-    fv.request_refresh()
+    nv.request_refresh()
     conn = sqlite3.connect(empty_db)
     try:
         assert store.get_state(conn, "refresh_requested") == 1
@@ -55,21 +51,19 @@ def test_request_refresh_sets_flag(empty_db, monkeypatch):
         conn.close()
 
 
-def test_app_slug_routes_to_fuel(fake_db, monkeypatch):
-    import collectors.db as db
+def test_old_fuel_link_opens_nutrition(fake_db, monkeypatch, tmp_path):
     from dashboard import lib
     _seed_run(fake_db, monkeypatch)
-    monkeypatch.setattr(lib, "DB_PATH", fake_db)
-    monkeypatch.setattr(db, "DB_PATH", fake_db)
+    monkeypatch.setattr(lib, "_state_path", lambda: str(tmp_path / "state.json"))
     at = AppTest.from_file("dashboard/app.py", default_timeout=60)
     at.query_params["page"] = "fuel"
     at.run()
     assert not at.exception, at.exception
-    assert [t.label for t in at.tabs][:5] == ["Today", "Next 2 weeks", "Goals", "Last 2 weeks", "Groceries"]
+    assert [t.label for t in at.tabs] == ["Today", "Next 2 weeks", "Body", "History", "Groceries", "Reference"]
 
 
 def test_baseline_summary_averages_past_logged_days_only():
-    import dashboard.fuel_view as fv
+    import dashboard.nutrition_view as fv
     intake = {"2026-10-12": {"calories_kcal": 2000, "protein_g": 100, "carbs_g": 250, "fat_g": 70, "sodium_mg": 2500,
                              "cholesterol_mg": 200},
               "2026-10-13": {"calories_kcal": 2400, "protein_g": 140, "carbs_g": 270, "fat_g": 90, "sodium_mg": 1800,

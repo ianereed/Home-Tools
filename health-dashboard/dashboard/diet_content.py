@@ -1,6 +1,5 @@
-"""Static content for the Diet page — distilled from the Phase 5 research
-memos (`health-dashboard/research/diet_research.md` and
-`diet_app_recommendation.md`). Pure data, no PHI: nothing here is gated, and
+"""Diet research shown on Nutrition → Reference — distilled from the Phase 5
+research memo (`health-dashboard/research/diet_research.md`). Pure data, no PHI: nothing here is gated, and
 nothing here should ever contain goal values, medication names, or a
 clinician's name — see CARDIO_PLAN.md Standing rule 2.
 
@@ -183,74 +182,3 @@ SECTIONS = [
         ],
     },
 ]
-
-# App recommendation — Garmin Connect nutrition, per the 2026-07-17 addendum to
-# diet_app_recommendation.md: the original memo scored on Apple-Health-write
-# cleanliness (where FoodNoms won and remains the documented fallback), but the
-# chosen axis is a direct Garmin integration, and a live structure-only probe
-# verified Garmin's food-log payload carries every nutrient this page charts.
-RECOMMENDATION = {
-    "app": "Garmin Connect nutrition (Connect+)",
-    "tagline": "Chosen tracker — logs flow straight into this dashboard's "
-               "existing Garmin collector, no phone-side middleman",
-    "why": [
-        "Direct integration: this dashboard already authenticates to Garmin "
-        "Connect for BP, weight, sleep, and activities — nutrition rides the "
-        "same token store, library, and nightly collector pattern with no "
-        "Apple Health hop and no extra export app to configure.",
-        "Empirically verified (live structure-only probe, 2026-07-16): the "
-        "per-meal payload carries calories, carbs, protein, fat, saturated "
-        "fat, fiber, sugar + added sugars, cholesterol, sodium, potassium, "
-        "and more — a superset of every nutrition column this page charts.",
-        "Sodium and potassium — the DASH-critical fields — are present per "
-        "food and per meal even though Garmin's own UI shows no daily sodium "
-        "rollup; the collector does its own daily summing.",
-        "Barcode scanning (under a second in DC Rainmaker's testing) plus AI "
-        "photo recognition, in the same app the training data already lives in.",
-    ],
-    "caveat": (
-        "Trade-offs accepted: Connect+ subscription ($6.99/mo); the endpoints "
-        "are unofficial/reverse-engineered (the same fragility class as every "
-        "other Garmin Connect call this dashboard makes); the logger is a v1 "
-        "(AI-photo portions default to 100 g — prefer barcode or manual entry); "
-        "enabling it severs MyFitnessPal sync (not used here). FoodNoms + Apple "
-        "Health remains the documented fallback path if the Garmin logger "
-        "doesn't stick — see the memo addendum."
-    ),
-    "integration_path": [
-        "Log meals in Garmin Connect (barcode scan, search, or AI photo) — "
-        "Connect+ subscription required.",
-        "The nightly Garmin collector calls get_nutrition_daily_food_log for "
-        "each day in its lookback window — same auth and library as the BP "
-        "and weight collection already running.",
-        "Per-meal rollups (mealNutritionContent) are summed None-aware into "
-        "one row per day and upserted into nutrition_daily (source='garmin'); "
-        "re-collection after more meals are logged converges to the latest "
-        "totals.",
-        "The charts below read nutrition_daily and light up automatically — "
-        "sodium vs. the DASH ceiling, saturated-fat % of calories, fiber, and "
-        "potassium.",
-    ],
-    "sources": [
-        ("DC Rainmaker: Garmin Connect+ nutrition logging review (Jan 2026)",
-         "https://www.dcrainmaker.com/2026/01/garmin-connect-nutrition-logging-connect.html"),
-        ("python-garminconnect — nutrition endpoints",
-         "https://github.com/cyberjunky/python-garminconnect"),
-        ("Garmin: Connect+ nutrition announcement",
-         "https://www.garmin.com/en-US/newsroom/press-release/sports-fitness/stay-on-top-of-nutrition-goals-in-garmin-connect/"),
-    ],
-}
-
-# Public DASH nutrient targets (health-dashboard/research/diet_research.md,
-# section 1's "Sodium / potassium / fiber / saturated-fat targets"). DASH
-# itself publishes no single fiber gram target, so fiber_g_general_target uses
-# the FDA Nutrition Facts Daily Value (a general public reference, not
-# DASH-specific) since the memo explicitly declined to invent one.
-DASH_TARGETS = {
-    "sodium_mg_ceiling": 2300,
-    "sodium_mg_ideal": 1500,
-    "potassium_mg": 4700,
-    "saturated_fat_pct_calories": 6,
-    "total_fat_pct_calories": 27,
-    "fiber_g_general_target": 28,
-}

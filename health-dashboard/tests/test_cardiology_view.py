@@ -14,17 +14,12 @@ import streamlit as st
 
 def _render(fake_db, clinical_mod, monkeypatch):
     import dashboard.cardiology_view as cardiology_view
-    from dashboard import lib
 
     import build_report
 
-    # cardiology_view.py and lib.py each capture DB_PATH via
-    # `from collectors.db import DB_PATH` at import time — a value binding,
-    # not a module reference — so monkeypatching collectors.db.DB_PATH (what
-    # the fake_db fixture does) doesn't reach either module's own name.
-    monkeypatch.setattr(cardiology_view, "DB_PATH", fake_db)
-    monkeypatch.setattr(lib, "DB_PATH", fake_db)
-    # Same value-binding issue for `import clinical_data as CD`: rebind both
+    # DB access reads collectors.db.DB_PATH at call time, which the fake_db
+    # fixture already points at the tmp DB. `import clinical_data as CD` is a
+    # value binding though for `import clinical_data as CD`: rebind both
     # modules' own CD name to this test's fixture module explicitly, rather
     # than relying on import-time binding (which may be stale if either
     # module was already imported by an earlier test).
@@ -161,7 +156,7 @@ def test_bp_med_starts_filters_on_purpose(fake_clinical, monkeypatch):
     ]
 
 
-def test_daypart_figures_build_and_clamp_axes(fake_clinical):
+def test_daypart_figures_build_and_clamp_axes(fake_clinical_no_goals, monkeypatch):
     """The redesigned split-panel figures: axes clamp to the data (never from
     0 — the old charts buried a 70-150 mmHg signal in the top third), goal
     lines are annotated per panel, and a med start draws a labeled marker.
@@ -179,6 +174,8 @@ def test_daypart_figures_build_and_clamp_axes(fake_clinical):
         "diastolic": [92, 90, 88, 84, 82, 80],
     })
     med_starts = [(pd.Timestamp("2025-06-10"), "Fakenicar", "daily at bedtime")]
+    # no physician goal on file -> the AHA-normal 120/80 goal line
+    monkeypatch.setattr(cardiology_view, "CD", fake_clinical_no_goals)
 
     weekly = cardiology_view._daypart_weekly_fig(bp, med_starts)
     assert len(weekly.data) == 4                      # 2 cohorts x 2 panels
@@ -219,7 +216,7 @@ def test_bp_daily_smooth_day_weighted_and_calendar_windowed(fake_clinical):
     assert s.loc["2025-06-20", "systolic"] == 100   # gap: window holds itself only
 
 
-def test_bp_history_fig_clamps_and_annotates(fake_clinical):
+def test_bp_history_fig_clamps_and_annotates(fake_clinical_no_goals, monkeypatch):
     """The headline BP chart, restyled: split panels with data-clamped axes
     (the old AHA band overlay pinned the axis to 0), per-panel goal and
     stage-2 references, and labeled med markers."""
@@ -236,6 +233,7 @@ def test_bp_history_fig_clamps_and_annotates(fake_clinical):
         "diastolic": [94, 88, 86, 82, 78],
     })
     med_starts = [(pd.Timestamp("2025-06-10"), "Fakenicar", "daily at bedtime")]
+    monkeypatch.setattr(cardiology_view, "CD", fake_clinical_no_goals)
 
     fig = cardiology_view._bp_history_fig(bp, med_starts)
     assert len(fig.data) == 4                         # dots + 7d mean, x2 panels
@@ -247,18 +245,13 @@ def test_bp_history_fig_clamps_and_annotates(fake_clinical):
     assert "Fakenicar (bedtime)" in texts
 
 
-def test_medications_html_hides_discontinued(fake_clinical, monkeypatch):
-    """The Cardiology "Medications" header shows the current regimen only:
-    a discontinued med (has "stop" / "discontinued …" status) stays in
-    MEDICATIONS for the Goals-tab regimen lanes but must not render a card;
-    active and prescribed-not-yet-started meds still do."""
+def test_medication_history_lists_current_and_past(fake_clinical, monkeypatch):
+    """Cardiology keeps the full medication record, discontinued included."""
     import dashboard.cardiology_view as cardiology_view
 
     monkeypatch.setattr(cardiology_view, "CD", fake_clinical)
-    html = cardiology_view._medications_html()
-    assert "Fakezor" in html
-    assert "Fakepha" in html
-    assert "Fakezetia" not in html
+    html = cardiology_view._medication_history_html()
+    assert "Fakezor" in html and "Fakezetia" in html and "2025-06-01" in html
 
 
 def test_stat_cards_apob_none_on_latest_and_nadir(fake_clinical, monkeypatch):
@@ -274,3 +267,16 @@ def test_stat_cards_apob_none_on_latest_and_nadir(fake_clinical, monkeypatch):
     html = build_report.stat_cards_html(build_report.lipids_df())
     assert "—" in html
     assert "40" in html
+
+
+def test_bp_goal_line_follows_physician_goal(fake_clinical, monkeypatch):
+    """The chart goal is the physician's (CARDIO_GOALS), not a hard-coded 120/80."""
+    import pandas as pd
+
+    import dashboard.cardiology_view as cardiology_view
+
+    monkeypatch.setattr(cardiology_view, "CD", fake_clinical)
+    bp = pd.DataFrame({"timestamp": pd.to_datetime(["2025-06-01 07:00", "2025-06-02 07:00"]),
+                       "systolic": [130, 128], "diastolic": [85, 84]})
+    texts = [a.text for a in cardiology_view._bp_history_fig(bp, []).layout.annotations]
+    assert "goal <999" in texts

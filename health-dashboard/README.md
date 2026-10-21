@@ -42,21 +42,31 @@ Garmin); `collectors/strava_collector.py` + `strava_setup.py` remain for a re-en
 
 ## Dashboard pages
 
-`dashboard/app.py` (UI) + `dashboard/lib.py` (one shared Plotly theme + the
-"since you last looked" store). Six pages, all historical-first with a
-30d/90d/6mo/1y/All range selector (default 90d):
+Six tabs, one job each. Every number comes from `dashboard/metrics.py` (one
+function per metric) and every target from `dashboard/targets.py`, so a tab, an
+Overview tile and a Goals lever can't disagree. `dashboard/lib.py` holds the one
+card component, chart theme and per-metric color palette.
 
-- **Overview** — periodic-check home: "since you last looked" change strip, five
-  headline trend tiles (HRV · resting HR · sleep · fitness · steps) with
-  sparklines, a data-freshness panel, and 30-day highlights.
-- **Sleep** — duration trend + 7-day average, monthly and weekday patterns,
-  stages over time, Garmin sleep score, sleeping HR, single-night drill-down.
-- **Heart & HRV** — HRV trend vs baseline, resting-HR trend, daily HR range, HR
-  distribution by zone.
-- **Fitness** — CTL/ATL/TSB "fitness & form" curve (informational only) + weekly
-  training load. The recovery math lives in `recovery/engine.py`.
-- **Activity** — activity log, type mix, per-activity HR stream.
-- **Wellness** — daily steps, SpO₂ (weight/body-comp planned).
+- **Overview** — what changed since you last looked: six tiles (sleep, HRV,
+  resting HR, fitness, steps, weight; 7-day averages, fitness as today's value),
+  data freshness, highlights with labeled windows.
+- **Recovery** — sleep (duration, stages, monthly/weekday, score, sleeping HR,
+  single night), HRV, resting HR (one source-preferred value per day), SpO₂.
+- **Training** — fitness/fatigue/form (seeded from 6 months of history),
+  weekly volume, weekly HR-zone minutes (max HR 192, set on the Garmin), steps,
+  activity log, per-activity heart rate. Information only.
+- **Goals** *(PHI-gated)* — the only place a current value meets a target:
+  levers (weight, exercise, sodium, alcohol, bloodwork, meds), LDL trajectory,
+  BP pace, weekly review.
+- **Cardiology** *(PHI-gated)* — the clinical record: labs, therapy × lipids,
+  medication history, BP history and morning/evening analysis, risk markers.
+- **Nutrition** — fuel planner (Today, Next 2 weeks, Groceries), Body (weight,
+  body composition, body-fat targets), History (eaten vs target, baseline,
+  alcohol), Reference (diet research).
+
+Recovery and Training follow a 30d/90d/6mo/1y/All range
+picker in the page header (default 90d). Old `?p=<n>` and `?page=fuel|diet|sleep|…`
+links redirect to the tab that took over their content.
 
 The "since you last looked" comparison is stored in `data/dashboard_state.json`
 (your previous visit timestamp); first visit falls back to a 30-day comparison.

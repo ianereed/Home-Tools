@@ -1,38 +1,75 @@
-"""Shared presentation helpers for the health dashboard.
+"""Shared presentation for every dashboard page.
 
-Two concerns live here so app.py stays focused on layout:
-  1. Consistent Plotly theming (one colorway, tight dark-friendly margins).
-  2. The "last seen" store that powers the Overview's "since you last looked"
-     comparison — a tiny JSON file in data/.
+  1. Palette: status colors (good / drifting / worse) and one fixed color per
+     metric, so HRV is the same violet on every chart and green only ever
+     means "on target".
+  2. One Plotly theme, also applied to the figures borrowed from the
+     standalone cardiology report.
+  3. One card component (value tiles everywhere: Overview, Goals levers,
+     page summaries, Nutrition), one page header, one time-range picker.
+  4. The "last seen" store behind the Overview's "since you last looked".
 """
 from __future__ import annotations
 
+import html
 import json
 import os
-import sqlite3
 from datetime import date, datetime
 
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
-from collectors.db import DB_PATH
+from dashboard.targets import KG_TO_LB  # noqa: F401  (re-exported for older imports)
 
-# --- Palette ---------------------------------------------------------------
-# One source of truth for series colors so every chart looks like a set.
+# --- Palette -------------------------------------------------------------------
 INK = "#e6e9ef"
 MUTED = "#8b93a7"
 GRID = "rgba(255,255,255,0.06)"
-ACCENT = "#6ea8fe"      # primary line / steps
-GOOD = "#4ade80"        # green — improving / healthy
-WARN = "#fbbf24"        # amber — drifting
-BAD = "#f87171"         # red — worse / stale
-HRV = "#a78bfa"         # purple — HRV
-SLEEP = "#60a5fa"       # blue — sleep
-COLORWAY = [ACCENT, HRV, GOOD, WARN, BAD, "#f0abfc", "#5eead4"]
+BG = "#0e1117"
+CARD_BG = "#161b26"
+CARD_BORDER = "#2a2f3a"
+ACCENT = "#6ea8fe"      # UI accent (active tab, links)
+
+# Status — used for dots, deltas, bands and goal lines only, never as a series color.
+GOOD = "#4ade80"
+WARN = "#fbbf24"
+BAD = "#f87171"
+
+# One color per metric, on every page.
+SERIES = {
+    "sleep": "#60a5fa",
+    "hrv": "#a78bfa",
+    "rhr": "#f472b6",
+    "spo2": "#22d3ee",
+    "steps": "#2dd4bf",
+    "volume": "#6ea8fe",     # training hours / fitness (CTL)
+    "fatigue": "#fb923c",    # ATL
+    "form": "#cbd5e1",       # TSB
+    "sys": "#38bdf8",
+    "dia": "#e879f9",
+    "weight": "#d4a373",
+    "bodyfat": "#fda4af",
+    "lean": "#93c5fd",
+    "ldl": "#fb7185",
+    "apob": "#f59e0b",
+    "statin": "#38bdf8",
+    "alcohol": "#c084fc",
+    "sodium": "#94a3b8",
+    "kcal": "#6ea8fe",
+}
+SLEEP_STAGES = {"Deep": "#1d4ed8", "REM": "#3b82f6", "Light": "#93c5fd", "Awake": "#64748b"}
+ZONE_COLORS = {"Z1": "#475569", "Z2": "#60a5fa", "Z3": "#facc15", "Z4": "#fb923c", "Z5": "#ef4444"}
 
 FONT = "system-ui, -apple-system, Segoe UI, Roboto, sans-serif"
 
+
+def rgba(hex_color: str, alpha: float) -> str:
+    h = hex_color.lstrip("#")
+    return f"rgba({int(h[0:2], 16)},{int(h[2:4], 16)},{int(h[4:6], 16)},{alpha:.2f})"
+
+
+# --- Charts --------------------------------------------------------------------
 
 def apply_theme(fig: go.Figure, height: int = 220, legend: bool = False) -> go.Figure:
     """Apply the house style to a Plotly figure. Returns the same figure."""
@@ -43,7 +80,6 @@ def apply_theme(fig: go.Figure, height: int = 220, legend: bool = False) -> go.F
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
         font=dict(family=FONT, size=12, color=INK),
-        colorway=COLORWAY,
         showlegend=legend,
         legend=dict(orientation="h", y=-0.2, font=dict(size=10), bgcolor="rgba(0,0,0,0)"),
         hovermode="x unified",
@@ -53,28 +89,156 @@ def apply_theme(fig: go.Figure, height: int = 220, legend: bool = False) -> go.F
     return fig
 
 
-def sparkline(values: list[float], color: str = ACCENT, height: int = 48) -> go.Figure:
-    """A tiny axis-free trend line for headline tiles."""
-    fig = go.Figure(go.Scatter(
-        y=values, mode="lines", line=dict(color=color, width=2),
-        fill="tozeroy", fillcolor=color.replace(")", ", 0.12)").replace("rgb", "rgba")
-        if color.startswith("rgb") else "rgba(110,168,254,0.12)",
-        hoverinfo="skip",
-    ))
-    fig.update_layout(
-        height=height, margin=dict(l=0, r=0, t=0, b=0),
-        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-        xaxis=dict(visible=False), yaxis=dict(visible=False), showlegend=False,
-    )
+# Trace-name prefixes in the cardiology report's figures -> house series colors.
+_REPORT_TRACE_COLORS = [
+    ("LDL", "ldl"), ("ApoB", "apob"), ("Rosuvastatin", "statin"), ("Statin", "statin"),
+    ("Mod", "volume"), ("Vigorous", "fatigue"), ("Resting", "rhr"),
+]
+
+
+def restyle_report_fig(fig: go.Figure, height: int) -> go.Figure:
+    """Bring a figure built by cardiology/build_report.py (standalone-report
+    styling: in-plot title, its own background and colors) into the house
+    theme. The page renders the title as a heading instead."""
+    for tr in fig.data:
+        name = tr.name or ""
+        key = next((k for p, k in _REPORT_TRACE_COLORS if name.startswith(p)), None)
+        if key and getattr(tr, "line", None) is not None:
+            tr.line.color = SERIES[key]
+        if key and getattr(tr, "marker", None) is not None and tr.type == "bar":
+            tr.marker.color = SERIES[key]
+    fig.layout.title = None          # reset entirely: an empty title renders "undefined"
+    apply_theme(fig, height, legend=True)
+    has_y2 = any(getattr(fig.layout[k], "overlaying", None)
+                 for k in fig.layout if k.startswith("yaxis"))
+    # top room for the report's event labels drawn above the plot area
+    fig.update_layout(margin=dict(l=8, r=48 if has_y2 else 8, t=36, b=8))
     return fig
 
 
-def trend_arrow(direction: str) -> str:
-    """Unicode arrow for a direction string ('up'/'down'/'flat')."""
-    return {"up": "↑", "down": "↓", "flat": "→"}.get(direction, "")
+def line_with_avg(df: pd.DataFrame, col: str, color: str, name: str, height: int = 220,
+                  window: int = 7, bars: bool = False, ref: tuple | None = None) -> go.Figure:
+    """The standard daily-series chart: daily points (or bars) + a 7-day average line."""
+    fig = go.Figure()
+    if bars:
+        fig.add_trace(go.Bar(x=df["date"], y=df[col], name=name, marker_color=color, opacity=0.45))
+    else:
+        fig.add_trace(go.Scatter(x=df["date"], y=df[col], name=name, mode="markers",
+                                 marker=dict(size=4, color=color)))
+    from dashboard.metrics import rolling_avg
+    fig.add_trace(go.Scatter(x=df["date"], y=rolling_avg(df, col, window), connectgaps=False,
+                             name=f"{window}-day avg", line=dict(color=color, width=2)))
+    if ref:
+        y, label = ref
+        fig.add_hline(y=y, line_dash="dot", line_color=MUTED, annotation_text=label,
+                      annotation_font_color=MUTED, annotation_font_size=10)
+    return apply_theme(fig, height, legend=True)
 
 
-# --- "Since you last looked" store -----------------------------------------
+def chart(fig: go.Figure, key: str):
+    st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False}, key=key)
+
+
+# --- Cards ---------------------------------------------------------------------
+
+CSS = f"""
+<style>
+.cards{{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin:8px 0 12px;}}
+.cards.c3{{grid-template-columns:repeat(3,1fr);}}
+@media (max-width:760px){{.cards,.cards.c3{{grid-template-columns:repeat(2,1fr);}}}}
+.card{{background:{CARD_BG};border:1px solid {CARD_BORDER};border-radius:8px;padding:10px 12px 8px;min-width:0;}}
+.card .cardlabel{{font-size:10px;letter-spacing:1px;text-transform:uppercase;color:{MUTED};
+  display:flex;justify-content:space-between;align-items:center;gap:6px;}}
+.card .cardval{{font-size:20px;font-weight:650;margin:2px 0 0;color:{INK};font-variant-numeric:tabular-nums;}}
+.card .cardval small{{font-size:12px;color:{MUTED};font-weight:500;}}
+.card .cardval.hi{{color:{BAD};}}
+.card .cardsub{{font-size:11px;color:{MUTED};margin:1px 0 2px;line-height:1.45;}}
+.card .cardsub b{{color:{INK};}}
+.card .delta{{font-size:11px;font-weight:600;}}
+.card .delta.up{{color:{BAD};}} .card .delta.dn{{color:{GOOD};}}
+.card .dot{{width:8px;height:8px;border-radius:50%;display:inline-block;flex:none;}}
+.card .spark{{display:block;margin-top:4px;width:100%;height:26px;}}
+.hd-title{{font-size:1.5rem;font-weight:700;margin:0.2rem 0 0;letter-spacing:-0.01em;color:{INK};}}
+.hd-purpose{{color:{MUTED};font-size:13px;margin:0 0 6px;}}
+</style>
+"""
+
+
+def spark_svg(values, color: str, height: int = 26) -> str:
+    """Tiny inline-SVG trend line for a card; '' with fewer than 2 points."""
+    vals = [float(v) for v in (values or []) if v is not None and not pd.isna(v)]
+    if len(vals) < 2:
+        return ""
+    lo, hi = min(vals), max(vals)
+    span = (hi - lo) or 1.0
+    width = 140
+    step = width / (len(vals) - 1)
+    pts = " ".join(f"{i * step:.1f},{height - 3 - (v - lo) / span * (height - 6):.1f}"
+                   for i, v in enumerate(vals))
+    return (f'<svg class="spark" viewBox="0 0 {width} {height}" preserveAspectRatio="none">'
+            f'<polyline points="{pts}" fill="none" stroke="{color}" stroke-width="2" '
+            f'stroke-linejoin="round" vector-effect="non-scaling-stroke"/></svg>')
+
+
+def card(label: str, value: str, sub: str = "", status: str | None = None,
+         spark: str = "", delta: tuple[str, str] | None = None) -> str:
+    """One value tile. `value` and `sub` may hold trusted inline HTML (<small>,
+    <b>); `label` is escaped. `status` is a status color for the corner dot.
+    `delta` is (text, color) shown under the value."""
+    dot = f'<span class="dot" style="background:{status}"></span>' if status else ""
+    d = (f'<div class="delta" style="color:{delta[1]}">{delta[0]}</div>' if delta else "")
+    sub_html = f'<div class="cardsub">{sub}</div>' if sub else ""
+    return (f'<div class="card"><div class="cardlabel"><span>{html.escape(label)}</span>{dot}</div>'
+            f'<div class="cardval">{value}</div>{d}{sub_html}{spark}</div>')
+
+
+def cards(items: list[str], cols3: bool = False):
+    """Render a responsive grid of card() tiles."""
+    cls = "cards c3" if cols3 else "cards"
+    st.markdown(f'<div class="{cls}">{"".join(items)}</div>', unsafe_allow_html=True)
+
+
+def fmt(v, pattern: str = "{:.0f}", dash: str = "—") -> str:
+    return dash if v is None or pd.isna(v) else pattern.format(v)
+
+
+# --- Page chrome ---------------------------------------------------------------
+
+RANGES = {"30d": 30, "90d": 90, "6mo": 180, "1y": 365, "All": 100000}
+RANGE_LABELS = {"30d": "last 30 days", "90d": "last 90 days", "6mo": "last 6 months",
+                "1y": "last year", "All": "all history"}
+
+
+def page_header(title: str, purpose: str, with_range: bool = False) -> int | None:
+    """Title + one-line purpose on every page; pages that follow the time range
+    get the picker on the right. Returns the selected range in days."""
+    if not with_range:
+        st.markdown(f'<div class="hd-title">{html.escape(title)}</div>'
+                    f'<div class="hd-purpose">{purpose}</div>', unsafe_allow_html=True)
+        return None
+    left, right = st.columns([3, 2], vertical_alignment="bottom")
+    left.markdown(f'<div class="hd-title">{html.escape(title)}</div>'
+                  f'<div class="hd-purpose">{purpose}</div>', unsafe_allow_html=True)
+    if st.session_state.get("range") not in RANGES:
+        st.session_state.range = "90d"
+    with right:
+        st.segmented_control("Time range", list(RANGES), key="range",
+                             label_visibility="collapsed", on_change=_keep_range)
+    return RANGES[st.session_state.range or "90d"]
+
+
+def _keep_range():
+    # segmented_control can be clicked off; a range is always selected
+    if not st.session_state.get("range"):
+        st.session_state.range = st.session_state.get("_last_range", "90d")
+    st.session_state._last_range = st.session_state.range
+
+
+def range_label() -> str:
+    return RANGE_LABELS.get(st.session_state.get("range") or "90d", "")
+
+
+# --- "Since you last looked" store -------------------------------------------
 
 def _state_path() -> str:
     return os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "dashboard_state.json")
@@ -98,54 +262,3 @@ def write_last_seen(when: datetime) -> None:
             json.dump({"last_seen": when.isoformat()}, fh)
     except OSError:
         pass
-
-
-# --- Cardiology helpers ------------------------------------------------------
-
-KG_TO_LB = 2.2046226218
-
-
-def bp_category(systolic: float, diastolic: float) -> tuple[str, str]:
-    """AHA blood-pressure category for a single reading. Worst of the two
-    numbers governs (e.g. 118/85 is Stage 1, not Normal)."""
-    if systolic > 180 or diastolic > 120:
-        return "Hypertensive Crisis", BAD
-    if systolic >= 140 or diastolic >= 90:
-        return "Stage 2", BAD
-    if systolic >= 130 or diastolic >= 80:
-        return "Stage 1", WARN
-    if systolic >= 120:
-        return "Elevated", WARN
-    return "Normal", GOOD
-
-
-def add_bp_bands(fig: go.Figure) -> go.Figure:
-    """Overlay AHA systolic-category bands + the diastolic-normal cutoff on a
-    blood-pressure chart. Returns the same figure."""
-    fig.add_hrect(y0=0, y1=120, fillcolor=GOOD, opacity=0.07, line_width=0,
-                  annotation_text="Normal", annotation_position="top left")
-    fig.add_hrect(y0=120, y1=130, fillcolor=WARN, opacity=0.07, line_width=0,
-                  annotation_text="Elevated", annotation_position="top left")
-    fig.add_hrect(y0=130, y1=140, fillcolor="#fb923c", opacity=0.07, line_width=0,
-                  annotation_text="Stage 1", annotation_position="top left")
-    fig.add_hrect(y0=140, y1=180, fillcolor=BAD, opacity=0.07, line_width=0,
-                  annotation_text="Stage 2", annotation_position="top left")
-    fig.add_hline(y=80, line_dash="dot", line_color=GOOD, line_width=1,
-                  annotation_text="diastolic normal <80", annotation_position="bottom right")
-    return fig
-
-
-@st.cache_data(ttl=300)
-def load_df(query: str, params: tuple = ()) -> pd.DataFrame:
-    """Cached query against the shared health.db — mirrors app.py::load_data.
-
-    Lives here (not app.py) so cardiology_view.py can use it without an
-    app<->cardiology_view circular import.
-    """
-    if not os.path.exists(DB_PATH):
-        return pd.DataFrame()
-    conn = sqlite3.connect(DB_PATH)
-    try:
-        return pd.read_sql_query(query, conn, params=params)
-    finally:
-        conn.close()
