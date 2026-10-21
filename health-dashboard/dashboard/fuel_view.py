@@ -131,7 +131,8 @@ def _day_card(day, e, meals, tot, open_: bool = False):
             if tot:
                 st.caption(f"As planned: {H.g(tot.get('kcal', 0))} kcal · fiber {tot.get('fiber', 0):.0f} g · "
                            f"sodium {H.g(tot.get('na', 0))} / {H.g(e.get('sodium_max_mg', 2300))} mg · "
-                           f"cholesterol {H.g(tot.get('chol', 0))} / {H.g(e.get('chol_max_mg', 300))} mg · "
+                           f"cholesterol {H.g(tot.get('chol', 0))}"
+                           f"{' / ' + H.g(e['chol_max_mg']) if e.get('chol_max_mg') else ''} mg · "
                            f"sat fat {tot.get('sat', 0):.0f} / {e.get('satfat_max_g', 0):.0f} g")
 
 
@@ -160,7 +161,8 @@ def _today(p: dict):
             H.bar_row("Protein", intake.get("protein_g"), e["protein_g"], "g"),
             H.bar_row("Fat", intake.get("fat_g"), e["fat_g"], "g"),
             H.bar_row("Sodium (limit)", intake.get("sodium_mg"), e.get("sodium_max_mg", 2300), "mg", ceiling=True),
-            H.bar_row("Cholesterol (limit)", intake.get("cholesterol_mg"), e.get("chol_max_mg", 300), "mg", ceiling=True),
+            H.bar_row("Cholesterol" + (" (limit)" if e.get("chol_max_mg") else ""), intake.get("cholesterol_mg"),
+                      e.get("chol_max_mg"), "mg", ceiling=True),
             H.bar_row("Sat fat (limit)", intake.get("saturated_fat_g"), e.get("satfat_max_g", 17), "g", ceiling=True),
             H.bar_row("Fiber (min)", intake.get("fiber_g"), e.get("fiber_target", 25), "g")]
     st.html('<div class="fuel-card">' + "".join(bars) + "</div>")
@@ -293,6 +295,7 @@ def baseline_summary(intake: dict, retro: list[dict], today: str, kg: float | No
     tdays = [d for d in days if d in tgt]
     t = {k: (sum(tgt[d][k] for d in tdays) / len(tdays) if tdays else None)
          for k in ("kcal", "tdee", "protein_g", "carb_g", "fat_g")}
+    chol_lim = next((tgt[d]["chol_max_mg"] for d in tdays if tgt[d].get("chol_max_mg")), None)  # None = display-only
     split = None
     if p is not None and c is not None and f is not None and kcal:
         e = 4 * p + 4 * c + 9 * f
@@ -301,7 +304,9 @@ def baseline_summary(intake: dict, retro: list[dict], today: str, kg: float | No
             "sat": avg("saturated_fat_g"), "fiber": avg("fiber_g"), "sodium": avg("sodium_mg"),
             "chol": avg("cholesterol_mg"), "protein_per_kg": p / kg if p and kg else None, "split_cpf": split,
             "target": t, "days_over_sodium": sum(1 for d in days if (intake[d].get("sodium_mg") or 0) > 2300),
-            "days_over_chol": sum(1 for d in days if (intake[d].get("cholesterol_mg") or 0) > 300)}
+            "chol_limit": chol_lim,
+            "days_over_chol": (sum(1 for d in days if (intake[d].get("cholesterol_mg") or 0) > chol_lim)
+                               if chol_lim else None)}
 
 
 def _baseline(p: dict):
@@ -323,7 +328,8 @@ def _baseline(p: dict):
             ("Fiber", fmt(b["fiber"], " g"), "≥ 25 g", ""),
             ("Sodium (net of ride sweat)", fmt(b["sodium"], " mg"), "≤ 2,300 mg",
              f"{b['days_over_sodium']} of {b['n']} days over"),
-            ("Cholesterol", fmt(b["chol"], " mg"), "≤ 300 mg", f"{b['days_over_chol']} of {b['n']} days over")]
+            ("Cholesterol", fmt(b["chol"], " mg"), f"≤ {fmt(b['chol_limit'], ' mg')}" if b["chol_limit"] else "no limit",
+             f"{b['days_over_chol']} of {b['n']} days over" if b["chol_limit"] else "for reference")]
     st.dataframe(pd.DataFrame(rows, columns=["daily average", "you", "plan", "note"]), hide_index=True,
                  use_container_width=True)
     split = b["split_cpf"]

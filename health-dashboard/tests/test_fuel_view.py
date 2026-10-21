@@ -79,6 +79,9 @@ def test_baseline_summary_averages_past_logged_days_only():
              for d in ("2026-10-12", "2026-10-13")]
     b = fv.baseline_summary(intake, retro, "2026-10-14", 80.0)
     assert b["n"] == 2 and b["kcal"] == 2200 and b["protein"] == 120 and b["protein_per_kg"] == 1.5
-    assert b["days_over_sodium"] == 1 and b["days_over_chol"] == 1
+    assert b["days_over_sodium"] == 1 and b["chol"] == 300
+    assert b["chol_limit"] is None and b["days_over_chol"] is None          # cholesterol is display-only by default
+    limited = [{**r, "chol_max_mg": 300} for r in retro]
+    assert fv.baseline_summary(intake, limited, "2026-10-14", 80.0)["days_over_chol"] == 1
     assert b["target"]["kcal"] == 2500 and sum(b["split_cpf"]) in (99, 100, 101)
     assert fv.baseline_summary({}, retro, "2026-10-14", 80.0) is None
