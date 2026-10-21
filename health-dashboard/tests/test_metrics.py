@@ -46,6 +46,17 @@ class TestWeight:
         assert w["low_lb"] == pytest.approx(79.0 * T.KG_TO_LB)
         assert w["low_date"] == pd.Timestamp("2026-10-19")
 
+    def test_weekly_mean_low_and_gap_weeks(self, conn):
+        _rows(conn, "INSERT INTO body_weight (timestamp, weight_kg, source) VALUES (?,?,'garmin')",
+              [("2026-10-05T07:00:00", 80.0), ("2026-10-07T07:00:00", 82.0),   # week of Oct 5
+               ("2026-10-19T07:00:00", 79.0)])                                  # week of Oct 19
+        w = M.weight_weekly()
+        assert w["week"].dt.strftime("%m-%d").tolist() == ["10-05", "10-12", "10-19"]
+        assert w["lb"].iloc[0] == pytest.approx(81.0 * T.KG_TO_LB)
+        assert w["low"].iloc[0] == pytest.approx(80.0 * T.KG_TO_LB)
+        assert pd.isna(w["lb"].iloc[1])            # no weigh-ins: a gap, not zero
+        assert w["n"].iloc[2] == 1
+
     def test_rolling_low_is_a_seven_calendar_day_minimum(self):
         df = pd.DataFrame({"date": pd.to_datetime(["2026-10-01", "2026-10-03", "2026-10-09", "2026-10-30"]),
                            "low": [80.0, 79.0, 81.0, 78.0]})
