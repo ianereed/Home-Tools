@@ -339,6 +339,14 @@ def draw_med_lanes(fig, lanes, row, today, ongoing_to=None):
                      row=row, col=1)
 
 
+def add_panel_tag(fig, row, text):
+    """A muted all-caps tag naming a subplot panel (same style as the BP
+    charts' "SYSTOLIC — mmHg"), just above the panel's top-left corner."""
+    fig.add_annotation(text=text, x=0, xref="x domain", xanchor="left", y=1, yref="y domain",
+                       yanchor="bottom", yshift=3, showarrow=False,
+                       font=dict(size=11, color=lib.MUTED), row=row, col=1)
+
+
 def add_ldl_goal_line(fig, goals, row=1):
     """The single LDL goal line (the stretch goal, < 50)."""
     goal = T.ldl_goal(goals)
@@ -363,7 +371,7 @@ def _ldl_figure(lip, goals, today):
                        getattr(CD, "MEDICATIONS", []),
                        getattr(CD, "STATIN", None))
     fig = make_subplots(rows=2, cols=1, shared_xaxes=True,
-                        row_heights=[0.74, 0.26], vertical_spacing=0.07)
+                        row_heights=[0.72, 0.28], vertical_spacing=0.09)
 
     # -- draws (top row) --
     fig.add_trace(go.Scatter(
@@ -399,8 +407,10 @@ def _ldl_figure(lip, goals, today):
                             x_end + pd.Timedelta(days=30)])
     top = max(lip["ldl"].max() if not lip.empty else 100,
               lip["apob"].max() if lip["apob"].notna().any() else 0)
-    fig.update_yaxes(title_text="mg/dL", range=[0, top * 1.15], row=1, col=1)
-    fig = lib.apply_theme(fig, 500, legend=True)
+    fig.update_yaxes(range=[0, top * 1.15], row=1, col=1)
+    add_panel_tag(fig, 1, "CHOLESTEROL — LDL-C & ApoB, mg/dL")
+    add_panel_tag(fig, 2, "MEDICATIONS")
+    fig = lib.apply_theme(fig, 520, legend=True)
     # room for the today/deadline labels above and the lane names on the right
     fig.update_layout(margin=dict(l=8, r=8, t=42, b=8))
     return fig
