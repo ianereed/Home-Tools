@@ -91,7 +91,7 @@ def init_db():
 
         CREATE TABLE IF NOT EXISTS body_weight (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            timestamp TEXT NOT NULL,        -- local ISO; 'YYYY-MM-DDT00:00:00' if date-only
+            timestamp TEXT NOT NULL,        -- local ISO time of the weigh-in; 'T00:00:00' if date-only (DEXA)
             weight_kg REAL NOT NULL,        -- kg canonical (Garmin sends grams: /1000 at write)
             bmi REAL,                       -- as reported by source; never computed locally
             source TEXT NOT NULL,           -- 'garmin' | 'apple' | 'dexa' | 'manual'
@@ -107,7 +107,7 @@ def init_db():
             timestamp TEXT NOT NULL,        -- 'YYYY-MM-DDT00:00:00' for DEXA (date-only)
             weight_kg REAL,
             body_fat_pct REAL,
-            lean_mass_kg REAL,              -- DEXA lean soft tissue; Garmin muscleMass
+            lean_mass_kg REAL,              -- DEXA lean soft tissue only
             fat_mass_kg REAL,               -- DEXA direct; NULL for Garmin
             bone_mass_kg REAL,
             visceral_fat_rating REAL,       -- Garmin unitless index
@@ -115,6 +115,8 @@ def init_db():
             body_water_pct REAL,            -- Garmin only
             note TEXT,                      -- e.g. scan provider
             source TEXT NOT NULL,           -- 'garmin' | 'dexa' | 'manual'
+            muscle_mass_kg REAL,            -- Garmin scale skeletal-muscle estimate (not lean mass)
+            source_id TEXT,                 -- Garmin samplePk
             UNIQUE(timestamp, source)
         );
 
@@ -339,6 +341,11 @@ def _migrate(conn):
         if col not in ncols:
             conn.execute(f"ALTER TABLE nutrition_daily ADD COLUMN {col} {typ}")
 
+    bcols = {row[1] for row in conn.execute("PRAGMA table_info(body_composition)")}
+    for col, typ in (("muscle_mass_kg", "REAL"), ("source_id", "TEXT")):
+        if col not in bcols:
+            conn.execute(f"ALTER TABLE body_composition ADD COLUMN {col} {typ}")
+
     # Data migrations, one-shot, tracked in PRAGMA user_version.
     version = conn.execute("PRAGMA user_version").fetchone()[0]
     if version < 1:
@@ -351,6 +358,13 @@ def _migrate(conn):
             "WHERE source = 'apple' AND context = 'resting' "
             "AND substr(timestamp, 11) != 'T00:00:00'")
         conn.execute("PRAGMA user_version = 1")
+    if version < 2:
+        # Garmin's muscleMass (the scale's skeletal-muscle estimate, ~34 kg) was
+        # stored as lean_mass_kg, and the fuel planner read it as DEXA lean mass.
+        conn.execute(
+            "UPDATE body_composition SET muscle_mass_kg = lean_mass_kg, lean_mass_kg = NULL "
+            "WHERE source = 'garmin' AND lean_mass_kg IS NOT NULL")
+        conn.execute("PRAGMA user_version = 2")
 
 
 if __name__ == "__main__":

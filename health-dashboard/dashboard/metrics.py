@@ -372,6 +372,43 @@ def weight_weekly(start: str = "") -> pd.DataFrame:
 
 
 # =============================================================================
+# Body composition: DEXA and the Garmin scale, never mixed
+# =============================================================================
+
+def dexa_scans() -> pd.DataFrame:
+    """Every DEXA scan, oldest first, masses in lb. Columns: date, weight, body_fat_pct,
+    lean, fat, bone, visceral, note."""
+    d = read("SELECT timestamp, weight_kg, body_fat_pct, lean_mass_kg, fat_mass_kg, bone_mass_kg, "
+             "visceral_fat_mass_kg, note FROM body_composition WHERE source = 'dexa' ORDER BY timestamp")
+    if d.empty:
+        return pd.DataFrame(columns=["date", "weight", "body_fat_pct", "lean", "fat", "bone", "visceral", "note"])
+    out = pd.DataFrame({"date": pd.to_datetime(d["timestamp"]).dt.normalize(),
+                        "body_fat_pct": d["body_fat_pct"], "note": d["note"]})
+    for src, dst in (("weight_kg", "weight"), ("lean_mass_kg", "lean"), ("fat_mass_kg", "fat"),
+                     ("bone_mass_kg", "bone"), ("visceral_fat_mass_kg", "visceral")):
+        out[dst] = d[src] * T.KG_TO_LB
+    return out
+
+
+def scale_composition(start: str = "") -> pd.DataFrame:
+    """Garmin scale (bioimpedance) readings, one row per day (mean of that day's
+    weigh-ins). Days with a DEXA scan are left out: that day's Garmin entry is
+    the scan typed into Garmin, not a scale reading. Columns: date,
+    body_fat_pct, muscle (lb), water_pct, bone (lb), visceral_rating."""
+    d = read("SELECT date(timestamp) AS date, AVG(body_fat_pct) AS body_fat_pct, AVG(muscle_mass_kg) AS muscle_kg, "
+             "AVG(body_water_pct) AS water_pct, AVG(bone_mass_kg) AS bone_kg, AVG(visceral_fat_rating) AS visceral_rating "
+             "FROM body_composition WHERE source = 'garmin' AND timestamp >= ? "
+             "AND date(timestamp) NOT IN (SELECT date(timestamp) FROM body_composition WHERE source = 'dexa') "
+             "GROUP BY date(timestamp) ORDER BY date", (start,))
+    if d.empty:
+        return pd.DataFrame(columns=["date", "body_fat_pct", "muscle", "water_pct", "bone", "visceral_rating"])
+    d = _dated(d)
+    return pd.DataFrame({"date": d["date"], "body_fat_pct": d["body_fat_pct"],
+                         "muscle": d["muscle_kg"] * T.KG_TO_LB, "water_pct": d["water_pct"],
+                         "bone": d["bone_kg"] * T.KG_TO_LB, "visceral_rating": d["visceral_rating"]})
+
+
+# =============================================================================
 # Blood pressure
 # =============================================================================
 

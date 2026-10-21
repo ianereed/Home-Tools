@@ -29,6 +29,7 @@ from .garmin_collector import (
     _bp_rows,
     _get_garmin_client,
     _weight_rows,
+    save_weigh_ins,
     collect_activities,
     collect_hr_streams,
 )
@@ -197,21 +198,7 @@ def backfill_cardio(client, conn, start: date, end: date, state: dict):
         if comp_payload:
             weight_rows, comp_rows = _weight_rows(comp_payload)
             if weight_rows:
-                conn.executemany(
-                    """INSERT OR REPLACE INTO body_weight
-                       (timestamp, weight_kg, bmi, source, source_id)
-                       VALUES (?, ?, ?, ?, ?)""",
-                    weight_rows,
-                )
-            if comp_rows:
-                conn.executemany(
-                    """INSERT OR REPLACE INTO body_composition
-                       (timestamp, weight_kg, body_fat_pct, lean_mass_kg, fat_mass_kg,
-                        bone_mass_kg, visceral_fat_rating, visceral_fat_mass_kg,
-                        body_water_pct, note, source)
-                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                    comp_rows,
-                )
+                save_weigh_ins(conn, weight_rows, comp_rows)
             if weight_rows:
                 conn.commit()
                 logger.info(f"  weigh-ins: {len(weight_rows)} ({len(comp_rows)} with BIA)")

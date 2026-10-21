@@ -34,8 +34,9 @@ def db_daily_stats(conn, start: str, end: str) -> list[dict]:
 
 
 def db_body(conn) -> tuple[dict | None, float | None]:
-    """(dexa-like body composition, current weight kg). Prefers a DEXA row; falls back to the newest
-    Garmin row that carries lean mass (e.g. a DEXA scan entered into Garmin)."""
+    """(dexa-like body composition, current weight kg). Only rows with a measured lean mass qualify:
+    DEXA scans (source 'dexa'), newest first. The Garmin scale's muscle mass is a different measure
+    (muscle_mass_kg) and never stands in for lean mass."""
     row = conn.execute("SELECT timestamp, weight_kg, body_fat_pct, lean_mass_kg, fat_mass_kg, bone_mass_kg, source "
                        "FROM body_composition WHERE lean_mass_kg IS NOT NULL ORDER BY (source = 'dexa') DESC, timestamp DESC "
                        "LIMIT 1").fetchone()
@@ -49,8 +50,9 @@ def db_body(conn) -> tuple[dict | None, float | None]:
     weight = None
     if newest and dexa and (date.today() - date.fromisoformat(newest[:10])).days <= 10:
         since = (date.fromisoformat(newest[:10]) - timedelta(days=6)).isoformat()
-        wrows = conn.execute("SELECT weight_kg FROM body_weight WHERE weight_kg IS NOT NULL AND timestamp >= ?",
-                             (since,)).fetchall()
+        # mean of daily means, so a day with several weigh-ins counts once
+        wrows = conn.execute("SELECT AVG(weight_kg) FROM body_weight WHERE weight_kg IS NOT NULL AND timestamp >= ? "
+                             "GROUP BY date(timestamp)", (since,)).fetchall()
         weight = sum(w for (w,) in wrows) / len(wrows)
     return dexa, weight
 
