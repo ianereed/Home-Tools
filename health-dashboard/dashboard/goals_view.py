@@ -4,7 +4,7 @@ cardiovascular targets and the levers being used to reach them.
 Ordering is deliberate (actionable first): ① levers row (weight, exercise,
 sodium, alcohol, bloodwork cadence, medications), ② LDL trajectory with the
 medication regimen as lanes sharing the same time axis, ③ blood-pressure
-weekly means with the required pace to goal, ④ a weekly review table putting
+weekly means against the goal, ④ a weekly review table putting
 BP next to the levers on one time base. This is the only page that compares
 a current value with a target; every value comes from dashboard.metrics and
 every target from dashboard.targets. History lives on Cardiology.
@@ -120,18 +120,6 @@ def _therapy_change_date(statin_events, medications):
             if m.get(key):
                 dates.append(pd.Timestamp(m[key]))
     return max(dates) if dates else None
-
-
-def _pace_per_week(current, goal, today, deadline):
-    """Required change per week (negative = must fall) to reach `goal` from
-    `current` by `deadline`. None when there's no deadline, it has passed,
-    or the goal is already met."""
-    if deadline is None or current is None or pd.isna(current):
-        return None
-    weeks = (deadline - today).days / 7
-    if weeks <= 0 or current <= goal:
-        return None
-    return (goal - current) / weeks
 
 
 # =============================================================================
@@ -307,7 +295,7 @@ def _render_levers(goals, lip, today):
 # =============================================================================
 
 def _time_marker(fig, x, text, color, dash, opacity=0.5, xanchor="left", yshift=0):
-    """Full-height vertical time marker (today / deadline).
+    """Full-height vertical time marker (today).
 
     Not add_vline: with an annotation on a date x-axis, plotly's axis-spanning-
     shape machinery averages the shape's Timestamps (shapeannotation._mean),
@@ -383,10 +371,7 @@ def add_zero_line(fig, row=1):
 
 
 def _ldl_figure(lip, goals, today):
-    deadline = None
-    if goals and goals.get("deadline"):
-        deadline = pd.Timestamp(goals["deadline"])
-    x_end = deadline if deadline is not None else today + pd.Timedelta(days=120)
+    x_end = today + pd.Timedelta(days=60)
 
     lanes = _med_lanes(getattr(CD, "STATIN_EVENTS", []),
                        getattr(CD, "MEDICATIONS", []),
@@ -409,14 +394,9 @@ def _ldl_figure(lip, goals, today):
     add_ldl_goal_line(fig, goals)
     add_zero_line(fig)
 
-    # -- today + deadline verticals --
+    # -- today marker --
     _time_marker(fig, today, "today", lib.MUTED, "dot", opacity=0.5,
                  xanchor="right")
-    if deadline is not None:
-        # right-anchored: the deadline sits near the plot's right edge, so the
-        # label must extend left of the line or it clips off-plot
-        _time_marker(fig, deadline, f"goal · {deadline:%b %Y}", lib.GOOD, "dash",
-                     opacity=0.8, xanchor="right", yshift=13)
 
     # -- regimen lanes (bottom row, shared x-axis) --
     draw_med_lanes(fig, lanes, 2, today, ongoing_to=x_end)
@@ -425,15 +405,15 @@ def _ldl_figure(lip, goals, today):
     if lanes:
         x_start = min(x_start, min(s["start"] for s in lanes))
     fig.update_xaxes(range=[x_start - pd.Timedelta(days=45),
-                            x_end + pd.Timedelta(days=30)])
+                            x_end])
     top = max(lip["ldl"].max() if not lip.empty else 100,
               lip["apob"].max() if lip["apob"].notna().any() else 0)
     fig.update_yaxes(range=[0, top * 1.15], row=1, col=1)
     add_panel_tag(fig, 1, "CHOLESTEROL — LDL-C & ApoB, mg/dL")
     add_panel_tag(fig, 2, "MEDICATIONS")
     fig = lib.apply_theme(fig, 520, legend=True)
-    # room for the today/deadline labels above and the lane names on the right
-    fig.update_layout(margin=dict(l=8, r=8, t=42, b=8))
+    # room for the today label above and the lane names on the right
+    fig.update_layout(margin=dict(l=8, r=8, t=30, b=8))
     return fig
 
 
@@ -444,7 +424,6 @@ def _render_ldl_section(lip, goals, today):
         return
     latest = lip.iloc[-1]
     goal_val = T.ldl_goal(goals)
-    deadline = pd.Timestamp(goals["deadline"]) if goals and goals.get("deadline") else None
 
     tiles = [lib.card("Latest LDL", f'{latest["ldl"]:.0f} <small>mg/dL</small>',
                       f'drawn {latest["date"]:%Y-%m-%d}')]
@@ -461,16 +440,12 @@ def _render_ldl_section(lip, goals, today):
         tiles.append(lib.card("Next draw window", f"{w0:%b %d} – {w1:%b %d}",
                               f"{DRAW_WINDOW_WEEKS[0]}–{DRAW_WINDOW_WEEKS[1]} weeks after the "
                               f"regimen change on {change:%Y-%m-%d}"))
-    if deadline is not None:
-        tiles.append(lib.card("Deadline", f"{(deadline - today).days} <small>days</small>",
-                              f"{deadline:%Y-%m-%d}"))
     lib.cards(tiles)
 
     lib.chart(_ldl_figure(lip, goals, today), "goals_ldl")
     st.caption("Rose = LDL-C draws · amber = ApoB · dashed green = the LDL goal (<50) · solid "
                "line = 0 mg/dL. Lanes = medication regimen on the same time axis: one color per "
-               "medication, alternating shades at each dose change; dotted = ongoing to the "
-               "deadline. Exercise stays off this chart deliberately: medication owns this goal, "
+               "medication, alternating shades at each dose change; dotted = ongoing. Exercise stays off this chart deliberately: medication owns this goal, "
                "lifestyle owns Goal 2.")
 
 
@@ -529,13 +504,11 @@ def _tracker_figure(week, y, *, name, color, fmt, today, unit="", n=None, n_labe
 
 
 # =============================================================================
-# Goal 2 — blood pressure pace (section ③)
+# Goal 2 — blood pressure (section ③)
 # =============================================================================
 
-def _bp_figure(weekly, goals, mean14, today):
+def _bp_figure(weekly, goals, today):
     sys_goal, dia_goal = T.bp_goal(goals)
-    deadline = pd.Timestamp(goals["deadline"]) if goals and goals.get("deadline") else None
-    x_end = today + pd.Timedelta(days=60)
 
     fig = make_subplots(rows=2, cols=1, shared_xaxes=True,
                         row_heights=[0.5, 0.5], vertical_spacing=0.12,
@@ -558,16 +531,6 @@ def _bp_figure(weekly, goals, mean14, today):
                           annotation_text=f"goal <{goal_val}",
                           annotation_position="bottom right",
                           annotation_font_size=10, annotation_font_color=lib.GOOD)
-        cur = mean14.get(col_name)
-        pace = _pace_per_week(cur, goal_val, today, deadline) if goal_val else None
-        if pace is not None:
-            days_vis = (x_end - today).days
-            fig.add_trace(go.Scatter(
-                x=[today, x_end], y=[cur, cur + pace * days_vis / 7],
-                mode="lines", line=dict(color=lib.INK, width=1.5, dash="dash"),
-                opacity=0.55, showlegend=False,
-                hovertemplate=f"pace {pace:+.2f} mmHg/wk<extra></extra>"),
-                row=row, col=1)
 
     fig.update_xaxes(range=_tracker_range(today))
     fig.update_annotations(font_size=11)
@@ -595,9 +558,7 @@ def _render_bp_section(goals, today):
     if win is None:
         st.caption("No blood-pressure readings yet — they sync from Garmin Connect.")
         return
-    mean14 = {"sys": win["sys"], "dia": win["dia"]}
     sys_goal, dia_goal = T.bp_goal(goals)
-    deadline = pd.Timestamp(goals["deadline"]) if goals and goals.get("deadline") else None
 
     weekly = M.bp_weekly(bp)
     weekly = weekly[weekly["week"] >= TRACKER_START - pd.Timedelta(days=7)]
@@ -606,26 +567,18 @@ def _render_bp_section(goals, today):
     tiles = [lib.card("Blood pressure", f'{win["sys"]:.0f}/{win["dia"]:.0f}',
                       f'{win["category"]} · {win["basis"]} ({win["n"]} readings)', win["color"]),
              _bp_to_goal_card(win, sys_goal, dia_goal)]
-    paces = [(name, _pace_per_week(cur, goal, today, deadline))
-             for name, cur, goal in (("systolic", win["sys"], sys_goal), ("diastolic", win["dia"], dia_goal))]
-    paces = [(name, -p) for name, p in paces if p is not None]      # a drop, shown as a positive number
-    if paces:
-        tiles.append(lib.card("Pace needed", " / ".join(f"{p:.2f}" for _, p in paces) + " <small>mmHg/wk</small>",
-                              " and ".join(name for name, _ in paces) + " drop per week to reach goal by "
-                              "the deadline — arithmetic, not a forecast"))
     tiles.append(lib.card("Cuff readings", f"{len(bp)}",
                           f"all time · {gap_weeks} week(s) without a reading"))
     lib.cards(tiles)
 
-    lib.chart(_bp_figure(weekly, goals, mean14, today), "goals_bp")
+    lib.chart(_bp_figure(weekly, goals, today), "goals_bp")
     st.caption("Points = weekly means of cuff readings (hover for n; gaps = weeks "
                "with no readings — a gap breaks the trend, keep the cuff habit). "
-               "Dashed white line = required pace to the goal by the deadline. "
                "Every reading and the morning/evening analysis are on the Cardiology page.")
 
 
 # =============================================================================
-# Goal 3 — weight pace (section ③b, same shape as the BP chart)
+# Goal 3 — weight (section ③b, same shape as the BP chart)
 # =============================================================================
 
 def _weight_figure(weekly, wgoals, today):
@@ -872,9 +825,6 @@ def render_goals():
         intro_bits.append("weight ≤" + " then ≤".join(
             f'{g["lb"]:.1f} lb ({g["pct"] * 100:.0f}% fat)' for g in wg))
         intro_bits.append("body fat ≤" + " then ≤".join(f"{p * 100:.0f}%" for _, p in T.BODY_FAT_GOALS))
-    if goals and goals.get("deadline"):
-        dl = pd.Timestamp(goals["deadline"])
-        intro_bits.append(f"by {dl:%b %Y} · <b>{(dl - today).days} days</b>")
     if goals and goals.get("set_by"):
         intro_bits.append(f'set by {goals["set_by"]}')
     lib.page_header("Goals", "Where each target stands now, and the levers that move it. "
@@ -888,6 +838,5 @@ def render_goals():
     _render_lever_trackers(today)
     _render_weekly_review(today)
 
-    st.caption("Honesty rules: pace lines are arithmetic (gap ÷ weeks left), "
-               "not forecasts; coverage counts stop absent data from reading as "
-               "good behavior. History lives on Cardiology, Training and Nutrition.")
+    st.caption("Honesty rule: coverage counts stop absent data from reading as good "
+               "behavior. History lives on Cardiology, Training and Nutrition.")
