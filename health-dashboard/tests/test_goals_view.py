@@ -76,15 +76,6 @@ def test_therapy_change_date_spans_events_and_stops(fake_clinical):
     assert gv._therapy_change_date([], []) is None
 
 
-def test_pace_per_week(fake_clinical):
-    gv = _helpers()
-    pace = gv._pace_per_week(130, 120, TODAY, TODAY + pd.Timedelta(weeks=10))
-    assert pace == pytest.approx(-1.0)
-    assert gv._pace_per_week(115, 120, TODAY, TODAY + pd.Timedelta(weeks=10)) is None
-    assert gv._pace_per_week(130, 120, TODAY, None) is None
-    assert gv._pace_per_week(130, 120, TODAY, TODAY - pd.Timedelta(days=1)) is None
-
-
 def test_spark_svg_guards():
     from dashboard import lib
     assert lib.spark_svg([], "#fff") == ""
@@ -127,7 +118,7 @@ def test_render_goals_with_goals(fake_db, fake_clinical, monkeypatch):
 
 
 def test_render_goals_without_goals(fake_db, fake_clinical_no_goals, monkeypatch):
-    """Un-updated PHI file (no CARDIO_GOALS/MEDICATIONS/deadline): every
+    """Un-updated PHI file (no CARDIO_GOALS/MEDICATIONS): every
     section must degrade via its getattr guards, not crash."""
     _render(fake_db, fake_clinical_no_goals, monkeypatch)
 
