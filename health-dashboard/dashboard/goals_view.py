@@ -169,17 +169,16 @@ def _weight_tile(goals, today):
     band = T.weight_band_lb(goals)
     if band:
         lo, hi = band
-        if w["lb"] <= hi:
-            color, gap = lib.GOOD, "in the goal band"
-        else:
-            color, gap = lib.WARN, f'<b>{w["lb"] - hi:.0f}–{w["lb"] - lo:.0f} lb to go</b>'
-        tgt = f"band {lo:.0f}–{hi:.0f} lb · {gap}"
+        def to_go(v):
+            return "in band" if v <= hi else f"{v - hi:.0f}–{v - lo:.0f} lb to go"
+        # status follows the mean (the trend); the low shows how close the floor is
+        color = lib.GOOD if w["lb"] <= hi else lib.WARN
+        tgt = (f'band {lo:.0f}–{hi:.0f} lb · <b>mean {to_go(w["lb"])}</b> · '
+               f'low {to_go(w["low_lb"])}')
     else:
         color, tgt = lib.MUTED, "no goal band configured"
-    basis = (f'{w["basis"]} · latest {w["latest_lb"]:.1f}, {w["age_days"]} d ago' if not w["stale"]
-             else f'last weigh-in {w["age_days"]} d ago')
     spark = M.weight_daily(M.since(30, today))["lb"].tolist()
-    return lib.card("Weight", f'{w["lb"]:.1f} <small>lb</small>', f"{tgt}<br>{basis}",
+    return lib.card("Weight", lib.weight_value(w), f"{tgt}<br>{lib.weight_basis(w)}",
                     color, lib.spark_svg(spark, lib.SERIES["weight"]))
 
 
@@ -560,7 +559,8 @@ def _weekly_review(today, n_weeks=8):
                           if not g.empty else "—")
         row["Cuff readings"] = f"{len(g)}"
         g = wt[wt["week"] == wk] if not wt.empty else pd.DataFrame()
-        row["Weight (lb)"] = f'{g["lb"].mean():.1f}' if not g.empty else "—"
+        row["Weight mean / low (lb)"] = (f'{g["lb"].mean():.1f} / {g["low"].min():.1f}'
+                                         if not g.empty else "—")
         row["Z3–5 min"] = f'{zw.loc[wk, "modvig"]:.0f}' if wk in zw.index else "—"
         row["Drinks"] = f"{al.get(wk, 0):.0f}" if not al.empty else "—"
         g = na[(na["week"] == wk) & na["sodium_mg"].notna()] if not na.empty else pd.DataFrame()

@@ -89,6 +89,16 @@ def rolling_avg(df: pd.DataFrame, col: str, days: int = 7) -> pd.Series:
     return pd.Series(s.to_numpy(), index=df.index)
 
 
+def rolling_low(df: pd.DataFrame, col: str, days: int = 7) -> pd.Series:
+    """Trailing `days`-calendar-day minimum at each row; gaps break the line."""
+    if df.empty:
+        return pd.Series(dtype=float)
+    s = df.set_index("date")[col].rolling(f"{days}D", min_periods=1).min()
+    gap = df["date"].diff() > pd.Timedelta(days=days)
+    s[gap.to_numpy()] = float("nan")
+    return pd.Series(s.to_numpy(), index=df.index)
+
+
 def window_stats(s: pd.DataFrame, col: str, today: date | None = None) -> dict:
     """latest value + 7-day and 30-day averages of a dated daily series."""
     s = s[s[col].notna()] if not s.empty else s
@@ -314,19 +324,26 @@ def training_load_cached(days: int) -> pd.DataFrame:
 # =============================================================================
 
 def weight_daily(start: str = "") -> pd.DataFrame:
-    """Daily mean weight in lb (all scale/DEXA sources). Columns: date, lb."""
-    w = read("SELECT date(timestamp) AS date, AVG(weight_kg) AS kg FROM body_weight "
-             "WHERE timestamp >= ? GROUP BY date(timestamp) ORDER BY date", (start,))
+    """Per day, in lb (all scale/DEXA sources): the mean of that day's
+    readings and the lowest single reading. Columns: date, lb, low."""
+    w = read("SELECT date(timestamp) AS date, AVG(weight_kg) AS kg, MIN(weight_kg) AS low_kg "
+             "FROM body_weight WHERE timestamp >= ? GROUP BY date(timestamp) ORDER BY date", (start,))
     if w.empty:
-        return pd.DataFrame(columns=["date", "lb"])
+        return pd.DataFrame(columns=["date", "lb", "low"])
     w = _dated(w)
-    return pd.DataFrame({"date": w["date"], "lb": w["kg"] * T.KG_TO_LB})
+    return pd.DataFrame({"date": w["date"], "lb": w["kg"] * T.KG_TO_LB, "low": w["low_kg"] * T.KG_TO_LB})
 
 
 def weight_now(today: date | None = None) -> dict | None:
-    """The one current-weight number: the mean of daily means over the last 7
-    days; when there is no weigh-in that recent, the latest reading (flagged
-    stale). Also returns the latest reading and its age for the sub-line."""
+    """The current weight, two ways, over the last 7 days:
+
+    - lb: the mean of daily means (the trend number goals and deltas use)
+    - low_lb: the lowest single reading, the closest to "true" weight
+      (least water, food and clothing; a dehydrated post-ride reading can
+      still read low)
+
+    With no weigh-in in the last 7 days both fall back to the latest day,
+    flagged stale. Also returns the latest reading and its age."""
     w = weight_daily()
     if w.empty:
         return None
@@ -334,11 +351,11 @@ def weight_now(today: date | None = None) -> dict | None:
     last7 = w[w["date"] > end - pd.Timedelta(days=7)]
     latest = w.iloc[-1]
     age = int((end.normalize() - latest["date"].normalize()).days)
-    if not last7.empty:
-        return {"lb": last7["lb"].mean(), "basis": "7-day mean", "n": len(last7),
-                "latest_lb": latest["lb"], "age_days": age, "stale": False}
-    return {"lb": latest["lb"], "basis": "latest", "n": 1,
-            "latest_lb": latest["lb"], "age_days": age, "stale": True}
+    win, stale = (last7, False) if not last7.empty else (w.tail(1), True)
+    low = win.loc[win["low"].idxmin()]
+    return {"lb": win["lb"].mean(), "low_lb": low["low"], "low_date": low["date"],
+            "basis": "latest" if stale else "7-day mean", "n": len(win),
+            "latest_lb": latest["lb"], "age_days": age, "stale": stale}
 
 
 # =============================================================================

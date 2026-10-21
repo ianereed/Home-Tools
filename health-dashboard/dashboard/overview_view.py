@@ -101,6 +101,7 @@ def render_overview(since_iso: str | None):
                     "each tile is a 7-day average (fitness: today's value), compared with the same measure then.")
 
     rows = changes(_series(), compare_from, today)
+    wnow = M.weight_now(today)
     tiles = []
     for r in rows:
         unit = f" <small>{r['unit']}</small>" if r["unit"] else ""
@@ -115,6 +116,8 @@ def render_overview(since_iso: str | None):
         elif r["cur"] is not None:
             delta = ("no reading back then", lib.MUTED)
         basis = "today" if r["basis"] == "latest" else "7-day avg"
+        if r["key"] == "weight" and wnow:
+            basis = f"7-day mean · low <b>{wnow['low_lb']:.1f}</b>"
         tiles.append(lib.card(r["label"], value, f"{basis} · on {r['page']}",
                               spark=lib.spark_svg(r["spark"], lib.SERIES[r["color"]]), delta=delta))
     lib.cards(tiles)
