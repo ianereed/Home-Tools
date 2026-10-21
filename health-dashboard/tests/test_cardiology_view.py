@@ -332,11 +332,13 @@ def test_lipid_history_split_into_panels(fake_clinical, monkeypatch):
     assert not [a for a in fig.layout.annotations if a.yref == "paper"]   # no event labels on the plot
 
 
-def test_report_figures_show_only_the_ldl_goal():
+def test_report_figures_show_only_the_ldl_goal(fake_clinical, monkeypatch):
     import plotly.graph_objects as go
 
     import dashboard.cardiology_view as cardiology_view
 
+    fake_clinical.CARDIO_GOALS = {**fake_clinical.CARDIO_GOALS, "ldl": {"target": 70, "stretch": 50}}
+    monkeypatch.setattr(cardiology_view, "CD", fake_clinical)
     fig = go.Figure(go.Scatter(x=[1, 2], y=[80, 40]))
     fig.add_hline(y=70, annotation_text="LDL target 70")
     fig.add_hline(y=50, annotation_text="LDL stretch 50")

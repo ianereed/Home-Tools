@@ -310,11 +310,15 @@ def _time_marker(fig, x, text, color, dash, opacity=0.5, xanchor="left", yshift=
                        font=dict(size=10, color=color))
 
 
-def draw_med_lanes(fig, lanes, row, today, ongoing_to=None):
+RETIRED_GRAY = "#9ca3af"
+
+
+def draw_med_lanes(fig, lanes, row, today, ongoing_to=None, retired_last=False):
     """Draw regimen lanes (from _med_lanes) in `row`: one color family per
     medication, alternating dark/light across its dose eras, dose labels inside
     wide-enough segments, lane names on the right. An ongoing segment is solid
-    to today, then dotted to `ongoing_to` when given."""
+    to today, then dotted to `ongoing_to` when given. retired_last puts stopped
+    medications at the bottom of the stack, in gray."""
     # a medication keeps its color on every chart: palette by its place in the
     # record (statin first), not by which lanes this chart happens to show
     statin = getattr(CD, "STATIN", None) or "statin"
@@ -322,9 +326,15 @@ def draw_med_lanes(fig, lanes, row, today, ongoing_to=None):
                         if statin.lower() not in (m.get("name") or "").lower()]
     order += [seg["lane"] for seg in lanes if seg["lane"] not in order]
     order = list(dict.fromkeys(order))
+    shown = list(dict.fromkeys(seg["lane"] for seg in lanes))
+    active = {seg["lane"] for seg in lanes if seg["end"] is None}
+    retired = {ln for ln in shown if ln not in active} if retired_last else set()
+    stack = [ln for ln in shown if ln not in retired] + [ln for ln in shown if ln in retired]
     era = {}
-    for seg in lanes:
+    for seg in sorted(lanes, key=lambda sg: stack.index(sg["lane"])):
         dark, light = LANE_PALETTES[order.index(seg["lane"]) % len(LANE_PALETTES)]
+        if seg["lane"] in retired:
+            dark = light = RETIRED_GRAY
         n = era.get(seg["lane"], 0)
         era[seg["lane"]] = n + 1
         color = dark if n % 2 == 0 else light
@@ -345,7 +355,13 @@ def draw_med_lanes(fig, lanes, row, today, ongoing_to=None):
                                showarrow=False, font=dict(size=9, color="#ffffff" if color == dark else "#0e1117"),
                                row=row, col=1)
     fig.update_yaxes(showgrid=False, tickfont=dict(size=11), autorange="reversed", side="right", automargin=True,
+                     categoryorder="array", categoryarray=stack, tickvals=stack,
+                     ticktext=[f'<span style="color:{RETIRED_GRAY}">{ln}</span>' if ln in retired else ln
+                               for ln in stack],
                      row=row, col=1)
+
+
+_GUIDE_MARGIN = 120   # px of right margin for guideline labels and lane names
 
 
 def add_panel_tag(fig, row, text):
@@ -360,9 +376,7 @@ def add_ldl_goal_line(fig, goals, row=1):
     """The single LDL goal line (the stretch goal, < 50)."""
     goal = T.ldl_goal(goals)
     if goal is not None:
-        fig.add_hline(y=goal, line_dash="dash", line_color=lib.GOOD, opacity=0.85, row=row, col=1,
-                      annotation_text=f"LDL goal <{goal}", annotation_position="top left",
-                      annotation_font_size=10, annotation_font_color=lib.GOOD)
+        _guideline(fig, goal, f"LDL goal <{goal}", lib.GOOD, "dash", 0.85, row=row)
 
 
 def add_zero_line(fig, row=1):
@@ -370,7 +384,7 @@ def add_zero_line(fig, row=1):
     fig.add_hline(y=0, line_color=lib.INK, line_width=1.5, opacity=0.7, row=row, col=1)
 
 
-def _ldl_figure(lip, goals, today):
+def _ldl_figure(lip, goals, today, retired_last=False):
     x_end = today + pd.Timedelta(days=60)
 
     lanes = _med_lanes(getattr(CD, "STATIN_EVENTS", []),
@@ -399,7 +413,7 @@ def _ldl_figure(lip, goals, today):
                  xanchor="right")
 
     # -- regimen lanes (bottom row, shared x-axis) --
-    draw_med_lanes(fig, lanes, 2, today, ongoing_to=x_end)
+    draw_med_lanes(fig, lanes, 2, today, ongoing_to=x_end, retired_last=retired_last)
 
     x_start = lip["date"].min() if not lip.empty else today - pd.Timedelta(days=365)
     if lanes:
@@ -413,7 +427,7 @@ def _ldl_figure(lip, goals, today):
     add_panel_tag(fig, 2, "MEDICATIONS")
     fig = lib.apply_theme(fig, 520, legend=True)
     # room for the today label above and the lane names on the right
-    fig.update_layout(margin=dict(l=8, r=8, t=30, b=8))
+    fig.update_layout(margin=dict(l=8, r=_GUIDE_MARGIN, t=30, b=8))
     return fig
 
 
@@ -462,6 +476,17 @@ def _tracker_range(today):
     return [TRACKER_START - pd.Timedelta(days=3), today + pd.Timedelta(days=60)]
 
 
+def _guideline(fig, y, text, color, dash, opacity, row=None):
+    """A horizontal guideline with its label outside the plot, in the right
+    margin, so it never sits on top of the data or another label. Every
+    chart with one reserves _GUIDE_MARGIN, so plot areas share a right edge."""
+    sub = dict(row=row, col=1) if row else {}
+    fig.add_hline(y=y, line_dash=dash, line_color=color, opacity=opacity, **sub)
+    if text:
+        fig.add_annotation(x=1, xref="x domain", xanchor="left", xshift=6, y=y, yref="y", yanchor="middle",
+                           text=text, showarrow=False, align="left", font=dict(size=10, color=color), **sub)
+
+
 def _tracker_figure(week, y, *, name, color, fmt, today, unit="", n=None, n_label="",
                     goal=None, goal_text=None, goal_color=None, ref=None, ref_text=None,
                     second=None, second_name=None, second_color=None, second_goal=None,
@@ -487,20 +512,16 @@ def _tracker_figure(week, y, *, name, color, fmt, today, unit="", n=None, n_labe
             line=dict(color=c2, width=1.5, dash=None if second_color else "dot"), marker=dict(size=5),
             hovertemplate=f"wk of %{{x|%b %d}} · %{{y:{fmt[2:-1]}}}{unit}<extra></extra>"))
         if second_goal is not None:
-            fig.add_hline(y=second_goal, line_dash="dash", line_color=c2, opacity=0.6,
-                          annotation_text=second_goal_text, annotation_position="top right",
-                          annotation_font_size=10, annotation_font_color=c2)
+            _guideline(fig, second_goal, second_goal_text, c2, "dash", 0.6)
     if goal is not None:
         gc = goal_color or lib.GOOD
-        fig.add_hline(y=goal, line_dash="dash", line_color=gc, opacity=0.6 if goal_color else 0.8,
-                      annotation_text=goal_text, annotation_position="bottom right",
-                      annotation_font_size=10, annotation_font_color=gc)
+        _guideline(fig, goal, goal_text, gc, "dash", 0.6 if goal_color else 0.8)
     if ref is not None:
-        fig.add_hline(y=ref, line_dash="dot", line_color=lib.MUTED, opacity=0.7,
-                      annotation_text=ref_text, annotation_position="top right",
-                      annotation_font_size=10, annotation_font_color=lib.MUTED)
+        _guideline(fig, ref, ref_text, lib.MUTED, "dot", 0.7)
     fig.update_xaxes(range=_tracker_range(today))
-    return lib.apply_theme(fig, height, legend=second is not None)
+    fig = lib.apply_theme(fig, height, legend=second is not None)
+    fig.update_layout(margin=dict(r=_GUIDE_MARGIN))       # guideline labels sit in this margin
+    return fig
 
 
 # =============================================================================
@@ -526,15 +547,31 @@ def _bp_figure(weekly, goals, today):
             hovertemplate="wk of %{x|%b %d} · %{y:.0f} (n=%{customdata})<extra></extra>"),
             row=row, col=1)
         if goal_val is not None:
-            fig.add_hline(y=goal_val, line_dash="dash", line_color=lib.GOOD,
-                          opacity=0.8, row=row, col=1,
-                          annotation_text=f"goal <{goal_val}",
-                          annotation_position="bottom right",
-                          annotation_font_size=10, annotation_font_color=lib.GOOD)
+            _guideline(fig, goal_val, f"goal <{goal_val}", lib.GOOD, "dash", 0.8, row=row)
+        # headroom so the top point's value label stays inside the panel
+        vals = [v for v in list(weekly[col_name]) + [goal_val] if v is not None and pd.notna(v)]
+        if vals:
+            fig.update_yaxes(range=[min(vals) - 4, max(vals) + 6], row=row, col=1)
+
+    # dotted vertical where each BP medication started (shape + paper-free
+    # annotation: add_vline crashes on date axes on some plotly/pandas combos)
+    for m in getattr(CD, "MEDICATIONS", []):
+        purpose = (m.get("purpose") or "").lower()
+        if not m.get("start") or not ("blood-pressure" in purpose or "blood pressure" in purpose):
+            continue
+        start = pd.Timestamp(m["start"])
+        for row in (1, 2):
+            fig.add_shape(type="line", x0=start, x1=start, y0=0, y1=1, xref="x", yref="y domain",
+                          line=dict(color=lib.INK, dash="dot", width=1.5), opacity=0.7, row=row, col=1)
+        fig.add_annotation(x=start, y=1, yref="y domain", yanchor="top", xanchor="left", xshift=4,
+                           text=f'{m.get("brand") or m.get("name")} started', showarrow=False,
+                           font=dict(size=10, color=lib.INK), row=1, col=1)
 
     fig.update_xaxes(range=_tracker_range(today))
     fig.update_annotations(font_size=11)
-    return lib.apply_theme(fig, 380)
+    fig = lib.apply_theme(fig, 380)
+    fig.update_layout(margin=dict(t=28, r=_GUIDE_MARGIN))   # t: room for the "Systolic" title
+    return fig
 
 
 def _bp_to_goal_card(win, sys_goal, dia_goal):
@@ -594,15 +631,15 @@ def _weight_figure(weekly, wgoals, today):
         customdata=weekly["n"],
         hovertemplate="wk of %{x|%b %d} · %{y:.1f} lb (%{customdata} weigh-in days)<extra></extra>"))
     for g, dash in zip(wgoals, ("dash", "dot")):
-        fig.add_hline(y=g["lb"], line_dash=dash, line_color=lib.GOOD, opacity=0.8,
-                      annotation_text=f'{g["label"].lower()} · {g["pct"] * 100:.0f}% fat · {g["lb"]:.1f}',
-                      annotation_position="bottom right",
-                      annotation_font_size=10, annotation_font_color=lib.GOOD)
+        _guideline(fig, g["lb"], f'{g["label"].lower()}<br>{g["lb"]:.1f} lb · {g["pct"] * 100:.0f}% fat',
+                   lib.GOOD, dash, 0.8)
     fig.update_xaxes(range=_tracker_range(today))
     if weekly["lb"].notna().any():
         lo = min([weekly["lb"].min()] + [g["lb"] for g in wgoals])
         fig.update_yaxes(range=[lo - 3, weekly["lb"].max() + 3])
-    return lib.apply_theme(fig, 280)
+    fig = lib.apply_theme(fig, 280)
+    fig.update_layout(margin=dict(r=_GUIDE_MARGIN))
+    return fig
 
 
 def _render_weight_section(goals, today):
@@ -640,22 +677,21 @@ def _render_weight_section(goals, today):
 # Goal 4 — body fat (DEXA measured; weight-implied estimate between scans)
 # =============================================================================
 
-def _body_fat_figure(scans, est, today):
+def _body_fat_figure(scans, est, today, goals=None):
     """DEXA scans (white diamonds, the measurement of record) and the weekly
-    weight-based estimate (solid labeled line) against shaded goal zones."""
+    weight-based estimate (solid labeled line) against shaded goal zones.
+    `goals` defaults to targets.BODY_FAT_GOALS."""
     fig = go.Figure()
-    (g1_label, g1), (g2_label, g2) = T.BODY_FAT_GOALS
+    goals = list(goals or T.BODY_FAT_GOALS)
+    pcts = [p * 100 for _, p in goals]
     vals = list(scans["body_fat_pct"]) + list(est["pct"] * 100)
-    y_lo = min(vals + [g2 * 100]) - 3
-    y_hi = max(vals + [g1 * 100]) + 3
-    # goal zones, light: under 24% (goal 1), a touch deeper under 20% (goal 2)
-    fig.add_hrect(y0=y_lo, y1=g1 * 100, fillcolor=lib.GOOD, opacity=0.035, line_width=0)
-    fig.add_hrect(y0=y_lo, y1=g2 * 100, fillcolor=lib.GOOD, opacity=0.035, line_width=0)
-    for (label, pct), dash in ((T.BODY_FAT_GOALS[0], "dash"), (T.BODY_FAT_GOALS[1], "dot")):
-        fig.add_hline(y=pct * 100, line_dash=dash, line_color=lib.GOOD, opacity=0.9,
-                      annotation_text=f"{label.lower()} · {pct * 100:.0f}%",
-                      annotation_position="top right",
-                      annotation_font_size=11, annotation_font_color=lib.GOOD)
+    y_lo = min(vals + pcts) - 3
+    y_hi = max(vals + pcts) + 3
+    # goal zones, light; each further goal a touch deeper
+    for p in pcts:
+        fig.add_hrect(y0=y_lo, y1=p, fillcolor=lib.GOOD, opacity=0.035, line_width=0)
+    for (label, pct), dash in zip(goals, ("dash", "dot")):
+        _guideline(fig, pct * 100, f"{label.lower()} · {pct * 100:.0f}%", lib.GOOD, dash, 0.9)
     if not est.empty:
         # the estimate continues from the latest scan: leave out the scan's own
         # week (it would sit on the diamond) and start the line at the scan
@@ -679,7 +715,7 @@ def _body_fat_figure(scans, est, today):
     fig.update_xaxes(range=_tracker_range(today))
     fig.update_yaxes(range=[y_lo, y_hi], ticksuffix="%", dtick=5)
     fig = lib.apply_theme(fig, 300, legend=True)
-    fig.update_layout(hovermode="closest")
+    fig.update_layout(hovermode="closest", margin=dict(r=_GUIDE_MARGIN))
     return fig
 
 
@@ -723,59 +759,92 @@ def _render_body_fat_section(today):
 # Lever trackers — exercise, sodium, alcohol, on the same weekly axis
 # =============================================================================
 
+def exercise_figure(today):
+    """Weekly Z3–5 and Z4–5 minutes against their AHA lines, or None."""
+    zw = M.zone_minutes_weekly(TRACKER_START.date().isoformat())
+    if zw.empty:
+        return None
+    mv_c, vg_c = lib.ZONE_COLORS["Z3"], lib.ZONE_COLORS["Z4"]
+    return _tracker_figure(
+        zw["week"], zw["modvig"], name="Z3–5 moderate-vigorous", color=mv_c, fmt="{:.0f}",
+        today=today, unit=" min",
+        goal=T.AHA_MODERATE_MIN_WK, goal_text=f"AHA ≥{T.AHA_MODERATE_MIN_WK}<br>moderate-vigorous",
+        goal_color=mv_c,
+        second=zw["vig"], second_name="Z4–5 vigorous", second_color=vg_c,
+        second_goal=T.AHA_VIGOROUS_MIN_WK, second_goal_text=f"AHA ≥{T.AHA_VIGOROUS_MIN_WK}<br>vigorous")
+
+
+def sodium_weekly(today) -> pd.DataFrame:
+    """Per week: mean daily sodium of the logged days and how many were logged (gaps kept)."""
+    na = M.nutrition_daily(TRACKER_START.date().isoformat())
+    na = na[na["sodium_mg"].notna()] if not na.empty else na
+    if na.empty:
+        return pd.DataFrame(columns=["mean", "count"])
+    wk = (na.assign(week=M.week_start(na["date"])).groupby("week")["sodium_mg"]
+            .agg(["mean", "count"]))
+    return wk.reindex(pd.date_range(wk.index.min(), M.this_monday(today), freq="W-MON"))
+
+
+def sodium_figure(today):
+    wk = sodium_weekly(today)
+    if wk.empty:
+        return None
+    return _tracker_figure(
+        wk.index, wk["mean"], name="mg/day", color=lib.SERIES["sodium"], fmt="{:,.0f}", today=today,
+        unit=" mg", n=wk["count"], n_label="days logged",
+        goal=T.SODIUM_MG_CEILING, goal_text=f"DASH ≤{T.SODIUM_MG_CEILING:,}",
+        ref=T.SODIUM_MG_IDEAL, ref_text=f"ideal {T.SODIUM_MG_IDEAL:,}", lines=False)
+
+
+def alcohol_weekly_filled(today) -> pd.Series:
+    """Drinks per week from the first logged week (or June) to now; unlogged weeks are 0."""
+    weekly = M.alcohol_weekly()
+    if weekly.empty:
+        return weekly
+    first = max(weekly.index.min(), TRACKER_START)
+    return weekly.reindex(pd.date_range(M.week_start(pd.Series([first]))[0], M.this_monday(today),
+                                        freq="W-MON"), fill_value=0)
+
+
+def alcohol_figure(today):
+    weekly = alcohol_weekly_filled(today)
+    if weekly.empty:
+        return None
+    return _tracker_figure(
+        weekly.index, weekly.values, name="drinks", color=lib.SERIES["alcohol"], fmt="{:.0f}",
+        today=today, goal=T.ALCOHOL_DRINKS_WK, goal_text=f"guideline ≤{T.ALCOHOL_DRINKS_WK}")
+
+
 def _render_lever_trackers(today):
     st.markdown("## Lever trackers")
     st.caption("The levers' weekly history on the same time axis as BP and weight, from June 2026. "
                "The current week is still filling in.")
-    start = TRACKER_START.date().isoformat()
 
     st.markdown("### Exercise — moderate-vigorous minutes per week")
-    zw = M.zone_minutes_weekly(start)
-    if zw.empty:
+    fig = exercise_figure(today)
+    if fig is None:
         st.caption("No activities with heart-rate streams yet.")
     else:
-        mv_c, vg_c = lib.ZONE_COLORS["Z3"], lib.ZONE_COLORS["Z4"]
-        lib.chart(_tracker_figure(
-            zw["week"], zw["modvig"], name="Z3–5 moderate-vigorous", color=mv_c, fmt="{:.0f}",
-            today=today, unit=" min",
-            goal=T.AHA_MODERATE_MIN_WK, goal_text=f"AHA ≥{T.AHA_MODERATE_MIN_WK} moderate-vigorous",
-            goal_color=mv_c,
-            second=zw["vig"], second_name="Z4–5 vigorous", second_color=vg_c,
-            second_goal=T.AHA_VIGOROUS_MIN_WK, second_goal_text=f"AHA ≥{T.AHA_VIGOROUS_MIN_WK} vigorous"),
-            "goals_tr_exercise")
+        lib.chart(fig, "goals_tr_exercise")
         st.caption(f"Heart-rate-zone minutes (max HR {T.HRMAX}). Each line has its guideline in the "
                    "matching color; either one clearing its line meets the AHA minimum. Detail by "
                    "zone is on Training.")
 
     st.markdown("### Sodium — daily average per week")
-    na = M.nutrition_daily(start)
-    na = na[na["sodium_mg"].notna()] if not na.empty else na
-    if na.empty:
+    fig = sodium_figure(today)
+    if fig is None:
         st.caption("No days logged yet.")
     else:
-        wk = (na.assign(week=M.week_start(na["date"])).groupby("week")["sodium_mg"]
-                .agg(["mean", "count"]))
-        wk = wk.reindex(pd.date_range(wk.index.min(), M.this_monday(today), freq="W-MON"))
-        lib.chart(_tracker_figure(
-            wk.index, wk["mean"], name="mg/day", color=lib.SERIES["sodium"], fmt="{:,.0f}", today=today,
-            unit=" mg", n=wk["count"], n_label="days logged",
-            goal=T.SODIUM_MG_CEILING, goal_text=f"DASH ≤{T.SODIUM_MG_CEILING:,}",
-            ref=T.SODIUM_MG_IDEAL, ref_text=f"ideal {T.SODIUM_MG_IDEAL:,}", lines=False), "goals_tr_sodium")
+        lib.chart(fig, "goals_tr_sodium")
         st.caption("Each point is the mean of the days logged that week, net of ride sweat sodium "
                    "(hover for how many days). Weeks with nothing logged have no point.")
 
     st.markdown("### Alcohol — drinks per week")
-    weekly = M.alcohol_weekly()
-    if weekly.empty:
+    fig = alcohol_figure(today)
+    if fig is None:
         st.caption("No drinks logged yet — tracked via Garmin Lifestyle Logging.")
     else:
-        first = max(weekly.index.min(), TRACKER_START)
-        weekly = weekly.reindex(pd.date_range(M.week_start(pd.Series([first]))[0], M.this_monday(today),
-                                              freq="W-MON"), fill_value=0)
-        lib.chart(_tracker_figure(
-            weekly.index, weekly.values, name="drinks", color=lib.SERIES["alcohol"], fmt="{:.0f}",
-            today=today, goal=T.ALCOHOL_DRINKS_WK, goal_text=f"guideline ≤{T.ALCOHOL_DRINKS_WK}"),
-            "goals_tr_alcohol")
+        lib.chart(fig, "goals_tr_alcohol")
         st.caption("Garmin serving counts; a week with nothing logged counts as zero. For BP, lower "
                    "beats “under the guideline”.")
 
@@ -834,20 +903,23 @@ def render_goals():
     goals = getattr(CD, "CARDIO_GOALS", None)
     lip = br.lipids_df()
 
-    intro_bits = []
+    doc, own = [], []
     if T.ldl_goal(goals):
-        intro_bits.append(f"LDL &lt; {T.ldl_goal(goals)} mg/dL")
+        doc.append(f"LDL-C &lt; {T.ldl_goal(goals)} mg/dL")
     if (goals or {}).get("bp"):
-        intro_bits.append("BP &lt; {}/{}".format(*T.bp_goal(goals)))
+        doc.append("BP &lt; {}/{}".format(*T.bp_goal(goals)))
+    wdoc = (goals or {}).get("weight") or {}
+    if wdoc.get("lose_lb"):
+        doc.append(f'lose {wdoc["lose_lb"]:g} lb'
+                   + (f' (stated {pd.Timestamp(wdoc["set_on"]):%b %Y})' if wdoc.get("set_on") else ""))
     wg = M.weight_goals()
     if wg:
-        intro_bits.append("weight ≤" + " then ≤".join(
-            f'{g["lb"]:.1f} lb ({g["pct"] * 100:.0f}% fat)' for g in wg))
-        intro_bits.append("body fat ≤" + " then ≤".join(f"{p * 100:.0f}%" for _, p in T.BODY_FAT_GOALS))
-    if goals and goals.get("set_by"):
-        intro_bits.append(f'set by {goals["set_by"]}')
+        own.append("weight ≤" + " then ≤".join(f'{g["lb"]:.1f} lb ({g["pct"] * 100:.0f}% fat)' for g in wg))
+        own.append("body fat ≤" + " then ≤".join(f"{p * 100:.0f}%" for _, p in T.BODY_FAT_GOALS))
+    who = (goals or {}).get("set_by") or "physician"
+    intro_bits = ([f"{who}: " + " · ".join(doc)] if doc else []) + (["own goals: " + " · ".join(own)] if own else [])
     lib.page_header("Goals", "Where each target stands now, and the levers that move it. "
-                    + (" · ".join(intro_bits) if intro_bits else "No physician goals recorded yet."))
+                    + (" — ".join(intro_bits) if intro_bits else "No physician goals recorded yet."))
 
     _render_levers(goals, lip, today)
     _render_ldl_section(lip, goals, today)

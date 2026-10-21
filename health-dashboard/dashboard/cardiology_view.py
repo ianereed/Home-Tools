@@ -540,17 +540,18 @@ def _lipid_history_fig(q: pd.DataFrame, lip: pd.DataFrame, end_ts) -> "go.Figure
 
 
 def _only_ldl_goal(fig) -> "go.Figure":
-    """Report figures draw the physician's LDL target (70) and stretch (50);
-    the dashboard tracks one goal, < 50. Drop the target line and its label and
-    relabel the stretch line as the goal."""
-    target = [a for a in fig.layout.annotations if (a.text or "").startswith("LDL target")]
-    ys = {a.y for a in target}
-    fig.layout.annotations = [a for a in fig.layout.annotations if a not in target]
+    """Report figures draw an "LDL target" line and, when one is recorded, an
+    "LDL stretch" line; the dashboard tracks one goal (targets.ldl_goal).
+    Keep the line at that value, labeled "LDL goal <N", and drop the other."""
+    goal = T.ldl_goal(getattr(CD, "CARDIO_GOALS", None))
+    ldl = [a for a in fig.layout.annotations if (a.text or "").startswith(("LDL target", "LDL stretch"))]
+    drop = {a.y for a in ldl if a.y != goal}
+    fig.layout.annotations = [a for a in fig.layout.annotations if not (a in ldl and a.y in drop)]
     fig.layout.shapes = [sh for sh in fig.layout.shapes
-                         if not (sh.type == "line" and sh.y0 in ys and sh.y0 == sh.y1)]
+                         if not (sh.type == "line" and sh.y0 in drop and sh.y0 == sh.y1)]
     for a in fig.layout.annotations:
-        if (a.text or "").startswith("LDL stretch"):
-            a.text = f"LDL goal <{a.text.split()[-1]}"
+        if a in ldl and a.y == goal:
+            a.text = f"LDL goal <{goal}"
     return fig
 
 
