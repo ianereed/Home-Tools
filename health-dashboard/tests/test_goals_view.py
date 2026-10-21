@@ -151,3 +151,16 @@ def test_bp_to_goal_card(fake_clinical):
     assert ">Complete<" in met and "-" not in met.split("cardval")[1].split("</div>")[0]
     half = gv._bp_to_goal_card({"sys": 121.0, "dia": 76.0}, 120, 80)
     assert "systolic 2 mmHg to go" in half and "diastolic complete" in half
+
+
+def test_bp_chart_marks_bp_medication_start(fake_clinical, monkeypatch):
+    import pandas as pd
+    gv = _helpers()
+    fake_clinical.MEDICATIONS = [{"name": "fakesartan", "brand": "Fakenicar", "start": "2025-06-10",
+                                  "purpose": "blood-pressure lowering"}]
+    monkeypatch.setattr(gv, "CD", fake_clinical)
+    weekly = pd.DataFrame({"week": pd.to_datetime(["2025-06-02", "2025-06-09", "2025-06-16"]),
+                           "sys": [130, 125, 118], "dia": [85, 82, 78], "n": [3, 4, 5]})
+    fig = gv._bp_figure(weekly, None, pd.Timestamp("2025-06-20"))
+    assert "Fakenicar started" in [a.text for a in fig.layout.annotations]
+    assert sum(1 for sh in fig.layout.shapes if sh.line.dash == "dot") == 2
