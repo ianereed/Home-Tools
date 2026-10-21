@@ -138,6 +138,27 @@ def _pace_per_week(current, goal, today, deadline):
 # Levers row (section ① — actionable data first)
 # =============================================================================
 
+COMPLETE = "Complete"
+
+
+def _left(gap, fmt="{:.0f}", unit=""):
+    """How far is left to a goal, for display: "Complete" once met (gap <= 0),
+    otherwise the positive amount; never a negative number. A gap that
+    rounds to zero but isn't met reads "<1"."""
+    if gap is None or pd.isna(gap) or gap <= 0:
+        return COMPLETE
+    text = fmt.format(gap)
+    if float(text.replace(",", "")) == 0:
+        text = "<" + fmt.format(1).rstrip("0").rstrip(".")
+    return f"{text} <small>{unit}</small>" if unit else text
+
+
+def _left_plain(gap, fmt="{:.1f}", unit="lb"):
+    """_left for running text: "complete" or "3.2 lb to go"."""
+    v = _left(gap, fmt)
+    return "complete" if v == COMPLETE else f"{v} {unit} to go"
+
+
 def _weight_tile(goals, today):
     w = M.weight_now(today)
     if w is None:
@@ -145,7 +166,7 @@ def _weight_tile(goals, today):
     wg = M.weight_goals()
     if wg:
         def to_go(v, g):
-            return "reached" if v <= g["lb"] else f"{v - g['lb']:.1f} lb to go"
+            return _left_plain(v - g["lb"])
         # status follows the mean (the trend) against goal 1
         color = lib.GOOD if w["lb"] <= wg[0]["lb"] else lib.WARN
         tgt = "<br>".join(
@@ -428,9 +449,10 @@ def _render_ldl_section(lip, goals, today):
     tiles = [lib.card("Latest LDL", f'{latest["ldl"]:.0f} <small>mg/dL</small>',
                       f'drawn {latest["date"]:%Y-%m-%d}')]
     if goal_val is not None and pd.notna(latest["ldl"]):
-        tiles.append(lib.card("To goal", f'{latest["ldl"] - goal_val:+.0f} <small>mg/dL</small>',
-                              f"goal &lt;{goal_val} mg/dL",
-                              lib.GOOD if latest["ldl"] < goal_val else lib.WARN))
+        met = latest["ldl"] < goal_val
+        tiles.append(lib.card("To goal", COMPLETE if met else _left(latest["ldl"] - goal_val + 1, unit="mg/dL"),
+                              f'latest {latest["ldl"]:.0f} · goal &lt;{goal_val} mg/dL',
+                              lib.GOOD if met else lib.WARN))
     change = _therapy_change_date(getattr(CD, "STATIN_EVENTS", []),
                                   getattr(CD, "MEDICATIONS", []))
     if change is not None:
@@ -552,6 +574,20 @@ def _bp_figure(weekly, goals, mean14, today):
     return lib.apply_theme(fig, 380)
 
 
+def _bp_to_goal_card(win, sys_goal, dia_goal):
+    """Readings must sit below the goal: a mean of 120 against <120 still has 1 to go."""
+    left = {name: max(cur - goal + 1, 0) if cur >= goal else 0
+            for name, cur, goal in (("systolic", round(win["sys"]), sys_goal),
+                                    ("diastolic", round(win["dia"]), dia_goal))}
+    if not any(left.values()):
+        return lib.card("To goal", COMPLETE, f"14-day mean under &lt;{sys_goal}/{dia_goal}", lib.GOOD)
+    todo = [f"{name} {v:.0f}" for name, v in left.items() if v]
+    done = [name for name, v in left.items() if not v]
+    return lib.card("To goal", " / ".join(f"{v:.0f}" for v in left.values() if v) + " <small>mmHg</small>",
+                    " · ".join(todo) + " mmHg to go" + (f" · {' and '.join(done)} complete" if done else ""),
+                    lib.WARN)
+
+
 def _render_bp_section(goals, today):
     st.markdown("## Goal 2 — Blood pressure")
     bp = M.bp_readings()
@@ -569,14 +605,14 @@ def _render_bp_section(goals, today):
 
     tiles = [lib.card("Blood pressure", f'{win["sys"]:.0f}/{win["dia"]:.0f}',
                       f'{win["category"]} · {win["basis"]} ({win["n"]} readings)', win["color"]),
-             lib.card("To goal", f'{max(win["sys"] - sys_goal, 0):.0f} / {max(win["dia"] - dia_goal, 0):.0f}',
-                      f"mmHg above &lt;{sys_goal}/{dia_goal}",
-                      lib.GOOD if win["sys"] < sys_goal and win["dia"] < dia_goal else lib.WARN)]
-    sp = _pace_per_week(win["sys"], sys_goal, today, deadline)
-    dp = _pace_per_week(win["dia"], dia_goal, today, deadline)
-    if sp is not None or dp is not None:
-        tiles.append(lib.card("Pace needed", f"{sp or 0:+.2f} / {dp or 0:+.2f}",
-                              "mmHg per week to reach goal by the deadline — arithmetic, not a forecast"))
+             _bp_to_goal_card(win, sys_goal, dia_goal)]
+    paces = [(name, _pace_per_week(cur, goal, today, deadline))
+             for name, cur, goal in (("systolic", win["sys"], sys_goal), ("diastolic", win["dia"], dia_goal))]
+    paces = [(name, -p) for name, p in paces if p is not None]      # a drop, shown as a positive number
+    if paces:
+        tiles.append(lib.card("Pace needed", " / ".join(f"{p:.2f}" for _, p in paces) + " <small>mmHg/wk</small>",
+                              " and ".join(name for name, _ in paces) + " drop per week to reach goal by "
+                              "the deadline — arithmetic, not a forecast"))
     tiles.append(lib.card("Cuff readings", f"{len(bp)}",
                           f"all time · {gap_weeks} week(s) without a reading"))
     lib.cards(tiles)
@@ -627,11 +663,14 @@ def _render_weight_section(goals, today):
 
     tiles = []
     for g in wgoals:
+        done = now_w["lb"] <= g["lb"]
         tiles.append(lib.card(
             f'To {g["label"].lower()} · {g["pct"] * 100:.0f}% fat',
-            f'{max(now_w["lb"] - g["lb"], 0):.1f} / {max(now_w["low_lb"] - g["lb"], 0):.1f} <small>lb</small>',
-            f'mean / low above {g["lb"]:.1f} lb ({g["fat_lb"]:.1f} lb of fat)',
-            lib.GOOD if now_w["lb"] <= g["lb"] else lib.WARN))
+            _left(now_w["lb"] - g["lb"], "{:.1f}", "lb"),
+            (f'7-day mean at or under {g["lb"]:.1f} lb' if done else
+             f'on the 7-day mean · lowest reading {_left_plain(now_w["low_lb"] - g["lb"])}')
+            + f' · goal {g["lb"]:.1f} lb ({g["fat_lb"]:.1f} lb of fat)',
+            lib.GOOD if done else lib.WARN))
     recent = weekly[weekly["week"] >= M.this_monday(today) - pd.Timedelta(weeks=3)]
     tiles.append(lib.card("Weigh-in days", f'{int(recent["n"].fillna(0).sum())}',
                           "last 4 weeks · a gap breaks the trend"))
@@ -694,7 +733,7 @@ def _render_body_fat_section(today):
     cur = now if now is not None else last["body_fat_pct"]
     for label, pct in T.BODY_FAT_GOALS:
         tiles.append(lib.card(f"To {label.lower()} · {pct * 100:.0f}%",
-                              f"{max(cur - pct * 100, 0):.1f} <small>pts</small>",
+                              _left(cur - pct * 100, "{:.1f}", "pts"),
                               "from the estimate" if now is not None else "from the last scan",
                               lib.GOOD if cur <= pct * 100 else lib.WARN))
     lib.cards(tiles)
