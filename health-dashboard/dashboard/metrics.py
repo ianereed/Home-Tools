@@ -358,9 +358,15 @@ def weight_now(today: date | None = None) -> dict | None:
             "latest_lb": latest["lb"], "age_days": age, "stale": stale}
 
 
-def weight_weekly(start: str = "") -> pd.DataFrame:
+def weight_weekly(start: str = "", as_of_today: bool = False,
+                  today: date | None = None) -> pd.DataFrame:
     """Per Monday-week: mean of the daily means, the lowest single reading, and
-    the number of weigh-in days. Weeks with no weigh-ins are kept as gaps."""
+    the number of weigh-in days. Weeks with no weigh-ins are kept as gaps.
+
+    A complete week's mean is its 7-day average. With as_of_today, the
+    still-filling current week uses the 7 days ending today instead of
+    Monday-to-today, so a tracker's last point equals the 7-day average shown
+    on the cards above it."""
     w = weight_daily(start)
     if w.empty:
         return pd.DataFrame(columns=["week", "lb", "low", "n"])
@@ -368,6 +374,9 @@ def weight_weekly(start: str = "") -> pd.DataFrame:
            .groupby("week").agg(lb=("lb", "mean"), low=("low", "min"), n=("lb", "count")))
     wk = wk.reindex(pd.date_range(wk.index.min(), wk.index.max(), freq="W-MON"))
     wk.index.name = "week"
+    monday = this_monday(today)
+    if as_of_today and monday in wk.index:
+        wk.loc[monday, "lb"] = avg_window(w, "lb", pd.Timestamp(today or date.today()))
     return wk.reset_index()
 
 
@@ -407,13 +416,14 @@ def weight_goals() -> list[dict]:
     return out
 
 
-def body_fat_estimate_weekly(start: str = "") -> pd.DataFrame:
+def body_fat_estimate_weekly(start: str = "", as_of_today: bool = False) -> pd.DataFrame:
     """Per week: the body fat implied by that week's 7-day-average weight if
     lean and bone mass are unchanged since the most recent DEXA scan on or
     before that week (the same assumption the weight goals make, so reaching a
     goal weight and reaching its body fat line coincide). Weeks before the
-    first scan get no estimate. Columns: week, pct (fraction), scan_date."""
-    w = weight_weekly(start)
+    first scan get no estimate. Columns: week, pct (fraction), scan_date.
+    as_of_today: see weight_weekly."""
+    w = weight_weekly(start, as_of_today=as_of_today)
     scans = dexa_scans()
     scans = scans[scans["lean"].notna()] if not scans.empty else scans
     rows = []
