@@ -142,3 +142,21 @@ def test_render_goals_on_empty_db(empty_db, fake_clinical, monkeypatch):
 def test_render_goals_on_empty_db_without_goals(empty_db, fake_clinical_no_goals,
                                                 monkeypatch):
     _render(empty_db, fake_clinical_no_goals, monkeypatch)
+
+
+def test_to_goal_shows_complete_never_negative(fake_clinical):
+    gv = _helpers()
+    assert gv._left(-16) == "Complete"
+    assert gv._left(0) == "Complete"
+    assert gv._left(15.06, "{:.1f}", "lb") == "15.1 <small>lb</small>"
+    assert gv._left(0.03, "{:.1f}") == "<1"
+    assert gv._left_plain(-2) == "complete"
+    assert gv._left_plain(12.3) == "12.3 lb to go"
+
+
+def test_bp_to_goal_card(fake_clinical):
+    gv = _helpers()
+    met = gv._bp_to_goal_card({"sys": 116.6, "dia": 76.2}, 120, 80)
+    assert ">Complete<" in met and "-" not in met.split("cardval")[1].split("</div>")[0]
+    half = gv._bp_to_goal_card({"sys": 121.0, "dia": 76.0}, 120, 80)
+    assert "systolic 2 mmHg to go" in half and "diastolic complete" in half
