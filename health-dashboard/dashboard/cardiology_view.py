@@ -536,6 +536,21 @@ def _lipid_history_fig(q: pd.DataFrame, lip: pd.DataFrame, end_ts) -> "go.Figure
     return fig
 
 
+def _only_ldl_goal(fig) -> "go.Figure":
+    """Report figures draw the physician's LDL target (70) and stretch (50);
+    the dashboard tracks one goal, < 50. Drop the target line and its label and
+    relabel the stretch line as the goal."""
+    target = [a for a in fig.layout.annotations if (a.text or "").startswith("LDL target")]
+    ys = {a.y for a in target}
+    fig.layout.annotations = [a for a in fig.layout.annotations if a not in target]
+    fig.layout.shapes = [sh for sh in fig.layout.shapes
+                         if not (sh.type == "line" and sh.y0 in ys and sh.y0 == sh.y1)]
+    for a in fig.layout.annotations:
+        if (a.text or "").startswith("LDL stretch"):
+            a.text = f"LDL goal <{a.text.split()[-1]}"
+    return fig
+
+
 def _render_lipid_history(q, lip, end_ts):
     st.markdown("## Lipid response to therapy × exercise")
     st.caption("Three panels on one timeline: LDL-C and ApoB draws (top, with the goal lines), the "
@@ -649,7 +664,7 @@ def render_cardiology():
                 if not label.startswith(_REPORT_DETAIL_KEEP):
                     continue
                 st.markdown(f"### {label}")
-                lib.chart(lib.restyle_report_fig(fig, 560 if label.startswith("Weekly") else 300),
+                lib.chart(_only_ldl_goal(lib.restyle_report_fig(fig, 560 if label.startswith("Weekly") else 300)),
                           f"cardio_detail_{i}")
 
     # ---- medications -----------------------------------------------------

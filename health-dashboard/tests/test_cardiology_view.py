@@ -330,3 +330,16 @@ def test_lipid_history_split_into_panels(fake_clinical, monkeypatch):
     lanes = {t.y[0] for t in fig.data if t.yaxis == "y2"}
     assert "Fakenicar" not in lanes
     assert not [a for a in fig.layout.annotations if a.yref == "paper"]   # no event labels on the plot
+
+
+def test_report_figures_show_only_the_ldl_goal():
+    import plotly.graph_objects as go
+
+    import dashboard.cardiology_view as cardiology_view
+
+    fig = go.Figure(go.Scatter(x=[1, 2], y=[80, 40]))
+    fig.add_hline(y=70, annotation_text="LDL target 70")
+    fig.add_hline(y=50, annotation_text="LDL stretch 50")
+    fig = cardiology_view._only_ldl_goal(fig)
+    assert [a.text for a in fig.layout.annotations] == ["LDL goal <50"]
+    assert [sh.y0 for sh in fig.layout.shapes] == [50]
