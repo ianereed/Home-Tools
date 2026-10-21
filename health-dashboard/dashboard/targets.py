@@ -69,15 +69,13 @@ def ldl_goal(goals: dict | None) -> int | None:
     return ldl.get("stretch") or ldl.get("target")
 
 
-def weight_band_lb(goals: dict | None) -> tuple[float, float] | None:
-    """(low, high) goal band in lb from the baseline and lose-range, or None."""
-    w = (goals or {}).get("weight") or {}
-    if not w.get("baseline_kg") or w.get("lose_lb_min") is None or w.get("lose_lb_max") is None:
-        return None
-    base = w["baseline_kg"] * KG_TO_LB
-    return base - w["lose_lb_max"], base - w["lose_lb_min"]
+# --- Body-fat goals (from the latest DEXA scan) -------------------------------
+# Weight goals are the scale weight at which the latest DEXA's lean and bone
+# mass would sit at this body fat, with no lean or bone lost. Body fat uses the
+# scan's own definition: fat / (fat + lean soft tissue).
+BODY_FAT_GOALS = (("Goal 1", 0.24), ("Goal 2", 0.20))
 
 
-def weight_baseline_lb(goals: dict | None) -> float | None:
-    w = (goals or {}).get("weight") or {}
-    return w["baseline_kg"] * KG_TO_LB if w.get("baseline_kg") else None
+def weight_at_body_fat(lean: float, bone: float, pct: float) -> float:
+    """Total mass with `lean` and `bone` unchanged and fat at `pct` of fat + lean (any unit)."""
+    return lean / (1 - pct) + bone

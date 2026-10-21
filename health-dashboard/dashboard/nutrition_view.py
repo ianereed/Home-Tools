@@ -12,7 +12,6 @@ from __future__ import annotations
 import json
 import os
 import sqlite3
-import sys
 from datetime import date, datetime, timedelta
 
 import pandas as pd
@@ -62,18 +61,6 @@ def load_payload(run_id: int) -> dict:
         return json.loads(conn.execute("SELECT payload_json FROM fuel_plan_runs WHERE id = ?", (run_id,)).fetchone()[0])
     finally:
         conn.close()
-
-
-def _cardio_goals() -> dict | None:
-    """Physician goals when the out-of-git clinical module is on this host; None elsewhere."""
-    cardio = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "cardiology")
-    if os.path.exists(os.path.join(cardio, "clinical_data.py")) and cardio not in sys.path:
-        sys.path.insert(0, cardio)
-    try:
-        import clinical_data as CD
-    except ImportError:
-        return None
-    return getattr(CD, "CARDIO_GOALS", None)
 
 
 def request_refresh() -> None:
@@ -315,22 +302,19 @@ def _weight_section():
         fig.add_trace(go.Scatter(x=pd.to_datetime(dexa["timestamp"]), y=dexa["weight_kg"] * KG_LB,
                                  mode="markers", name="DEXA",
                                  marker=dict(symbol="diamond", size=10, color=lib.INK)))
-    goals = _cardio_goals()
-    band, base = T.weight_band_lb(goals), T.weight_baseline_lb(goals)
-    if band:
-        fig.add_hrect(y0=band[0], y1=band[1], fillcolor=lib.GOOD, opacity=0.07, line_width=0,
-                      annotation_text="goal", annotation_position="top left")
-    if base:
-        fig.add_hline(y=base, line_dash="dot", line_color=lib.MUTED, line_width=1,
-                      annotation_text="baseline", annotation_position="bottom right")
+    wgoals = M.weight_goals()
+    for g, dash in zip(wgoals, ("dash", "dot")):
+        fig.add_hline(y=g["lb"], line_dash=dash, line_color=lib.GOOD, opacity=0.8,
+                      annotation_text=f'{g["label"].lower()} · {g["pct"] * 100:.0f}% fat · {g["lb"]:.1f}',
+                      annotation_position="bottom right", annotation_font_size=10,
+                      annotation_font_color=lib.GOOD)
     # open on recent months; older (sparse, pre-scale) readings are a zoom-out away
     end = pd.Timestamp(date.today())
     fig.update_xaxes(range=[end - pd.Timedelta(days=120), end + pd.Timedelta(days=3)])
     recent = w[w["date"] >= end - pd.Timedelta(days=120)]
     if not recent.empty:
-        lo_y = min(recent["low"].min(), band[0] if band else recent["low"].min())
-        hi_y = max(recent["lb"].max(), base or recent["lb"].max())
-        fig.update_yaxes(range=[lo_y - 2, hi_y + 2])
+        lo_y = min([recent["low"].min()] + [g["lb"] for g in wgoals])
+        fig.update_yaxes(range=[lo_y - 2, recent["lb"].max() + 2])
     lib.chart(lib.apply_theme(fig, 260, legend=True), "nu_weight")
     st.caption("Solid = 7-day mean of daily averages; dotted = lowest single reading in the trailing "
                "7 days, the closest to true weight (least water, food and clothing). A dehydrated "
