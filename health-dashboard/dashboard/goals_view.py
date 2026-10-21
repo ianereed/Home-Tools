@@ -14,8 +14,7 @@ must contain no PHI literals — no goal values, medication names, doctor
 names, or lab values. Everything clinical is read from the gitignored
 `cardiology/clinical_data.py` at runtime via getattr with safe fallbacks, and
 app.py only wires this page in when that module exists on the host. The only
-numeric constants here are public references (trial-published PCSK9i response
-range); guideline numbers come from dashboard.targets.
+guideline numbers come from dashboard.targets.
 """
 import os
 import sys
@@ -37,16 +36,14 @@ from dashboard import metrics as M   # noqa: E402
 from dashboard import targets as T   # noqa: E402
 
 # --- Public reference constants (no personal values) -------------------------
-# PCSK9-inhibitor add-on LDL response, published trial range (FOURIER-class
-# outcome trials report ~59-63% mean LDL reduction on top of a statin; band
-# widened to 50-65% to absorb regimen nuance). Drawn as a reference range,
-# never as a personal prediction.
-PCSK9I_LDL_REDUCTION = (0.50, 0.65)
 # Standard lipid-panel re-check window after a therapy change (weeks).
 DRAW_WINDOW_WEEKS = (8, 12)
 # Regimen-lane colors (match build_report's statin cyan; teal/pink from
 # lib.COLORWAY for the non-statin lanes).
-_LANE_COLORS = ["#38bdf8", "#5eead4", "#f0abfc"]
+# One color family per medication lane: (dark, light). Successive dose eras in
+# a lane alternate between the two for contrast.
+LANE_PALETTES = [("#1d4ed8", "#60a5fa"), ("#0f766e", "#5eead4"), ("#7e22ce", "#d8b4fe"),
+                 ("#b45309", "#fcd34d"), ("#be123c", "#fda4af"), ("#4d7c0f", "#bef264")]
 
 # =============================================================================
 # Pure helpers (unit-tested with synthetic values; no I/O, no CD access)
@@ -55,8 +52,7 @@ _LANE_COLORS = ["#38bdf8", "#5eead4", "#f0abfc"]
 def _med_lanes(statin_events, medications, statin_name):
     """Build regimen-lane segments for the LDL chart's lower panel.
 
-    Returns a list of dicts: {lane, start, end (None = ongoing), label, frac}
-    where frac in (0, 1] scales the statin segment's opacity by dose. The
+    Returns a list of dicts: {lane, start, end (None = ongoing), label}. The
     statin lane comes from the dose-event history (one segment per dose era);
     every other medication with a start date gets one segment from start to
     its stop date (or ongoing).
@@ -65,15 +61,13 @@ def _med_lanes(statin_events, medications, statin_name):
     events = sorted(
         [(pd.Timestamp(d), mg) for d, mg, *_ in (statin_events or [])],
         key=lambda t: t[0])
-    doses = [mg for _, mg in events if mg] or [1]
-    max_dose = max(doses)
     for i, (start, mg) in enumerate(events):
         if not mg:          # a dose of 0 is a stop event, not a segment
             continue
         end = events[i + 1][0] if i + 1 < len(events) else None
         lanes.append({
             "lane": statin_name or "statin", "start": start, "end": end,
-            "label": f"{int(mg)} mg", "frac": 0.3 + 0.7 * (mg / max_dose),
+            "label": f"{int(mg)} mg",
         })
     statin_key = (statin_name or "").lower()
     for m in medications or []:
@@ -84,27 +78,9 @@ def _med_lanes(statin_events, medications, statin_name):
         lanes.append({
             "lane": display, "start": pd.Timestamp(m["start"]),
             "end": pd.Timestamp(m["stop"]) if m.get("stop") else None,
-            "label": f'{display} {m.get("dose", "")}'.strip(), "frac": 1.0,
+            "label": f'{display} {m.get("dose", "")}'.strip(),
         })
     return lanes
-
-
-def _projection(latest_ldl, medications, lo_hi=PCSK9I_LDL_REDUCTION):
-    """Expected LDL range (lo, hi) on the current regimen, or None.
-
-    Drawn only when an ACTIVE, started medication is a PCSK9 inhibitor (per
-    its purpose text) — the one drug class with a large, well-published
-    response range. Values derive from the latest draw at runtime; the only
-    constants are the public trial percentages.
-    """
-    if latest_ldl is None or pd.isna(latest_ldl):
-        return None
-    for m in medications or []:
-        purpose = (m.get("purpose") or "").lower()
-        status = (m.get("status") or "").lower()
-        if "pcsk9" in purpose and m.get("start") and status.startswith("active"):
-            return (latest_ldl * (1 - lo_hi[1]), latest_ldl * (1 - lo_hi[0]))
-    return None
 
 
 def _next_injection(medications, today):
@@ -309,7 +285,7 @@ def _render_levers(goals, lip, today):
 # Goal 1 — LDL trajectory × regimen (section ②)
 # =============================================================================
 
-def _time_marker(fig, x, text, color, dash, opacity=0.5, xanchor="left"):
+def _time_marker(fig, x, text, color, dash, opacity=0.5, xanchor="left", yshift=0):
     """Full-height vertical time marker (today / deadline).
 
     Not add_vline: with an annotation on a date x-axis, plotly's axis-spanning-
@@ -321,8 +297,60 @@ def _time_marker(fig, x, text, color, dash, opacity=0.5, xanchor="left"):
     fig.add_shape(type="line", x0=x, x1=x, y0=0, y1=1, xref="x", yref="paper",
                   line=dict(color=color, dash=dash, width=1), opacity=opacity)
     fig.add_annotation(x=x, y=1.0, xref="x", yref="paper", yanchor="bottom",
-                       text=text, showarrow=False, xanchor=xanchor,
+                       text=text, showarrow=False, xanchor=xanchor, yshift=yshift,
                        font=dict(size=10, color=color))
+
+
+def draw_med_lanes(fig, lanes, row, today, ongoing_to=None):
+    """Draw regimen lanes (from _med_lanes) in `row`: one color family per
+    medication, alternating dark/light across its dose eras, dose labels inside
+    wide-enough segments, lane names on the right. An ongoing segment is solid
+    to today, then dotted to `ongoing_to` when given."""
+    # a medication keeps its color on every chart: palette by its place in the
+    # record (statin first), not by which lanes this chart happens to show
+    statin = getattr(CD, "STATIN", None) or "statin"
+    order = [statin] + [m.get("brand") or m.get("name") for m in getattr(CD, "MEDICATIONS", [])
+                        if statin.lower() not in (m.get("name") or "").lower()]
+    order += [seg["lane"] for seg in lanes if seg["lane"] not in order]
+    order = list(dict.fromkeys(order))
+    era = {}
+    for seg in lanes:
+        dark, light = LANE_PALETTES[order.index(seg["lane"]) % len(LANE_PALETTES)]
+        n = era.get(seg["lane"], 0)
+        era[seg["lane"]] = n + 1
+        color = dark if n % 2 == 0 else light
+        end = seg["end"] if seg["end"] is not None else today
+        fig.add_trace(go.Scatter(
+            x=[seg["start"], end], y=[seg["lane"]] * 2, mode="lines",
+            line=dict(width=13, color=color), showlegend=False,
+            hovertemplate=f'{seg["lane"]} · {seg["label"]}<br>%{{x|%Y-%m-%d}}<extra></extra>'),
+            row=row, col=1)
+        if seg["end"] is None and ongoing_to is not None and ongoing_to > end:
+            fig.add_trace(go.Scatter(
+                x=[end, ongoing_to], y=[seg["lane"]] * 2, mode="lines",
+                line=dict(width=2, color=color, dash="dot"), showlegend=False, hoverinfo="skip"),
+                row=row, col=1)
+        if (end - seg["start"]).days > 110:
+            text = seg["label"].replace(seg["lane"], "").strip() or seg["label"]
+            fig.add_annotation(x=seg["start"] + (end - seg["start"]) / 2, y=seg["lane"], text=text,
+                               showarrow=False, font=dict(size=9, color="#ffffff" if color == dark else "#0e1117"),
+                               row=row, col=1)
+    fig.update_yaxes(showgrid=False, tickfont=dict(size=11), autorange="reversed", side="right", automargin=True,
+                     row=row, col=1)
+
+
+def add_ldl_goal_line(fig, goals, row=1):
+    """The single LDL goal line (the stretch goal, < 50)."""
+    goal = T.ldl_goal(goals)
+    if goal is not None:
+        fig.add_hline(y=goal, line_dash="dash", line_color=lib.GOOD, opacity=0.85, row=row, col=1,
+                      annotation_text=f"LDL goal <{goal}", annotation_position="top left",
+                      annotation_font_size=10, annotation_font_color=lib.GOOD)
+
+
+def add_zero_line(fig, row=1):
+    """A solid baseline at 0 mg/dL: the floor of the lipid panel, above the lanes."""
+    fig.add_hline(y=0, line_color=lib.INK, line_width=1.5, opacity=0.7, row=row, col=1)
 
 
 def _ldl_figure(lip, goals, today):
@@ -349,7 +377,8 @@ def _ldl_figure(lip, goals, today):
             x=apo["date"], y=apo["apob"], name="ApoB",
             mode="lines+markers", line=dict(color=lib.SERIES["apob"], width=1.5, dash="dot"),
             marker=dict(size=6)), row=1, col=1)
-    br.add_ldl_goal_lines(fig, row=1, col=1)
+    add_ldl_goal_line(fig, goals)
+    add_zero_line(fig)
 
     # -- today + deadline verticals --
     _time_marker(fig, today, "today", lib.MUTED, "dot", opacity=0.5,
@@ -358,59 +387,23 @@ def _ldl_figure(lip, goals, today):
         # right-anchored: the deadline sits near the plot's right edge, so the
         # label must extend left of the line or it clips off-plot
         _time_marker(fig, deadline, f"goal · {deadline:%b %Y}", lib.GOOD, "dash",
-                     opacity=0.8, xanchor="right")
-
-    # -- expected-response band (public trial range, never a promise) --
-    latest_ldl = lip["ldl"].dropna().iloc[-1] if lip["ldl"].notna().any() else None
-    proj = _projection(latest_ldl, getattr(CD, "MEDICATIONS", []))
-    if proj:
-        fig.add_shape(type="rect", x0=today, x1=x_end, y0=proj[0], y1=proj[1],
-                      fillcolor=lib.ACCENT, opacity=0.14, line_width=0, row=1, col=1)
-        # Short on-chart label; the full published-range explanation lives in
-        # the caption below the chart (the band is narrow — deadline minus
-        # today — so long text would clip at the plot edge).
-        fig.add_annotation(
-            x=today, y=proj[1], xanchor="left",
-            text="expected range", showarrow=False, yshift=10,
-            font=dict(size=10, color=lib.ACCENT), row=1, col=1)
+                     opacity=0.8, xanchor="right", yshift=13)
 
     # -- regimen lanes (bottom row, shared x-axis) --
-    lane_order = []
-    for seg in lanes:
-        if seg["lane"] not in lane_order:
-            lane_order.append(seg["lane"])
-        solid_end = seg["end"] if seg["end"] is not None else today
-        lane_color = _LANE_COLORS[lane_order.index(seg["lane"]) % len(_LANE_COLORS)]
-        color = lib.rgba(lane_color, seg["frac"] * 0.85)
-        fig.add_trace(go.Scatter(
-            x=[seg["start"], solid_end], y=[seg["lane"]] * 2, mode="lines",
-            line=dict(width=12, color=color), showlegend=False,
-            hovertemplate=f'{seg["label"]}<br>%{{x|%Y-%m-%d}}<extra></extra>'),
-            row=2, col=1)
-        if seg["end"] is None:      # ongoing → dotted continuation to the deadline
-            fig.add_trace(go.Scatter(
-                x=[solid_end, x_end], y=[seg["lane"]] * 2, mode="lines",
-                line=dict(width=2, color=color, dash="dot"), showlegend=False,
-                hoverinfo="skip"), row=2, col=1)
-        span_days = ((seg["end"] or x_end) - seg["start"]).days
-        if span_days > 90:          # label only segments wide enough to carry text
-            fig.add_annotation(
-                x=seg["start"] + pd.Timedelta(days=span_days / 2), y=seg["lane"],
-                text=seg["label"], showarrow=False,
-                # sit labels just above the lane so ongoing (dotted) segments
-                # don't get text drawn over the dashes
-                yshift=11 if seg["end"] is None else 0,
-                font=dict(size=9, color=lib.INK), row=2, col=1)
+    draw_med_lanes(fig, lanes, 2, today, ongoing_to=x_end)
 
     x_start = lip["date"].min() if not lip.empty else today - pd.Timedelta(days=365)
     if lanes:
         x_start = min(x_start, min(s["start"] for s in lanes))
     fig.update_xaxes(range=[x_start - pd.Timedelta(days=45),
                             x_end + pd.Timedelta(days=30)])
-    fig.update_yaxes(title_text="mg/dL", row=1, col=1)
-    fig.update_yaxes(showgrid=False, tickfont=dict(size=10), autorange="reversed",
-                     row=2, col=1)
-    return lib.apply_theme(fig, 500, legend=True)
+    top = max(lip["ldl"].max() if not lip.empty else 100,
+              lip["apob"].max() if lip["apob"].notna().any() else 0)
+    fig.update_yaxes(title_text="mg/dL", range=[0, top * 1.15], row=1, col=1)
+    fig = lib.apply_theme(fig, 500, legend=True)
+    # room for the today/deadline labels above and the lane names on the right
+    fig.update_layout(margin=dict(l=8, r=8, t=42, b=8))
+    return fig
 
 
 def _render_ldl_section(lip, goals, today):
@@ -442,13 +435,11 @@ def _render_ldl_section(lip, goals, today):
     lib.cards(tiles)
 
     lib.chart(_ldl_figure(lip, goals, today), "goals_ldl")
-    st.caption("Rose = LDL-C draws · amber = ApoB · lanes = medication regimen on the "
-               "same time axis (opacity tracks dose; dotted = ongoing). The blue band "
-               "is the published PCSK9-inhibitor response range applied to the latest "
-               "draw — a reference, not a prediction; it ignores the concurrent statin "
-               "step-down and any bridge therapy between draws. Exercise stays off "
-               "this chart deliberately: medication owns this goal, lifestyle owns "
-               "Goal 2.")
+    st.caption("Rose = LDL-C draws · amber = ApoB · dashed green = the LDL goal (<50) · solid "
+               "line = 0 mg/dL. Lanes = medication regimen on the same time axis: one color per "
+               "medication, alternating shades at each dose change; dotted = ongoing to the "
+               "deadline. Exercise stays off this chart deliberately: medication owns this goal, "
+               "lifestyle owns Goal 2.")
 
 
 # =============================================================================
@@ -848,7 +839,6 @@ def render_goals():
     _render_lever_trackers(today)
     _render_weekly_review(today)
 
-    st.caption("Honesty rules: the LDL band is a published trial range, never a "
-               "personal prediction; pace lines are arithmetic (gap ÷ weeks left), "
+    st.caption("Honesty rules: pace lines are arithmetic (gap ÷ weeks left), "
                "not forecasts; coverage counts stop absent data from reading as "
                "good behavior. History lives on Cardiology, Training and Nutrition.")
