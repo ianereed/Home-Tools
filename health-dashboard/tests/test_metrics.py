@@ -35,11 +35,30 @@ class TestWeight:
         assert w["lb"] == pytest.approx(81.0 * T.KG_TO_LB)
         assert w["latest_lb"] == pytest.approx(80.0 * T.KG_TO_LB) and w["age_days"] == 2
 
+    def test_low_is_the_lowest_single_reading_in_seven_days(self, conn):
+        # two readings on the 19th (morning low, evening high): the mean uses the
+        # day's average, the low uses the single lowest reading
+        _rows(conn, "INSERT INTO body_weight (timestamp, weight_kg, source) VALUES (?,?,'garmin')",
+              [("2026-10-19T07:00:00", 79.0), ("2026-10-19T21:00:00", 81.0),
+               ("2026-10-17T07:00:00", 80.5), ("2026-10-10T07:00:00", 70.0)])   # 11 days ago: outside
+        w = M.weight_now(TODAY)
+        assert w["lb"] == pytest.approx((80.0 + 80.5) / 2 * T.KG_TO_LB)
+        assert w["low_lb"] == pytest.approx(79.0 * T.KG_TO_LB)
+        assert w["low_date"] == pd.Timestamp("2026-10-19")
+
+    def test_rolling_low_is_a_seven_calendar_day_minimum(self):
+        df = pd.DataFrame({"date": pd.to_datetime(["2026-10-01", "2026-10-03", "2026-10-09", "2026-10-30"]),
+                           "low": [80.0, 79.0, 81.0, 78.0]})
+        out = M.rolling_low(df, "low").tolist()
+        assert out[:3] == [80.0, 79.0, 79.0]      # Oct 3 still inside Oct 9's 7-day window
+        assert pd.isna(out[3])                     # a 21-day gap breaks the line
+
     def test_falls_back_to_latest_and_flags_stale(self, conn):
         _rows(conn, "INSERT INTO body_weight (timestamp, weight_kg, source) VALUES (?,?,'garmin')",
               [("2026-08-11T07:00:00", 85.0)])
         w = M.weight_now(TODAY)
         assert w["stale"] and w["basis"] == "latest" and w["age_days"] == 71
+        assert w["low_lb"] == pytest.approx(85.0 * T.KG_TO_LB)
 
 
 class TestBloodPressure:

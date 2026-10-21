@@ -245,8 +245,7 @@ def _body(p: dict):
     ftp = (p.get("athlete") or {}).get("ftp_w")
     w = M.weight_now()
     kg = w["lb"] / KG_LB if w else dexa.get("total_mass_kg")
-    _metrics([("Weight", f"{w['lb']:.1f} lb" if w else "—",
-               f"{w['basis']} · latest {w['latest_lb']:.1f}, {w['age_days']} d ago" if w else "no weigh-ins"),
+    _metrics([("Weight", lib.weight_value(w) if w else "—", lib.weight_basis(w) if w else "no weigh-ins"),
               ("Body fat", f"{dexa.get('tissue_fat_pct')}%" if dexa.get("tissue_fat_pct") else "—",
                f"DEXA {dexa.get('date', '')}"),
               ("Lean mass", f"{dexa.get('lean_mass_kg', 0) * KG_LB:.0f} lb" if dexa.get("lean_mass_kg") else "—",
@@ -307,7 +306,9 @@ def _weight_section():
     fig.add_trace(go.Scatter(x=w["date"], y=w["lb"], mode="markers", name="Daily mean",
                              marker=dict(color=lib.SERIES["weight"], size=5, opacity=0.5)))
     fig.add_trace(go.Scatter(x=w["date"], y=M.rolling_avg(w, "lb"), mode="lines", connectgaps=False,
-                             name="7-day avg", line=dict(color=lib.SERIES["weight"], width=2)))
+                             name="7-day mean", line=dict(color=lib.SERIES["weight"], width=2)))
+    fig.add_trace(go.Scatter(x=w["date"], y=M.rolling_low(w, "low"), mode="lines", connectgaps=False,
+                             name="7-day low", line=dict(color=lib.SERIES["weight"], width=1.5, dash="dot")))
     dexa = raw[raw["source"] == "dexa"] if not raw.empty else raw
     if not dexa.empty:
         fig.add_trace(go.Scatter(x=pd.to_datetime(dexa["timestamp"]), y=dexa["weight_kg"] * KG_LB,
@@ -321,7 +322,18 @@ def _weight_section():
     if base:
         fig.add_hline(y=base, line_dash="dot", line_color=lib.MUTED, line_width=1,
                       annotation_text="baseline", annotation_position="bottom right")
+    # open on recent months; older (sparse, pre-scale) readings are a zoom-out away
+    end = pd.Timestamp(date.today())
+    fig.update_xaxes(range=[end - pd.Timedelta(days=120), end + pd.Timedelta(days=3)])
+    recent = w[w["date"] >= end - pd.Timedelta(days=120)]
+    if not recent.empty:
+        lo_y = min(recent["low"].min(), band[0] if band else recent["low"].min())
+        hi_y = max(recent["lb"].max(), base or recent["lb"].max())
+        fig.update_yaxes(range=[lo_y - 2, hi_y + 2])
     lib.chart(lib.apply_theme(fig, 260, legend=True), "nu_weight")
+    st.caption("Solid = 7-day mean of daily averages; dotted = lowest single reading in the trailing "
+               "7 days, the closest to true weight (least water, food and clothing). A dehydrated "
+               "post-ride weigh-in can pull the low down.")
 
 
 def _body_composition_section():

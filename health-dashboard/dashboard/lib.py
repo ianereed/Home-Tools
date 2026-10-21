@@ -198,6 +198,20 @@ def cards(items: list[str], cols3: bool = False):
     st.markdown(f'<div class="{cls}">{"".join(items)}</div>', unsafe_allow_html=True)
 
 
+def weight_value(w: dict) -> str:
+    """Card value for weight: the 7-day mean and the 7-day lowest reading, side by side."""
+    return (f'{w["lb"]:.1f} <small>lb mean</small> &nbsp;·&nbsp; '
+            f'{w["low_lb"]:.1f} <small>low</small>')
+
+
+def weight_basis(w: dict) -> str:
+    """Card sub-line: what the two weight numbers cover."""
+    if w["stale"]:
+        return f'last weigh-in {w["age_days"]} d ago'
+    return (f'last 7 days ({w["n"]} weigh-in days) · low on {w["low_date"]:%b %-d} · '
+            f'latest {w["latest_lb"]:.1f}, {w["age_days"]} d ago')
+
+
 def fmt(v, pattern: str = "{:.0f}", dash: str = "—") -> str:
     return dash if v is None or pd.isna(v) else pattern.format(v)
 
