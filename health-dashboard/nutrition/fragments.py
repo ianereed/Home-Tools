@@ -130,7 +130,10 @@ def notes_html(day: dict, energy: dict, meals: dict | None) -> str:
 
 
 def bar_row(label: str, value: float | None, target: float, unit: str, ceiling: bool = False) -> str:
-    """value vs target; ceiling=True means the target is a limit (over = amber)."""
+    """value vs target; ceiling=True means the target is a limit (over = amber). target None = shown, no bar."""
+    if target is None:
+        return (f'<div class="fuel-row"><span>{esc(label)}</span><div class="fuel-bar"><span style="width:0"></span></div>'
+                f'<span class="v">{"—" if value is None else g(value)} {unit}</span></div>')
     if value is None:
         return (f'<div class="fuel-row"><span>{esc(label)}</span><div class="fuel-bar"><span style="width:0"></span></div>'
                 f'<span class="v">— / {g(target)} {unit}</span></div>')

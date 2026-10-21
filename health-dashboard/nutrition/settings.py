@@ -23,7 +23,7 @@ DEFAULTS = {
     "earliest_ride": "09:00",
     "pace_schedule": [["2026-10-14", 0.75], ["2026-11-21", 1.0]],
     "paces": [0, 0.5, 0.75, 1.0, 1.5],       # comparison paces shown alongside the plan
-    "limits": {"sodium_mg": 2300, "cholesterol_mg": 300, "satfat_pct": 0.06},
+    "limits": {"sodium_mg": 2300, "cholesterol_mg": None, "satfat_pct": 0.06},  # cholesterol None = display-only
     "travel_rules": [],                      # [{"match": "<location substring>", "pre_min": 60}]
     "calendar_rules": {
         "trip_keywords": ["bike packing", "bikepacking", "camping"],

@@ -106,8 +106,25 @@ def test_full_plan_respects_limits():
     s = _snap(days=14)
     res = E.run(s, [0.75])
     for (ds, m), tot in zip(res["plans"][0.75]["meals"], res["plans"][0.75]["totals"]):
-        assert tot["chol"] <= 300.5, ds
         assert tot["na"] <= 2300.5, ds
+    energy = res["plans"][0.75]["energy"]
+    assert all(e["chol_max_mg"] is None for e in energy)                       # display-only by default
+    assert not [f for m in res["plans"][0.75]["meals"] for f in m[1].get("flags", []) if "cholesterol" in f]
+
+
+def test_cholesterol_limit_from_settings_is_enforced():
+    s = _snap(days=14, settings={"limits": {"cholesterol_mg": 300}})
+    res = E.run(s, [0.75])
+    assert all(e["chol_max_mg"] == 300 for e in res["plans"][0.75]["energy"])
+    for (ds, m), tot in zip(res["plans"][0.75]["meals"], res["plans"][0.75]["totals"]):
+        assert tot["chol"] <= 300.5, ds
+
+
+def test_bar_row_without_target_shows_value_only():
+    from nutrition import fragments as H
+    html = H.bar_row("Cholesterol", 412, None, "mg", ceiling=True)
+    assert "412 mg" in html and " / " not in html and "over" not in html
+    assert "— mg" in H.bar_row("Cholesterol", None, None, "mg")
 
 
 # ---------------- meal timing ----------------

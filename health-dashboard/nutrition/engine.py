@@ -42,7 +42,7 @@ KCAL_PER_LB = 3500
 FIBER_MIN = 25
 SODIUM_CEIL = 2300
 SATFAT_PCT = 0.06
-CHOL_MAX = 300
+CHOL_MAX = None  # display-only unless settings limits.cholesterol_mg sets a number
 
 EARLIEST_RIDE = "09:00"
 PREFERRED_RIDE = "10:00"
@@ -546,7 +546,7 @@ def plan_energy(days: list[dict], snap: dict, pace_lb_wk) -> list[dict]:
         r.update({"kcal": kcal, "deficit": r["tdee"] - kcal, "protein_g": P, "carb_g": C, "fat_g": Fg,
                   "fuel_tomorrow_g": bonus, "fiber_target": max(FIBER_MIN, 14 * kcal / 1000),
                   "satfat_max_g": limits["satfat_pct"] * kcal / 9, "sodium_max_mg": limits["sodium_mg"],
-                  "chol_max_mg": limits["cholesterol_mg"], "flags": flags, "carb_g_per_kg": C / kg})
+                  "chol_max_mg": limits.get("cholesterol_mg"), "flags": flags, "carb_g_per_kg": C / kg})
         r["logged_goal"] = logged_goal(r, day, b, P, kg, bonus)
     return rows
 
@@ -851,23 +851,24 @@ def _substitute(meal: dict, subs: dict) -> dict | None:
     return {**meal, "fixed": fixed, "levers": levers, "id": meal["id"] + "~sub"}
 
 
-LIMIT_CHECKS = [  # (key, nutrient, label, limit(energy)->float)
+LIMIT_CHECKS = [  # (key, nutrient, label, limit(energy)->float | None; None = no limit)
     ("sodium", "na", "food sodium", lambda e: e.get("sodium_max_mg", SODIUM_CEIL)),
-    ("chol", "chol", "cholesterol", lambda e: e.get("chol_max_mg", CHOL_MAX)),
+    ("chol", "chol", "cholesterol", lambda e: e.get("chol_max_mg")),
     ("satfat", "sat", "saturated fat", lambda e: e.get("satfat_max_g", SATFAT_PCT * e["kcal"] / 9)),
     ("fiber", "fiber", "fiber", lambda e: F.FIBER_SOFT_MAX),
 ]
 
 
 def enforce_limits(out_slots: list[dict], energy: dict, used: set, max_iter: int = 8) -> list[str]:
-    """Keep the planned (home) meals inside the day's limits: food sodium, cholesterol, sat fat, and a
-    fiber ceiling. First try ingredient substitutions (cholesterol), then swap the meal contributing most
+    """Keep the planned (home) meals inside the day's limits: food sodium, cholesterol (only when a limit is
+    set), sat fat, and a fiber ceiling. First try ingredient substitutions (cholesterol), then swap the meal contributing most
     for the option that contributes least. Returns flags for anything still over."""
     def total(nut):
         return sum(e["meal"]["nutrients"][nut] for e in out_slots if "meal" in e)
 
     for _ in range(max_iter):
-        over = [(key, nut, label, lim(energy)) for key, nut, label, lim in LIMIT_CHECKS if total(nut) > lim(energy) + 0.5]
+        over = [(key, nut, label, lim(energy)) for key, nut, label, lim in LIMIT_CHECKS
+                if lim(energy) is not None and total(nut) > lim(energy) + 0.5]
         if not over:
             break
         key, nut, label, limit = over[0]
@@ -899,7 +900,7 @@ def enforce_limits(out_slots: list[dict], energy: dict, used: set, max_iter: int
             break
     flags = []
     for key, nut, label, lim in LIMIT_CHECKS:
-        if total(nut) > lim(energy) + 0.5:
+        if lim(energy) is not None and total(nut) > lim(energy) + 0.5:
             flags.append(f"planned meals still over the {label} limit ({total(nut):.0f} vs {lim(energy):.0f})")
     return flags
 
