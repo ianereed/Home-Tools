@@ -450,7 +450,6 @@ def _render_bp_am_pm(bp: pd.DataFrame):
                    "line is the 3-hour average, the shape of your day.")
 
 
-_LANE_COLORS = ["#38bdf8", "#5eead4", "#f0abfc", "#fcd34d"]
 _EVENT_COLOR = "#f0abfc"
 
 
@@ -493,25 +492,13 @@ def _lipid_history_fig(q: pd.DataFrame, lip: pd.DataFrame, end_ts) -> "go.Figure
             textfont=dict(size=9, color=lib.SERIES["apob"]),
             line=dict(color=lib.SERIES["apob"], width=1.5, dash="dot"), marker=dict(size=6),
             hovertemplate="%{x|%b %d, %Y} · ApoB %{y:.0f} mg/dL<extra></extra>"), row=1, col=1)
-    ldl = (getattr(CD, "CARDIO_GOALS", None) or {}).get("ldl") or {}
-    for key, dash, word in (("target", "dash", "target"), ("stretch", "dot", "stretch")):
-        if ldl.get(key) is not None:
-            fig.add_hline(y=ldl[key], line_dash=dash, line_color=lib.GOOD, opacity=0.8, row=1, col=1,
-                          annotation_text=f"LDL {word} <{ldl[key]}", annotation_position="bottom left",
-                          annotation_font_size=10, annotation_font_color=lib.GOOD)
+    from dashboard.goals_view import add_ldl_goal_line, add_zero_line, draw_med_lanes
+    add_ldl_goal_line(fig, getattr(CD, "CARDIO_GOALS", None))
+    add_zero_line(fig)
     top = max(lip["ldl"].max(), apo["apob"].max() if not apo.empty else 0)
 
     # ② regimen lanes
-    for seg in lanes:
-        end = seg["end"] if seg["end"] is not None else pd.Timestamp(end_ts)
-        color = lib.rgba(_LANE_COLORS[lane_order.index(seg["lane"]) % len(_LANE_COLORS)], seg["frac"] * 0.85)
-        fig.add_trace(go.Scatter(
-            x=[seg["start"], end], y=[seg["lane"]] * 2, mode="lines", showlegend=False,
-            line=dict(width=11, color=color),
-            hovertemplate=f'{seg["lane"]} · {seg["label"]}<br>%{{x|%Y-%m-%d}}<extra></extra>'), row=2, col=1)
-        if seg["lane"] == lane_order[0] and (end - seg["start"]).days > 75:
-            fig.add_annotation(x=seg["start"] + (end - seg["start"]) / 2, y=seg["lane"], text=seg["label"],
-                               showarrow=False, font=dict(size=9, color=lib.INK), row=2, col=1)
+    draw_med_lanes(fig, lanes, 2, pd.Timestamp(end_ts))
 
     # ③ quarterly exercise intensity
     qq = q.copy()
@@ -543,7 +530,6 @@ def _lipid_history_fig(q: pd.DataFrame, lip: pd.DataFrame, end_ts) -> "go.Figure
 
     fig.update_xaxes(range=[x0, x1])
     fig.update_yaxes(title_text="mg/dL", range=[0, top * 1.2], row=1, col=1)
-    fig.update_yaxes(showgrid=False, tickfont=dict(size=10), autorange="reversed", row=2, col=1)
     fig.update_yaxes(title_text="min/wk", row=3, col=1)
     fig = lib.apply_theme(fig, 640, legend=True)
     fig.update_layout(barmode="overlay", hovermode="closest", legend=dict(y=-0.08))

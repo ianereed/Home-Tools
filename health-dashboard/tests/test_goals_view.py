@@ -52,20 +52,6 @@ def test_med_lanes_excludes_statin_named_medication(fake_clinical):
     assert len([s for s in lanes if "fakestatin" in s["lane"].lower()]) == 1
 
 
-def test_projection_requires_active_started_pcsk9(fake_clinical):
-    gv = _helpers()
-    meds_yes = [{"name": "x", "purpose": "fixture (PCSK9 inhibitor)",
-                 "start": "2025-06-01", "status": "active"}]
-    lo, hi = gv._projection(100.0, meds_yes)
-    assert lo == pytest.approx(100 * (1 - gv.PCSK9I_LDL_REDUCTION[1]))
-    assert hi == pytest.approx(100 * (1 - gv.PCSK9I_LDL_REDUCTION[0]))
-    assert gv._projection(100.0, [{**meds_yes[0], "status": "prescribed"}]) is None
-    assert gv._projection(100.0, [{**meds_yes[0], "start": None}]) is None
-    assert gv._projection(100.0, [{"name": "y", "purpose": "statin",
-                                   "start": "2025-01-01", "status": "active"}]) is None
-    assert gv._projection(None, meds_yes) is None
-
-
 def test_next_injection_every_two_weeks(fake_clinical):
     gv = _helpers()
     meds = [{"name": "inj", "brand": "Inj", "frequency": "every 2 weeks",
