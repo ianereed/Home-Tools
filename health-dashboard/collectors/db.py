@@ -339,6 +339,19 @@ def _migrate(conn):
         if col not in ncols:
             conn.execute(f"ALTER TABLE nutrition_daily ADD COLUMN {col} {typ}")
 
+    # Data migrations, one-shot, tracked in PRAGMA user_version.
+    version = conn.execute("PRAGMA user_version").fetchone()[0]
+    if version < 1:
+        # The iPhone receiver used to tag every intraday Apple HR sample
+        # context='resting', which inflated resting HR to ~80 bpm. Apple's
+        # real daily resting value (receiver and full-export import alike) is
+        # stamped at midnight; everything else is an intraday sample.
+        conn.execute(
+            "UPDATE heart_rate SET context = 'intraday' "
+            "WHERE source = 'apple' AND context = 'resting' "
+            "AND substr(timestamp, 11) != 'T00:00:00'")
+        conn.execute("PRAGMA user_version = 1")
+
 
 if __name__ == "__main__":
     init_db()

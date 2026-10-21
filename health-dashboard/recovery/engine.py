@@ -10,6 +10,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from collectors.db import get_connection
+from recovery.resting_hr import daily_resting_hr
 
 # Fallback max HR based on age 34 (220 - 34)
 DEFAULT_MAX_HR = 186
@@ -17,11 +18,9 @@ DEFAULT_MAX_HR = 186
 
 def get_resting_hr(conn: sqlite3.Connection) -> float:
     """Get average resting HR from the last 7 days of data."""
-    row = conn.execute(
-        """SELECT AVG(bpm) FROM heart_rate
-           WHERE context = 'resting' AND timestamp >= date('now', '-7 days')"""
-    ).fetchone()
-    return row[0] if row[0] else 60.0
+    since = (date.today() - timedelta(days=7)).isoformat()
+    daily = list(daily_resting_hr(conn, since).values())
+    return sum(daily) / len(daily) if daily else 60.0
 
 
 def get_max_hr(conn: sqlite3.Connection) -> int:
@@ -335,11 +334,7 @@ def get_physiological_status(conn: sqlite3.Connection) -> dict:
         }
 
     # Resting HR analysis
-    rhr_rows = conn.execute(
-        """SELECT timestamp, bpm FROM heart_rate
-           WHERE context = 'resting'
-           ORDER BY timestamp DESC LIMIT 30"""
-    ).fetchall()
+    rhr_rows = list(reversed(daily_resting_hr(conn).items()))[:30]
 
     rhr_status = {"value": None, "baseline": None, "trend": "unknown", "color": "gray"}
     if len(rhr_rows) >= 2:
