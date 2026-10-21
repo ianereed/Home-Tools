@@ -10,10 +10,13 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from collectors.db import get_connection
+from dashboard.targets import HRMAX
 from recovery.resting_hr import daily_resting_hr
 
-# Fallback max HR based on age 34 (220 - 34)
-DEFAULT_MAX_HR = 186
+# CTL is a 42-day exponential average: seeding it at zero N days back leaves it
+# at only 1 - e^(-N/42) of its true value. Six months of warm-up brings that
+# residual under 2 %, so every displayed day is a settled value.
+LOAD_WARMUP_DAYS = 180
 
 
 def get_resting_hr(conn: sqlite3.Connection) -> float:
@@ -24,11 +27,9 @@ def get_resting_hr(conn: sqlite3.Connection) -> float:
 
 
 def get_max_hr(conn: sqlite3.Connection) -> int:
-    """Get max HR ever recorded from activities."""
-    row = conn.execute(
-        "SELECT MAX(max_hr) FROM activities WHERE max_hr IS NOT NULL"
-    ).fetchone()
-    return row[0] if row[0] else DEFAULT_MAX_HR
+    """Max HR for TRIMP: the one HRMAX the zones use too (set on the Garmin).
+    MAX(max_hr) across activities is a single sensor spike, not a max."""
+    return HRMAX
 
 
 # ============================================================
@@ -248,9 +249,16 @@ def get_current_fatigue(conn: sqlite3.Connection) -> dict:
 # Component 2: Fitness-Fatigue (CTL / ATL / TSB)
 # ============================================================
 
-def calculate_ctl_atl_tsb(conn: sqlite3.Connection, days: int = 60) -> list[dict]:
-    """Calculate CTL (42-day), ATL (7-day), and TSB using exponential weighted averages."""
-    daily_trimp = get_trimp_history(days, conn)
+def calculate_ctl_atl_tsb(conn: sqlite3.Connection, days: int = 60,
+                          warmup_days: int = LOAD_WARMUP_DAYS) -> list[dict]:
+    """CTL (42-day), ATL (7-day) and TSB for the last `days` days, using
+    exponential weighted averages seeded from `warmup_days` of earlier history.
+    Never reaches back before the first recorded activity."""
+    first = conn.execute("SELECT MIN(date) FROM activities WHERE dup_of IS NULL").fetchone()[0]
+    span = days + warmup_days
+    if first:
+        span = min(span, (date.today() - date.fromisoformat(first[:10])).days)
+    daily_trimp = get_trimp_history(max(span, days), conn)
     dates = sorted(daily_trimp.keys())
 
     ctl = 0.0
@@ -272,12 +280,12 @@ def calculate_ctl_atl_tsb(conn: sqlite3.Connection, days: int = 60) -> list[dict
             "tsb": round(tsb, 2),
         })
 
-    return results
+    return results[-(days + 1):]
 
 
-def get_current_tsb(conn: sqlite3.Connection) -> dict:
+def get_current_tsb(conn: sqlite3.Connection, history: list[dict] | None = None) -> dict:
     """Get the current CTL, ATL, and TSB values with interpretation."""
-    history = calculate_ctl_atl_tsb(conn, days=60)
+    history = history if history is not None else calculate_ctl_atl_tsb(conn, days=60)
     if not history:
         return {"ctl": 0, "atl": 0, "tsb": 0, "interpretation": "No data"}
 
@@ -406,10 +414,11 @@ def get_full_recovery_report() -> dict:
     """Generate a complete recovery report with all three models."""
     conn = get_connection()
     try:
+        history = calculate_ctl_atl_tsb(conn, days=60)
         return {
             "fatigue": get_current_fatigue(conn),
-            "tsb": get_current_tsb(conn),
-            "tsb_history": calculate_ctl_atl_tsb(conn, days=60),
+            "tsb": get_current_tsb(conn, history),
+            "tsb_history": history,
             "physio": get_physiological_status(conn),
             "resting_hr": get_resting_hr(conn),
             "max_hr": get_max_hr(conn),

@@ -1,11 +1,11 @@
-"""Cardiology dashboard page.
+"""Cardiology dashboard page: the clinical record and long-term history.
 
-Renders the cardiology dataset (LabCorp lipid/statin history overlaid on the
-wearable activity record) as a native dashboard page. It reuses the figure and
-table builders in `cardiology/build_report.py` so this page and the standalone
-HTML report never drift: Plotly figures are shown with st.plotly_chart, and the
-report's HTML stat-cards / tables are rendered via st.markdown with the report's
-own CSS injected once.
+Labs, therapy × lipids, blood-pressure history and its morning/evening
+analysis, risk markers and life context. Current-vs-target numbers live on
+Goals; weight and body composition on Nutrition; recent sleep, resting HR and
+training on Recovery and Training. It reuses the figure and table builders in
+`cardiology/build_report.py` so this page and the standalone HTML report never
+drift; the report's figures are restyled into the dashboard theme here.
 
 The cardiology module carries PHI (real lipid panels) and is intentionally NOT
 committed to git — it is deployed to the homeserver out of band. app.py only
@@ -28,22 +28,18 @@ if _CARDIO_DIR not in sys.path:
 
 import build_report as br      # noqa: E402  (cardiology/build_report.py)
 import clinical_data as CD     # noqa: E402  (cardiology/clinical_data.py)
-from collectors.db import DB_PATH  # noqa: E402
+import collectors.db as db     # noqa: E402
 from dashboard import lib      # noqa: E402
+from dashboard import metrics as M   # noqa: E402
+from dashboard import targets as T   # noqa: E402
 
 
-# The report's presentation CSS (cards + clinical tables), scoped so it only
-# styles the cardiology page's injected HTML and inherits the dark dashboard bg.
+# Clinical tables and the summary box (cards come from lib.CSS, which also
+# styles the report's stat cards: same .cards/.card markup).
 _CARD_CSS = """
 <style>
 .cardio.summary{background:#10261a;border-left:3px solid #4ade80;padding:12px 16px;
   border-radius:6px;font-size:14px;line-height:1.55;margin:6px 0 14px;}
-.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:14px 0;}
-.card{background:#161b26;border:1px solid #2a2f3a;border-radius:8px;padding:10px 14px;}
-.cardlabel{font-size:11px;color:#8b93a7;text-transform:uppercase;letter-spacing:1px;}
-.cardval{font-size:24px;font-weight:650;margin:2px 0;} .cardval.hi{color:#f87171;}
-.cardsub{font-size:11px;color:#8b93a7;line-height:1.4;}
-.delta{font-size:13px;font-weight:600;} .delta.up{color:#f87171;} .delta.dn{color:#4ade80;}
 table.lipid{border-collapse:collapse;width:100%;font-size:13px;margin:12px 0;}
 table.lipid th,table.lipid td{border:1px solid #2a2f3a;padding:5px 8px;text-align:left;}
 table.lipid th{background:#1a1f2b;} table.lipid td.hi{color:#f87171;font-weight:600;}
@@ -59,7 +55,7 @@ ul.rm{font-size:13px;line-height:1.6;} .meta{color:#8b93a7;font-size:12px;}
 def _frames():
     """Heavy daily->quarter/week aggregation (scans activity_streams). Cached so
     it only runs on first view / after the TTL, not on every Streamlit rerun."""
-    con = sqlite3.connect(DB_PATH)
+    con = sqlite3.connect(db.DB_PATH)
     try:
         cal = br.build_daily_frame(con)          # opens/closes its own apple sidecar
         q = br.reindex_full(br.summarize(cal, "quarter"), "quarter")
@@ -101,111 +97,19 @@ def _lab_table_html(lip: pd.DataFrame) -> str:
     return f"<table class=lipid><thead><tr>{thead}</tr></thead><tbody>{rows}</tbody></table>"
 
 
-def _goal_card_html(label: str, value: str, sub: str, color: str) -> str:
-    return (f'<div class=card><div class=cardlabel>{label}</div>'
-            f'<div class=cardval style="color:{color}">{value}</div>'
-            f'<div class=cardsub>{sub}</div></div>')
-
-
-def _goals_strip_html(lip: pd.DataFrame) -> str:
-    """Three-card goals strip: LDL vs target, BP category, weight vs goal band.
-
-    Gated on CARDIO_GOALS as a whole — with an un-updated PHI file (no
-    CARDIO_GOALS attribute) this returns "" and the page renders exactly as
-    before Phase 1.
-    """
-    goals = getattr(CD, "CARDIO_GOALS", None)
-    if not goals:
-        return ""
-
-    # --- LDL ---
-    ldl_goal = goals.get("ldl", {})
-    target, stretch, unit = ldl_goal.get("target"), ldl_goal.get("stretch"), ldl_goal.get("unit", "mg/dL")
-    latest_ldl = lip.iloc[-1]["ldl"] if not lip.empty else None
-    if latest_ldl is not None and pd.notna(latest_ldl) and target is not None:
-        if latest_ldl < target:
-            color = lib.GOOD
-        elif latest_ldl < 100:
-            color = lib.WARN
-        else:
-            color = lib.BAD
-        ldl_card = _goal_card_html(
-            "LDL-C", f"{int(latest_ldl)} mg/dL",
-            f"target &lt;{target} · stretch &lt;{stretch} {unit}", color)
-    else:
-        ldl_card = _goal_card_html("LDL-C", "—", "no lipid draw yet", lib.MUTED)
-
-    # --- Blood pressure ---
-    since_14d = (datetime.date.today() - datetime.timedelta(days=14)).isoformat()
-    bp14 = lib.load_df(
-        "SELECT systolic, diastolic FROM blood_pressure WHERE timestamp >= ? ORDER BY timestamp",
-        (since_14d,))
-    if not bp14.empty:
-        sys_m, dia_m = bp14["systolic"].mean(), bp14["diastolic"].mean()
-        cat, color = lib.bp_category(sys_m, dia_m)
-        bp_card = _goal_card_html(
-            "Blood pressure", f"{sys_m:.0f}/{dia_m:.0f}",
-            f"{cat} · 14-day mean ({len(bp14)} readings)", color)
-    else:
-        latest_bp = lib.load_df(
-            "SELECT systolic, diastolic, timestamp FROM blood_pressure "
-            "ORDER BY timestamp DESC LIMIT 1")
-        if not latest_bp.empty:
-            r = latest_bp.iloc[0]
-            cat, color = lib.bp_category(r["systolic"], r["diastolic"])
-            bp_card = _goal_card_html(
-                "Blood pressure", f"{int(r['systolic'])}/{int(r['diastolic'])}",
-                f"{cat} · latest ({str(r['timestamp'])[:10]})", color)
-        else:
-            bp_card = _goal_card_html("Blood pressure", "—", "no readings yet", lib.MUTED)
-
-    # --- Weight ---
-    weight_goal = goals.get("weight", {})
-    baseline_kg = weight_goal.get("baseline_kg")
-    lose_min, lose_max = weight_goal.get("lose_lb_min"), weight_goal.get("lose_lb_max")
-    since_7d = (datetime.date.today() - datetime.timedelta(days=7)).isoformat()
-    w7 = lib.load_df(
-        "SELECT weight_kg FROM body_weight WHERE timestamp >= ? ORDER BY timestamp",
-        (since_7d,))
-    if not w7.empty:
-        mean_lb = w7["weight_kg"].mean() * lib.KG_TO_LB
-        if baseline_kg and lose_min is not None and lose_max is not None:
-            baseline_lb = baseline_kg * lib.KG_TO_LB
-            goal_min_lb, goal_max_lb = baseline_lb - lose_max, baseline_lb - lose_min
-            delta_lb = mean_lb - baseline_lb
-            color = lib.GOOD if mean_lb <= goal_max_lb else lib.WARN
-            sub = f"goal {goal_min_lb:.0f}–{goal_max_lb:.0f} lb · Δ{delta_lb:+.1f} lb vs baseline"
-        else:
-            color, sub = lib.MUTED, "7-day mean"
-        weight_card = _goal_card_html("Weight", f"{mean_lb:.1f} lb", sub, color)
-    else:
-        weight_card = _goal_card_html("Weight", "—", "awaiting scale", lib.MUTED)
-
-    return f'<div class=cards>{ldl_card}{bp_card}{weight_card}</div>'
-
-
-def _medications_html() -> str:
-    """One card per current-regimen MEDICATIONS entry. Gated on
-    getattr(CD, "MEDICATIONS", []) — empty/absent renders nothing (backward
-    compatible with an un-updated PHI file). Discontinued therapies stay in
-    MEDICATIONS for the Goals-tab regimen lanes and LDL projection but don't
-    render a card here; prescribed-not-yet-started meds still do."""
-    meds = [m for m in getattr(CD, "MEDICATIONS", [])
-            if not m.get("stop")
-            and not (m.get("status") or "").lower().startswith("discontinued")]
+def _medication_history_html() -> str:
+    """Every recorded medication, current and past, oldest first — the record,
+    not the regimen (current cards are on Goals)."""
+    meds = sorted(getattr(CD, "MEDICATIONS", []), key=lambda m: m.get("start") or "9999")
     if not meds:
         return ""
-    cards = []
-    for m in meds:
-        started = m.get("start")
-        status = m.get("status", "")
-        started_line = f"Started {started} ({status})" if started else f"<b>{status}</b>"
-        sub = (f'{m.get("form", "")} · {m.get("frequency", "")}<br>'
-               f'{started_line}<br>'
-               f'{m.get("prescriber", "")} · {m.get("purpose", "")}')
-        label = f'{m.get("name", "")} ({m.get("brand", "")})' if m.get("brand") else m.get("name", "")
-        cards.append(_goal_card_html(label, m.get("dose", "—"), sub, lib.INK))
-    return f'<div class=cards>{"".join(cards)}</div>'
+    rows = "".join(
+        f'<tr><td>{m.get("name", "")}{" (" + m["brand"] + ")" if m.get("brand") else ""}</td>'
+        f'<td>{m.get("dose", "")} · {m.get("frequency", "")}</td>'
+        f'<td>{m.get("start") or "—"}</td><td>{m.get("stop") or ""}</td>'
+        f'<td class=meta>{m.get("status", "")} · {m.get("purpose", "")}</td></tr>' for m in meds)
+    return ('<table class=lipid><thead><tr><th>Medication</th><th>Dose</th><th>Start</th>'
+            f'<th>Stop</th><th>Status · purpose</th></tr></thead><tbody>{rows}</tbody></table>')
 
 
 def _bp_daypart_stats(bp: pd.DataFrame, window_days: int = 90,
@@ -279,7 +183,11 @@ def _daypart_theme(fig, height):
     return fig
 
 
-_DAYPARTS = (("am", lib.WARN, "Morning"), ("pm", lib.ACCENT, "Afternoon & evening"))
+_DAYPARTS = (("am", "#facc15", "Morning"), ("pm", "#818cf8", "Afternoon & evening"))
+
+
+def _bp_goal() -> tuple[int, int]:
+    return T.bp_goal(getattr(CD, "CARDIO_GOALS", None))
 
 
 def _med_markers(fig, med_starts):
@@ -321,8 +229,8 @@ def _bp_history_fig(bp: pd.DataFrame, med_starts, window_days: int = 3) -> "go.F
     smooth = _bp_daily_smooth(d, window_days)
 
     fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.16)
-    for row, col_, color, stage2 in ((1, "systolic", lib.ACCENT, 140),
-                                     (2, "diastolic", lib.HRV, 90)):
+    for row, col_, color, stage2 in ((1, "systolic", lib.SERIES["sys"], T.BP_STAGE2[0]),
+                                     (2, "diastolic", lib.SERIES["dia"], T.BP_STAGE2[1])):
         fig.add_trace(go.Scatter(
             x=d["timestamp"], y=d[col_], mode="markers", showlegend=False,
             marker=dict(color=color, size=7, opacity=0.55,
@@ -340,10 +248,11 @@ def _bp_history_fig(bp: pd.DataFrame, med_starts, window_days: int = 3) -> "go.F
                            showarrow=False, font=dict(size=10, color=lib.BAD),
                            opacity=0.8, row=row, col=1)
 
-    slo, shi = _yrange([d["systolic"]], 120)
-    dlo, dhi = _yrange([d["diastolic"]], 80)
-    _panel_chrome(fig, 1, "SYSTOLIC — mmHg", 120, slo, shi)
-    _panel_chrome(fig, 2, "DIASTOLIC — mmHg", 80, dlo, dhi)
+    gs, gd = _bp_goal()
+    slo, shi = _yrange([d["systolic"]], gs)
+    dlo, dhi = _yrange([d["diastolic"]], gd)
+    _panel_chrome(fig, 1, "SYSTOLIC — mmHg", gs, slo, shi)
+    _panel_chrome(fig, 2, "DIASTOLIC — mmHg", gd, dlo, dhi)
     _med_markers(fig, med_starts)
     fig.update_layout(hovermode="x unified")
     fig = _daypart_theme(fig, 430)
@@ -358,7 +267,7 @@ def _daypart_weekly_fig(bp: pd.DataFrame, med_starts) -> "go.Figure":
     from plotly.subplots import make_subplots
 
     wk = bp.copy()
-    wk["week"] = wk["timestamp"].dt.to_period("W-SUN").dt.start_time
+    wk["week"] = M.week_start(wk["timestamp"])
     wk["daypart"] = (wk["timestamp"].dt.hour < 12).map({True: "am", False: "pm"})
     g = (wk.groupby(["week", "daypart"])[["systolic", "diastolic"]]
            .mean().reset_index())
@@ -376,10 +285,11 @@ def _daypart_weekly_fig(bp: pd.DataFrame, med_starts) -> "go.Figure":
                 hovertemplate="%{y:.0f}<extra>" + name + "</extra>"),
                 row=row, col=1)
 
-    slo, shi = _yrange([am["systolic"], pm["systolic"]], 120)
-    dlo, dhi = _yrange([am["diastolic"], pm["diastolic"]], 80)
-    _panel_chrome(fig, 1, "SYSTOLIC — weekly mean, mmHg", 120, slo, shi)
-    _panel_chrome(fig, 2, "DIASTOLIC — weekly mean, mmHg", 80, dlo, dhi)
+    gs, gd = _bp_goal()
+    slo, shi = _yrange([am["systolic"], pm["systolic"]], gs)
+    dlo, dhi = _yrange([am["diastolic"], pm["diastolic"]], gd)
+    _panel_chrome(fig, 1, "SYSTOLIC — weekly mean, mmHg", gs, slo, shi)
+    _panel_chrome(fig, 2, "DIASTOLIC — weekly mean, mmHg", gd, dlo, dhi)
     _med_markers(fig, med_starts)
     fig.update_layout(hovermode="x unified")
     return _daypart_theme(fig, 430)
@@ -421,10 +331,11 @@ def _daypart_clock_fig(bp: pd.DataFrame, now: pd.Timestamp | None = None) -> "go
             showlegend=(row == 1), legendgroup="mean",
             hovertemplate="3h mean %{y:.0f}<extra></extra>"), row=row, col=1)
 
-    slo, shi = _yrange([win["systolic"]], 120)
-    dlo, dhi = _yrange([win["diastolic"]], 80)
-    _panel_chrome(fig, 1, "SYSTOLIC — each reading, trailing 90 days", 120, slo, shi)
-    _panel_chrome(fig, 2, "DIASTOLIC — each reading, trailing 90 days", 80, dlo, dhi)
+    gs, gd = _bp_goal()
+    slo, shi = _yrange([win["systolic"]], gs)
+    dlo, dhi = _yrange([win["diastolic"]], gd)
+    _panel_chrome(fig, 1, "SYSTOLIC — each reading, trailing 90 days", gs, slo, shi)
+    _panel_chrome(fig, 2, "DIASTOLIC — each reading, trailing 90 days", gd, dlo, dhi)
     for row in (1, 2):
         fig.add_shape(type="line", x0=12, x1=12, y0=0, y1=1, xref="x",
                       yref="y domain",
@@ -465,289 +376,83 @@ def _render_bp_am_pm(bp: pd.DataFrame):
     def _mmhg(d):
         return f"{d['sys']:.0f}/{d['dia']:.0f}" if d else "—"
 
-    c = st.columns(4)
-    c[0].metric(f"Morning mean · n={stats['am']['n'] if stats['am'] else 0}",
-                _mmhg(stats["am"]), help="Readings before noon, trailing 90 days")
-    c[1].metric(f"Afternoon/evening · n={stats['pm']['n'] if stats['pm'] else 0}",
-                _mmhg(stats["pm"]), help="Readings from noon on, trailing 90 days")
-    c[2].metric("Morning minus evening",
-                f"{stats['gap'][0]:+.0f}/{stats['gap'][1]:+.0f}" if stats["gap"] else "—",
-                help="Positive = mornings run higher (trailing 90 days)")
+    tiles = [
+        lib.card("Morning", _mmhg(stats["am"]),
+                 f"before noon · trailing 90 days · n={stats['am']['n'] if stats['am'] else 0}"),
+        lib.card("Afternoon & evening", _mmhg(stats["pm"]),
+                 f"from noon · trailing 90 days · n={stats['pm']['n'] if stats['pm'] else 0}"),
+        lib.card("Morning minus evening",
+                 f"{stats['gap'][0]:+.0f}/{stats['gap'][1]:+.0f}" if stats["gap"] else "—",
+                 "positive = mornings run higher"),
+    ]
     if med_starts:
         start, name, _freq = med_starts[-1]
         post = _mornings_after(bp, start)
-        when = (f"the first dose ({start:%Y-%m-%d %H:%M})"
+        when = (f"from the first dose ({start:%Y-%m-%d %H:%M})"
                 if start.time() != datetime.time(0)
-                else f"the morning after the {start.date()} start (start-day "
-                     "mornings predate a bedtime first dose)")
-        c[3].metric(f"Mornings since {name} · n={len(post)}",
-                    f"{post['systolic'].mean():.0f}/{post['diastolic'].mean():.0f}"
-                    if len(post) else "—",
-                    help=f"AM readings from {when} — the number the med "
-                         "should move")
-    else:
-        c[3].metric("Mornings since BP med", "—",
-                    help="No BP-directed medication recorded yet")
+                else f"from the morning after the {start.date()} start")
+        tiles.append(lib.card(f"Mornings since {name}",
+                              f"{post['systolic'].mean():.0f}/{post['diastolic'].mean():.0f}"
+                              if len(post) else "—",
+                              f"n={len(post)} · {when} — the number the med should move"))
+    lib.cards(tiles)
 
-    st.plotly_chart(_daypart_weekly_fig(bp, med_starts), use_container_width=True,
-                    key="cardio_bp_daypart_weekly")
+    lib.chart(_daypart_weekly_fig(bp, med_starts), "cardio_bp_daypart_weekly")
     st.caption("Weekly means, split at noon — systolic and diastolic each get "
                "their own axis and goal line. Green marker: BP-medication start.")
 
     fig_clock = _daypart_clock_fig(bp)
     if fig_clock.data:
-        st.plotly_chart(fig_clock, use_container_width=True, key="cardio_bp_clock")
+        lib.chart(fig_clock, "cardio_bp_clock")
         st.caption("Each reading by clock time, trailing 90 days — the gray "
                    "line is the 3-hour average, the shape of your day.")
 
 
 def _render_bp_section():
-    """Blood pressure: metrics row, systolic/diastolic scatter + 7-day rolling
-    means with AHA bands, morning-vs-evening split, recent-readings table.
-    Empty-safe."""
-    st.markdown("## Blood pressure")
-    bp = lib.load_df(
-        "SELECT timestamp, systolic, diastolic, pulse FROM blood_pressure ORDER BY timestamp")
+    """Blood-pressure history: every reading with a running average, the
+    morning-vs-evening split, and the raw readings. Empty-safe."""
+    st.markdown("## Blood pressure history")
+    bp = M.bp_readings()
     if bp.empty:
         st.caption("No blood-pressure readings yet — they sync from Garmin Connect "
                    "(cuff or manual entries).")
         return
 
-    bp["timestamp"] = pd.to_datetime(bp["timestamp"])
     latest = bp.iloc[-1]
-    cat, color = lib.bp_category(latest["systolic"], latest["diastolic"])
-    since_14d = pd.Timestamp.now() - pd.Timedelta(days=14)
-    last_14 = bp[bp["timestamp"] >= since_14d]
+    cat, color = M.bp_category(latest["systolic"], latest["diastolic"])
     days_ago = (pd.Timestamp.now().normalize() - latest["timestamp"].normalize()).days
+    lib.cards([
+        lib.card("Latest reading", f"{int(latest['systolic'])}/{int(latest['diastolic'])}",
+                 f"{cat} · {latest['timestamp']:%b %-d %H:%M} ({days_ago} d ago)", color),
+        lib.card("Readings", f"{len(bp)}", f"since {bp['timestamp'].iloc[0]:%b %Y}"),
+    ])
+    st.caption("The current 14-day mean against the goal is on Goals.")
 
-    c = st.columns(4)
-    c[0].metric("Latest", f"{int(latest['systolic'])}/{int(latest['diastolic'])}")
-    c[0].markdown(f'<span style="color:{color};font-size:12px;">{cat}</span>',
-                  unsafe_allow_html=True)
-    c[1].metric("14-day mean",
-                f"{last_14['systolic'].mean():.0f}/{last_14['diastolic'].mean():.0f}"
-                if not last_14.empty else "—")
-    c[2].metric("Readings in range", f"{len(bp)}")
-    c[3].metric("Last reading", f"{days_ago} day{'s' if days_ago != 1 else ''} ago")
-
-    st.plotly_chart(_bp_history_fig(bp, _bp_med_starts()), use_container_width=True,
-                    key="cardio_bp")
+    lib.chart(_bp_history_fig(bp, _bp_med_starts()), "cardio_bp")
     st.caption("Dots are readings, the line is a 3-day running average of "
                "daily means. Dashed green = goal; dotted red = AHA stage 2.")
 
     _render_bp_am_pm(bp)
 
-    with st.expander("Recent readings"):
+    with st.expander("All readings"):
         table = bp.copy()
         table["category"] = table.apply(
-            lambda r: lib.bp_category(r["systolic"], r["diastolic"])[0], axis=1)
+            lambda r: M.bp_category(r["systolic"], r["diastolic"])[0], axis=1)
         table["timestamp"] = table["timestamp"].dt.strftime("%Y-%m-%d %H:%M")
         st.dataframe(
             table[["timestamp", "systolic", "diastolic", "pulse", "category"]].iloc[::-1],
             use_container_width=True, hide_index=True)
 
 
-def _render_weight_section():
-    """Weight: metrics row in lb (kg in help text), daily-mean + 7-day rolling
-    chart in lb, goal band + baseline overlay only when CARDIO_GOALS is
-    present, DEXA (diamond) and Apple (circle) points overlaid. Empty-safe."""
-    st.markdown("## Weight")
-    w = lib.load_df("SELECT timestamp, weight_kg, source FROM body_weight ORDER BY timestamp")
-    if w.empty:
-        st.caption("No weigh-ins yet — data will flow from the Garmin scale once "
-                   "it's set up.")
-        return
-
-    w["timestamp"] = pd.to_datetime(w["timestamp"])
-    w["weight_lb"] = w["weight_kg"] * lib.KG_TO_LB
-    latest = w.iloc[-1]
-    since_7d = pd.Timestamp.now() - pd.Timedelta(days=7)
-    last_7 = w[w["timestamp"] >= since_7d]
-
-    goals = getattr(CD, "CARDIO_GOALS", None)
-    weight_goal = goals.get("weight", {}) if goals else {}
-    baseline_kg = weight_goal.get("baseline_kg")
-    has_baseline = baseline_kg is not None
-
-    cols = st.columns(4 if has_baseline else 3)
-    cols[0].metric("Latest", f"{latest['weight_lb']:.1f} lb",
-                   help=f"{latest['weight_kg']:.1f} kg")
-    cols[1].metric("7-day mean",
-                   f"{last_7['weight_lb'].mean():.1f} lb" if not last_7.empty else "—")
-    cols[2].metric("Readings", f"{len(w)}")
-    if has_baseline:
-        baseline_lb = baseline_kg * lib.KG_TO_LB
-        delta_lb = latest["weight_lb"] - baseline_lb
-        cols[3].metric("vs baseline", f"{delta_lb:+.1f} lb")
-
-    daily = w.copy()
-    daily["date"] = daily["timestamp"].dt.date
-    daily_mean = daily.groupby("date", as_index=False)["weight_lb"].mean()
-    daily_mean["date"] = pd.to_datetime(daily_mean["date"])
-    daily_mean["roll"] = daily_mean["weight_lb"].rolling(7, min_periods=1).mean()
-
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(x=daily_mean["date"], y=daily_mean["weight_lb"], mode="markers",
-                              name="Daily mean", marker=dict(color=lib.ACCENT, size=5, opacity=0.5)))
-    fig.add_trace(go.Scatter(x=daily_mean["date"], y=daily_mean["roll"], mode="lines",
-                              name="7-day rolling", line=dict(color=lib.ACCENT, width=2)))
-
-    dexa = w[w["source"] == "dexa"]
-    if not dexa.empty:
-        fig.add_trace(go.Scatter(x=dexa["timestamp"], y=dexa["weight_lb"], mode="markers",
-                                  name="DEXA", marker=dict(symbol="diamond", size=10, color=lib.WARN)))
-    apple = w[w["source"] == "apple"]
-    if not apple.empty:
-        fig.add_trace(go.Scatter(x=apple["timestamp"], y=apple["weight_lb"], mode="markers",
-                                  name="Apple", marker=dict(symbol="circle", size=8, color=lib.SLEEP)))
-
-    if (has_baseline and weight_goal.get("lose_lb_min") is not None
-            and weight_goal.get("lose_lb_max") is not None):
-        goal_min_lb = baseline_lb - weight_goal["lose_lb_max"]
-        goal_max_lb = baseline_lb - weight_goal["lose_lb_min"]
-        fig.add_hrect(y0=goal_min_lb, y1=goal_max_lb, fillcolor=lib.GOOD, opacity=0.07,
-                      line_width=0, annotation_text="goal", annotation_position="top left")
-        fig.add_hline(y=baseline_lb, line_dash="dot", line_color=lib.MUTED, line_width=1,
-                      annotation_text="baseline", annotation_position="bottom right")
-
-    st.plotly_chart(lib.apply_theme(fig, 260, legend=True), use_container_width=True,
-                    key="cardio_weight")
-
-
-def _render_body_composition_section():
-    """Body composition: rendered only when body_composition has rows. BIA
-    (Garmin) and DEXA are always separate traces — different measurement
-    physics, never merged into one series."""
-    bc = lib.load_df(
-        "SELECT timestamp, body_fat_pct, lean_mass_kg, visceral_fat_rating, "
-        "visceral_fat_mass_kg, source FROM body_composition ORDER BY timestamp")
-    if bc.empty:
-        return
-
-    st.markdown("## Body composition")
-    bc["timestamp"] = pd.to_datetime(bc["timestamp"])
-    bia = bc[bc["source"] == "garmin"]
-    dexa = bc[bc["source"] == "dexa"]
-
-    st.markdown("### Body fat %")
-    st.caption("BIA (Garmin scale) and DEXA measure body fat with different physics "
-               "and are not directly comparable — shown as separate traces, never merged.")
-    fat_fig = go.Figure()
-    if not bia.empty:
-        fat_fig.add_trace(go.Scatter(x=bia["timestamp"], y=bia["body_fat_pct"],
-                                      mode="lines+markers", name="BIA (Garmin scale)",
-                                      line=dict(color=lib.ACCENT, width=2)))
-    if not dexa.empty:
-        fat_fig.add_trace(go.Scatter(x=dexa["timestamp"], y=dexa["body_fat_pct"],
-                                      mode="markers", name="DEXA",
-                                      marker=dict(size=12, color=lib.WARN, symbol="diamond")))
-    st.plotly_chart(lib.apply_theme(fat_fig, 240, legend=True), use_container_width=True,
-                    key="cardio_bodyfat")
-
-    c1, c2 = st.columns(2)
-    with c1:
-        lean = bc[bc["lean_mass_kg"].notna()]
-        if not lean.empty:
-            st.markdown("### Lean mass")
-            fig = go.Figure()
-            for src, name, color in (("garmin", "Garmin", lib.ACCENT), ("dexa", "DEXA", lib.WARN)):
-                d = lean[lean["source"] == src]
-                if not d.empty:
-                    fig.add_trace(go.Scatter(x=d["timestamp"], y=d["lean_mass_kg"],
-                                              mode="lines+markers", name=name,
-                                              line=dict(color=color)))
-            st.plotly_chart(lib.apply_theme(fig, 180, legend=True), use_container_width=True,
-                            key="cardio_lean")
-    with c2:
-        visc = bc[bc["visceral_fat_rating"].notna() | bc["visceral_fat_mass_kg"].notna()]
-        if not visc.empty:
-            st.markdown("### Visceral fat")
-            fig = go.Figure()
-            garmin_v = visc[(visc["source"] == "garmin") & visc["visceral_fat_rating"].notna()]
-            if not garmin_v.empty:
-                fig.add_trace(go.Scatter(x=garmin_v["timestamp"], y=garmin_v["visceral_fat_rating"],
-                                          mode="lines+markers", name="Garmin rating",
-                                          line=dict(color=lib.ACCENT)))
-            dexa_v = visc[(visc["source"] == "dexa") & visc["visceral_fat_mass_kg"].notna()]
-            if not dexa_v.empty:
-                fig.add_trace(go.Scatter(x=dexa_v["timestamp"], y=dexa_v["visceral_fat_mass_kg"],
-                                          mode="markers", name="DEXA mass (kg)",
-                                          marker=dict(size=10, color=lib.WARN, symbol="diamond")))
-            st.plotly_chart(lib.apply_theme(fig, 180, legend=True), use_container_width=True,
-                            key="cardio_visceral")
-
-    if not dexa.empty:
-        with st.expander("DEXA history"):
-            table = dexa.copy()
-            table["timestamp"] = table["timestamp"].dt.strftime("%Y-%m-%d")
-            st.dataframe(
-                table[["timestamp", "body_fat_pct", "lean_mass_kg", "visceral_fat_mass_kg"]],
-                use_container_width=True, hide_index=True)
-
-
-# US Dietary Guidelines: ≤2 drinks/day for men → 14/week. A public reference
-# number (like the DASH sodium targets), not a personal/physician-set value.
-_ALCOHOL_WEEKLY_GUIDELINE = 14
-
-
-def _render_lifestyle_section():
-    """Alcohol from Garmin Lifestyle Logging: current-week + 4-week-avg metrics,
-    a weekly units table (beer/wine/spirit/total), and a weekly-total bar chart
-    against the public guideline line. Empty-safe.
-
-    'Units' here = Garmin's summed serving counts (it logs drinks per category,
-    not ABV-weighted units) — surfaced in the caption so the number isn't
-    over-read as standardized UK units.
-    """
-    st.markdown("## Lifestyle — alcohol")
-    df = lib.load_df(
-        "SELECT date, subtype, amount FROM lifestyle_log "
-        "WHERE name = 'Alcohol' AND source = 'garmin' ORDER BY date")
-    if df.empty:
-        st.caption("No alcohol logged yet — tracked via Garmin Connect Lifestyle "
-                   "Logging (log drinks on the watch or in Garmin Connect).")
-        return
-
-    df["date"] = pd.to_datetime(df["date"])
-    # Weeks start Monday; label each row by its Monday date.
-    df["week"] = df["date"].dt.to_period("W-SUN").dt.start_time
-    weekly_total = df.groupby("week")["amount"].sum()
-
-    this_week = df["date"].max().to_period("W-SUN").start_time
-    current = weekly_total.get(this_week, 0)
-    prior4 = weekly_total[weekly_total.index < this_week].tail(4)
-    avg4 = prior4.mean() if not prior4.empty else None
-
-    c = st.columns(3)
-    c[0].metric("This week (drinks)", f"{current:.0f}")
-    c[1].metric("Prior 4-wk avg", f"{avg4:.1f}" if avg4 is not None else "—")
-    c[2].metric("Guideline", f"≤{_ALCOHOL_WEEKLY_GUIDELINE}/wk")
-    st.caption("Garmin logs a serving count per category (beer/wine/spirit); "
-               "\"units\" here is the weekly sum of those counts, not ABV-weighted. "
-               f"Reference line = US Dietary Guidelines ≤{_ALCOHOL_WEEKLY_GUIDELINE} "
-               "drinks/week (men).")
-
-    fig = go.Figure()
-    fig.add_trace(go.Bar(x=weekly_total.index, y=weekly_total.values,
-                         marker_color=lib.ACCENT, opacity=0.75))
-    fig.add_hline(y=_ALCOHOL_WEEKLY_GUIDELINE, line_dash="dot", line_color=lib.WARN,
-                  annotation_text=f"guideline ≤{_ALCOHOL_WEEKLY_GUIDELINE}/wk",
-                  annotation_position="top left")
-    st.plotly_chart(lib.apply_theme(fig, 220), use_container_width=True, key="cardio_alcohol")
-
-    with st.expander("Weekly units table", expanded=True):
-        pivot = (df.pivot_table(index="week", columns="subtype", values="amount",
-                                aggfunc="sum", fill_value=0)
-                 .sort_index(ascending=False))
-        pivot["Total"] = pivot.sum(axis=1)
-        pivot.index = pivot.index.strftime("Week of %Y-%m-%d")
-        pivot.columns = [str(col).title() for col in pivot.columns]
-        st.dataframe(pivot, use_container_width=True)
+# Report charts that duplicate another tab (HR-zone minutes -> Training;
+# weekly resting HR, sleep, HRV and steps -> Recovery/Training) are left out.
+_REPORT_DETAIL_KEEP = ("Weekly detail", "Quarterly — Exercise intensity")
 
 
 def render_cardiology():
     st.markdown(_CARD_CSS, unsafe_allow_html=True)
-    st.markdown("# Cardiology")
+    lib.page_header("Cardiology", "The clinical record and long-term history: labs, therapy, "
+                    "blood-pressure history, risk markers. Current numbers against goals are on Goals.")
 
     lip = br.lipids_df()
 
@@ -755,8 +460,7 @@ def render_cardiology():
     # raises SystemExit("No data in DB.") — not just Exception — when none of
     # those tables have any rows yet (a freshly-initialized DB, day one before
     # any wearable sync). Catch both so that case degrades to skipping the
-    # activity-history sections below rather than blanking the whole page:
-    # goals/meds/BP/weight/body-comp only need CD + the new cardio tables.
+    # activity-history sections below rather than blanking the whole page.
     try:
         q, w, meta = _frames()
     except (Exception, SystemExit) as e:
@@ -766,40 +470,18 @@ def render_cardiology():
         frames_error = None
 
     activity_note = (f"activity data through {meta['data_max']}. " if meta
-                      else "no wearable activity history in this DB yet. ")
+                     else "no wearable activity history in this DB yet. ")
     st.caption(f"{CD.PATIENT_NAME} · {CD.SEX} · DOB {CD.DOB} · {CD.DESCRIPTOR} · "
                f"{activity_note}Lipid/statin data is transcribed "
                "from LabCorp panels; verify against originals before any clinical decision.")
     st.markdown(f'<div class="cardio summary"><b>Clinical picture.</b> {CD.CLINICAL_SUMMARY}</div>',
                 unsafe_allow_html=True)
 
-    # ---- Cardiology goals -------------------------------------------------
-    goals_html = _goals_strip_html(lip)
-    if goals_html:
-        st.markdown("## Goals")
-        st.markdown(goals_html, unsafe_allow_html=True)
-
-    # ---- Medications -------------------------------------------------------
-    meds_html = _medications_html()
-    if meds_html:
-        st.markdown("## Medications")
-        st.markdown(meds_html, unsafe_allow_html=True)
-        statin_events = br.statin_events_df()
-        if not statin_events.empty:
-            with st.expander("Statin dose history"):
-                st.dataframe(statin_events, use_container_width=True, hide_index=True)
-
-    # ---- BP / weight / body-comp (Phase 3) --------------------------------
-    _render_bp_section()
-    _render_weight_section()
-    _render_body_composition_section()
-    _render_lifestyle_section()
-
     st.markdown(br.stat_cards_html(lip), unsafe_allow_html=True)
 
     if meta is None:
         st.info("No wearable activity history yet — the exercise/lipid overlay, quarterly "
-                 f"summary, and detail charts need at least one day of synced data ({frames_error}).")
+                f"summary, and detail charts need at least one day of synced data ({frames_error}).")
     else:
         end_ts = pd.Timestamp(meta["data_max"])
 
@@ -808,7 +490,7 @@ def render_cardiology():
         st.caption(f"Quarterly exercise intensity (bars, left axis), labeled LDL-C / ApoB draws "
                    f"(left axis, mg/dL), {CD.STATIN} dose step (right axis). Pink dotted "
                    "verticals = clinical events.")
-        st.plotly_chart(br.exec_overlay(q, lip, end_ts), use_container_width=True, key="cardio_exec")
+        lib.chart(lib.restyle_report_fig(br.exec_overlay(q, lip, end_ts), 480), "cardio_exec")
 
         # ---- quarterly summary table ----------------------------------------
         st.markdown("## Quarterly summary — therapy, labs & lifestyle")
@@ -818,12 +500,29 @@ def render_cardiology():
         st.markdown(br.quarterly_table_html(q, lip), unsafe_allow_html=True)
 
         # ---- detailed charts -------------------------------------------------
-        with st.expander("Detailed charts — weekly & quarterly trends", expanded=False):
-            st.caption("Dashed lines on min/week charts = AHA guidelines: 75 vigorous / "
-                       "150 moderate minimum, 300 goal.")
+        with st.expander("Detailed charts — lipids × activity, exercise intensity by quarter",
+                         expanded=False):
+            st.caption(f"Dashed lines on min/week charts = AHA guidelines: "
+                       f"{T.AHA_VIGOROUS_MIN_WK} vigorous / {T.AHA_MODERATE_MIN_WK} moderate "
+                       f"minimum, {T.AHA_GOAL_MIN_WK} goal. Recent weekly HR-zone minutes are on Training.")
             for i, (label, fig) in enumerate(br.detail_figures(q, w, end_ts)):
+                if not label.startswith(_REPORT_DETAIL_KEEP):
+                    continue
                 st.markdown(f"### {label}")
-                st.plotly_chart(fig, use_container_width=True, key=f"cardio_detail_{i}")
+                lib.chart(lib.restyle_report_fig(fig, 560 if label.startswith("Weekly") else 300),
+                          f"cardio_detail_{i}")
+
+    # ---- medications -----------------------------------------------------
+    st.markdown("## Medication history")
+    meds_html = _medication_history_html()
+    if meds_html:
+        st.markdown(meds_html, unsafe_allow_html=True)
+    statin_events = br.statin_events_df()
+    if not statin_events.empty:
+        with st.expander("Statin dose history"):
+            st.dataframe(statin_events, use_container_width=True, hide_index=True)
+
+    _render_bp_section()
 
     # ---- complete lab panels --------------------------------------------
     st.markdown("## Complete lab panels by draw date")
@@ -858,7 +557,7 @@ def render_cardiology():
                 f"RestingHeartRate, then a {int(br.RESTING_PCTL * 100)}th-percentile overnight-low "
                 f"proxy of intraday samples (dense-sampling days only).\n"
                 f"- **'Moderate–vigorous' / 'vigorous' minutes** are HR-zone minutes (Z3–Z5 / Z4–Z5), "
-                f"%HRmax bands off an empirical peak of {br.HRMAX} bpm, computed only for activities "
+                f"%HRmax bands off a max HR of {T.HRMAX} bpm (set on the Garmin), computed only for activities "
                 f"with HR streams ({meta['acts_with_streams']} activities). This is NOT raw workout "
                 f"duration — long easy hikes/skis are training volume, not intensity.\n"
                 f"- **Activity↔lipid alignment.** Lipid draws span 2020→2026 but quantified activity "

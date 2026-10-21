@@ -99,12 +99,24 @@ def test_pace_per_week(fake_clinical):
     assert gv._pace_per_week(130, 120, TODAY, TODAY - pd.Timedelta(days=1)) is None
 
 
-def test_spark_svg_guards(fake_clinical):
-    gv = _helpers()
-    assert gv._spark_svg([], "#fff") == ""
-    assert gv._spark_svg([1.0], "#fff") == ""
-    svg = gv._spark_svg([1.0, 2.0, 1.5], "#fff")
+def test_spark_svg_guards():
+    from dashboard import lib
+    assert lib.spark_svg([], "#fff") == ""
+    assert lib.spark_svg([1.0], "#fff") == ""
+    svg = lib.spark_svg([1.0, 2.0, 1.5], "#fff")
     assert svg.startswith("<svg") and "polyline" in svg
+
+
+def test_medications_html_hides_discontinued(fake_clinical, monkeypatch):
+    """Goals' current-medication cards show the regimen only: a discontinued
+    med (has "stop" / "discontinued …" status) stays in MEDICATIONS for the
+    regimen lanes but gets no card; active and not-yet-started meds do."""
+    gv = _helpers()
+    monkeypatch.setattr(gv, "CD", fake_clinical)
+    html = gv._medications_html()
+    assert "Fakezor" in html
+    assert "Fakepha" in html
+    assert "Fakezetia" not in html
 
 
 # --- render smoke ------------------------------------------------------------
@@ -112,14 +124,11 @@ def test_spark_svg_guards(fake_clinical):
 def _render(db_path, clinical_mod, monkeypatch):
     import dashboard.goals_view as goals_view
     import dashboard.cardiology_view as cardiology_view
-    from dashboard import lib
 
     import build_report
 
-    # Same value-binding dance as test_cardiology_view: DB_PATH and CD are
-    # captured at import time in each module, so rebind them all explicitly.
-    monkeypatch.setattr(lib, "DB_PATH", db_path)
-    monkeypatch.setattr(cardiology_view, "DB_PATH", db_path)
+    # CD is captured at import time in each module (a value binding), so
+    # rebind it explicitly; DB access follows collectors.db.DB_PATH.
     monkeypatch.setattr(goals_view, "CD", clinical_mod)
     monkeypatch.setattr(cardiology_view, "CD", clinical_mod)
     monkeypatch.setattr(build_report, "CD", clinical_mod)
@@ -140,7 +149,7 @@ def test_render_goals_without_goals(fake_db, fake_clinical_no_goals, monkeypatch
 def test_render_goals_on_empty_db(empty_db, fake_clinical, monkeypatch):
     """Day-one DB: no BP, no weight, no nutrition, no activities — every tile
     and section renders its empty state (the exercise tile takes the raw-
-    duration fallback path via _frames' SystemExit)."""
+    "no heart-rate-stream activities" empty state)."""
     _render(empty_db, fake_clinical, monkeypatch)
 
 

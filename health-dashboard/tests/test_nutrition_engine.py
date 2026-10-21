@@ -113,7 +113,7 @@ def test_no_personal_values_in_committed_nutrition_code():
     needles |= {e["title"] for e in real.get("calendar", []) if len(e["title"]) > 6}
     needles |= {e["location"] for e in real.get("calendar", []) if e.get("location")}
     files = [p for p in (root / "nutrition").glob("*.py") if p.name not in {"render.py", "build_prototype.py"}]
-    files.append(root / "dashboard" / "fuel_view.py")
+    files.append(root / "dashboard" / "nutrition_view.py")
     files.append(Path(__file__))
     for p in files:
         text = p.read_text()

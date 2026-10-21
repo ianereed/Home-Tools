@@ -1,32 +1,40 @@
-"""Fuel page: daily nutrition targets + meals planned from Garmin Coach, actual power-meter rides,
-MyFitnessPal intake and the calendar. Renders the latest plan run written by nutrition.refresh.
+"""Nutrition page: what to eat, what you ate, and body composition.
 
-Tabs: Today · Next 2 weeks · Goals · Last 2 weeks · Groceries. Read-only except the "Refresh now"
-button, which only sets a flag the watcher job picks up.
+The fuel planner (daily targets + meals from Garmin Coach, power-meter rides, MyFitnessPal
+intake and the calendar; the latest run written by nutrition.refresh), plus the weight and
+body-composition history and the diet research as reference.
+
+Tabs: Today · Next 2 weeks · Body · History · Groceries · Reference. Read-only except the
+"Refresh now" button, which only sets a flag the watcher job picks up.
 """
 from __future__ import annotations
 
 import json
 import os
 import sqlite3
+import sys
 from datetime import date, datetime, timedelta
 
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
+import collectors.db as db
+from dashboard import diet_content
 from dashboard import lib
+from dashboard import metrics as M
+from dashboard import targets as T
 from nutrition import fragments as H
 
-TABS = ["Today", "Next 2 weeks", "Goals", "Last 2 weeks", "Groceries"]
-KG_LB = lib.KG_TO_LB
+TABS = ["Today", "Next 2 weeks", "Body", "History", "Groceries", "Reference"]
+KG_LB = T.KG_TO_LB
 
 
 # ------------------------------------------------------------------ data
 def _connect():
-    if not os.path.exists(lib.DB_PATH):
+    if not os.path.exists(db.DB_PATH):
         return None
-    return sqlite3.connect(lib.DB_PATH)
+    return sqlite3.connect(db.DB_PATH)
 
 
 def latest_run_meta() -> dict | None:
@@ -56,11 +64,16 @@ def load_payload(run_id: int) -> dict:
         conn.close()
 
 
-def _query(sql: str, params=()) -> pd.DataFrame:
+def _cardio_goals() -> dict | None:
+    """Physician goals when the out-of-git clinical module is on this host; None elsewhere."""
+    cardio = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "cardiology")
+    if os.path.exists(os.path.join(cardio, "clinical_data.py")) and cardio not in sys.path:
+        sys.path.insert(0, cardio)
     try:
-        return lib.load_df(sql, params)
-    except Exception:
-        return pd.DataFrame()
+        import clinical_data as CD
+    except ImportError:
+        return None
+    return getattr(CD, "CARDIO_GOALS", None)
 
 
 def request_refresh() -> None:
@@ -105,12 +118,8 @@ def _sources_line(p: dict, meta: dict) -> str:
 
 
 def _metrics(items: list[tuple[str, str, str]]):
-    """Metric tiles with a plain caption (st.metric's delta draws a trend arrow, wrong for info text)."""
-    cols = st.columns(len(items))
-    for col, (label, value, note) in zip(cols, items):
-        col.metric(label, value)
-        if note:
-            col.caption(note)
+    """A row of value cards: (label, value, sub-line)."""
+    lib.cards([lib.card(label, value, note) for label, value, note in items])
 
 
 def _day_card(day, e, meals, tot, open_: bool = False):
@@ -214,13 +223,13 @@ def _next(p: dict):
     retro = (hist.get("retro") or {}).get("plan") or []
     fig = go.Figure()
     xs_r = [r["date"] for r in retro]
-    fig.add_bar(x=xs_r, y=[r["tdee"] for r in retro], name="burn (actual rides)", marker_color=lib.ACCENT)
+    fig.add_bar(x=xs_r, y=[r["tdee"] for r in retro], name="burn (actual rides)", marker_color=lib.SERIES["kcal"])
     nxt = rows[:14]
     fig.add_bar(x=[e["date"] for _, e, _, _ in nxt], y=[e["tdee"] for _, e, _, _ in nxt], name="burn (planned)",
-                marker_color="rgba(110,168,254,0.35)")
+                marker_color=lib.rgba(lib.SERIES["kcal"], 0.35))
     fig.add_scatter(x=[e["date"] for _, e, _, _ in nxt], y=[e["kcal"] for _, e, _, _ in nxt], name="eat target",
-                    mode="lines+markers", line=dict(color=lib.WARN, width=2))
-    st.plotly_chart(lib.apply_theme(fig, 260, legend=True), use_container_width=True, key="fuel_energy")
+                    mode="lines+markers", line=dict(color=lib.INK, width=2))
+    lib.chart(lib.apply_theme(fig, 260, legend=True), "fuel_energy")
     for i, (day, e, meals, tot) in enumerate(nxt):
         _day_card(day, e, meals, tot, open_=(i == 0))
     with st.expander("Through the end of the plan"):
@@ -231,14 +240,20 @@ def _next(p: dict):
         st.dataframe(df, hide_index=True, use_container_width=True)
 
 
-def _goals(p: dict):
-    dexa, w = p.get("dexa") or {}, p.get("weight_kg")
-    total = w or dexa.get("total_mass_kg")
+def _body(p: dict):
+    dexa = p.get("dexa") or {}
     ftp = (p.get("athlete") or {}).get("ftp_w")
-    _metrics([("Weight", f"{total * KG_LB:.1f} lb" if total else "—", "7-day avg" if w else f"scan {dexa.get('date', '')}"),
-              ("Body fat", f"{dexa.get('tissue_fat_pct')}%" if dexa.get("tissue_fat_pct") else "—", f"scan {dexa.get('date', '')}"),
-              ("Lean mass", f"{dexa.get('lean_mass_kg', 0) * KG_LB:.0f} lb", ""),
-              ("FTP", f"{ftp:.0f} W" if ftp else "—", f"{ftp / total:.2f} W/kg" if ftp and total else "")])
+    w = M.weight_now()
+    kg = w["lb"] / KG_LB if w else dexa.get("total_mass_kg")
+    _metrics([("Weight", f"{w['lb']:.1f} lb" if w else "—",
+               f"{w['basis']} · latest {w['latest_lb']:.1f}, {w['age_days']} d ago" if w else "no weigh-ins"),
+              ("Body fat", f"{dexa.get('tissue_fat_pct')}%" if dexa.get("tissue_fat_pct") else "—",
+               f"DEXA {dexa.get('date', '')}"),
+              ("Lean mass", f"{dexa.get('lean_mass_kg', 0) * KG_LB:.0f} lb" if dexa.get("lean_mass_kg") else "—",
+               f"DEXA {dexa.get('date', '')}"),
+              ("FTP", f"{ftp:.0f} W" if ftp else "—", f"{ftp / kg:.2f} W/kg" if ftp and kg else "")])
+    _weight_section()
+    _body_composition_section()
     st.markdown("## Body-fat targets")
     sched = p.get("pace_schedule") or []
     st.caption("Pace schedule: " + " → ".join(f"{v} lb/wk from {H.fdate(d, '%b %-d')}" for d, v in sched))
@@ -264,25 +279,98 @@ def _goals(p: dict):
                          "deficit delivered": f"{100 * got / want:.0f}%" if want else "—",
                          "≈ lb/wk": round(got / 3500 / len(en) * 7, 2), "key-day carbs g/kg": round(min(key), 1) if key else None})
     st.dataframe(pd.DataFrame(cmp_rows), hide_index=True, use_container_width=True)
-    _baseline(p)
     st.markdown("## Calibration")
-    wt = _query("SELECT date(timestamp) AS d, AVG(weight_kg) AS kg FROM body_weight WHERE timestamp >= date('now','-28 days') "
+    wt = M.read("SELECT date(timestamp) AS d, AVG(weight_kg) AS kg FROM body_weight WHERE timestamp >= date('now','-28 days') "
                 "GROUP BY d ORDER BY d")
     logged = {d: v for d, v in (p.get("intake") or {}).items() if v.get("calories_kcal")}
     if len(wt) >= 10 and len(logged) >= 10:
         span = (pd.to_datetime(wt["d"].iloc[-1]) - pd.to_datetime(wt["d"].iloc[0])).days or 1
         lb_wk = (wt["kg"].iloc[0] - wt["kg"].iloc[-1]) * KG_LB / span * 7
         mean_in = sum(v["calories_kcal"] for v in logged.values()) / len(logged)
-        st.metric("Measured maintenance", f"{H.g(mean_in + lb_wk * 500)} kcal/day",
-                  f"{len(wt)} weigh-ins, {len(logged)} logged days", delta_color="off")
+        _metrics([("Measured maintenance", f"{H.g(mean_in + lb_wk * 500)} kcal/day",
+                   f"{len(wt)} weigh-ins, {len(logged)} logged days")])
     else:
         st.caption(f"Needs ≥10 weigh-ins and ≥10 logged days in the last 4 weeks (now {len(wt)} and {len(logged)}). "
                    "Until then maintenance is the formula estimate (±200–300 kcal/day).")
 
 
+def _weight_section():
+    """Daily-mean weight with its 7-day average, DEXA scans, and the physician
+    goal band when one is on file."""
+    st.markdown("## Weight")
+    raw = M.read("SELECT timestamp, weight_kg, source FROM body_weight ORDER BY timestamp")
+    w = M.weight_daily()
+    if w.empty:
+        st.caption("No weigh-ins yet.")
+        return
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=w["date"], y=w["lb"], mode="markers", name="Daily mean",
+                             marker=dict(color=lib.SERIES["weight"], size=5, opacity=0.5)))
+    fig.add_trace(go.Scatter(x=w["date"], y=M.rolling_avg(w, "lb"), mode="lines", connectgaps=False,
+                             name="7-day avg", line=dict(color=lib.SERIES["weight"], width=2)))
+    dexa = raw[raw["source"] == "dexa"] if not raw.empty else raw
+    if not dexa.empty:
+        fig.add_trace(go.Scatter(x=pd.to_datetime(dexa["timestamp"]), y=dexa["weight_kg"] * KG_LB,
+                                 mode="markers", name="DEXA",
+                                 marker=dict(symbol="diamond", size=10, color=lib.INK)))
+    goals = _cardio_goals()
+    band, base = T.weight_band_lb(goals), T.weight_baseline_lb(goals)
+    if band:
+        fig.add_hrect(y0=band[0], y1=band[1], fillcolor=lib.GOOD, opacity=0.07, line_width=0,
+                      annotation_text="goal", annotation_position="top left")
+    if base:
+        fig.add_hline(y=base, line_dash="dot", line_color=lib.MUTED, line_width=1,
+                      annotation_text="baseline", annotation_position="bottom right")
+    lib.chart(lib.apply_theme(fig, 260, legend=True), "nu_weight")
+
+
+def _body_composition_section():
+    """BIA (Garmin scale) and DEXA as separate traces: different measurement
+    physics, never merged into one series. Rendered only when there are rows."""
+    bc = M.read("SELECT timestamp, body_fat_pct, lean_mass_kg, visceral_fat_rating, "
+                "visceral_fat_mass_kg, source FROM body_composition ORDER BY timestamp")
+    if bc.empty:
+        return
+    st.markdown("## Body composition")
+    bc["timestamp"] = pd.to_datetime(bc["timestamp"])
+    st.caption("BIA (Garmin scale) and DEXA measure body fat with different physics and "
+               "are not directly comparable — shown as separate traces, never merged.")
+    cc = st.columns(2)
+    with cc[0]:
+        st.markdown("### Body fat %")
+        fig = go.Figure()
+        for src, name, mode, marker in (("garmin", "BIA (Garmin scale)", "lines+markers", dict(size=5)),
+                                        ("dexa", "DEXA", "markers", dict(size=11, symbol="diamond"))):
+            d = bc[(bc["source"] == src) & bc["body_fat_pct"].notna()]
+            if not d.empty:
+                fig.add_trace(go.Scatter(x=d["timestamp"], y=d["body_fat_pct"], mode=mode, name=name,
+                                         line=dict(color=lib.SERIES["bodyfat"]),
+                                         marker=dict(color=lib.SERIES["bodyfat"], **marker)))
+        lib.chart(lib.apply_theme(fig, 200, legend=True), "nu_bodyfat")
+    with cc[1]:
+        st.markdown("### Lean mass (lb)")
+        fig = go.Figure()
+        for src, name, mode, marker in (("garmin", "BIA (Garmin scale)", "lines+markers", dict(size=5)),
+                                        ("dexa", "DEXA", "markers", dict(size=11, symbol="diamond"))):
+            d = bc[(bc["source"] == src) & bc["lean_mass_kg"].notna()]
+            if not d.empty:
+                fig.add_trace(go.Scatter(x=d["timestamp"], y=d["lean_mass_kg"] * KG_LB, mode=mode, name=name,
+                                         line=dict(color=lib.SERIES["lean"]),
+                                         marker=dict(color=lib.SERIES["lean"], **marker)))
+        lib.chart(lib.apply_theme(fig, 200, legend=True), "nu_lean")
+    dexa = bc[bc["source"] == "dexa"]
+    if not dexa.empty:
+        with st.expander("DEXA history"):
+            t = dexa.copy()
+            t["timestamp"] = t["timestamp"].dt.strftime("%Y-%m-%d")
+            st.dataframe(t[["timestamp", "body_fat_pct", "lean_mass_kg", "visceral_fat_mass_kg"]],
+                         use_container_width=True, hide_index=True)
+
+
 def baseline_summary(intake: dict, retro: list[dict], today: str, kg: float | None) -> dict | None:
     """Averages over fully past logged days: what you actually eat vs the plan's targets/limits."""
     tgt = {r["date"]: r for r in retro}
+    sodium_lim = T.SODIUM_MG_CEILING
     days = sorted(d for d, v in intake.items() if d < today and v.get("calories_kcal"))
     if not days:
         return None
@@ -295,6 +383,8 @@ def baseline_summary(intake: dict, retro: list[dict], today: str, kg: float | No
     tdays = [d for d in days if d in tgt]
     t = {k: (sum(tgt[d][k] for d in tdays) / len(tdays) if tdays else None)
          for k in ("kcal", "tdee", "protein_g", "carb_g", "fat_g")}
+    fib = [tgt[d].get("fiber_target") for d in tdays if tgt[d].get("fiber_target")]
+    t["fiber"] = sum(fib) / len(fib) if fib else None
     chol_lim = next((tgt[d]["chol_max_mg"] for d in tdays if tgt[d].get("chol_max_mg")), None)  # None = display-only
     split = None
     if p is not None and c is not None and f is not None and kcal:
@@ -303,14 +393,14 @@ def baseline_summary(intake: dict, retro: list[dict], today: str, kg: float | No
     return {"n": len(days), "first": days[0], "last": days[-1], "kcal": kcal, "protein": p, "carbs": c, "fat": f,
             "sat": avg("saturated_fat_g"), "fiber": avg("fiber_g"), "sodium": avg("sodium_mg"),
             "chol": avg("cholesterol_mg"), "protein_per_kg": p / kg if p and kg else None, "split_cpf": split,
-            "target": t, "days_over_sodium": sum(1 for d in days if (intake[d].get("sodium_mg") or 0) > 2300),
+            "target": t, "days_over_sodium": sum(1 for d in days if (intake[d].get("sodium_mg") or 0) > sodium_lim),
             "chol_limit": chol_lim,
             "days_over_chol": (sum(1 for d in days if (intake[d].get("cholesterol_mg") or 0) > chol_lim)
                                if chol_lim else None)}
 
 
 def _baseline(p: dict):
-    st.markdown("## Baseline: what you eat now")
+    st.markdown("## Baseline: what you eat vs the plan")
     retro = ((p.get("history") or {}).get("retro") or {}).get("plan") or []
     kg = p.get("weight_kg") or (p.get("dexa") or {}).get("total_mass_kg")
     b = baseline_summary(p.get("intake") or {}, retro, date.today().isoformat(), kg)
@@ -325,8 +415,8 @@ def _baseline(p: dict):
             ("Protein", fmt(b["protein"], " g"), fmt(t["protein_g"], " g"), f"{fmt(b['protein_per_kg'], ' g/kg', 1)}"),
             ("Carbs", fmt(b["carbs"], " g"), fmt(t["carb_g"], " g"), ""),
             ("Fat", fmt(b["fat"], " g"), fmt(t["fat_g"], " g"), f"sat {fmt(b['sat'], ' g')}"),
-            ("Fiber", fmt(b["fiber"], " g"), "≥ 25 g", ""),
-            ("Sodium (net of ride sweat)", fmt(b["sodium"], " mg"), "≤ 2,300 mg",
+            ("Fiber", fmt(b["fiber"], " g"), f"≥ {fmt(t.get('fiber'), ' g')}", "14 g per 1,000 kcal"),
+            ("Sodium (net of ride sweat)", fmt(b["sodium"], " mg"), f"≤ {T.SODIUM_MG_CEILING:,} mg",
              f"{b['days_over_sodium']} of {b['n']} days over"),
             ("Cholesterol", fmt(b["chol"], " mg"), f"≤ {fmt(b['chol_limit'], ' mg')}" if b["chol_limit"] else "no limit",
              f"{b['days_over_chol']} of {b['n']} days over" if b["chol_limit"] else "for reference")]
@@ -338,7 +428,7 @@ def _baseline(p: dict):
                + ". Today is excluded until it's over. Days with nothing logged don't count.")
 
 
-def _last(p: dict):
+def _history(p: dict):
     hist = p.get("history") or {}
     rides = hist.get("rides") or []
     if rides:
@@ -351,13 +441,21 @@ def _last(p: dict):
     retro = (hist.get("retro") or {}).get("plan") or []
     intake = p.get("intake") or {}
     if retro:
-        st.markdown("## Eaten vs target")
-        st.dataframe(pd.DataFrame([{
+        st.markdown("## Eaten vs target, last 2 weeks")
+        st.dataframe(_numeric(pd.DataFrame([{
             "date": r["date"], "burn": round(r["tdee"]), "target": round(r["kcal"]),
             "eaten": round(intake[r["date"]]["calories_kcal"]) if intake.get(r["date"], {}).get("calories_kcal") else None,
-            "sodium mg": intake.get(r["date"], {}).get("sodium_mg"), "chol mg": intake.get(r["date"], {}).get("cholesterol_mg"),
-            "logged in": intake.get(r["date"], {}).get("source")} for r in retro]), hide_index=True, use_container_width=True)
-    diffs = _query("SELECT detected_at, date, change, before_json, after_json FROM coach_diffs ORDER BY id DESC LIMIT 30")
+            f"sodium mg (≤{T.SODIUM_MG_CEILING:,})": intake.get(r["date"], {}).get("sodium_mg"),
+            "fiber g": intake.get(r["date"], {}).get("fiber_g"),
+            "fiber target": round(r["fiber_target"]) if r.get("fiber_target") else None,
+            "sat fat g": intake.get(r["date"], {}).get("saturated_fat_g"),
+            "sat fat max": round(r["satfat_max_g"]) if r.get("satfat_max_g") else None,
+            "chol mg": intake.get(r["date"], {}).get("cholesterol_mg"),
+            "logged in": intake.get(r["date"], {}).get("source")} for r in retro])),
+            hide_index=True, use_container_width=True)
+    _baseline(p)
+    _alcohol_section()
+    diffs = M.read("SELECT detected_at, date, change, before_json, after_json FROM coach_diffs ORDER BY id DESC LIMIT 30")
     st.markdown("## Garmin Coach changes")
     if diffs.empty:
         st.caption("No Coach changes detected yet. Every refresh compares Coach's window with the previous one; "
@@ -378,7 +476,7 @@ def _last(p: dict):
         st.caption(f"7-day : 28-day load ratio {ratio:.2f}" if ratio else "Load ratio needs 4 weeks of rides.")
         st.caption("Completed lifts this and last week: " + (", ".join(c["date"] for c in stg.get("completed", [])) or "none")
                    + " · progress " + ", ".join(f"{k}: {v}" for k, v in (stg.get("progress") or {}).items()))
-        ops = _query("SELECT ts, mode, op, date, ok, detail FROM fuel_garmin_ops ORDER BY id DESC LIMIT 20")
+        ops = M.read("SELECT ts, mode, op, date, ok, detail FROM fuel_garmin_ops ORDER BY id DESC LIMIT 20")
         if not ops.empty:
             st.dataframe(ops, hide_index=True, use_container_width=True)
     st.markdown("## Data issues")
@@ -386,10 +484,57 @@ def _last(p: dict):
     src = p.get("sources", {})
     if src.get("mfp") == "auth_expired":
         issues.append("MyFitnessPal session expired: re-run the mfp-mcp auth step on the Mac mini.")
-    if not _query("SELECT 1 FROM body_weight WHERE timestamp >= date('now','-10 days') LIMIT 1").shape[0]:
+    if not M.read("SELECT 1 FROM body_weight WHERE timestamp >= date('now','-10 days') LIMIT 1").shape[0]:
         issues.append("No weigh-ins in the last 10 days (targets use the last body-composition scan).")
     st.html("<ul class='fuel-notes'>" + "".join(f"<li>{H.esc(i)}</li>" for i in issues) + "</ul>" if issues
             else "<p class='fuel-tgt'>None.</p>")
+
+
+def _numeric(df: pd.DataFrame) -> pd.DataFrame:
+    """Numeric columns as numbers so missing values show blank, not "None"."""
+    for c in df.columns:
+        if c not in ("date", "logged in"):
+            df[c] = pd.to_numeric(df[c], errors="coerce")
+    return df
+
+
+def _alcohol_section():
+    """Weekly drinks from Garmin Lifestyle Logging against the guideline. The
+    current-week number vs target is on Goals."""
+    st.markdown("## Alcohol")
+    df = M.alcohol_log()
+    if df.empty:
+        st.caption("No alcohol logged yet — tracked via Garmin Connect Lifestyle Logging.")
+        return
+    weekly = M.alcohol_weekly()
+    fig = go.Figure(go.Bar(x=weekly.index, y=weekly.values, marker_color=lib.SERIES["alcohol"], opacity=0.8))
+    fig.add_hline(y=T.ALCOHOL_DRINKS_WK, line_dash="dot", line_color=lib.MUTED,
+                  annotation_text=f"guideline ≤{T.ALCOHOL_DRINKS_WK}/wk", annotation_position="top left",
+                  annotation_font_color=lib.MUTED)
+    lib.chart(lib.apply_theme(fig, 200), "nu_alcohol")
+    st.caption("Garmin logs a serving count per category (beer/wine/spirit), not ABV-weighted units. "
+               f"Reference line = US Dietary Guidelines ≤{T.ALCOHOL_DRINKS_WK} drinks/week (men).")
+    with st.expander("Weekly drinks by type"):
+        pivot = (df.assign(week=M.week_start(df["date"]))
+                   .pivot_table(index="week", columns="subtype", values="amount", aggfunc="sum", fill_value=0)
+                   .sort_index(ascending=False))
+        pivot["Total"] = pivot.sum(axis=1)
+        pivot.index = pivot.index.strftime("Week of %Y-%m-%d")
+        pivot.columns = [str(c).title() for c in pivot.columns]
+        st.dataframe(pivot, use_container_width=True)
+
+
+def _reference(p: dict):
+    st.markdown(diet_content.STARTING_APPROACH)
+    st.caption(diet_content.ACTIVITY_GUIDELINES)
+    st.markdown("## Diet research")
+    for i, sec in enumerate(diet_content.SECTIONS):
+        with st.expander(sec["title"], expanded=(i == 0)):
+            st.markdown(sec["body_md"])
+            for point in sec["key_points"]:
+                st.markdown(f"- {point}")
+            st.caption("Sources")
+            st.markdown("\n".join(f"- [{label}]({url})" for label, url in sec["sources"]))
 
 
 def _groceries(p: dict):
@@ -405,11 +550,19 @@ def _groceries(p: dict):
 
 
 # ------------------------------------------------------------------ page
-def render_fuel():
+def render_nutrition():
     st.html(H.CSS)
+    lib.page_header("Nutrition", "What to eat, what you ate, and body composition. "
+                    "Intake from MyFitnessPal, plan from Garmin Coach and the power meter.")
     meta = latest_run_meta()
     if meta is None:
         st.info("No fuel plan yet. It appears after the first `python -m nutrition.refresh` run on the Mac mini.")
+        tabs = st.tabs(["Body", "Reference"])
+        with tabs[0]:
+            _weight_section()
+            _body_composition_section()
+        with tabs[1]:
+            _reference({})
         return
     p = load_payload(meta["id"])
     top = st.columns([5, 1])
@@ -420,6 +573,6 @@ def render_fuel():
     if meta.get("last_error"):
         st.warning(f"Last refresh failed at {meta['last_error'][0][:16]}: {meta['last_error'][1][:160]}. Showing the previous plan.")
     tabs = st.tabs(TABS)
-    for tab, fn in zip(tabs, (_today, _next, _goals, _last, _groceries)):
+    for tab, fn in zip(tabs, (_today, _next, _body, _history, _groceries, _reference)):
         with tab:
             fn(p)

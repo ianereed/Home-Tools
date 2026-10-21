@@ -9,7 +9,7 @@ from . import foods as F
 
 CSS = """
 <style>
-.fuel-card{background:#161a23;border:1px solid rgba(255,255,255,.07);border-radius:10px;padding:10px 12px;margin:6px 0}
+.fuel-card{background:#161b26;border:1px solid #2a2f3a;border-radius:8px;padding:10px 12px;margin:6px 0}
 .fuel-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
 @media (max-width:760px){.fuel-grid{grid-template-columns:1fr}}
 .fuel-slot{background:#12151d;border:1px solid rgba(255,255,255,.06);border-radius:8px;padding:8px 10px}
