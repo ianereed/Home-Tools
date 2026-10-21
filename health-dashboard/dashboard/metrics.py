@@ -390,6 +390,23 @@ def dexa_scans() -> pd.DataFrame:
     return out
 
 
+def weight_goals() -> list[dict]:
+    """The weight goals (targets.BODY_FAT_GOALS) worked out from the latest DEXA
+    scan: [{label, pct, lb, fat_lb, scan_date}], or [] with no scan on file."""
+    scans = dexa_scans()
+    scans = scans[scans["lean"].notna()] if not scans.empty else scans
+    if scans.empty:
+        return []
+    s = scans.iloc[-1]
+    bone = s["bone"] if pd.notna(s["bone"]) else 0.0
+    out = []
+    for label, pct in T.BODY_FAT_GOALS:
+        lb = T.weight_at_body_fat(s["lean"], bone, pct)
+        out.append({"label": label, "pct": pct, "lb": lb, "fat_lb": lb - s["lean"] - bone,
+                    "scan_date": s["date"]})
+    return out
+
+
 def scale_composition(start: str = "") -> pd.DataFrame:
     """Garmin scale (bioimpedance) readings, one row per day (mean of that day's
     weigh-ins). Days with a DEXA scan are left out: that day's Garmin entry is

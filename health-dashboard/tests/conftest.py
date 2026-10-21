@@ -29,7 +29,7 @@ _RNG_SEED = 20260101  # fixed seed -> deterministic synthetic data across runs
 @pytest.fixture(autouse=True)
 def _no_real_clinical_data(monkeypatch):
     """Belt and braces for Standing rule 2: any code that lazily imports
-    clinical_data (e.g. Nutrition's goal band) gets an empty module, never the
+    clinical_data gets an empty module, never the
     real gitignored PHI file. fake_clinical* fixtures override this."""
     monkeypatch.setitem(sys.modules, "clinical_data", types.ModuleType("clinical_data"))
 

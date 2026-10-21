@@ -25,6 +25,8 @@ from __future__ import annotations
 import math
 from datetime import date, datetime, timedelta
 
+from dashboard.targets import BODY_FAT_GOALS, weight_at_body_fat
+
 from . import foods as F
 
 ENGINE_VERSION = "3.0"
@@ -145,16 +147,15 @@ def rmr_katch(ffm_kg: float) -> float:
 
 
 def body_targets(dexa: dict) -> list[dict]:
-    """Body-fat endpoints holding (or adding) lean tissue. % = fat / (fat + lean) tissue, DEXA-style."""
+    """The body-fat goals (dashboard.targets.BODY_FAT_GOALS) holding the scan's lean and bone mass.
+    % = fat / (fat + lean) tissue, DEXA-style."""
     lean, bone, fat = dexa["lean_mass_kg"], dexa["bone_mass_kg"], dexa["fat_mass_kg"]
     out = []
-    for label, pct, lean_gain in [("25%", 0.25, 0.0), ("22%", 0.22, 0.0), ("20%", 0.20, 0.0),
-                                  ("20% + 2 kg lean", 0.20, 2.0)]:
-        l2 = lean + lean_gain
-        f2 = l2 * pct / (1 - pct)
-        total = l2 + f2 + bone
-        out.append({"label": label, "pct": pct, "lean_kg": l2, "fat_kg": f2, "total_kg": total,
-                    "total_lb": total * 2.20462, "fat_loss_kg": fat - f2, "lean_gain_kg": lean_gain,
+    for label, pct in BODY_FAT_GOALS:
+        total = weight_at_body_fat(lean, bone, pct)
+        f2 = total - lean - bone
+        out.append({"label": f"{label} · {pct * 100:.0f}%", "pct": pct, "lean_kg": lean, "fat_kg": f2,
+                    "total_kg": total, "total_lb": total * 2.20462, "fat_loss_kg": fat - f2, "lean_gain_kg": 0.0,
                     "scale_change_kg": total - dexa["total_mass_kg"]})
     return out
 

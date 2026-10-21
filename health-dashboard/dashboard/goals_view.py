@@ -166,17 +166,19 @@ def _weight_tile(goals, today):
     w = M.weight_now(today)
     if w is None:
         return lib.card("Weight", "—", "no weigh-ins yet", lib.MUTED)
-    band = T.weight_band_lb(goals)
-    if band:
-        lo, hi = band
-        def to_go(v):
-            return "in band" if v <= hi else f"{v - hi:.0f}–{v - lo:.0f} lb to go"
-        # status follows the mean (the trend); the low shows how close the floor is
-        color = lib.GOOD if w["lb"] <= hi else lib.WARN
-        tgt = (f'band {lo:.0f}–{hi:.0f} lb · <b>mean {to_go(w["lb"])}</b> · '
-               f'low {to_go(w["low_lb"])}')
+    wg = M.weight_goals()
+    if wg:
+        def to_go(v, g):
+            return "reached" if v <= g["lb"] else f"{v - g['lb']:.1f} lb to go"
+        # status follows the mean (the trend) against goal 1
+        color = lib.GOOD if w["lb"] <= wg[0]["lb"] else lib.WARN
+        tgt = "<br>".join(
+            f'{g["label"].lower()} ≤{g["lb"]:.1f} ({g["pct"] * 100:.0f}% fat): '
+            + (f'<b>mean {to_go(w["lb"], g)}</b> · low {to_go(w["low_lb"], g)}' if i == 0
+               else f'mean {to_go(w["lb"], g)}')
+            for i, g in enumerate(wg))
     else:
-        color, tgt = lib.MUTED, "no goal band configured"
+        color, tgt = lib.MUTED, "no DEXA scan on file to set the goal"
     spark = M.weight_daily(M.since(30, today))["lb"].tolist()
     return lib.card("Weight", lib.weight_value(w), f"{tgt}<br>{lib.weight_basis(w)}",
                     color, lib.spark_svg(spark, lib.SERIES["weight"]))
@@ -581,42 +583,28 @@ def _render_bp_section(goals, today):
 # Goal 3 — weight pace (section ③b, same shape as the BP chart)
 # =============================================================================
 
-def _weight_figure(weekly, band, now_w, today, deadline):
-    """Weekly mean (labeled) and weekly low (dotted) against the goal band, plus
-    the arithmetic pace from today's 7-day mean to the top of the band."""
-    x_end = today + pd.Timedelta(days=60)
+def _weight_figure(weekly, wgoals, today):
+    """Each week's 7-day average (labeled) against the body-fat goal weights."""
     color = lib.SERIES["weight"]
     fig = go.Figure()
     fig.add_trace(go.Scatter(
-        x=weekly["week"], y=weekly["lb"], name="weekly mean",
+        x=weekly["week"], y=weekly["lb"], name="7-day average",
         mode="lines+markers+text",
         text=[f"{v:.1f}" if pd.notna(v) else "" for v in weekly["lb"]],
         textposition="top center", textfont=dict(size=9, color=lib.MUTED),
         connectgaps=False, line=dict(color=color, width=2), marker=dict(size=7),
         customdata=weekly["n"],
-        hovertemplate="wk of %{x|%b %d} · mean %{y:.1f} lb (%{customdata} weigh-in days)<extra></extra>"))
-    fig.add_trace(go.Scatter(
-        x=weekly["week"], y=weekly["low"], name="weekly low",
-        mode="lines+markers", connectgaps=False,
-        line=dict(color=color, width=1.5, dash="dot"), marker=dict(size=5),
-        hovertemplate="wk of %{x|%b %d} · low %{y:.1f} lb<extra></extra>"))
-    if band:
-        lo, hi = band
-        fig.add_hrect(y0=lo, y1=hi, fillcolor=lib.GOOD, opacity=0.06, line_width=0)
-        fig.add_hline(y=hi, line_dash="dash", line_color=lib.GOOD, opacity=0.8,
-                      annotation_text=f"goal ≤{hi:.0f}", annotation_position="bottom right",
+        hovertemplate="wk of %{x|%b %d} · %{y:.1f} lb (%{customdata} weigh-in days)<extra></extra>"))
+    for g, dash in zip(wgoals, ("dash", "dot")):
+        fig.add_hline(y=g["lb"], line_dash=dash, line_color=lib.GOOD, opacity=0.8,
+                      annotation_text=f'{g["label"].lower()} · {g["pct"] * 100:.0f}% fat · {g["lb"]:.1f}',
+                      annotation_position="bottom right",
                       annotation_font_size=10, annotation_font_color=lib.GOOD)
-        pace = _pace_per_week(now_w["lb"], hi, today, deadline) if now_w else None
-        if pace is not None:
-            fig.add_trace(go.Scatter(
-                x=[today, x_end], y=[now_w["lb"], now_w["lb"] + pace * (x_end - today).days / 7],
-                mode="lines", line=dict(color=lib.INK, width=1.5, dash="dash"), opacity=0.55,
-                showlegend=False, hovertemplate=f"pace {pace:+.2f} lb/wk<extra></extra>"))
     fig.update_xaxes(range=_tracker_range(today))
     if weekly["lb"].notna().any():
-        lows = [weekly["low"].min(), band[0] if band else weekly["low"].min()]
-        fig.update_yaxes(range=[min(lows) - 2, weekly["lb"].max() + 3])
-    return lib.apply_theme(fig, 300, legend=True)
+        lo = min([weekly["lb"].min()] + [g["lb"] for g in wgoals])
+        fig.update_yaxes(range=[lo - 3, weekly["lb"].max() + 3])
+    return lib.apply_theme(fig, 280)
 
 
 def _render_weight_section(goals, today):
@@ -626,31 +614,25 @@ def _render_weight_section(goals, today):
     if now_w is None or weekly.empty:
         st.caption("No weigh-ins yet — they sync from the Garmin scale.")
         return
-    band = T.weight_band_lb(goals)
-    deadline = pd.Timestamp(goals["deadline"]) if goals and goals.get("deadline") else None
+    wgoals = M.weight_goals()
 
     tiles = []
-    if band:
-        hi = band[1]
+    for g in wgoals:
         tiles.append(lib.card(
-            "To goal", f'{max(now_w["lb"] - hi, 0):.1f} / {max(now_w["low_lb"] - hi, 0):.1f} <small>lb</small>',
-            f"mean / low above the band top ({hi:.0f} lb)",
-            lib.GOOD if now_w["lb"] <= hi else lib.WARN))
-        pace = _pace_per_week(now_w["lb"], hi, today, deadline)
-        if pace is not None:
-            tiles.append(lib.card("Pace needed", f"{pace:+.2f} <small>lb/wk</small>",
-                                  "from the 7-day mean to the band top by the deadline — "
-                                  "arithmetic, not a forecast"))
+            f'To {g["label"].lower()} · {g["pct"] * 100:.0f}% fat',
+            f'{max(now_w["lb"] - g["lb"], 0):.1f} / {max(now_w["low_lb"] - g["lb"], 0):.1f} <small>lb</small>',
+            f'mean / low above {g["lb"]:.1f} lb ({g["fat_lb"]:.1f} lb of fat)',
+            lib.GOOD if now_w["lb"] <= g["lb"] else lib.WARN))
     recent = weekly[weekly["week"] >= M.this_monday(today) - pd.Timedelta(weeks=3)]
     tiles.append(lib.card("Weigh-in days", f'{int(recent["n"].fillna(0).sum())}',
                           "last 4 weeks · a gap breaks the trend"))
     lib.cards(tiles)
 
-    lib.chart(_weight_figure(weekly, band, now_w, today, deadline), "goals_weight")
-    st.caption("Solid = weekly mean of daily weigh-ins (labeled); dotted = the week's lowest "
-               "reading, the closest to true weight. Green band = goal range. Dashed white "
-               "line = required pace from today's 7-day mean to the top of the band by the "
-               "deadline. Full history and body composition are on Nutrition → Body.")
+    lib.chart(_weight_figure(weekly, wgoals, today), "goals_weight")
+    scan = (f'the {wgoals[0]["scan_date"]:%b %-d, %Y} DEXA scan' if wgoals else "a DEXA scan")
+    st.caption("Each point is that week's 7-day average weight (hover for weigh-in days). Goal lines = "
+               f"the weight at 24% and 20% body fat if {scan}'s lean and bone mass stay the same; "
+               "they update with each new scan. Full history and body composition are on Nutrition → Body.")
 
 
 # =============================================================================
@@ -768,6 +750,10 @@ def render_goals():
         intro_bits.append(f"LDL &lt; {T.ldl_goal(goals)} mg/dL")
     if (goals or {}).get("bp"):
         intro_bits.append("BP &lt; {}/{}".format(*T.bp_goal(goals)))
+    wg = M.weight_goals()
+    if wg:
+        intro_bits.append("weight ≤" + " then ≤".join(
+            f'{g["lb"]:.1f} lb ({g["pct"] * 100:.0f}% fat)' for g in wg))
     if goals and goals.get("deadline"):
         dl = pd.Timestamp(goals["deadline"])
         intro_bits.append(f"by {dl:%b %Y} · <b>{(dl - today).days} days</b>")

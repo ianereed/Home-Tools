@@ -138,7 +138,6 @@ def test_fiber_target_scales_with_calories_with_a_floor():
 def test_physician_goal_helpers_default_safely():
     assert T.bp_goal(None) == T.BP_NORMAL
     assert T.bp_goal({"bp": {"systolic": 130, "diastolic": 85}}) == (130, 85)
-    assert T.weight_band_lb(None) is None
     assert T.ldl_goal({"ldl": {"target": 70, "stretch": 50}}) == 50
 
 
@@ -154,3 +153,20 @@ def test_training_load_is_seeded_from_earlier_history(fake_db):
     assert len(seeded) == 21
     # a cold start reads fitness low; warm-up history lifts the first day
     assert seeded[0]["ctl"] > cold[0]["ctl"]
+
+
+def test_weight_goals_hold_dexa_lean_and_bone(conn):
+    # lean 56.79 kg, bone 3.22 kg, fat 24.72 kg (30.3% of fat + lean)
+    _rows(conn, "INSERT INTO body_composition (timestamp, weight_kg, body_fat_pct, lean_mass_kg, fat_mass_kg, "
+                "bone_mass_kg, source) VALUES (?,?,?,?,?,?,'dexa')",
+          [("2026-10-13T00:00:00", 84.73, 30.3, 56.79, 24.72, 3.22)])
+    g1, g2 = M.weight_goals()
+    assert (g1["label"], g1["pct"]) == ("Goal 1", 0.24)
+    assert g1["lb"] == pytest.approx((56.79 / 0.76 + 3.22) * T.KG_TO_LB)      # ~171.8 lb
+    assert g2["lb"] == pytest.approx((56.79 / 0.80 + 3.22) * T.KG_TO_LB)      # ~163.6 lb
+    # at the goal weight, fat is exactly 24% of fat + lean
+    assert g1["fat_lb"] / (g1["fat_lb"] + 56.79 * T.KG_TO_LB) == pytest.approx(0.24)
+
+
+def test_no_dexa_no_weight_goals(conn):
+    assert M.weight_goals() == []
