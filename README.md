@@ -19,6 +19,7 @@ leaves the house.
 | [`Mac-mini`](Mac-mini/README.md) | Setup + ops log + cross-cutting LaunchAgents (memory/ollama trackers; the cron-style ones — heartbeat, digests, restic — are now Mini Jobs in `jobs/`) | mini | 🟢 live |
 | [`jobs`](Mac-mini/PHASE12.md) | Phase 12 — typed-job framework (huey-backed). 12 cron-style LaunchAgents now run as `@huey.periodic_task` Job kinds in `jobs/kinds/`. HTTP enqueue at `homeserver:8504`. Operator runbook in `Mac-mini/PHASE12.md` | mini | 🟢 live |
 | [`console`](Mac-mini/PHASE12.md) | Phase 12 — Mini Ops Streamlit at `homeserver:8503`. Tabs: Jobs / Decisions / Ask / Intake / Plan (Phase 13 placeholder) | mini | 🟢 live |
+| [`gateway`](gateway/Caddyfile) | Caddy front door on `homeserver:8503`: console at `/`, health dashboard at `/health/`; old `:8501` links redirect there | mini | 🟢 live |
 | [`meal-planner`](meal-planner/README.md) | Google Sheet + Apps Script grocery / recipe automation, with a Python sidecar for Gemini-powered batch jobs | laptop / Apps Script | 🟢 live |
 | [`medical-records`](medical-records/README.md) | Local-only PHI handling for an active recovery; writes appointments + medication tapers to GCal / Reminders | laptop only | 🟢 live |
 | [`contacts`](contacts/README.md) | Toolbox of one-shot Python scripts maintaining `antora_contacts.xlsx` | laptop | 🟡 ad-hoc |

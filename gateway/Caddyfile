@@ -1,0 +1,31 @@
+# Single front door for the mini's web UIs. Bound to the Tailscale IP only
+# (same exposure the console had); run.sh exports TAILSCALE_IP.
+#
+#   http://homeserver:8503/          → Mini Ops console   (127.0.0.1:8513)
+#   http://homeserver:8503/health/   → Health dashboard   (127.0.0.1:8511, baseUrlPath=health)
+#   http://homeserver:8501/...       → redirect to :8503/health/... (old bookmarks)
+#
+# Both apps still run as their own Streamlit processes (own venv, cwd, theme);
+# Caddy only routes. Websockets pass through reverse_proxy unchanged.
+{
+	admin off
+	auto_https off
+	persist_config off
+}
+
+http://:8503 {
+	bind {$TAILSCALE_IP}
+
+	@health path /health /health/*
+	handle @health {
+		reverse_proxy 127.0.0.1:8511
+	}
+	handle {
+		reverse_proxy 127.0.0.1:8513
+	}
+}
+
+http://:8501 {
+	bind {$TAILSCALE_IP}
+	redir http://{host}:8503/health{uri}
+}

@@ -55,9 +55,12 @@ export HOME_TOOLS_HTTP_URL="http://${TAILSCALE_IP}:8504"
 # session instead of dropping in-progress edits, and ping the client every 20s
 # to keep the websocket alive / detect drops faster. Streamlit's own docs name
 # the "Connection error" symptom as the case for tuning websocketPingInterval.
+#
+# Loopback only: the gateway (gateway/Caddyfile) is what serves
+# http://homeserver:8503/ on the tailnet and proxies here.
 exec "$VENV/bin/streamlit" run console/app.py \
-    --server.port 8503 \
-    --server.address "$TAILSCALE_IP" \
+    --server.port 8513 \
+    --server.address 127.0.0.1 \
     --server.headless true \
     --server.disconnectedSessionTTL 900 \
     --server.websocketPingInterval 20 \

@@ -224,7 +224,7 @@ def render_dataflow(status: dict, queues: dict, ollama: dict,
         _arrow(),
         _ext("health.db", _age_str(hdb_age), _ts_cls(hdb_age, HDB_AGING, HDB_STALE)),
         _arrow(),
-        _node("streamlit :8501", st_("hd_streamlit")),
+        _node("streamlit :8511", st_("hd_streamlit")),
     ]))
 
     # Finance monitor — bot KeepAlive; watcher is now a Mini Job (every 5m).

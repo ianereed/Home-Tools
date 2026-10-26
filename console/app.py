@@ -1,5 +1,6 @@
 """
-Mini Ops — Streamlit console at :8503.
+Mini Ops — Streamlit console at :8503 (via gateway/; the health dashboard
+is at :8503/health/ on the same gateway).
 
 Ian's ops surface for the Home-Tools mini. Recipes and Anny Food are the
 two tabs Anny uses too.
@@ -66,7 +67,8 @@ ordered = _TAB_ORDER[pivot:] + _TAB_ORDER[:pivot]
 
 st.markdown(
     "<h2 style='margin: 0; padding: 0'>Mini Ops</h2>"
-    "<p style='color: #888; margin-top: 0'>Home-Tools mini · Ian's ops surface</p>",
+    "<p style='color: #888; margin-top: 0'>Home-Tools mini · Ian's ops surface"
+    " · <a href='/health/' target='_self'>❤️ Health</a></p>",
     unsafe_allow_html=True,
 )
 

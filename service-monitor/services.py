@@ -59,9 +59,13 @@ SERVICES: list[Svc] = [
     Svc("jobs_http",     "com.home-tools.jobs-http",                "jobs",             "KeepAlive (:8504)",
         str(LOG_DIR_HOME_TOOLS / "jobs-http.log"),
         plist_source_path="jobs/config/com.home-tools.jobs-http.plist"),
-    Svc("console",       "com.home-tools.console",                  "console",          "KeepAlive (:8503)",
+    Svc("console",       "com.home-tools.console",                  "console",          "KeepAlive (:8513)",
         str(LOG_DIR_HOME_TOOLS / "console.log"),
         plist_source_path="console/config/com.home-tools.console.plist"),
+    # Caddy front door: :8503 → console at /, health dashboard at /health/.
+    Svc("gateway",       "com.home-tools.gateway",                  "gateway",          "KeepAlive (:8503)",
+        str(LOG_DIR_HOME_TOOLS / "gateway.log"),
+        plist_source_path="gateway/config/com.home-tools.gateway.plist"),
 ]
 
 
