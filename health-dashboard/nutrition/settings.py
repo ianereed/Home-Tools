@@ -44,6 +44,7 @@ DEFAULTS = {
     "lift_equipment": "gym",                 # gym | home (bodyweight)
     "lift_equipment_by_date": {},            # {"YYYY-MM-DD": "home"} one-off overrides
     "strength_block_start": None,            # "YYYY-MM-DD" first lift of the block: deload weeks count from it
+    "strength_weights": {},                  # {"GOBLET_SQUAT": {"lb": 30, "note": "..."}} working weights, from Ian's notes
     "athlete_fallback": {},                  # used only if Garmin profile fields are missing
     "gcal_sync": {                           # Garmin calendar -> Google Calendar (python -m nutrition.gcal_workouts)
         "mode": "live",                      # off | dry_run | live

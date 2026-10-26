@@ -260,7 +260,7 @@ def test_home_bodyweight_override_for_a_date():
     assert {"SQUAT", "PUSH_UP", "LUNGE", "HIP_RAISE"} <= cats
     other = [l for l in lifts if l["date"] != first["date"]]
     assert all(l["equipment"] == "gym" for l in other)
-    assert any(x["exercise"] == "DUMBBELL_BENCH_PRESS" for l in other if l["template"] == "A" for x in l["exercises"]) or \
+    assert any(x["exercise"] == "BARBELL_BENCH_PRESS" for l in other if l["template"] == "A" for x in l["exercises"]) or \
         any(x["exercise"] == "DUMBBELL_ROW" for l in other for x in l["exercises"])
 
 
@@ -329,3 +329,27 @@ def test_kept_date_refused_by_guard_is_reused_before_a_new_one():
     assert [(l["date"], l["plan_key"]) for l in lifts] == [(wed, "lift-keep")]
     assert not any("moved off" in r for r in lifts[0]["reasons"])
     assert "no other day this week avoids a key ride 2 days later" in lifts[0]["reasons"]
+
+
+# ---------------- working weights ----------------
+
+def test_working_weights_go_on_the_watch_step():
+    w = {"GOBLET_SQUAT": {"lb": 30}, "ROMANIAN_DEADLIFT": {"lb": 75, "note": "bar + 15/side"}}
+    ex = ST.prescription("A", 1, "normal", False, True, "gym", w)
+    by = {x["exercise"]: x for x in ex}
+    assert by["GOBLET_SQUAT"]["weight_lb"] == 30 and "note" not in by["GOBLET_SQUAT"]
+    assert by["ROMANIAN_DEADLIFT"]["note"] == "bar + 15/side"
+    assert "weight_lb" not in by["DEAD_BUG"] and "weight_lb" not in by["BARBELL_BENCH_PRESS"]
+    lift = {"name": "FP · Lift A1", "plan_key": "k", "spec_hash": "h", "minutes": 45, "exercises": ex}
+    groups = [s for s in ST.to_garmin_json(lift)["workoutSegments"][0]["workoutSteps"] if s["type"] == "RepeatGroupDTO"]
+    work = groups[0]["workoutSteps"][0]
+    assert work["weightValue"] == 30 and work["weightUnit"]["unitKey"] == "pound"
+    assert work["description"].startswith("Goblet squat · 30 lb · 3 reps in reserve")
+    assert "weightValue" not in groups[-1]["workoutSteps"][0]
+
+
+def test_known_weight_replaces_the_intro_note():
+    ex = ST.prescription("A", 0, "normal", False, False, "gym", {"GOBLET_SQUAT": {"lb": 30}})
+    by = {x["exercise"]: x for x in ex}
+    assert "note" not in by["GOBLET_SQUAT"] and by["ROMANIAN_DEADLIFT"]["note"]
+    assert ST.prescription("A", 0, "normal", False, False, "home", {"AIR_SQUAT": {"lb": 30}})[0].get("weight_lb") is None

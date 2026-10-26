@@ -7,7 +7,8 @@ bodyweight accessories), then level 1-6, +1 level every 2 sessions of that templ
 forward through the horizon, so future lifts continue from the last completed one. Every 4th week from
 the block start is a deload (-1 set). While lifting is new (first INTRO_SESSIONS sessions) a lift is kept
 off the day two days before a key ride when another day works, since soreness peaks ~48 h later. Load rules can swap in the 'light' variant (-1 set, +1 rep in reserve) or move a lift;
-every decision carries a human-readable reason.
+Working weights (settings.strength_weights, {exerciseName: {"lb": n, "note": "..."}}) come from Ian's notes
+after a session; they go on the watch as each step's weight target. Every decision carries a human-readable reason.
 """
 from __future__ import annotations
 
@@ -31,7 +32,7 @@ TEMPLATES = {
           ("Single-leg RDL", "DEADLIFT", "SINGLE_LEG_ROMANIAN_DEADLIFT_WITH_DUMBBELL", "accessory"),
           ("Side plank", "PLANK", "SIDE_PLANK", "core")],
 }
-UPPER = {"A": [("Dumbbell bench press", "BENCH_PRESS", "DUMBBELL_BENCH_PRESS", "accessory")],
+UPPER = {"A": [("Bench press", "BENCH_PRESS", "BARBELL_BENCH_PRESS", "accessory")],
          "B": [("Dumbbell row", "ROW", "DUMBBELL_ROW", "accessory")]}
 
 # Home / bodyweight versions (no equipment): (label, category, exerciseName, reps, seconds).
@@ -61,6 +62,7 @@ INTRO_NOTE = {"main": "light, find your starting weight", "accessory": "bodyweig
 INTRO_SESSIONS = 6
 LIFT_MIN = 45
 REST_S = {"main": 120, "accessory": 75, "core": 45}
+LB = {"unitId": 9, "unitKey": "pound", "factor": 453.59237}
 
 
 def level_for(sessions_done: int) -> int:
@@ -69,7 +71,7 @@ def level_for(sessions_done: int) -> int:
 
 
 def prescription(template: str, level: int, variant: str, deload: bool, upper: bool,
-                 equipment: str = "gym") -> list[dict]:
+                 equipment: str = "gym", weights: dict | None = None) -> list[dict]:
     intro = level <= 0 and equipment != "home"
     sets, reps = LEVELS[max(0 if intro else 1, min(6, level))]
     rir = RIR[max(0 if intro else 1, min(6, level))]
@@ -96,6 +98,12 @@ def prescription(template: str, level: int, variant: str, deload: bool, upper: b
                   "rest_s": 90 if intro and kind == "main" else REST_S[kind]}
             if intro:
                 ex["note"] = INTRO_NOTE[kind]
+            w = (weights or {}).get(name)
+            if w and w.get("lb"):
+                ex["weight_lb"] = w["lb"]
+                ex.pop("note", None)  # a known weight replaces "find your starting weight"
+            if w and w.get("note"):
+                ex["note"] = w["note"]
             out.append(ex)
     return out
 
@@ -261,7 +269,8 @@ def plan_lifts(days: list[dict], *, today: date, cfg: dict, settings: dict, comp
             equipment = (settings.get("lift_equipment_by_date") or {}).get(ds) or settings.get("lift_equipment", "gym")
             if equipment == "home":
                 reasons.append("bodyweight session at home")
-            ex = prescription(template, level, variant, deload, upper, equipment)
+            ex = prescription(template, level, variant, deload, upper, equipment,
+                              settings.get("strength_weights"))
             spec = {"template": template, "level": level, "variant": variant, "deload": deload, "upper": upper,
                     "equipment": equipment, "exercises": ex}
             out.append({"plan_key": key or next(free), "kind": "lift", "date": ds, "start": st, "end": st + LIFT_MIN,
@@ -293,8 +302,11 @@ def to_garmin_json(lift: dict) -> dict:
         work = {"type": "ExecutableStepDTO", "stepOrder": order, "stepType": _step_type("interval", 3),
                 "category": ex["category"], "exerciseName": ex["exercise"],
                 "targetType": {"workoutTargetTypeId": 1, "workoutTargetTypeKey": "no.target"},
-                "description": f"{ex['label']}" + (f" · {ex['rir']} reps in reserve" if ex.get("rir") else "")
+                "description": f"{ex['label']}" + (f" · {ex['weight_lb']:g} lb" if ex.get("weight_lb") else "")
+                + (f" · {ex['rir']} reps in reserve" if ex.get("rir") else "")
                 + (f" · {ex['note']}" if ex.get("note") else "")}
+        if ex.get("weight_lb"):
+            work |= {"weightValue": ex["weight_lb"], "weightUnit": LB}
         if ex.get("reps"):
             work |= {"endCondition": {"conditionTypeId": 10, "conditionTypeKey": "reps"}, "endConditionValue": ex["reps"]}
         else:
