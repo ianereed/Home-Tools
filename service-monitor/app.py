@@ -98,7 +98,7 @@ st.markdown(
     f"## Mac mini Services &nbsp;"
     f'<span style="font-size:0.9rem;font-weight:normal;color:#8b95a5;">'
     f"{global_emoji} {global_label} · auto-refresh 30s</span>"
-    f'&nbsp;&nbsp;<a href="http://homeserver:8501" target="_blank" '
+    f'&nbsp;&nbsp;<a href="http://homeserver:8503/health/" target="_blank" '
     f'style="font-size:0.85rem;font-weight:normal;color:#4da3ff;text-decoration:none;">'
     f"❤️ Health Dashboard ↗</a>",
     unsafe_allow_html=True,
@@ -393,7 +393,8 @@ something is repeatedly crashing.
 | `event-agg / worker` | Drains the text + OCR queues, runs Ollama, writes to GCal |
 | `finance-monitor / bot` | Slack DM bot — answers finance questions via Ollama |
 | `hd / receiver :8095` | Receives Apple Health data from iPhone |
-| `hd / streamlit :8501` | Hosts the health dashboard web UI |
+| `hd / streamlit :8511` | Hosts the health dashboard web UI (served at `:8503/health/` by the gateway) |
+| `gateway :8503` | Caddy front door: console at `/`, health dashboard at `/health/` |
 | `service-monitor :8502` | This dashboard |
 
 **Scheduled** — runs on a timer, then stops. The PID is `—` between runs.
@@ -477,7 +478,7 @@ Gmail / iMsg / Slack → event-agg/fetch → state.json (queues)
                                                            → Slack replies
 
 iPhone Health        → hd/receiver  ┐
-Garmin               → hd/collect   ├─→ health.db → Streamlit :8501
+Garmin               → hd/collect   ├─→ health.db → Streamlit :8511 (gateway :8503/health/)
 Intervals.icu        → hd/intervals ┘
 
 YNAB API + intake/   → fin/watcher → finance.db

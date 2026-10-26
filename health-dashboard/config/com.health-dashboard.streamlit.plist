@@ -10,9 +10,11 @@
         <string>run</string>
         <string>dashboard/app.py</string>
         <string>--server.port</string>
-        <string>8501</string>
+        <string>8511</string>
         <string>--server.address</string>
-        <string>0.0.0.0</string>
+        <string>127.0.0.1</string>
+        <string>--server.baseUrlPath</string>
+        <string>health</string>
         <string>--server.headless</string>
         <string>true</string>
         <string>--browser.gatherUsageStats</string>

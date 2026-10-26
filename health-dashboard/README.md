@@ -17,17 +17,17 @@ There are deliberately no "train hard / rest today" prescriptions.
   Garmin API ──poll──▶ collectors ──▶ data/health.db
                                                               │
                                                               ▼
-                                                     Streamlit dashboard :8501
+                                                     Streamlit dashboard :8511 (served at homeserver:8503/health/)
 ```
 
-Receiver is on `:8095`. Streamlit UI is on `:8501`. Both reachable over Tailscale at `homeserver:8095` and `homeserver:8501`.
+Receiver is on `:8095` (Tailscale: `homeserver:8095`). The Streamlit UI listens on `127.0.0.1:8511` with `baseUrlPath=health`; open it at `http://homeserver:8503/health/` — the gateway (`gateway/Caddyfile`) shares that port with the Mini Ops console and redirects old `homeserver:8501` links.
 
 ## Status
 
 **LIVE** on the Mac mini. Two always-on LaunchAgents plus jobs-driven collection:
 
 - `com.health-dashboard.receiver` — iPhone POST endpoint, port 8095 (LaunchAgent)
-- `com.health-dashboard.streamlit` — dashboard UI, port 8501 (LaunchAgent)
+- `com.health-dashboard.streamlit` — dashboard UI, `127.0.0.1:8511` behind the gateway at `:8503/health/` (LaunchAgent)
 - Collection runs as **`jobs` huey periodic tasks** (not LaunchAgents): `health_collect`
   (daily 7:00/7:20 → `collectors.collect_all`) and `health_staleness` (7:00/21:00).
   They live in `../jobs/kinds/health_*.py` and subprocess into this project's `.venv`.
@@ -115,7 +115,7 @@ Single-user (you). Hosted on the Mac mini and reachable over Tailscale. Not desi
 - **Keychain entries**: `health-dashboard-garmin`, `health-dashboard-strava` (dormant) (`email`/`password`) × `{client_id, client_secret, tokens, ...}`
 - **Staleness**: `health_staleness` flags sleep/HRV/resting-HR stale after 24h and sends an ntfy.sh push (topic `ian-health-dashboard`) with a diagnosis (receiver up? iPhone online on Tailscale? → app-side steps). Every run also appends to `logs/health-staleness.log` — that file's mtime is the kind's migration baseline, so it must always be written. Diagnosis subprocess calls (`tailscale`, `lsof`) degrade gracefully if the binary isn't on `PATH`.
 - **Collection alerting**: `health_collect` persists each run to `logs/collect.log` and, on a non-zero exit, pushes an ntfy alert and raises (so huey records the failure). This is the primary "something broke" signal now the dashboard isn't watched daily. Collectors use a 30s socket timeout + one bounded retry each.
-- **Streamlit on `:8501`** runs as `com.health-dashboard.streamlit`.
+- **Streamlit on `127.0.0.1:8511`** (`/health/` on the `:8503` gateway) runs as `com.health-dashboard.streamlit`.
 
 ## Future
 

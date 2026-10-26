@@ -74,10 +74,10 @@ Tailscale.
     plist
 - **Health-dashboard** at `~/Home-Tools/health-dashboard` with 5 LaunchAgents:
   `receiver` (port 8095, KeepAlive), `collect` (7:00 + 7:20am), `intervals-poll`
-  (every 5 min), `staleness` (7am + 9pm), `streamlit` (port 8501, KeepAlive,
-  bound `0.0.0.0`). iPhone Health Auto Export posts to
+  (every 5 min), `staleness` (7am + 9pm), `streamlit` (port 8511, KeepAlive,
+  bound `127.0.0.1`, `baseUrlPath=health`). iPhone Health Auto Export posts to
   `http://homeserver:8095/` over Tailscale; dashboard UI at
-  `http://homeserver:8501/`. Laptop copies of the 4 data-plane plists at
+  `http://homeserver:8503/health/` via the gateway (old `:8501` links redirect). Laptop copies of the 4 data-plane plists at
   `~/Library/LaunchAgents/com.health-dashboard.*.plist.disabled` (renamed so
   they don't auto-load on login).
   - LaunchAgent logs: `/tmp/home-tools-<project>.log` (+ `-error.log`)
@@ -103,7 +103,7 @@ Tailscale.
   `~/Home-Tools/finance-monitor/data/finance.db`
 
 - **meal-planner + mini ops console** at `~/Home-Tools/console` and `~/Home-Tools/meal_planner`. 3 LaunchAgents:
-  `com.home-tools.console` (Streamlit at port 8503, Tailscale-bound, KeepAlive — recipe browser + edit UI + job status tabs),
+  `com.home-tools.console` (Streamlit on `127.0.0.1:8513`, served at `homeserver:8503` by `com.home-tools.gateway` (Caddy, Tailscale-bound), KeepAlive — recipe browser + edit UI + job status tabs),
   `com.home-tools.jobs-consumer` (Huey worker, **default/slow lane** — background batch kinds like
   `nas_intake_scan`, `restic_*`, periodic pollers), and `com.home-tools.jobs-consumer-fast` (Huey worker,
   **fast lane** — Phase 22, 2026-05-30 — user-foreground kinds: `meal_planner_send_to_todoist`,

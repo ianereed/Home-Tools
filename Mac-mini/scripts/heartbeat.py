@@ -62,7 +62,7 @@ EXPECTED_AGENTS = [
 # (short_name, url) — these endpoints should respond 200 to a simple GET.
 ENDPOINTS = [
     ("receiver-8095", "http://127.0.0.1:8095/"),
-    ("health-streamlit-8501", "http://127.0.0.1:8501/"),
+    ("health-streamlit-8511", "http://127.0.0.1:8511/health/_stcore/health"),
     ("service-monitor-8502", "http://127.0.0.1:8502/_stcore/health"),
     ("ollama-11434", "http://127.0.0.1:11434/api/tags"),
 ]
