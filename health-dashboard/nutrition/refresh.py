@@ -84,10 +84,14 @@ def plan_strength(conn, snap: dict, settings: dict, today: date, acts: list[dict
                               "template": (prev_by_date.get(a["date"]) or {}).get("template")})
     # progression: count each completed planner lift once
     progress = store.get_state(conn, "strength_progress") or {"A": 0, "B": 0, "counted": []}
+    templates = progress.setdefault("templates", {})  # activity id -> template, once its plan entry is gone
     for c in completed:
+        c["template"] = c["template"] or templates.get(str(c["id"]))
         if c["template"] and c["id"] not in progress["counted"]:
             progress[c["template"]] = progress.get(c["template"], 0) + 1
             progress["counted"].append(c["id"])
+        if c["template"]:
+            templates[str(c["id"])] = c["template"]
     store.set_state(conn, "strength_progress", progress)
     hist = S.db_activities(conn, (today - timedelta(days=29)).isoformat(), today.isoformat())
     load = strength.daily_load(hist, snap["athlete"]["ftp_w"])
@@ -99,7 +103,7 @@ def plan_strength(conn, snap: dict, settings: dict, today: date, acts: list[dict
                                 previous=previous, load=load, readiness=readiness, progress=progress,
                                 generated_week0=date.fromisoformat(E.monday_of(block)) if block else None)
     info = {"lifts": lifts, "acwr": strength.acwr(load, today), "readiness": readiness,
-            "progress": {k: v for k, v in progress.items() if k != "counted"},
+            "progress": {k: v for k, v in progress.items() if k not in ("counted", "templates")},
             "completed": completed, "upper_body_cleared": bool(settings.get("upper_body_cleared"))}
     return lifts, info
 
