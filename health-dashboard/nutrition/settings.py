@@ -43,6 +43,7 @@ DEFAULTS = {
     "upper_body_cleared": False,
     "lift_equipment": "gym",                 # gym | home (bodyweight)
     "lift_equipment_by_date": {},            # {"YYYY-MM-DD": "home"} one-off overrides
+    "lift_weekdays_only": False,             # True: never plan a lift on Sat/Sun
     "strength_block_start": None,            # "YYYY-MM-DD" first lift of the block: deload weeks count from it
     "strength_weights": {},                  # {"GOBLET_SQUAT": {"lb": 30, "note": "..."}} working weights, from Ian's notes
     "athlete_fallback": {},                  # used only if Garmin profile fields are missing

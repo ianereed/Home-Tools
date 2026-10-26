@@ -148,6 +148,8 @@ def _valid(i: int, days: list[dict], taken: list[int], cfg: dict,
     """(ok, why_not, start_minute) for a lift on days[i]. `soreness_guard`: also refuse the day two days
     before a key ride (new lifters' soreness peaks ~48 h after a lift)."""
     day = days[i]
+    if cfg.get("lift_weekdays_only") and date.fromisoformat(day["date"]).weekday() >= 5:
+        return False, "weekend (lifts on weekdays only)", None
     cat = E.day_category(day)
     if cat in ("rest", "long"):
         return False, f"{cat} day", None
@@ -181,6 +183,7 @@ def plan_lifts(days: list[dict], *, today: date, cfg: dict, settings: dict, comp
     idx = {d["date"]: i for i, d in enumerate(days)}
     t = today.isoformat()
     upper = bool(settings.get("upper_body_cleared"))
+    cfg = {**cfg, "lift_weekdays_only": bool(settings.get("lift_weekdays_only"))}
     ratio = acwr(load, today)
     prev_by_week: dict[str, list[dict]] = {}
     for p in previous:
