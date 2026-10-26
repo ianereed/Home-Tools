@@ -92,9 +92,11 @@ def plan_strength(conn, snap: dict, settings: dict, today: date, acts: list[dict
     load = strength.daily_load(hist, snap["athlete"]["ftp_w"])
     row = conn.execute("SELECT readiness FROM wellness WHERE date = ?", (today.isoformat(),)).fetchone()
     readiness = row[0] if row and row[0] is not None else None
+    block = settings.get("strength_block_start")  # deload every 4th week counts from here
     lifts = strength.plan_lifts(days, today=today, cfg=cfg, settings=settings,
                                 completed=completed,
-                                previous=previous, load=load, readiness=readiness, progress=progress)
+                                previous=previous, load=load, readiness=readiness, progress=progress,
+                                generated_week0=date.fromisoformat(E.monday_of(block)) if block else None)
     info = {"lifts": lifts, "acwr": strength.acwr(load, today), "readiness": readiness,
             "progress": {k: v for k, v in progress.items() if k != "counted"},
             "completed": completed, "upper_body_cleared": bool(settings.get("upper_body_cleared"))}
