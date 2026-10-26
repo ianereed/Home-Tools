@@ -2,8 +2,11 @@
 
 Templates (Garmin exercise keys verified against connect.garmin.com/web-data/exercises/Exercises.json):
 lower body + core until upper-body work is cleared in settings; then A+/B+ add a push and a pull.
-Progression: level 1-6 per template, +1 level every 2 completed sessions; every 4th planner week is a
-deload (-1 set). Load rules can swap in the 'light' variant (-1 set, +1 rep in reserve) or move a lift;
+Progression: the first session of each template is an intro (level 0: fewer reps, more in reserve,
+bodyweight accessories), then level 1-6, +1 level every 2 sessions of that template. Levels are projected
+forward through the horizon, so future lifts continue from the last completed one. Every 4th week from
+the block start is a deload (-1 set). While lifting is new (first INTRO_SESSIONS sessions) a lift is kept
+off the day two days before a key ride when another day works, since soreness peaks ~48 h later. Load rules can swap in the 'light' variant (-1 set, +1 rep in reserve) or move a lift;
 every decision carries a human-readable reason.
 """
 from __future__ import annotations
@@ -51,17 +54,25 @@ HOME_TEMPLATES = {
           ("Side plank (each side)", "PLANK", "SIDE_PLANK", None, 30)],
 }
 
-# level -> (sets, reps) for main lifts; accessories run one more rep, core is fixed
-LEVELS = {1: (2, 10), 2: (3, 10), 3: (3, 8), 4: (4, 8), 5: (4, 6), 6: (4, 5)}
-RIR = {1: 3, 2: 3, 3: 2, 4: 2, 5: 2, 6: 1}
+# level -> (sets, reps) for main lifts; accessories run two more reps (10 at the intro level), core is fixed
+LEVELS = {0: (2, 8), 1: (2, 10), 2: (3, 10), 3: (3, 8), 4: (4, 8), 5: (4, 6), 6: (4, 5)}
+RIR = {0: 4, 1: 3, 2: 3, 3: 2, 4: 2, 5: 2, 6: 1}
+INTRO_NOTE = {"main": "light, find your starting weight", "accessory": "bodyweight or light"}
+INTRO_SESSIONS = 6
 LIFT_MIN = 45
 REST_S = {"main": 120, "accessory": 75, "core": 45}
 
 
+def level_for(sessions_done: int) -> int:
+    """Template level after `sessions_done` sessions of it: 0 (intro), 1, 1, 2, 2, ... 6."""
+    return 0 if sessions_done <= 0 else min(6, 1 + (sessions_done - 1) // 2)
+
+
 def prescription(template: str, level: int, variant: str, deload: bool, upper: bool,
                  equipment: str = "gym") -> list[dict]:
-    sets, reps = LEVELS[max(1, min(6, level))]
-    rir = RIR[max(1, min(6, level))]
+    intro = level <= 0 and equipment != "home"
+    sets, reps = LEVELS[max(0 if intro else 1, min(6, level))]
+    rir = RIR[max(0 if intro else 1, min(6, level))]
     if deload or variant == "light":
         sets, rir = max(2, sets - 1), rir + 1
     out = []
@@ -74,12 +85,18 @@ def prescription(template: str, level: int, variant: str, deload: bool, upper: b
         return out
     for label, cat, name, kind in TEMPLATES[template] + (UPPER[template] if upper else []):
         if kind == "core":
-            out.append({"label": label, "category": cat, "exercise": name, "sets": 2 if variant == "light" else 3,
-                        "reps": 10 if name != "SIDE_PLANK" else None, "seconds": 30 if name == "SIDE_PLANK" else None,
+            out.append({"label": label, "category": cat, "exercise": name,
+                        "sets": 2 if variant == "light" or intro else 3,
+                        "reps": (8 if intro else 10) if name != "SIDE_PLANK" else None,
+                        "seconds": (20 if intro else 30) if name == "SIDE_PLANK" else None,
                         "rest_s": REST_S[kind]})
         else:
-            out.append({"label": label, "category": cat, "exercise": name, "sets": sets,
-                        "reps": reps + (2 if kind == "accessory" else 0), "rir": rir, "rest_s": REST_S[kind]})
+            ex = {"label": label, "category": cat, "exercise": name, "sets": sets,
+                  "reps": (10 if intro else reps + 2) if kind == "accessory" else reps, "rir": rir,
+                  "rest_s": 90 if intro and kind == "main" else REST_S[kind]}
+            if intro:
+                ex["note"] = INTRO_NOTE[kind]
+            out.append(ex)
     return out
 
 
@@ -118,8 +135,10 @@ def acwr(load: dict[str, float], today: date, min_history_days: int = 21) -> flo
 
 
 # ------------------------------------------------------------------ placement
-def _valid(i: int, days: list[dict], taken: list[int], cfg: dict) -> tuple[bool, str, int | None]:
-    """(ok, why_not, start_minute) for a lift on days[i]."""
+def _valid(i: int, days: list[dict], taken: list[int], cfg: dict,
+           soreness_guard: bool = False) -> tuple[bool, str, int | None]:
+    """(ok, why_not, start_minute) for a lift on days[i]. `soreness_guard`: also refuse the day two days
+    before a key ride (new lifters' soreness peaks ~48 h after a lift)."""
     day = days[i]
     cat = E.day_category(day)
     if cat in ("rest", "long"):
@@ -127,6 +146,8 @@ def _valid(i: int, days: list[dict], taken: list[int], cfg: dict) -> tuple[bool,
     nxt = E.day_category(days[i + 1]) if i + 1 < len(days) else "rest"
     if nxt in ("key", "long"):
         return False, f"day before a {nxt} session", None
+    if soreness_guard and i + 2 < len(days) and E.day_category(days[i + 2]) == "key":
+        return False, "key ride 2 days later while lifting is new (soreness peaks ~48 h after)", None
     for j in (i - 1, i, i + 1):
         if 0 <= j < len(days) and any(e.get("trip") for e in days[j].get("events", [])):
             return False, "trip within a day", None
@@ -159,6 +180,7 @@ def plan_lifts(days: list[dict], *, today: date, cfg: dict, settings: dict, comp
     done_dates = {c["date"] for c in completed}
     last_template = max(completed, key=lambda c: c["date"]).get("template") if completed else None
     tmpl_cycle = "B" if last_template == "A" else "A"
+    sim = {"A": progress.get("A", 0), "B": progress.get("B", 0)}  # projected sessions per template
     out: list[dict] = []
     taken = [idx[d] for d in done_dates if d in idx]
     weeks = sorted({E.monday_of(d["date"]) for d in days})
@@ -173,29 +195,44 @@ def plan_lifts(days: list[dict], *, today: date, cfg: dict, settings: dict, comp
         if want <= 0:
             continue
         picks: list[tuple[int, int, list[str], str | None]] = []
+        soft: list[tuple[int, int, list[str], str | None, str]] = []  # kept dates refused only by the soreness guard
+        intro = sim["A"] + sim["B"] < INTRO_SESSIONS
         # 1) keep last run's dates when still valid (no flapping); lifts Ian moved by hand are pinned
         for p in sorted(prev_by_week.get(mon, []), key=lambda p: p["date"]):
             ds = p["date"]
             if ds < t or ds not in idx or len(picks) >= want:
                 continue
-            ok, why, st = _valid(idx[ds], days, taken + [q[0] for q in picks], cfg)
+            ok, why, st = _valid(idx[ds], days, taken + [q[0] for q in picks], cfg, soreness_guard=intro)
             if p.get("pinned"):
                 st = st if st is not None else E.tmin("17:00")
                 picks.append((idx[ds], st, ["date set by you in Garmin Connect"], p.get("plan_key")))
             elif ok:
                 picks.append((idx[ds], st, ["kept from the previous plan"], p.get("plan_key")))
             else:
-                reasons_week.append(f"moved off {ds}: {why}")
-        # 2) fill: easy-ride days first, then moderate
-        for want_cat in ("easy", "moderate", "key"):
-            for i in wk_days:
-                if len(picks) >= want:
-                    break
-                if days[i]["date"] < t or any(p[0] == i for p in picks) or E.day_category(days[i]) != want_cat:
-                    continue
-                ok, why, st = _valid(i, days, taken + [p[0] for p in picks], cfg)
-                if ok:
-                    picks.append((i, st, [f"{want_cat}-ride day"], None))
+                ok2, _, st2 = _valid(idx[ds], days, taken + [q[0] for q in picks], cfg) if intro else (False, "", None)
+                if ok2:
+                    soft.append((idx[ds], st2, ["kept from the previous plan",
+                                                "no other day this week avoids a key ride 2 days later"],
+                                 p.get("plan_key"), f"moved off {ds}: {why}"))
+                else:
+                    reasons_week.append(f"moved off {ds}: {why}")
+        # 2) fill: easy-ride days first, then moderate, then key; while lifting is new, first without the
+        #    day two days before a key ride, then (only if a lift is still missing) with it
+        for guard in ((True, False) if intro else (False,)):
+            if not guard:  # a refused kept date beats a brand-new one when the guard has to give way
+                for q in soft:
+                    if len(picks) < want and _valid(q[0], days, taken + [p[0] for p in picks], cfg)[0]:
+                        picks.append(q[:4])
+            for want_cat in ("easy", "moderate", "key"):
+                for i in wk_days:
+                    if len(picks) >= want:
+                        break
+                    if days[i]["date"] < t or any(p[0] == i for p in picks) or E.day_category(days[i]) != want_cat:
+                        continue
+                    ok, why, st = _valid(i, days, taken + [p[0] for p in picks], cfg, soreness_guard=guard)
+                    if ok:
+                        picks.append((i, st, [f"{want_cat}-ride day"], None))
+        reasons_week += [q[4] for q in soft if all(p[0] != q[0] for p in picks)]
         used_keys = {p[3] for p in picks if p[3]}
         free = (f"lift-{mon}-{n}" for n in range(1, 9) if f"lift-{mon}-{n}" not in used_keys)
         for i, st, why, key in sorted(picks):
@@ -204,8 +241,11 @@ def plan_lifts(days: list[dict], *, today: date, cfg: dict, settings: dict, comp
             deload = weeks_in % 4 == 3
             template = tmpl_cycle
             tmpl_cycle = "B" if tmpl_cycle == "A" else "A"
-            level = min(6, 1 + progress.get(template, 0) // 2)
+            level = level_for(sim[template])
+            sim[template] += 1
             variant, reasons = "normal", list(why) + reasons_week
+            if level == 0:
+                reasons.append(f"first {template} session: intro level")
             if deload:
                 reasons.append("deload week (every 4th week)")
             if ratio is not None and ratio > 1.3 and (date.fromisoformat(ds) - today).days < 3:
@@ -226,7 +266,7 @@ def plan_lifts(days: list[dict], *, today: date, cfg: dict, settings: dict, comp
                     "equipment": equipment, "exercises": ex}
             out.append({"plan_key": key or next(free), "kind": "lift", "date": ds, "start": st, "end": st + LIFT_MIN,
                         "minutes": LIFT_MIN, **spec, "spec_hash": spec_hash(spec), "reasons": reasons,
-                        "name": f"FP · Lift {template}{level}{' light' if variant == 'light' else ''}"
+                        "name": f"FP · Lift {template}{level or ' intro'}{' light' if variant == 'light' else ''}"
                                 f"{' deload' if deload else ''} · "
                                 f"{'Home bodyweight' if equipment == 'home' else 'Full body' if upper else 'Lower+Core'}"})
             taken.append(i)
@@ -253,7 +293,8 @@ def to_garmin_json(lift: dict) -> dict:
         work = {"type": "ExecutableStepDTO", "stepOrder": order, "stepType": _step_type("interval", 3),
                 "category": ex["category"], "exerciseName": ex["exercise"],
                 "targetType": {"workoutTargetTypeId": 1, "workoutTargetTypeKey": "no.target"},
-                "description": f"{ex['label']}" + (f" · {ex['rir']} reps in reserve" if ex.get("rir") else "")}
+                "description": f"{ex['label']}" + (f" · {ex['rir']} reps in reserve" if ex.get("rir") else "")
+                + (f" · {ex['note']}" if ex.get("note") else "")}
         if ex.get("reps"):
             work |= {"endCondition": {"conditionTypeId": 10, "conditionTypeKey": "reps"}, "endConditionValue": ex["reps"]}
         else:

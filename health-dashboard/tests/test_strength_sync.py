@@ -84,7 +84,7 @@ def test_load_ratio_needs_three_weeks_of_history():
 def test_high_load_ratio_drops_to_one_lift_and_light():
     days, cfg = _days(WEEK)
     load = {(TODAY - timedelta(days=i)).isoformat(): (150 if i <= 7 else 30) for i in range(1, 29)}
-    lifts = _plan(days, cfg, load=load)
+    lifts = _plan(days, cfg, load=load, progress={"A": 4, "B": 4})  # established lifter: no soreness guard
     assert len([l for l in lifts if E.monday_of(l["date"]) == TODAY.isoformat()]) == 1
     assert lifts[0]["variant"] == "light"
 
@@ -262,3 +262,70 @@ def test_home_bodyweight_override_for_a_date():
     assert all(l["equipment"] == "gym" for l in other)
     assert any(x["exercise"] == "DUMBBELL_BENCH_PRESS" for l in other if l["template"] == "A" for x in l["exercises"]) or \
         any(x["exercise"] == "DUMBBELL_ROW" for l in other for x in l["exercises"])
+
+
+# ---------------- intro level, projected progression, soreness guard ----------------
+
+def test_levels_start_with_an_intro_and_continue_through_the_horizon():
+    days, cfg = _days(WEEK * 1 + [{**w, "date": (date.fromisoformat(w["date"]) + timedelta(days=7 * k)).isoformat()}
+                                  for k in (1, 2, 3) for w in WEEK], days=28)
+    lifts = _plan(days, cfg)
+    seq = [(l["template"], l["level"]) for l in lifts]
+    assert seq[:6] == [("A", 0), ("B", 0), ("A", 1), ("B", 1), ("A", 1), ("B", 1)]
+    assert seq[6:8] == [("A", 2), ("B", 2)]
+    intro = lifts[0]
+    assert intro["name"].startswith("FP · Lift A intro")
+    main, acc = intro["exercises"][0], intro["exercises"][2]
+    assert (main["sets"], main["reps"], main["rir"], main["rest_s"]) == (2, 8, 4, 90)
+    assert acc["reps"] == 10 and acc["note"] == "bodyweight or light"
+    desc = ST.to_garmin_json(intro)["workoutSegments"][0]["workoutSteps"][1]["workoutSteps"][0]["description"]
+    assert desc == "Goblet squat · 4 reps in reserve · light, find your starting weight"
+
+
+def test_completed_sessions_move_the_level_on():
+    days, cfg = _days(WEEK)
+    lifts = _plan(days, cfg, progress={"A": 1, "B": 0}, completed=[])
+    assert [(l["template"], l["level"]) for l in lifts] == [("A", 1), ("B", 0)]
+    assert ST.level_for(0) == 0 and ST.level_for(1) == 1 and ST.level_for(3) == 2 and ST.level_for(40) == 6
+
+
+def _ride_week(cats):
+    """One Monday-start week from day categories: easy/moderate/key ride or rest."""
+    kind = {"easy": ("BASE", 60), "moderate": ("BASE", 120), "key": ("VO2MAX", 50), "long": ("LONG_WORKOUT", 150)}
+    out = []
+    for i, c in enumerate(cats):
+        ds = (TODAY + timedelta(days=i)).isoformat()
+        out.append({"date": ds, "rest": True, "type": "REST"} if c == "rest" else _w(i, *kind[c]))
+    return out
+
+
+def test_new_lifter_skips_the_day_two_days_before_a_key_ride():
+    # Ian's week of 2026-10-26: lift done Monday; Wed VO2 and Fri sprint are key, Sat base is moderate
+    days, cfg = _days(_ride_week(["easy", "moderate", "key", "rest", "key", "moderate", "rest"]), days=7)
+    cats = [E.day_category(d) for d in days]
+    assert cats[2] == "key" and cats[4] == "key" and cats[5] == "moderate"
+    mon = TODAY.isoformat()
+    sat, wed = (TODAY + timedelta(days=5)).isoformat(), (TODAY + timedelta(days=2)).isoformat()
+    prev = [{"date": wed, "plan_key": "lift-wed", "template": "B"}]   # last run had it on VO2 Wednesday
+    lifts = _plan(days, cfg, completed=[{"date": mon, "template": "A"}], progress={"A": 1}, previous=prev)
+    assert [(l["date"], l["template"], l["level"]) for l in lifts] == [(sat, "B", 0)]
+    assert any("moved off" in r and "2 days later" in r for r in lifts[0]["reasons"])
+    # once lifting is established the guard is off and the kept Wednesday stays
+    est = _plan(days, cfg, completed=[{"date": mon, "template": "A"}], progress={"A": 4, "B": 3}, previous=prev)
+    assert [(l["date"], l["plan_key"]) for l in est] == [(wed, "lift-wed")]
+
+
+def test_soreness_guard_gives_way_when_no_other_day_works():
+    # only Wednesday (key ride; Friday key) can hold a lift: the guard must not drop it
+    days, cfg = _days(_ride_week(["rest", "rest", "key", "rest", "key", "long", "rest"]), days=7)
+    lifts = _plan(days, cfg)
+    assert [l["date"] for l in lifts] == [(TODAY + timedelta(days=2)).isoformat()]
+
+
+def test_kept_date_refused_by_guard_is_reused_before_a_new_one():
+    days, cfg = _days(_ride_week(["rest", "rest", "key", "rest", "key", "long", "rest"]), days=7)
+    wed = (TODAY + timedelta(days=2)).isoformat()
+    lifts = _plan(days, cfg, previous=[{"date": wed, "plan_key": "lift-keep", "template": "A"}])
+    assert [(l["date"], l["plan_key"]) for l in lifts] == [(wed, "lift-keep")]
+    assert not any("moved off" in r for r in lifts[0]["reasons"])
+    assert "no other day this week avoids a key ride 2 days later" in lifts[0]["reasons"]
