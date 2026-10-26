@@ -78,7 +78,8 @@ def plan_strength(conn, snap: dict, settings: dict, today: date, acts: list[dict
     week_start = (today - timedelta(days=today.weekday() + 7)).isoformat()
     completed = []
     for a in acts:
-        if "strength" in (a.get("type") or "") and a["date"] >= week_start:
+        if "strength" in (a.get("type") or "") and a["date"] >= week_start \
+                and all(c["date"] != a["date"] for c in completed):  # a duplicate (watch + manual) counts once
             completed.append({"date": a["date"], "id": a.get("id"),
                               "template": (prev_by_date.get(a["date"]) or {}).get("template")})
     # progression: count each completed planner lift once
