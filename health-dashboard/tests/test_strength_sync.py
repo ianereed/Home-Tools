@@ -353,3 +353,11 @@ def test_known_weight_replaces_the_intro_note():
     by = {x["exercise"]: x for x in ex}
     assert "note" not in by["GOBLET_SQUAT"] and by["ROMANIAN_DEADLIFT"]["note"]
     assert ST.prescription("A", 0, "normal", False, False, "home", {"AIR_SQUAT": {"lb": 30}})[0].get("weight_lb") is None
+
+
+def test_weekdays_only_keeps_lifts_off_the_weekend():
+    # Ian's week of 2026-10-26: the second lift lands on Saturday unless weekends are off
+    days, cfg = _days(_ride_week(["easy", "moderate", "key", "rest", "key", "moderate", "rest"]), days=7)
+    assert any(date.fromisoformat(l["date"]).weekday() >= 5 for l in _plan(days, cfg))
+    lifts = _plan(days, cfg, settings={"lift_weekdays_only": True})
+    assert lifts and all(date.fromisoformat(l["date"]).weekday() < 5 for l in lifts)
