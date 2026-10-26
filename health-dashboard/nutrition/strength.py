@@ -54,7 +54,7 @@ HOME_TEMPLATES = {
           ("Side plank (each side)", "PLANK", "SIDE_PLANK", None, 30)],
 }
 
-# level -> (sets, reps) for main lifts; accessories run two more reps (none at the intro level), core is fixed
+# level -> (sets, reps) for main lifts; accessories run two more reps (10 at the intro level), core is fixed
 LEVELS = {0: (2, 8), 1: (2, 10), 2: (3, 10), 3: (3, 8), 4: (4, 8), 5: (4, 6), 6: (4, 5)}
 RIR = {0: 4, 1: 3, 2: 3, 3: 2, 4: 2, 5: 2, 6: 1}
 INTRO_NOTE = {"main": "light, find your starting weight", "accessory": "bodyweight or light"}
@@ -92,7 +92,7 @@ def prescription(template: str, level: int, variant: str, deload: bool, upper: b
                         "rest_s": REST_S[kind]})
         else:
             ex = {"label": label, "category": cat, "exercise": name, "sets": sets,
-                  "reps": reps + (2 if kind == "accessory" and not intro else 0), "rir": rir,
+                  "reps": (10 if intro else reps + 2) if kind == "accessory" else reps, "rir": rir,
                   "rest_s": 90 if intro and kind == "main" else REST_S[kind]}
             if intro:
                 ex["note"] = INTRO_NOTE[kind]
@@ -195,7 +195,7 @@ def plan_lifts(days: list[dict], *, today: date, cfg: dict, settings: dict, comp
         if want <= 0:
             continue
         picks: list[tuple[int, int, list[str], str | None]] = []
-        soft: list[tuple[int, int, list[str], str | None]] = []  # kept dates refused only by the soreness guard
+        soft: list[tuple[int, int, list[str], str | None, str]] = []  # kept dates refused only by the soreness guard
         intro = sim["A"] + sim["B"] < INTRO_SESSIONS
         # 1) keep last run's dates when still valid (no flapping); lifts Ian moved by hand are pinned
         for p in sorted(prev_by_week.get(mon, []), key=lambda p: p["date"]):
@@ -211,15 +211,18 @@ def plan_lifts(days: list[dict], *, today: date, cfg: dict, settings: dict, comp
             else:
                 ok2, _, st2 = _valid(idx[ds], days, taken + [q[0] for q in picks], cfg) if intro else (False, "", None)
                 if ok2:
-                    soft.append((idx[ds], st2, ["kept from the previous plan"], p.get("plan_key")))
-                reasons_week.append(f"moved off {ds}: {why}")
+                    soft.append((idx[ds], st2, ["kept from the previous plan",
+                                                "no other day this week avoids a key ride 2 days later"],
+                                 p.get("plan_key"), f"moved off {ds}: {why}"))
+                else:
+                    reasons_week.append(f"moved off {ds}: {why}")
         # 2) fill: easy-ride days first, then moderate, then key; while lifting is new, first without the
         #    day two days before a key ride, then (only if a lift is still missing) with it
         for guard in ((True, False) if intro else (False,)):
             if not guard:  # a refused kept date beats a brand-new one when the guard has to give way
                 for q in soft:
                     if len(picks) < want and _valid(q[0], days, taken + [p[0] for p in picks], cfg)[0]:
-                        picks.append(q)
+                        picks.append(q[:4])
             for want_cat in ("easy", "moderate", "key"):
                 for i in wk_days:
                     if len(picks) >= want:
@@ -229,6 +232,7 @@ def plan_lifts(days: list[dict], *, today: date, cfg: dict, settings: dict, comp
                     ok, why, st = _valid(i, days, taken + [p[0] for p in picks], cfg, soreness_guard=guard)
                     if ok:
                         picks.append((i, st, [f"{want_cat}-ride day"], None))
+        reasons_week += [q[4] for q in soft if all(p[0] != q[0] for p in picks)]
         used_keys = {p[3] for p in picks if p[3]}
         free = (f"lift-{mon}-{n}" for n in range(1, 9) if f"lift-{mon}-{n}" not in used_keys)
         for i, st, why, key in sorted(picks):

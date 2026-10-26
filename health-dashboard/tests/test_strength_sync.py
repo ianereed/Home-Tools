@@ -277,7 +277,7 @@ def test_levels_start_with_an_intro_and_continue_through_the_horizon():
     assert intro["name"].startswith("FP · Lift A intro")
     main, acc = intro["exercises"][0], intro["exercises"][2]
     assert (main["sets"], main["reps"], main["rir"], main["rest_s"]) == (2, 8, 4, 90)
-    assert acc["reps"] == 8 and acc["note"] == "bodyweight or light"
+    assert acc["reps"] == 10 and acc["note"] == "bodyweight or light"
     desc = ST.to_garmin_json(intro)["workoutSegments"][0]["workoutSteps"][1]["workoutSteps"][0]["description"]
     assert desc == "Goblet squat · 4 reps in reserve · light, find your starting weight"
 
@@ -327,3 +327,5 @@ def test_kept_date_refused_by_guard_is_reused_before_a_new_one():
     wed = (TODAY + timedelta(days=2)).isoformat()
     lifts = _plan(days, cfg, previous=[{"date": wed, "plan_key": "lift-keep", "template": "A"}])
     assert [(l["date"], l["plan_key"]) for l in lifts] == [(wed, "lift-keep")]
+    assert not any("moved off" in r for r in lifts[0]["reasons"])
+    assert "no other day this week avoids a key ride 2 days later" in lifts[0]["reasons"]
