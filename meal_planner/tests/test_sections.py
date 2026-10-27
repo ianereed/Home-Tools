@@ -86,6 +86,17 @@ def test_staples_auto_skip(name):
     # 'salt' look-alikes
     ("unsalted butter", DAIRY),
     ("salted butter", DAIRY),
+    ("no-salt-added kidney beans", SHELF),
+    ("no-salt-added black beans", SHELF),
+    ("no-salt-added crushed tomatoes", SHELF),
+    ("no-salt-added tomato paste", SHELF),
+    ("no salt added chickpeas", SHELF),
+    ("salt-free chili powder", SHELF),
+    ("low-salt seasoning blend", SHELF),
+    # canned/dried look-alikes of produce
+    ("crushed tomatoes", SHELF),
+    ("tomato sauce", SHELF),
+    ("chili powder", SHELF),
     # 'water' look-alikes (only plain water is a staple)
     ("coconut water", SHELF),
     ("hot water or chicken stock", SHELF),
