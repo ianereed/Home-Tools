@@ -78,7 +78,14 @@ _WATER_STAPLE_NAMES = frozenset({
 })
 
 # Substrings that disqualify a "salt" name from being the everyday salt shaker.
-_SALT_NOT_STAPLE = ("unsalted", "butter", "caramel")
+# The no/low-salt qualifiers matter: "no-salt-added kidney beans" and
+# "salt-free chili powder" are groceries, and skipping them silently dropped
+# them from the list (turkey chili, 2026-10-26).
+_SALT_NOT_STAPLE = (
+    "unsalted", "butter", "caramel",
+    "no-salt", "no salt", "salt-free", "salt free", "low-salt", "low salt",
+    "reduced-salt", "reduced salt", "less salt",
+)
 
 # Substrings that disqualify a "pepper" name from being the everyday pepper
 # shaker (specialty heats / fresh peppers / whole peppercorns stay on the list).
@@ -124,6 +131,10 @@ _RULES: list[tuple[str, str]] = [
     ("ground ginger", SHELF),     # dried spice, not fresh ginger
     ("green chil", SHELF),        # canned green chilies, not fresh chili
     ("pineapple tidbits", SHELF),  # canned, not fresh fruit
+    ("crushed tomato", SHELF),    # canned, not fresh tomatoes
+    ("tomato paste", SHELF),
+    ("tomato sauce", SHELF),
+    ("chili powder", SHELF),      # dried spice, not fresh chili
     ("kewpie", ASIAN),            # kewpie mayo -> Asian market, not generic mayo
     # --- Dairy + cold (butter before salt; salt before egg; coconut before milk) ---
     ("butter", DAIRY),            # unsalted butter -> dairy (also beats coconut oil)
