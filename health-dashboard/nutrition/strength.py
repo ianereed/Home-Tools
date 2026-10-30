@@ -108,6 +108,29 @@ def prescription(template: str, level: int, variant: str, deload: bool, upper: b
     return out + pt_exercises(pt)
 
 
+def apply_swaps(exercises: list[dict], swaps: dict | None, ds: str) -> tuple[list[dict], bool]:
+    """Temporary changes (settings.exercise_swaps) for lifts on or before swaps['until'], keyed by Garmin
+    exerciseName: swap {name: None} drops it, {name: {...}} replaces it (keeps sets/reps/rest unless given),
+    note {name: "..."} adds a note. Returns (exercises, applied)."""
+    if not swaps or ds > swaps.get("until", ""):
+        return exercises, False
+    out = []
+    for e in exercises:
+        k = e["exercise"]
+        if k in (swaps.get("swap") or {}):
+            new = swaps["swap"][k]
+            if new is None:
+                continue
+            pt = e["label"].startswith("PT · ")
+            e = {**{x: v for x, v in e.items() if x not in ("weight_lb", "note", "rir")}, **new}
+            if pt and not e["label"].startswith("PT · "):
+                e["label"] = f"PT · {e['label']}"
+        if k in (swaps.get("note") or {}):
+            e = {**e, "note": swaps["note"][k]}
+        out.append(e)
+    return out, True
+
+
 def pt_exercises(pt: list[dict] | None) -> list[dict]:
     """Your physio routine (settings.pt_block), appended unchanged to every lift: no progression or deload."""
     return [{"rest_s": 45, **x, "label": f"PT · {x['label']}"} for x in pt or []]
@@ -285,6 +308,10 @@ def plan_lifts(days: list[dict], *, today: date, cfg: dict, settings: dict, comp
                 reasons.append("bodyweight session at home")
             ex = prescription(template, level, variant, deload, upper, equipment,
                               settings.get("strength_weights"), pt)
+            ex, swapped = apply_swaps(ex, settings.get("exercise_swaps"), ds)
+            if swapped:
+                sw = settings["exercise_swaps"]
+                reasons.append(f"{sw.get('reason') or 'temporary exercise swaps'} (until {sw['until']})")
             spec = {"template": template, "level": level, "variant": variant, "deload": deload, "upper": upper,
                     "equipment": equipment, "exercises": ex}
             out.append({"plan_key": key or next(free), "kind": "lift", "date": ds, "start": st, "end": st + minutes,
