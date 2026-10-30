@@ -5,8 +5,9 @@ Claude plans Ian's riding. Read this before planning a week or reviewing a ride.
 ## Goals (sources of truth, not copied here)
 - Body fat: `dashboard/targets.py` `BODY_FAT_GOALS` (Goal 1, Goal 2), weight per goal from the latest DEXA
   (`dashboard.metrics.weight_goals`). Deficit pace: fuel settings `pace_schedule`; keep the current deficit.
-- Cardiology goals and medications: `cardiology/clinical_data.py` (gitignored). Max-effort work waits on the
-  cardiologist's answer about intensity limits (asked 2026-10-30).
+- Cardiology goals and medications: `cardiology/clinical_data.py` (gitignored). Ian chose not to ask the
+  cardiologist about intensity limits (2026-10-30); don't re-raise it. Hard workouts keep the stop-if line
+  (chest pain, unusual breathlessness, dizziness, palpitations).
 - FTP up. Event: Sea Otter 2027 Enduro (mid-April, likely; gravel race is the alternative). A March tune-up
   enduro would help.
 - HR max 192 (`dashboard/targets.py` HRMAX). FTP 230 in Garmin is untested until the 11-03 test.
