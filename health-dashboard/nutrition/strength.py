@@ -71,7 +71,7 @@ def level_for(sessions_done: int) -> int:
 
 
 def prescription(template: str, level: int, variant: str, deload: bool, upper: bool,
-                 equipment: str = "gym", weights: dict | None = None) -> list[dict]:
+                 equipment: str = "gym", weights: dict | None = None, pt: list[dict] | None = None) -> list[dict]:
     intro = level <= 0 and equipment != "home"
     sets, reps = LEVELS[max(0 if intro else 1, min(6, level))]
     rir = RIR[max(0 if intro else 1, min(6, level))]
@@ -84,7 +84,7 @@ def prescription(template: str, level: int, variant: str, deload: bool, upper: b
             out.append({"label": label, "category": cat, "exercise": name, "sets": sets,
                         "reps": r + bump if r else None, "seconds": sec + 5 * bump if sec else None,
                         "rir": rir if r else None, "rest_s": 60})
-        return out
+        return out + pt_exercises(pt)
     for label, cat, name, kind in TEMPLATES[template] + (UPPER[template] if upper else []):
         if kind == "core":
             out.append({"label": label, "category": cat, "exercise": name,
@@ -105,7 +105,12 @@ def prescription(template: str, level: int, variant: str, deload: bool, upper: b
             if w and w.get("note"):
                 ex["note"] = w["note"]
             out.append(ex)
-    return out
+    return out + pt_exercises(pt)
+
+
+def pt_exercises(pt: list[dict] | None) -> list[dict]:
+    """Your physio routine (settings.pt_block), appended unchanged to every lift: no progression or deload."""
+    return [{"rest_s": 45, **x, "label": f"PT · {x['label']}"} for x in pt or []]
 
 
 def spec_hash(spec: dict) -> str:
@@ -169,10 +174,11 @@ def _valid(i: int, days: list[dict], taken: list[int], cfg: dict,
     gap = 180 if ride["category"] == "key" else 30
     busy = E.busy_intervals(day, cfg) + [(ride["start"], ride["end"] + E.SHOWER_MIN, "ride")]
     first = int(math.ceil((ride["end"] + gap) / 15) * 15)
-    for st in range(first, E.tmin(E.LATEST_END) - LIFT_MIN + 1, 15):
-        if E.fits(st, st + LIFT_MIN, busy):
+    mins = cfg.get("lift_min", LIFT_MIN)
+    for st in range(first, E.tmin(E.LATEST_END) - mins + 1, 15):
+        if E.fits(st, st + mins, busy):
             return True, "", st
-    return False, "no free 45-min window", None
+    return False, f"no free {mins}-min window", None
 
 
 def plan_lifts(days: list[dict], *, today: date, cfg: dict, settings: dict, completed: list[dict],
@@ -183,7 +189,9 @@ def plan_lifts(days: list[dict], *, today: date, cfg: dict, settings: dict, comp
     idx = {d["date"]: i for i, d in enumerate(days)}
     t = today.isoformat()
     upper = bool(settings.get("upper_body_cleared"))
-    cfg = {**cfg, "lift_weekdays_only": bool(settings.get("lift_weekdays_only"))}
+    pt = settings.get("pt_block") or []
+    minutes = LIFT_MIN + (int(settings.get("pt_minutes", 20)) if pt else 0)
+    cfg = {**cfg, "lift_weekdays_only": bool(settings.get("lift_weekdays_only")), "lift_min": minutes}
     ratio = acwr(load, today)
     prev_by_week: dict[str, list[dict]] = {}
     for p in previous:
@@ -276,14 +284,15 @@ def plan_lifts(days: list[dict], *, today: date, cfg: dict, settings: dict, comp
             if equipment == "home":
                 reasons.append("bodyweight session at home")
             ex = prescription(template, level, variant, deload, upper, equipment,
-                              settings.get("strength_weights"))
+                              settings.get("strength_weights"), pt)
             spec = {"template": template, "level": level, "variant": variant, "deload": deload, "upper": upper,
                     "equipment": equipment, "exercises": ex}
-            out.append({"plan_key": key or next(free), "kind": "lift", "date": ds, "start": st, "end": st + LIFT_MIN,
-                        "minutes": LIFT_MIN, **spec, "spec_hash": spec_hash(spec), "reasons": reasons,
+            out.append({"plan_key": key or next(free), "kind": "lift", "date": ds, "start": st, "end": st + minutes,
+                        "minutes": minutes, **spec, "spec_hash": spec_hash(spec), "reasons": reasons,
                         "name": f"FP · Lift {template}{level or ' intro'}{' light' if variant == 'light' else ''}"
                                 f"{' deload' if deload else ''} · "
-                                f"{'Home bodyweight' if equipment == 'home' else 'Full body' if upper else 'Lower+Core'}"})
+                                f"{'Home bodyweight' if equipment == 'home' else 'Full body' if upper else 'Lower+Core'}"
+                                f"{' + PT' if pt else ''}"})
             taken.append(i)
     return out
 

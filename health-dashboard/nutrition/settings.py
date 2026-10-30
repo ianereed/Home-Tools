@@ -48,6 +48,9 @@ DEFAULTS = {
                                              # False when you (or Claude) schedule rides yourself
     "ride_by_date": {},                      # {"YYYY-MM-DD": "rest" | {"start": "09:00", "minutes": 120, "avg_power_w": 145, "name": ...}}
                                              # one-off ride swaps (fuel plan + Google Calendar)
+    "pt_block": [],                          # physio routine appended to every lift: [{"label", "category", "exercise",
+                                             #  "sets", "reps" | "seconds", "weight_lb"?, "note"?, "rest_s"?}]
+    "pt_minutes": 20,                        # extra minutes the PT block adds to each lift
     "lift_start_by_date": {},                # {"YYYY-MM-DD": "18:00"} one-off lift times (fuel plan + Google Calendar)
     "strength_block_start": None,            # "YYYY-MM-DD" first lift of the block: deload weeks count from it
     "strength_weights": {},                  # {"GOBLET_SQUAT": {"lb": 30, "note": "..."}} working weights, from Ian's notes
