@@ -361,3 +361,10 @@ def test_weekdays_only_keeps_lifts_off_the_weekend():
     assert any(date.fromisoformat(l["date"]).weekday() >= 5 for l in _plan(days, cfg))
     lifts = _plan(days, cfg, settings={"lift_weekdays_only": True})
     assert lifts and all(date.fromisoformat(l["date"]).weekday() < 5 for l in lifts)
+
+
+def test_lift_start_by_date_sets_the_time():
+    days, cfg = _days(WEEK)
+    first = _plan(days, cfg)[0]
+    lift = _plan(days, cfg, settings={"lift_start_by_date": {first["date"]: "18:30"}})[0]
+    assert lift["date"] == first["date"] and lift["start"] == 18 * 60 + 30 and lift["end"] == lift["start"] + 45

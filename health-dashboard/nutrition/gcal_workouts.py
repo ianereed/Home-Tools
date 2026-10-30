@@ -52,7 +52,9 @@ def _minutes(secs, fallback: int) -> int:
     return max(5, int(round(s / 300.0)) * 5) if s > 0 else fallback
 
 
-def _start(sport: str, settings: dict) -> str:
+def _start(sport: str, settings: dict, d: str | None = None) -> str:
+    if sport == "strength_training" and d in (settings.get("lift_start_by_date") or {}):
+        return settings["lift_start_by_date"][d]
     st = (settings.get("gcal_sync") or {}).get("start_times") or {}
     if sport in st:
         return st[sport]
@@ -131,7 +133,7 @@ def desired_events(items: list[dict], tasks: list[dict], settings: dict, today: 
             summary = f"{icon} {title}"
             key = f"workout:{it.get('id')}"
         lines += [GARMIN_CAL_URL, FOOTER]
-        out[key] = _spec(key, d, summary, "\n".join(lines), False, _start(sport, settings), minutes)
+        out[key] = _spec(key, d, summary, "\n".join(lines), False, _start(sport, settings, d), minutes)
         dated_items.add(d)
     if cfg.get("include_rest_days", True):
         for d, task in rest.items():
