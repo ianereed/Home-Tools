@@ -45,7 +45,7 @@ def test_calendar_rides_keeps_only_your_cycling_workouts_in_window():
               "sportTypeKey": "cycling"},
              _item("2026-11-01", 5, "past", wid=15), _item("2026-12-31", 6, "far", wid=16),
              {"itemType": "activity", "id": 7, "date": "2026-11-02", "title": "ride"}]
-    out = GR.calendar_rides(items, TODAY, TODAY + timedelta(days=20))
+    out = GR.calendar_rides(items + items[:1], TODAY, TODAY + timedelta(days=20))  # overlapping month views
     assert [r["workout_id"] for r in out] == [11]
 
 
