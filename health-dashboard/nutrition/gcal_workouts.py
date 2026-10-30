@@ -55,6 +55,9 @@ def _minutes(secs, fallback: int) -> int:
 def _start(sport: str, settings: dict, d: str | None = None) -> str:
     if sport == "strength_training" and d in (settings.get("lift_start_by_date") or {}):
         return settings["lift_start_by_date"][d]
+    ride = (settings.get("ride_by_date") or {}).get(d)
+    if sport == "cycling" and isinstance(ride, dict) and ride.get("start"):
+        return ride["start"]
     st = (settings.get("gcal_sync") or {}).get("start_times") or {}
     if sport in st:
         return st[sport]
@@ -97,6 +100,7 @@ def desired_events(items: list[dict], tasks: list[dict], settings: dict, today: 
     cfg = settings.get("gcal_sync") or {}
     t0, t1 = today.isoformat(), window_end.isoformat()
     by_uuid, rest = _coach_task_index(tasks)
+    rest_by_you = {d for d, v in (settings.get("ride_by_date") or {}).items() if v == "rest"}
     out: dict[str, dict] = {}
     dated_items: set[str] = set()
     for it in items:
@@ -105,6 +109,8 @@ def desired_events(items: list[dict], tasks: list[dict], settings: dict, today: 
         if kind not in ("fbtAdaptiveWorkout", "workout") or not (t0 <= d <= t1):
             continue
         sport = it.get("sportTypeKey") or "default"
+        if sport == "cycling" and d in rest_by_you:
+            continue
         icon = ICON.get(sport, "🏅")
         if kind == "fbtAdaptiveWorkout":
             uuid = it.get("workoutUuid")
@@ -143,6 +149,11 @@ def desired_events(items: list[dict], tasks: list[dict], settings: dict, today: 
             key = f"rest:{d}"
             out[key] = _spec(key, d, "😴 Rest day (Coach)", "\n".join([f"Garmin Coach · {phrase}", GARMIN_CAL_URL, FOOTER]),
                              True, None, 0)
+        for d in sorted(rest_by_you):
+            if t0 <= d <= t1 and d not in dated_items:
+                key = f"rest:{d}"
+                out[key] = _spec(key, d, "😴 Rest day (you)", "\n".join(["Rest day set by you; the planned ride is skipped.",
+                                                                        GARMIN_CAL_URL, FOOTER]), True, None, 0)
     return out
 
 

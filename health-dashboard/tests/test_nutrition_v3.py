@@ -212,3 +212,18 @@ def test_78_days_six_paces_is_fast():
     t0 = time.time()
     E.run(s, [0, 0.5, 0.75, 1.0, 1.5, "plan"])
     assert time.time() - t0 < 20
+
+
+def test_ride_by_date_swaps_a_coach_ride_for_rest_and_adds_a_fixed_ride():
+    coach = [{"date": "2026-10-17", "name": "Base", "type": "BASE", "duration_s": 7200, "avg_power_w": 140}]
+    s = _snap(start="2026-10-14", days=5, coach_workouts=coach,
+              settings={"ride_by_date": {"2026-10-17": "rest",
+                                         "2026-10-18": {"start": "09:00", "minutes": 120, "avg_power_w": 145,
+                                                        "name": "Group ride"}}})
+    days = {d["date"]: d for d in E.build_days(s)}
+    E.schedule(list(days.values()), KG, place_lifts=False)
+    sat, sun = days["2026-10-17"], days["2026-10-18"]
+    assert sat["sessions"] == [] and sat["source"] == "you"
+    ride = sun["sessions"][0]
+    assert ride["name"] == "Group ride" and ride["minutes"] == 120 and ride["avg_w"] == pytest.approx(145)
+    assert (ride["start"], ride["end"], ride["reason"]) == (540, 660, "time set by you")
