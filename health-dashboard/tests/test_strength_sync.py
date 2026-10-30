@@ -368,3 +368,15 @@ def test_lift_start_by_date_sets_the_time():
     first = _plan(days, cfg)[0]
     lift = _plan(days, cfg, settings={"lift_start_by_date": {first["date"]: "18:30"}})[0]
     assert lift["date"] == first["date"] and lift["start"] == 18 * 60 + 30 and lift["end"] == lift["start"] + 45
+
+
+def test_pt_block_rides_along_with_every_lift_and_lengthens_it():
+    days, cfg = _days(WEEK)
+    pt = [{"label": "Band ER", "category": "SHOULDER_STABILITY", "exercise": "BAND_EXTERNAL_ROTATION", "sets": 3, "reps": 12},
+          {"label": "Scaption", "category": "LATERAL_RAISE", "exercise": "SCAPTION", "sets": 3, "reps": 10, "weight_lb": 5}]
+    lifts = _plan(days, cfg, settings={"pt_block": pt, "pt_minutes": 20})
+    assert lifts and all(l["minutes"] == 65 and l["end"] == l["start"] + 65 and l["name"].endswith(" + PT") for l in lifts)
+    tail = lifts[0]["exercises"][-2:]
+    assert [e["label"] for e in tail] == ["PT · Band ER", "PT · Scaption"] and tail[0]["rest_s"] == 45
+    steps = ST.to_garmin_json(lifts[0])["workoutSegments"][0]["workoutSteps"]
+    assert steps[-2]["workoutSteps"][0]["exerciseName"] == "SCAPTION" and steps[-2]["workoutSteps"][0]["weightValue"] == 5
