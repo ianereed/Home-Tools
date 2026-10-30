@@ -115,3 +115,15 @@ def test_lift_start_by_date_moves_the_lift_event():
     s["lift_start_by_date"] = {"2026-10-15": "18:30"}
     out = G.desired_events([LIFT], [], s, TODAY, END, workout_minutes=lambda wid: 2700)
     assert out["workout:1809171360"]["start"] == "18:30"
+
+
+def test_ride_by_date_drops_the_coach_ride_and_moves_the_group_ride():
+    ride = {"itemType": "workout", "id": 77, "date": "2026-10-18", "title": "Group ride · 2h aerobic",
+            "workoutId": 1745984637, "sportTypeKey": "cycling"}
+    s = _settings()
+    s["ride_by_date"] = {"2026-10-17": "rest", "2026-10-18": {"start": "09:00", "minutes": 120}}
+    out = G.desired_events([_coach_item("2026-10-17", "u2", "Base"), ride], [_task("2026-10-17", "u2", "Base", 7200)],
+                           s, TODAY, END, workout_minutes=lambda wid: 7200)
+    assert set(out) == {"rest:2026-10-17", "workout:77"}
+    assert out["rest:2026-10-17"]["summary"] == "😴 Rest day (you)" and out["rest:2026-10-17"]["all_day"]
+    assert out["workout:77"]["start"] == "09:00"

@@ -44,6 +44,8 @@ DEFAULTS = {
     "lift_equipment": "gym",                 # gym | home (bodyweight)
     "lift_equipment_by_date": {},            # {"YYYY-MM-DD": "home"} one-off overrides
     "lift_weekdays_only": False,             # True: never plan a lift on Sat/Sun
+    "ride_by_date": {},                      # {"YYYY-MM-DD": "rest" | {"start": "09:00", "minutes": 120, "avg_power_w": 145, "name": ...}}
+                                             # one-off ride swaps (fuel plan + Google Calendar)
     "lift_start_by_date": {},                # {"YYYY-MM-DD": "18:00"} one-off lift times (fuel plan + Google Calendar)
     "strength_block_start": None,            # "YYYY-MM-DD" first lift of the block: deload weeks count from it
     "strength_weights": {},                  # {"GOBLET_SQUAT": {"lb": 30, "note": "..."}} working weights, from Ian's notes

@@ -287,6 +287,7 @@ def build_days(snap: dict) -> list[dict]:
     ftp = snap["athlete"]["ftp_w"]
     coach = {w["date"]: w for w in snap["coach_workouts"]}
     extras = {w["date"]: w for w in snap.get("planned_extras", [])}
+    manual = (snap.get("settings") or {}).get("ride_by_date") or {}
     projected = {w["date"]: w for w in snap.get("projected_workouts", [])}
     window_end = d(snap["coach_plan"]["window_end"]) if snap.get("coach_plan", {}).get("window_end") else None
     legacy_mirror = "projected_workouts" not in snap
@@ -295,7 +296,20 @@ def build_days(snap: dict) -> list[dict]:
         day = start + timedelta(days=i)
         ds = day.isoformat()
         sessions, source, notes = [], "coach", []
-        if ds in extras:
+        if ds in manual:
+            m = manual[ds]
+            source = "you"
+            if m == "rest":
+                notes.append({"kind": "manual", "text": "Rest day set by you; the planned ride is skipped."})
+            else:
+                mins = m.get("minutes", 120)
+                sessions.append(ride_session({"name": m.get("name", "Ride"), "type": m.get("type", "BASE"),
+                                              "duration_s": int(mins * 60), "avg_power_w": m.get("avg_power_w", 140)}, ftp))
+                if m.get("start"):
+                    sessions[-1]["fixed_start"] = tmin(m["start"])
+                notes.append({"kind": "manual", "text": f"Ride set by you: {mins} min at ~{m.get('avg_power_w', 140)} W "
+                              "(replaced by your power data once it syncs)."})
+        elif ds in extras:
             x = extras[ds]
             sessions.append(ride_session(x, ftp))
             source = "calendar"
@@ -409,6 +423,9 @@ def schedule(days: list[dict], kg: float, cfg: dict | None = None, place_lifts: 
                 continue
             if s["type"] == "BIKEPACKING":
                 s["start"], s["end"], s["reason"] = tmin("08:00"), tmin("08:00") + int(s["minutes"]) + 120, "trip day (moving time + stops)"
+                continue
+            if s.get("fixed_start") is not None:
+                s["start"], s["end"], s["reason"] = s["fixed_start"], s["fixed_start"] + math.ceil(s["minutes"]), "time set by you"
                 continue
             slot = schedule_ride(day, s, cfg)
             if slot:
