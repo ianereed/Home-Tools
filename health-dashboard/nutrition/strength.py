@@ -269,6 +269,9 @@ def plan_lifts(days: list[dict], *, today: date, cfg: dict, settings: dict, comp
             if ds == t and readiness is not None and readiness < 25:
                 variant = "light"
                 reasons.append(f"Garmin readiness {readiness:.0f} < 25: light session")
+            if ds in (settings.get("lift_start_by_date") or {}):
+                st = E.tmin(settings["lift_start_by_date"][ds])
+                reasons.append(f"time set by you ({settings['lift_start_by_date'][ds]})")
             equipment = (settings.get("lift_equipment_by_date") or {}).get(ds) or settings.get("lift_equipment", "gym")
             if equipment == "home":
                 reasons.append("bodyweight session at home")

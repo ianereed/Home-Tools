@@ -108,3 +108,10 @@ def test_calendar_source_skips_our_own_mirror_events():
            {"summary": "Group ride", "start": "2026-10-18T09:00:00-07:00", "end": "2026-10-18T12:00:00-07:00", "all_day": False}]
     out = CS.classify(raw, load_settings(path=None))
     assert [e["title"] for e in out] == ["Group ride"]
+
+
+def test_lift_start_by_date_moves_the_lift_event():
+    s = _settings()
+    s["lift_start_by_date"] = {"2026-10-15": "18:30"}
+    out = G.desired_events([LIFT], [], s, TODAY, END, workout_minutes=lambda wid: 2700)
+    assert out["workout:1809171360"]["start"] == "18:30"
