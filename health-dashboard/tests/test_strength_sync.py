@@ -380,3 +380,24 @@ def test_pt_block_rides_along_with_every_lift_and_lengthens_it():
     assert [e["label"] for e in tail] == ["PT · Band ER", "PT · Scaption"] and tail[0]["rest_s"] == 45
     steps = ST.to_garmin_json(lifts[0])["workoutSegments"][0]["workoutSteps"]
     assert steps[-2]["workoutSteps"][0]["exerciseName"] == "SCAPTION" and steps[-2]["workoutSteps"][0]["weightValue"] == 5
+
+
+def test_exercise_swaps_drop_replace_and_note_until_a_date():
+    days, cfg = _days(WEEK)
+    pt = [{"label": "Bent-over row", "category": "ROW", "exercise": "BENT_OVER_ROW_WITH_DUMBELL", "sets": 3, "reps": 15,
+           "weight_lb": 25}]
+    base = _plan(days, cfg, settings={"pt_block": pt})
+    until = base[0]["date"]
+    swaps = {"until": until, "reason": "back strain",
+             "swap": {"BENT_OVER_ROW_WITH_DUMBELL": {"label": "Scapular squeeze", "category": "SHRUG",
+                                                     "exercise": "SCAPULAR_RETRACTION", "reps": 10},
+                      "DUMBBELL_ROW": None},
+             "note": {"GOBLET_SQUAT": "light"}}
+    lifts = _plan(days, cfg, settings={"pt_block": pt, "exercise_swaps": swaps, "upper_body_cleared": True})
+    first, later = lifts[0], [l for l in lifts if l["date"] > until]
+    names = [e["exercise"] for e in first["exercises"]]
+    assert "BENT_OVER_ROW_WITH_DUMBELL" not in names and "DUMBBELL_ROW" not in names
+    sq = next(e for e in first["exercises"] if e["exercise"] == "SCAPULAR_RETRACTION")
+    assert sq["label"] == "PT · Scapular squeeze" and sq["sets"] == 3 and sq["reps"] == 10 and "weight_lb" not in sq
+    assert any("back strain (until" in r for r in first["reasons"])
+    assert later and "BENT_OVER_ROW_WITH_DUMBELL" in [e["exercise"] for e in later[0]["exercises"]]
