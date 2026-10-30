@@ -19,11 +19,14 @@ EASY = (0.55, 0.65)   # fraction of FTP assumed for steps with no power target
 def calendar_rides(items: list[dict], today: date, end: date) -> list[dict]:
     """Scheduled cycling workouts in today..end that are not Coach's or planner-owned (FP · …)."""
     t0, t1 = today.isoformat(), end.isoformat()
-    out = []
+    out, seen = [], set()
     for it in items:
         d = (it.get("date") or "")[:10]
         if it.get("itemType") != "workout" or it.get("sportTypeKey") != "cycling" or not (t0 <= d <= t1):
             continue
+        if it.get("id") in seen:  # month views overlap at the edges, so one item can arrive twice
+            continue
+        seen.add(it.get("id"))
         if it.get("workoutId") is None or (it.get("title") or "").startswith(FP_PREFIX):
             continue
         out.append({"date": d, "schedule_id": it.get("id"), "workout_id": it["workoutId"], "title": it.get("title")})
