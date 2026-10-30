@@ -28,6 +28,7 @@ from datetime import date, datetime, timedelta
 from dashboard.targets import BODY_FAT_GOALS, weight_at_body_fat
 
 from . import foods as F
+from . import garmin_rides as GR
 
 ENGINE_VERSION = "3.0"
 
@@ -288,6 +289,9 @@ def build_days(snap: dict) -> list[dict]:
     coach = {w["date"]: w for w in snap["coach_workouts"]}
     extras = {w["date"]: w for w in snap.get("planned_extras", [])}
     manual = (snap.get("settings") or {}).get("ride_by_date") or {}
+    mine: dict[str, list[dict]] = {}
+    for w in snap.get("garmin_rides", []):
+        mine.setdefault(w["date"], []).append(w)
     projected = {w["date"]: w for w in snap.get("projected_workouts", [])}
     window_end = d(snap["coach_plan"]["window_end"]) if snap.get("coach_plan", {}).get("window_end") else None
     legacy_mirror = "projected_workouts" not in snap
@@ -316,10 +320,22 @@ def build_days(snap: dict) -> list[dict]:
             notes.append({"kind": "calendar", "text": "Session from your calendar replaces the planned ride."})
             if x.get("assumption"):
                 notes.append({"kind": "assumption", "text": x["assumption"]})
-        elif ds in coach:
-            w = coach[ds]
-            if not w.get("rest"):
-                sessions.append(ride_session(w, ftp))
+        elif ds in coach or ds in mine:
+            # Your Garmin rides vs Coach's: never both. Keep whichever is harder (your rides add up).
+            cw = coach.get(ds)
+            theirs = cw if cw and not cw.get("rest") else None
+            ours = mine.get(ds, [])
+            if ours and (theirs is None or sum(GR.stress(w, ftp) for w in ours) >= GR.stress(theirs, ftp)):
+                sessions += [ride_session(w, ftp) for w in ours]
+                source = "garmin"
+                if theirs:
+                    notes.append({"kind": "garmin", "text": f"Planning around {' + '.join(w['name'] for w in ours)}; "
+                                  f"it is harder than Coach's {theirs['name']}, which is ignored."})
+            elif theirs:
+                sessions.append(ride_session(theirs, ftp))
+                if ours:
+                    notes.append({"kind": "garmin", "text": f"Coach's {theirs['name']} is harder than "
+                                  f"{' + '.join(w['name'] for w in ours)}; planning around Coach's."})
         elif ds in projected:
             w = projected[ds]
             source = w.get("source", "projected")

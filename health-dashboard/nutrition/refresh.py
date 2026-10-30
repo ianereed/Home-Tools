@@ -19,7 +19,7 @@ from pathlib import Path
 
 from collectors.db import get_connection, init_db
 
-from . import calendar_source, coach, engine as E, garmin_sync, snapshot as S, store, strength
+from . import calendar_source, coach, engine as E, garmin_rides, garmin_sync, snapshot as S, store, strength
 from .intake import intake_by_date
 from .settings import ROOT, load_constraints, load_settings
 
@@ -200,6 +200,20 @@ def run_refresh(reason: str, trigger: str = "manual", collect: bool = True, cale
         else:
             store.set_state(conn, "coach_window_cache", {"plan": plan, "workouts": workouts})
         versions = store.coach_versions(conn, (today - timedelta(days=21)).isoformat())
+
+        # 3b) your own cycling workouts on the Garmin calendar (not Coach's, not planner-owned)
+        my_rides = []
+        try:
+            ride_end = max(date.fromisoformat(settings["horizon_end"]), today + timedelta(days=13))
+            my_rides, cache = garmin_rides.fetch(client, today, ride_end, athlete["ftp_w"],
+                                                 store.get_state(conn, "garmin_ride_cache"))
+            store.set_state(conn, "garmin_ride_cache", cache)
+            store.set_state(conn, "garmin_rides_last", my_rides)
+            sources["garmin_rides"] = f"ok ({len(my_rides)})"
+        except Exception as e:
+            log.warning("Garmin rides fetch failed: %s", e)
+            my_rides = store.get_state(conn, "garmin_rides_last") or []
+            sources["garmin_rides"] = f"stale ({type(e).__name__})"
         if plan is None:
             gen_since = store.get_state(conn, "generated_since")
             if not gen_since:
@@ -237,7 +251,7 @@ def run_refresh(reason: str, trigger: str = "manual", collect: bool = True, cale
         snap = S.assemble(today=today, settings=settings, constraints=constraints, athlete=athlete, dexa=dexa,
                           weight_kg=weight, coach_plan=plan, coach_workouts=workouts, coach_versions=versions,
                           activities=acts, daily_stats=stats, intake=intake, calendar_events=events,
-                          generated_since=gen_d)
+                          generated_since=gen_d, garmin_rides=my_rides)
         paces = list(settings.get("paces", [])) + ["plan"]
         if snap["daily_stats_prev_14d"]:
             hist = E.history(snap, ["plan"])
@@ -247,7 +261,8 @@ def run_refresh(reason: str, trigger: str = "manual", collect: bool = True, cale
         lifts, strength_info = plan_strength(conn, snap, settings, today, acts)
         res = E.run(snap, paces, lift_plan=lifts, meal_paces=["plan"])
         from . import rides as RD
-        gen_rides = RD.desired_rides(res["days"])  # only when no Coach plan covers those days
+        # only when no Coach plan covers those days; off when someone else schedules the rides
+        gen_rides = RD.desired_rides(res["days"]) if settings.get("push_generated_rides", True) else []
         store.set_state(conn, "lift_plan_last", [{"date": x["date"], "plan_key": x["plan_key"], "template": x["template"]}
                                                  for x in lifts])
         mode = settings.get("garmin_write_mode", "off")

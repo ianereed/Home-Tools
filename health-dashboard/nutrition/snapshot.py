@@ -87,11 +87,16 @@ def earliest_food(athlete: dict, constraints: dict) -> str | None:
 def assemble(*, today: date, settings: dict, constraints: dict, athlete: dict, dexa: dict, weight_kg: float | None,
              coach_plan: dict | None, coach_workouts: list[dict], coach_versions: list[dict],
              activities: list[dict], daily_stats: list[dict], intake: dict, calendar_events: list[dict],
-             generated_since: date | None = None) -> dict:
+             generated_since: date | None = None, garmin_rides: list[dict] | None = None) -> dict:
     end = date.fromisoformat(settings["horizon_end"])
     end = max(end, today + timedelta(days=13))
     days = (end - today).days + 1
     window_end = date.fromisoformat(coach_workouts[-1]["date"]) if coach_workouts else None
+    garmin_rides = [w for w in garmin_rides or [] if w["date"] >= today.isoformat()]
+    if garmin_rides:
+        # Days up to your last scheduled ride are planned (a day without a ride is rest); projection starts after.
+        last = date.fromisoformat(garmin_rides[-1]["date"])
+        window_end = max(window_end, last) if window_end else last
     plan_end = date.fromisoformat(coach_plan["end"]) if coach_plan else None
     coach_active = coach_plan is not None
     projected = projection.project(today, end, coach_window_end=window_end, plan_end=plan_end, coach_active=coach_active,
@@ -106,6 +111,7 @@ def assemble(*, today: date, settings: dict, constraints: dict, athlete: dict, d
                        "plan_end": coach_plan["end"] if coach_plan else None, "active": coach_active,
                        "name": coach_plan.get("name") if coach_plan else None},
         "coach_workouts": in_window,
+        "garmin_rides": garmin_rides,
         "projected_workouts": projected,
         "planned_extras": calendar_source.trip_sessions(calendar_events, settings),
         "activities_prev_14d": [a for a in activities if prev_start <= a["date"] < t],
