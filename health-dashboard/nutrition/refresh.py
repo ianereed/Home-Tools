@@ -267,8 +267,10 @@ def run_refresh(reason: str, trigger: str = "manual", collect: bool = True, cale
                                                  for x in lifts])
         mode = settings.get("garmin_write_mode", "off")
         try:
+            lifted = {a["date"] for a in acts if "strength" in (a.get("type") or "")}
             strength_info["sync"] = garmin_sync.reconcile(client, conn, lifts + gen_rides, mode, today,
-                                                          int(settings.get("strength_sync_days", 10)))
+                                                          int(settings.get("strength_sync_days", 10)),
+                                                          keep_dates=lifted)
             strength_info["generated_rides"] = len(gen_rides)
             sources["garmin_sync"] = mode
         except Exception as e:
