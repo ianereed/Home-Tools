@@ -46,8 +46,10 @@ def owned_calendar_items(items: list[dict], led: dict[str, dict]) -> dict[int, d
     return out
 
 
-def diff(desired: list[dict], led: dict[str, dict], owned: dict[int, dict], today: date, window_end: date) -> list[dict]:
-    """Pure: the operations that bring Garmin in line with `desired` inside [today, window_end]."""
+def diff(desired: list[dict], led: dict[str, dict], owned: dict[int, dict], today: date, window_end: date,
+         keep_dates=frozenset()) -> list[dict]:
+    """Pure: the operations that bring Garmin in line with `desired` inside [today, window_end].
+    keep_dates: days with a completed lift; their scheduled workouts are never removed."""
     t, w = today.isoformat(), window_end.isoformat()
     want = {d["plan_key"]: d for d in desired if t <= d["date"] <= w}
     by_workout = {v["workout_id"]: v for v in owned.values()}
@@ -65,7 +67,8 @@ def diff(desired: list[dict], led: dict[str, dict], owned: dict[int, dict], toda
             continue
         if cal["date"] != L["date"]:
             # moved by hand in Garmin Connect: adopt his date if it is still the desired lift's week
-            ops.append({"op": "adopt_move", "plan_key": key, "date": cal["date"], "from": L["date"]})
+            ops.append({"op": "adopt_move", "plan_key": key, "date": cal["date"], "from": L["date"],
+                        "schedule_id": cal["schedule_id"]})
             continue
         if L["spec_hash"] != d["spec_hash"]:
             ops.append({"op": "replace", "plan_key": key, "date": d["date"], "spec": d, "old": L})
@@ -74,9 +77,11 @@ def diff(desired: list[dict], led: dict[str, dict], owned: dict[int, dict], toda
     for key, L in led.items():
         if key in want or L["status"] not in ("synced", "moved_by_user") or not L.get("workout_id"):
             continue
-        if L["date"] < t:
-            continue  # history is never modified
-        ops.append({"op": "remove", "plan_key": key, "date": L["date"], "old": L})
+        if L["date"] < t or L["date"] in keep_dates:
+            continue  # history (and a lift done today) is never modified
+        cal = by_workout.get(L["workout_id"])  # a lift moved by hand has a new calendar entry
+        old = {**L, "schedule_id": cal["schedule_id"]} if cal else L
+        ops.append({"op": "remove", "plan_key": key, "date": L["date"], "old": old})
     return ops
 
 
@@ -183,7 +188,8 @@ def apply(client, conn, ops: list[dict], mode: str, run_id: int | None = None) -
                 _upsert(conn, op, status="user_removed")
                 _log(conn, run_id, mode, op, True, "deleted in Garmin Connect; respected")
             elif kind == "adopt_move":
-                _upsert(conn, op, date=op["date"], status="moved_by_user")
+                _upsert(conn, op, date=op["date"], status="moved_by_user",
+                        garmin_schedule_id=op.get("schedule_id"))
                 _log(conn, run_id, mode, op, True, f"moved by hand from {op['from']}; adopted")
             res["done"] += 1
         except StopIteration:
@@ -205,11 +211,12 @@ def calendar_items(client, today: date, window_end: date) -> list[dict]:
     return items
 
 
-def reconcile(client, conn, desired: list[dict], mode: str, today: date, sync_days: int, run_id: int | None = None) -> dict:
+def reconcile(client, conn, desired: list[dict], mode: str, today: date, sync_days: int, run_id: int | None = None,
+              keep_dates=frozenset()) -> dict:
     window_end = today + timedelta(days=sync_days)
     led = ledger(conn)
     owned = owned_calendar_items(calendar_items(client, today, window_end), led) if mode != "off" else {}
-    ops = diff(desired, led, owned, today, window_end)
+    ops = diff(desired, led, owned, today, window_end, keep_dates)
     out = apply(client, conn, ops, mode, run_id)
     out["ops"] = [{k: v for k, v in op.items() if k not in ("spec", "old")} | {"name": (op.get("spec") or {}).get("name")}
                   for op in ops]

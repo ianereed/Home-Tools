@@ -401,3 +401,14 @@ def test_exercise_swaps_drop_replace_and_note_until_a_date():
     assert sq["label"] == "PT · Scapular squeeze" and sq["sets"] == 3 and sq["reps"] == 10 and "weight_lb" not in sq
     assert any("back strain (until" in r for r in first["reasons"])
     assert later and "BENT_OVER_ROW_WITH_DUMBELL" in [e["exercise"] for e in later[0]["exercises"]]
+
+
+def test_moved_lift_keeps_its_new_calendar_entry_and_a_done_day_is_kept():
+    led = {"k1": _L("k1", D1, 1, 11)}
+    moved = {22: {"schedule_id": 22, "workout_id": 1, "date": D2}}
+    op = G.diff([_desired("k1", D1)], led, moved, TODAY, END)[0]
+    assert op["op"] == "adopt_move" and op["schedule_id"] == 22
+    stale = {"k1": _L("k1", D2, 1, 11, status="moved_by_user")}  # ledger still holds the old entry
+    rm = G.diff([], stale, moved, TODAY, END)
+    assert rm[0]["op"] == "remove" and rm[0]["old"]["schedule_id"] == 22
+    assert G.diff([], stale, moved, TODAY, END, keep_dates={D2}) == []
