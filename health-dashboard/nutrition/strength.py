@@ -30,7 +30,7 @@ TEMPLATES = {
           ("Dumbbell step-up", "SQUAT", "DUMBBELL_STEP_UP", "accessory"),
           ("Hip thrust", "HIP_RAISE", "BARBELL_HIP_THRUST_WITH_BENCH", "main"),
           ("Single-leg RDL", "DEADLIFT", "SINGLE_LEG_ROMANIAN_DEADLIFT_WITH_DUMBBELL", "accessory"),
-          ("Side plank", "PLANK", "SIDE_PLANK", "core")],
+          ("Side plank (2 per side, alternate)", "PLANK", "SIDE_PLANK", "core")],
 }
 UPPER = {"A": [("Bench press", "BENCH_PRESS", "BARBELL_BENCH_PRESS", "accessory")],
          "B": [("Dumbbell row", "ROW", "DUMBBELL_ROW", "accessory")]}
@@ -52,7 +52,7 @@ HOME_TEMPLATES = {
           ("Wall sit", "SQUAT", "BODY_WEIGHT_WALL_SQUAT", None, 45),
           ("Single-leg calf raise (each leg)", "CALF_RAISE", "SINGLE_LEG_STANDING_CALF_RAISE", 15, None),
           ("Floor Y-raise", "SHOULDER_STABILITY", "FLOOR_Y_RAISE", 12, None),
-          ("Side plank (each side)", "PLANK", "SIDE_PLANK", None, 30)],
+          ("Side plank (2 per side, alternate)", "PLANK", "SIDE_PLANK", None, 30)],
 }
 
 # level -> (sets, reps) for main lifts; accessories run two more reps (10 at the intro level), core is fixed
@@ -81,14 +81,15 @@ def prescription(template: str, level: int, variant: str, deload: bool, upper: b
     if equipment == "home":
         bump = (max(1, min(6, level)) - 1) * 2   # +2 reps / +10 s per level
         for label, cat, name, r, sec in HOME_TEMPLATES[template]:
-            out.append({"label": label, "category": cat, "exercise": name, "sets": sets,
+            out.append({"label": label, "category": cat, "exercise": name,
+                        "sets": 4 if name == "SIDE_PLANK" else sets,   # 2 per side
                         "reps": r + bump if r else None, "seconds": sec + 5 * bump if sec else None,
                         "rir": rir if r else None, "rest_s": 60})
         return out + pt_exercises(pt)
     for label, cat, name, kind in TEMPLATES[template] + (UPPER[template] if upper else []):
         if kind == "core":
             out.append({"label": label, "category": cat, "exercise": name,
-                        "sets": 2 if variant == "light" or intro else 3,
+                        "sets": 4 if name == "SIDE_PLANK" else 2 if variant == "light" or intro else 3,
                         "reps": (8 if intro else 10) if name != "SIDE_PLANK" else None,
                         "seconds": (20 if intro else 30) if name == "SIDE_PLANK" else None,
                         "rest_s": REST_S[kind]})
@@ -347,8 +348,9 @@ def to_garmin_json(lift: dict) -> dict:
                 "description": f"{ex['label']}" + (f" · {ex['weight_lb']:g} lb" if ex.get("weight_lb") else "")
                 + (f" · {ex['rir']} reps in reserve" if ex.get("rir") else "")
                 + (f" · {ex['note']}" if ex.get("note") else "")}
-        if ex.get("weight_lb"):
-            work |= {"weightValue": ex["weight_lb"], "weightUnit": LB}
+        weight = 0.0 if ex["category"] == "PUSH_UP" else ex.get("weight_lb")  # push-ups are always bodyweight
+        if weight is not None:
+            work |= {"weightValue": weight, "weightUnit": LB}
         if ex.get("reps"):
             work |= {"endCondition": {"conditionTypeId": 10, "conditionTypeKey": "reps"}, "endConditionValue": ex["reps"]}
         else:

@@ -412,3 +412,16 @@ def test_moved_lift_keeps_its_new_calendar_entry_and_a_done_day_is_kept():
     rm = G.diff([], stale, moved, TODAY, END)
     assert rm[0]["op"] == "remove" and rm[0]["old"]["schedule_id"] == 22
     assert G.diff([], stale, moved, TODAY, END, keep_dates={D2}) == []
+
+
+def test_side_plank_is_two_per_side_and_push_ups_carry_zero_weight():
+    for eq in ("gym", "home"):
+        for lvl in (0, 3):
+            plank = next(e for e in ST.prescription("B", lvl, "light", False, True, eq) if e["exercise"] == "SIDE_PLANK")
+            assert plank["sets"] == 4 and "2 per side" in plank["label"]
+    lift = {"name": "FP · x", "plan_key": "k", "spec_hash": "h", "minutes": 45, "exercises": [
+        {"label": "Push-up", "category": "PUSH_UP", "exercise": "PUSH_UP", "sets": 3, "reps": 10, "rest_s": 45},
+        {"label": "Glute bridge", "category": "HIP_RAISE", "exercise": "HIP_RAISE", "sets": 2, "reps": 10, "rest_s": 45}]}
+    steps = ST.to_garmin_json(lift)["workoutSegments"][0]["workoutSteps"]
+    push, bridge = steps[1]["workoutSteps"][0], steps[2]["workoutSteps"][0]
+    assert push["weightValue"] == 0.0 and "weightValue" not in bridge
