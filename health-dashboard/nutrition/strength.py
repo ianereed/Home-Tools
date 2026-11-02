@@ -138,6 +138,23 @@ def apply_swaps(exercises: list[dict], swaps: dict | None, ds: str) -> tuple[lis
     return out, True
 
 
+# Gym session order by muscle group, so PT work sits next to the main lift that warms the same muscles:
+# legs, core, pressing (bench, then PT push work), shoulder raises, pulling (rows, then PT pulls).
+GROUP_ORDER = {"SQUAT": 0, "LUNGE": 0, "DEADLIFT": 0, "HIP_RAISE": 0, "CALF_RAISE": 0, "LEG_CURL": 0,
+               "HIP_STABILITY": 1, "PLANK": 1,
+               "BENCH_PRESS": 2, "PUSH_UP": 2, "SHOULDER_PRESS": 2,
+               "LATERAL_RAISE": 3, "SHOULDER_STABILITY": 3,
+               "ROW": 4, "PULL_UP": 4, "SHRUG": 4}
+
+
+def arrange_gym(exercises: list[dict]) -> list[dict]:
+    """Gym rules: no push-ups on a bench-press day (scapular push-ups stay), then group by muscle with the
+    main lift ahead of its PT work. Unknown categories keep their place at the end."""
+    if any(e["exercise"] == "BARBELL_BENCH_PRESS" for e in exercises):
+        exercises = [e for e in exercises if e["exercise"] != "PUSH_UP"]
+    return sorted(exercises, key=lambda e: (GROUP_ORDER.get(e["category"], 9), e["label"].startswith("PT · ")))
+
+
 def pt_exercises(pt: list[dict] | None) -> list[dict]:
     """Your physio routine (settings.pt_block), appended unchanged to every lift: no progression or deload."""
     return [{"rest_s": 45, **x, "label": f"PT · {x['label']}"} for x in pt or []]
@@ -316,6 +333,8 @@ def plan_lifts(days: list[dict], *, today: date, cfg: dict, settings: dict, comp
             ex = prescription(template, level, variant, deload, upper, equipment,
                               settings.get("strength_weights"), pt)
             ex, swapped = apply_swaps(ex, settings.get("exercise_swaps"), ds)
+            if equipment != "home":
+                ex = arrange_gym(ex)
             if swapped:
                 sw = settings["exercise_swaps"]
                 reasons.append(f"{sw.get('reason') or 'temporary exercise swaps'} (until {sw['until']})")
