@@ -101,7 +101,7 @@ def test_prescription_levels_and_variants():
     light = ST.prescription("A", 4, "light", False, False)
     assert lvl1[0]["sets"] == 2 and lvl1[0]["reps"] == 10 and lvl6[0]["sets"] == 4 and lvl6[0]["reps"] == 5
     assert light[0]["sets"] == 3 and light[0]["rir"] == 3
-    assert len(ST.prescription("B", 2, "normal", False, True)) == 6  # + upper-body pull once cleared
+    assert len(ST.prescription("B", 2, "normal", False, True)) == 9  # 5 + hip block (3) + upper-body pull
 
 
 def test_garmin_json_shape():
@@ -367,7 +367,7 @@ def test_lift_start_by_date_sets_the_time():
     days, cfg = _days(WEEK)
     first = _plan(days, cfg)[0]
     lift = _plan(days, cfg, settings={"lift_start_by_date": {first["date"]: "18:30"}})[0]
-    assert lift["date"] == first["date"] and lift["start"] == 18 * 60 + 30 and lift["end"] == lift["start"] + 45
+    assert lift["date"] == first["date"] and lift["start"] == 18 * 60 + 30 and lift["end"] == lift["start"] + ST.LIFT_MIN
 
 
 def test_pt_block_rides_along_with_every_lift_and_lengthens_it():
@@ -375,7 +375,7 @@ def test_pt_block_rides_along_with_every_lift_and_lengthens_it():
     pt = [{"label": "Band ER", "category": "SHOULDER_STABILITY", "exercise": "BAND_EXTERNAL_ROTATION", "sets": 3, "reps": 12},
           {"label": "Scaption", "category": "LATERAL_RAISE", "exercise": "SCAPTION", "sets": 3, "reps": 10, "weight_lb": 5}]
     lifts = _plan(days, cfg, settings={"pt_block": pt, "pt_minutes": 20})
-    assert lifts and all(l["minutes"] == 65 and l["end"] == l["start"] + 65 and l["name"].endswith(" + PT") for l in lifts)
+    assert lifts and all(l["minutes"] == ST.LIFT_MIN + 20 and l["end"] == l["start"] + ST.LIFT_MIN + 20 and l["name"].endswith(" + PT") for l in lifts)
     tail = lifts[0]["exercises"][-2:]
     assert [e["label"] for e in tail] == ["PT · Band ER", "PT · Scaption"] and tail[0]["rest_s"] == 45
     steps = ST.to_garmin_json(lifts[0])["workoutSegments"][0]["workoutSteps"]
@@ -425,10 +425,22 @@ def test_gym_lift_drops_push_ups_on_bench_day_and_groups_pt_with_its_muscles():
           {"label": "Scapular push-up", "category": "PUSH_UP", "exercise": "PUSH_UP_PLUS", "sets": 3, "reps": 10}]
     a = ST.arrange_gym(ST.prescription("A", 2, "normal", False, True, pt=pt))
     assert [e["exercise"] for e in a] == ["GOBLET_SQUAT", "ROMANIAN_DEADLIFT", "DUMBBELL_BULGARIAN_SPLIT_SQUAT",
-                                          "STANDING_CALF_RAISE", "DEAD_BUG", "BARBELL_BENCH_PRESS", "PUSH_UP_PLUS",
+                                          "STANDING_CALF_RAISE", "SINGLE_LEG_HIP_RAISE", "STANDING_CABLE_HIP_ABDUCTION",
+                                          "LEG_RAISE", "DEAD_BUG", "BARBELL_BENCH_PRESS", "PUSH_UP_PLUS",
                                           "SCAPTION", "FACE_PULL"]
     b = ST.arrange_gym(ST.prescription("B", 2, "normal", False, True, pt=pt))
     assert [e["exercise"] for e in b][-5:] == ["PUSH_UP", "PUSH_UP_PLUS", "SCAPTION", "DUMBBELL_ROW", "FACE_PULL"]
+
+
+def test_hip_block_starts_at_two_sets_and_builds_to_three():
+    b1 = {e["exercise"]: e for e in ST.prescription("B", 1, "normal", False, True)}
+    assert [k for k in b1 if k in ST.HIP_REPS] == ["STANDING_CABLE_HIP_ABDUCTION", "LEG_RAISE", "REVERSE_CRUNCH"]
+    assert b1["STANDING_CABLE_HIP_ABDUCTION"]["sets"] == 2 and b1["STANDING_CABLE_HIP_ABDUCTION"]["reps"] == 15
+    assert "find your starting weight" in b1["LEG_RAISE"]["note"] and "note" not in b1["REVERSE_CRUNCH"]
+    a3 = {e["exercise"]: e for e in ST.prescription("A", 3, "normal", False, True,
+                                                    weights={"STANDING_CABLE_HIP_ABDUCTION": {"lb": 15}})}
+    assert a3["SINGLE_LEG_HIP_RAISE"]["sets"] == 3 and a3["STANDING_CABLE_HIP_ABDUCTION"]["weight_lb"] == 15
+    assert ST.prescription("A", 3, "light", False, True)[4]["sets"] == 2
 
 
 def test_moved_lift_keeps_its_new_calendar_entry_and_a_done_day_is_kept():

@@ -25,11 +25,17 @@ TEMPLATES = {
           ("Romanian deadlift", "DEADLIFT", "ROMANIAN_DEADLIFT", "main"),
           ("Bulgarian split squat", "LUNGE", "DUMBBELL_BULGARIAN_SPLIT_SQUAT", "accessory"),
           ("Standing calf raise", "CALF_RAISE", "STANDING_CALF_RAISE", "accessory"),
+          ("Single-leg hip thrust (shoulders on bench, each leg)", "HIP_RAISE", "SINGLE_LEG_HIP_RAISE", "hip"),
+          ("Cable hip abduction (ankle strap, each leg)", "HIP_STABILITY", "STANDING_CABLE_HIP_ABDUCTION", "hip"),
+          ("Cable knee drive (ankle strap, knee above hip, each leg)", "LEG_RAISE", "LEG_RAISE", "hip"),
           ("Dead bug", "HIP_STABILITY", "DEAD_BUG", "core")],
     "B": [("Trap-bar deadlift", "DEADLIFT", "TRAP_BAR_DEADLIFT", "main"),
           ("Dumbbell step-up", "SQUAT", "DUMBBELL_STEP_UP", "accessory"),
           ("Hip thrust", "HIP_RAISE", "BARBELL_HIP_THRUST_WITH_BENCH", "main"),
           ("Single-leg RDL", "DEADLIFT", "SINGLE_LEG_ROMANIAN_DEADLIFT_WITH_DUMBBELL", "accessory"),
+          ("Cable hip abduction (ankle strap, each leg)", "HIP_STABILITY", "STANDING_CABLE_HIP_ABDUCTION", "hip"),
+          ("Cable knee drive (ankle strap, knee above hip, each leg)", "LEG_RAISE", "LEG_RAISE", "hip"),
+          ("Reverse crunch (curl the pelvis up, slow down)", "CRUNCH", "REVERSE_CRUNCH", "hip"),
           ("Side plank (2 per side, alternate)", "PLANK", "SIDE_PLANK", "core")],
 }
 UPPER = {"A": [("Bench press", "BENCH_PRESS", "BARBELL_BENCH_PRESS", "accessory")],
@@ -59,8 +65,12 @@ HOME_TEMPLATES = {
 LEVELS = {0: (2, 8), 1: (2, 10), 2: (3, 10), 3: (3, 8), 4: (4, 8), 5: (4, 6), 6: (4, 5)}
 RIR = {0: 4, 1: 3, 2: 3, 3: 2, 4: 2, 5: 2, 6: 1}
 INTRO_NOTE = {"main": "light, find your starting weight", "accessory": "bodyweight or light"}
+# Hip block for anterior pelvic tilt / weak glutes and hip flexors from sitting and cycling: glute max at end-range
+# extension, glute med, hip flexors through full range (knee above hip), posterior-tilt core. Fixed reps; 2 sets
+# through level 1, light or deload, else 3.
+HIP_REPS = {"SINGLE_LEG_HIP_RAISE": 10, "STANDING_CABLE_HIP_ABDUCTION": 15, "LEG_RAISE": 12, "REVERSE_CRUNCH": 12}
 INTRO_SESSIONS = 6
-LIFT_MIN = 45
+LIFT_MIN = 55
 REST_S = {"main": 120, "accessory": 75, "core": 45}
 LB = {"unitId": 9, "unitKey": "pound", "factor": 453.59237}
 
@@ -87,7 +97,16 @@ def prescription(template: str, level: int, variant: str, deload: bool, upper: b
                         "rir": rir if r else None, "rest_s": 60})
         return out + pt_exercises(pt)
     for label, cat, name, kind in TEMPLATES[template] + (UPPER[template] if upper else []):
-        if kind == "core":
+        if kind == "hip":
+            ex = {"label": label, "category": cat, "exercise": name,
+                  "sets": 2 if level <= 1 or deload or variant == "light" else 3, "reps": HIP_REPS[name], "rest_s": 45}
+            w = (weights or {}).get(name)
+            if w and w.get("lb"):
+                ex["weight_lb"] = w["lb"]
+            elif cat in ("HIP_STABILITY", "LEG_RAISE"):
+                ex["note"] = "light cable, find your starting weight"
+            out.append(ex)
+        elif kind == "core":
             out.append({"label": label, "category": cat, "exercise": name,
                         "sets": 4 if name == "SIDE_PLANK" else 2 if variant == "light" or intro else 3,
                         "reps": (8 if intro else 10) if name != "SIDE_PLANK" else None,
@@ -141,7 +160,7 @@ def apply_swaps(exercises: list[dict], swaps: dict | None, ds: str) -> tuple[lis
 # Gym session order by muscle group, so PT work sits next to the main lift that warms the same muscles:
 # legs, core, pressing (bench, then PT push work), shoulder raises, pulling (rows, then PT pulls).
 GROUP_ORDER = {"SQUAT": 0, "LUNGE": 0, "DEADLIFT": 0, "HIP_RAISE": 0, "CALF_RAISE": 0, "LEG_CURL": 0,
-               "HIP_STABILITY": 1, "PLANK": 1,
+               "HIP_STABILITY": 1, "LEG_RAISE": 1, "CRUNCH": 1, "PLANK": 1,
                "BENCH_PRESS": 2, "PUSH_UP": 2, "SHOULDER_PRESS": 2,
                "LATERAL_RAISE": 3, "SHOULDER_STABILITY": 3,
                "ROW": 4, "PULL_UP": 4, "SHRUG": 4}
