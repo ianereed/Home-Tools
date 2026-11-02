@@ -403,6 +403,21 @@ def test_exercise_swaps_drop_replace_and_note_until_a_date():
     assert later and "BENT_OVER_ROW_WITH_DUMBELL" in [e["exercise"] for e in later[0]["exercises"]]
 
 
+def test_staged_swaps_bring_an_exercise_back_from_a_date():
+    ex = [{"label": "Dumbbell row", "category": "ROW", "exercise": "DUMBBELL_ROW", "sets": 3, "reps": 10, "weight_lb": 30},
+          {"label": "PT · Pull-up", "category": "PULL_UP", "exercise": "BAND_ASSISTED_PULL_UP", "sets": 3, "reps": 8}]
+    swaps = {"until": "2026-11-13",
+             "swap": {"DUMBBELL_ROW": [{"drop": True},
+                                       {"from": "2026-11-04", "label": "Cable row", "category": "ROW",
+                                        "exercise": "SEATED_CABLE_ROW", "sets": 2}],
+                      "BAND_ASSISTED_PULL_UP": [{"from": "2026-11-04", "drop": True}]}}
+    before, _ = ST.apply_swaps(ex, swaps, "2026-11-02")
+    assert [e["exercise"] for e in before] == ["BAND_ASSISTED_PULL_UP"]  # no stage yet: unchanged
+    on, _ = ST.apply_swaps(ex, swaps, "2026-11-04")
+    assert [e["exercise"] for e in on] == ["SEATED_CABLE_ROW"]
+    assert on[0]["sets"] == 2 and on[0]["reps"] == 10 and "weight_lb" not in on[0] and "from" not in on[0]
+
+
 def test_moved_lift_keeps_its_new_calendar_entry_and_a_done_day_is_kept():
     led = {"k1": _L("k1", D1, 1, 11)}
     moved = {22: {"schedule_id": 22, "workout_id": 1, "date": D2}}

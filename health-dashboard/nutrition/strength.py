@@ -112,7 +112,8 @@ def prescription(template: str, level: int, variant: str, deload: bool, upper: b
 def apply_swaps(exercises: list[dict], swaps: dict | None, ds: str) -> tuple[list[dict], bool]:
     """Temporary changes (settings.exercise_swaps) for lifts on or before swaps['until'], keyed by Garmin
     exerciseName: swap {name: None} drops it, {name: {...}} replaces it (keeps sets/reps/rest unless given),
-    note {name: "..."} adds a note. Returns (exercises, applied)."""
+    note {name: "..."} adds a note. A swap can also be a list of stages [{"from": date, ...}, ...]: the last
+    stage starting on or before the lift wins ({"drop": true} drops it). Returns (exercises, applied)."""
     if not swaps or ds > swaps.get("until", ""):
         return exercises, False
     out = []
@@ -120,6 +121,11 @@ def apply_swaps(exercises: list[dict], swaps: dict | None, ds: str) -> tuple[lis
         k = e["exercise"]
         if k in (swaps.get("swap") or {}):
             new = swaps["swap"][k]
+            if isinstance(new, list):
+                due = [s for s in new if s.get("from", "") <= ds]
+                new = {x: v for x, v in due[-1].items() if x != "from"} if due else {}
+                if new.get("drop"):
+                    new = None
             if new is None:
                 continue
             pt = e["label"].startswith("PT · ")
