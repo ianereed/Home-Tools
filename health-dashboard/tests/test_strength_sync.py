@@ -418,6 +418,19 @@ def test_staged_swaps_bring_an_exercise_back_from_a_date():
     assert on[0]["sets"] == 2 and on[0]["reps"] == 10 and "weight_lb" not in on[0] and "from" not in on[0]
 
 
+def test_gym_lift_drops_push_ups_on_bench_day_and_groups_pt_with_its_muscles():
+    pt = [{"label": "Push-up", "category": "PUSH_UP", "exercise": "PUSH_UP", "sets": 3, "reps": 10},
+          {"label": "Face pull", "category": "ROW", "exercise": "FACE_PULL", "sets": 2, "reps": 15},
+          {"label": "Scaption", "category": "LATERAL_RAISE", "exercise": "SCAPTION", "sets": 3, "reps": 12},
+          {"label": "Scapular push-up", "category": "PUSH_UP", "exercise": "PUSH_UP_PLUS", "sets": 3, "reps": 10}]
+    a = ST.arrange_gym(ST.prescription("A", 2, "normal", False, True, pt=pt))
+    assert [e["exercise"] for e in a] == ["GOBLET_SQUAT", "ROMANIAN_DEADLIFT", "DUMBBELL_BULGARIAN_SPLIT_SQUAT",
+                                          "STANDING_CALF_RAISE", "DEAD_BUG", "BARBELL_BENCH_PRESS", "PUSH_UP_PLUS",
+                                          "SCAPTION", "FACE_PULL"]
+    b = ST.arrange_gym(ST.prescription("B", 2, "normal", False, True, pt=pt))
+    assert [e["exercise"] for e in b][-5:] == ["PUSH_UP", "PUSH_UP_PLUS", "SCAPTION", "DUMBBELL_ROW", "FACE_PULL"]
+
+
 def test_moved_lift_keeps_its_new_calendar_entry_and_a_done_day_is_kept():
     led = {"k1": _L("k1", D1, 1, 11)}
     moved = {22: {"schedule_id": 22, "workout_id": 1, "date": D2}}
