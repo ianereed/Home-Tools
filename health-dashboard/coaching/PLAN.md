@@ -15,7 +15,7 @@ Claude plans Ian's riding. Read this before planning a week or reviewing a ride.
 ## Constraints
 - 10-14 h/week. Smart trainer runs Garmin workouts (structured intervals indoors).
 - Sunday group ride weekly at 09:00 (optional; when skipped, lengthen Saturday). Set `ride_by_date` for its time.
-- Dog-trailer rides: 1 h max on smooth road, dog-park break in the middle (lap-button step), ~140 W.
+- Dog-trailer rides: 1 h max on smooth road, one continuous Z2 step at ~140 W (no break step; Ian pauses the workout at the dog park).
 - Lifts: 2/week, placed by the fuel planner (`nutrition/strength.py`), with the shoulder PT block appended
   (fuel settings `pt_block`, `pt_minutes`). No heavy barbell/dumbbell overhead pressing (PT weights only).
   No rock climbing until April.
@@ -56,7 +56,7 @@ Saturday, group ride Sunday, Monday rest/recovery. ~80% of time easy. 3 build we
 |---|---|
 | FTP test · 20 min | 1746078627 |
 | Power test · 5 min + 1 min | 1746078629 |
-| Dog trailer ride · 1h Z2 | 1746078632 |
+| Dog trailer ride · 1h Z2 | 1751314380 |
 | Recovery spin · 45 min | 1746078640 |
 | Long Z2 · 3h | 1746078646 |
 | Group ride · 2h aerobic | 1745984637 |
