@@ -1,4 +1,11 @@
-"""Strength plan: 2 gym lifts per Mon-Sun week, placed around rides/calendar, adjusted to training load.
+"""Strength plan: 2 gym lifts per Mon-Sun week (settings.lift_phases can change that per season phase),
+placed around rides/calendar, adjusted to training load.
+
+Placement (2026-11-04): hard rules in `_valid` (no lift the day before a key ride, on a long-ride day, a rest
+weekday, a planned rest day, a blackout, near a trip, or within 48 h of another; ride first, lift 3 h after a key
+ride). Preference: key days (after the ride, so easy days stay easy), then easy, moderate, and days with no ride
+(17:00). Last resort: the day before a long ride, as a light session. A missed lift is caught up in the same week
+when a day passes those rules, never doubled up; otherwise the week's note says it was dropped.
 
 Templates (Garmin exercise keys verified against connect.garmin.com/web-data/exercises/Exercises.json):
 lower body + core until upper-body work is cleared in settings; then A+/B+ add a push and a pull.
@@ -214,18 +221,37 @@ def acwr(load: dict[str, float], today: date, min_history_days: int = 21) -> flo
 
 
 # ------------------------------------------------------------------ placement
+FILL_ORDER = ("key", "easy", "moderate", "rest")
+FILL_REASON = {"key": "hard day: after the key ride, so the easy days stay easy", "easy": "easy-ride day",
+               "moderate": "moderate-ride day", "rest": "no ride planned that day"}
+DEFAULT_START = "17:00"
+
+
 def _valid(i: int, days: list[dict], taken: list[int], cfg: dict,
-           soreness_guard: bool = False) -> tuple[bool, str, int | None]:
-    """(ok, why_not, start_minute) for a lift on days[i]. `soreness_guard`: also refuse the day two days
-    before a key ride (new lifters' soreness peaks ~48 h after a lift)."""
+           soreness_guard: bool = False, before_long: bool = False) -> tuple[bool, str, int | None]:
+    """(ok, why_not, start_minute) for a lift on days[i].
+    Hard rules: no lift on a rest weekday (settings.lift_rest_weekdays), inside a blackout (settings.lift_blackouts,
+    e.g. a trip the calendar doesn't flag), on a planned rest day, a long-ride day,
+    the day before a key ride, within a day of a trip, or within 48 h of another lift; after a ride it waits
+    3 h (key) or 30 min. A day with no ride is fine (from 17:00). `before_long`: allow the day before a long
+    ride (plan_lifts makes that session light). `soreness_guard`: also refuse the day two days before a key
+    ride (new lifters' soreness peaks ~48 h after a lift)."""
     day = days[i]
-    if cfg.get("lift_weekdays_only") and date.fromisoformat(day["date"]).weekday() >= 5:
+    wd = date.fromisoformat(day["date"])
+    if cfg.get("lift_weekdays_only") and wd.weekday() >= 5:
         return False, "weekend (lifts on weekdays only)", None
+    if wd.strftime("%a") in (cfg.get("lift_rest_weekdays") or ()):
+        return False, f"{wd:%A} is a rest day", None
+    for b in cfg.get("lift_blackouts") or ():
+        if b["from"] <= day["date"] <= b["to"]:
+            return False, f"{b.get('note') or 'no lifts'} ({b['from']} to {b['to']})", None
     cat = E.day_category(day)
-    if cat in ("rest", "long"):
-        return False, f"{cat} day", None
+    if cat == "long":
+        return False, "long day", None
+    if cat == "rest" and day.get("rest_planned"):
+        return False, "rest day", None
     nxt = E.day_category(days[i + 1]) if i + 1 < len(days) else "rest"
-    if nxt in ("key", "long"):
+    if nxt == "key" or (nxt == "long" and not before_long):
         return False, f"day before a {nxt} session", None
     if soreness_guard and i + 2 < len(days) and E.day_category(days[i + 2]) == "key":
         return False, "key ride 2 days later while lifting is new (soreness peaks ~48 h after)", None
@@ -235,11 +261,13 @@ def _valid(i: int, days: list[dict], taken: list[int], cfg: dict,
     if any(abs(i - t) < 2 for t in taken):
         return False, "less than 48 h from another lift", None
     ride = next((s for s in day["sessions"] if s["kind"] == "ride" and s.get("start") is not None), None)
+    busy = E.busy_intervals(day, cfg)
     if ride is None:
-        return False, "no ride to anchor to", None
-    gap = 180 if ride["category"] == "key" else 30
-    busy = E.busy_intervals(day, cfg) + [(ride["start"], ride["end"] + E.SHOWER_MIN, "ride")]
-    first = int(math.ceil((ride["end"] + gap) / 15) * 15)
+        first = E.tmin(cfg.get("lift_default_start") or DEFAULT_START)
+    else:
+        gap = 180 if ride["category"] == "key" else 30
+        busy = busy + [(ride["start"], ride["end"] + E.SHOWER_MIN, "ride")]
+        first = int(math.ceil((ride["end"] + gap) / 15) * 15)
     mins = cfg.get("lift_min", LIFT_MIN)
     for st in range(first, E.tmin(E.LATEST_END) - mins + 1, 15):
         if E.fits(st, st + mins, busy):
@@ -247,17 +275,32 @@ def _valid(i: int, days: list[dict], taken: list[int], cfg: dict,
     return False, f"no free {mins}-min window", None
 
 
+def lifts_per_week(settings: dict, monday: str) -> tuple[int, str | None]:
+    """(lifts wanted, phase note) for the week starting `monday`. settings.lift_phases:
+    [{"from": "YYYY-MM-DD", "per_week": 1, "note": "..."}]; the latest phase whose week has started wins."""
+    n, note = 2, None
+    for ph in sorted(settings.get("lift_phases") or [], key=lambda p: p["from"]):
+        if E.monday_of(ph["from"]) <= monday:
+            n, note = int(ph["per_week"]), ph.get("note")
+    return n, note
+
+
 def plan_lifts(days: list[dict], *, today: date, cfg: dict, settings: dict, completed: list[dict],
                previous: list[dict], load: dict[str, float], readiness: float | None,
-               progress: dict[str, int], generated_week0: date | None = None) -> list[dict]:
+               progress: dict[str, int], generated_week0: date | None = None,
+               missed: list[str] | None = None, notes: list[str] | None = None) -> list[dict]:
     """Desired lifts over the plan horizon. `completed`: strength activities (date) this horizon/week;
-    `previous`: last run's desired lifts (sticky dates); `progress`: completed sessions per template."""
+    `previous`: last run's desired lifts (sticky dates); `progress`: completed sessions per template;
+    `missed`: dates of planned lifts that passed undone (a catch-up is placed in the same week if a day
+    passes the rules, never doubled up); `notes`: collects week-level messages (a lift that did not fit)."""
     idx = {d["date"]: i for i, d in enumerate(days)}
     t = today.isoformat()
     upper = bool(settings.get("upper_body_cleared"))
     pt = settings.get("pt_block") or []
     minutes = LIFT_MIN + (int(settings.get("pt_minutes", 20)) if pt else 0)
-    cfg = {**cfg, "lift_weekdays_only": bool(settings.get("lift_weekdays_only")), "lift_min": minutes}
+    cfg = {**cfg, "lift_weekdays_only": bool(settings.get("lift_weekdays_only")), "lift_min": minutes,
+           "lift_rest_weekdays": list(settings.get("lift_rest_weekdays") or []),
+           "lift_blackouts": list(settings.get("lift_blackouts") or [])}
     ratio = acwr(load, today)
     prev_by_week: dict[str, list[dict]] = {}
     for p in previous:
@@ -272,8 +315,10 @@ def plan_lifts(days: list[dict], *, today: date, cfg: dict, settings: dict, comp
     week0 = generated_week0 or date.fromisoformat(weeks[0])
     for mon in weeks:
         wk_days = [i for i, d in enumerate(days) if E.monday_of(d["date"]) == mon]
-        want = 2 - sum(1 for d in done_dates if E.monday_of(d) == mon)
-        reasons_week = []
+        per_week, phase_note = lifts_per_week(settings, mon)
+        want = per_week - sum(1 for d in done_dates if E.monday_of(d) == mon)
+        reasons_week = [f"{phase_note}: {per_week} lift{'' if per_week == 1 else 's'} a week"] if phase_note else []
+        wk_missed = sorted(d for d in (missed or []) if E.monday_of(d) == mon and d < t and d not in done_dates)
         if ratio is not None and ratio > 1.5 and mon == E.monday_of(t):
             want = min(want, 1)
             reasons_week.append(f"7d:28d load ratio {ratio:.2f} > 1.5: one lift this week")
@@ -287,37 +332,53 @@ def plan_lifts(days: list[dict], *, today: date, cfg: dict, settings: dict, comp
             ds = p["date"]
             if ds < t or ds not in idx or len(picks) >= want:
                 continue
-            ok, why, st = _valid(idx[ds], days, taken + [q[0] for q in picks], cfg, soreness_guard=intro)
+            ok, why, st = _valid(idx[ds], days, taken + [q[0] for q in picks], cfg, soreness_guard=intro,
+                                 before_long=True)
             if p.get("pinned"):
-                st = st if st is not None else E.tmin("17:00")
+                st = st if st is not None else E.tmin(DEFAULT_START)
                 picks.append((idx[ds], st, ["date set by you in Garmin Connect"], p.get("plan_key")))
             elif ok:
                 picks.append((idx[ds], st, ["kept from the previous plan"], p.get("plan_key")))
             else:
-                ok2, _, st2 = _valid(idx[ds], days, taken + [q[0] for q in picks], cfg) if intro else (False, "", None)
+                ok2, _, st2 = (_valid(idx[ds], days, taken + [q[0] for q in picks], cfg, before_long=True)
+                               if intro else (False, "", None))
                 if ok2:
                     soft.append((idx[ds], st2, ["kept from the previous plan",
                                                 "no other day this week avoids a key ride 2 days later"],
                                  p.get("plan_key"), f"moved off {ds}: {why}"))
                 else:
                     reasons_week.append(f"moved off {ds}: {why}")
-        # 2) fill: easy-ride days first, then moderate, then key; while lifting is new, first without the
-        #    day two days before a key ride, then (only if a lift is still missing) with it
-        for guard in ((True, False) if intro else (False,)):
-            if not guard:  # a refused kept date beats a brand-new one when the guard has to give way
+        # 2) fill: key days first (lift after the ride, so easy days stay easy), then easy, moderate, and days
+        #    with no ride. While lifting is new, first without the day two days before a key ride. Last resort:
+        #    the day before a long ride, as a light session.
+        passes = ([(True, False)] if intro else []) + [(False, False), (False, True)]
+        soft_done = False
+        for guard, before_long in passes:
+            if not guard and not soft_done:  # a refused kept date beats a brand-new one when the guard gives way
+                soft_done = True
                 for q in soft:
-                    if len(picks) < want and _valid(q[0], days, taken + [p[0] for p in picks], cfg)[0]:
+                    if len(picks) < want and _valid(q[0], days, taken + [p[0] for p in picks], cfg,
+                                                    before_long=True)[0]:
                         picks.append(q[:4])
-            for want_cat in ("easy", "moderate", "key"):
+            for want_cat in FILL_ORDER:
                 for i in wk_days:
                     if len(picks) >= want:
                         break
                     if days[i]["date"] < t or any(p[0] == i for p in picks) or E.day_category(days[i]) != want_cat:
                         continue
-                    ok, why, st = _valid(i, days, taken + [p[0] for p in picks], cfg, soreness_guard=guard)
+                    ok, why, st = _valid(i, days, taken + [p[0] for p in picks], cfg, soreness_guard=guard,
+                                         before_long=before_long)
                     if ok:
-                        picks.append((i, st, [f"{want_cat}-ride day"], None))
+                        why = [FILL_REASON[want_cat]]
+                        if wk_missed:
+                            why.append(f"catch-up for the missed {wk_missed[-1]} lift")
+                        picks.append((i, st, why, None))
         reasons_week += [q[4] for q in soft if all(p[0] != q[0] for p in picks)]
+        if len(picks) < want and notes is not None and (wk_missed or len(wk_days) == 7):
+            msg = f"Week of {mon}: {len(picks)} of {want} lift{'' if want == 1 else 's'} placed"
+            if wk_missed:
+                msg += f"; the missed {', '.join(wk_missed)} lift is dropped, not doubled up"
+            notes.append(msg + (f" ({'; '.join(reasons_week)})" if reasons_week else ""))
         used_keys = {p[3] for p in picks if p[3]}
         free = (f"lift-{mon}-{n}" for n in range(1, 9) if f"lift-{mon}-{n}" not in used_keys)
         for i, st, why, key in sorted(picks):
@@ -336,6 +397,9 @@ def plan_lifts(days: list[dict], *, today: date, cfg: dict, settings: dict, comp
             if ratio is not None and ratio > 1.3 and (date.fromisoformat(ds) - today).days < 3:
                 variant = "light"
                 reasons.append(f"7d:28d load ratio {ratio:.2f} > 1.3: light session")
+            if i + 1 < len(days) and E.day_category(days[i + 1]) == "long":
+                variant = "light"
+                reasons.append("long ride tomorrow: light session")
             yday = (date.fromisoformat(ds) - timedelta(days=1)).isoformat()
             if load.get(yday, 0) >= 100 and ds > t:
                 variant = "light"

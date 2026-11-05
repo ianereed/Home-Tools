@@ -300,10 +300,12 @@ def build_days(snap: dict) -> list[dict]:
         day = start + timedelta(days=i)
         ds = day.isoformat()
         sessions, source, notes = [], "coach", []
+        rest_planned = False  # a rest day set by you or by the plan (no lift goes there)
         if ds in manual:
             m = manual[ds]
             source = "you"
             if m == "rest":
+                rest_planned = True
                 notes.append({"kind": "manual", "text": "Rest day set by you; the planned ride is skipped."})
             else:
                 mins = m.get("minutes", 120)
@@ -325,6 +327,7 @@ def build_days(snap: dict) -> list[dict]:
             cw = coach.get(ds)
             theirs = cw if cw and not cw.get("rest") else None
             ours = mine.get(ds, [])
+            rest_planned = bool(cw and cw.get("rest") and not ours)
             if ours and (theirs is None or sum(GR.stress(w, ftp) for w in ours) >= GR.stress(theirs, ftp)):
                 sessions += [ride_session(w, ftp) for w in ours]
                 source = "garmin"
@@ -339,6 +342,7 @@ def build_days(snap: dict) -> list[dict]:
         elif ds in projected:
             w = projected[ds]
             source = w.get("source", "projected")
+            rest_planned = bool(w.get("rest"))
             if not w.get("rest"):
                 sessions.append(ride_session(w, ftp, projected=True))
                 sessions[-1]["source"] = source
@@ -382,7 +386,8 @@ def build_days(snap: dict) -> list[dict]:
                 notes.append({"kind": "conflict", "text": f"'{e['title']}' is on your calendar on a rest day. "
                               "If you go, keep it easy and add ~70 g carbs around it."})
         days.append({"date": ds, "dow": day.strftime("%a"), "sessions": sessions, "source": source,
-                     "note": None, "notes": notes, "events": events})
+                     "note": None, "notes": notes, "events": events,
+                     "rest_planned": rest_planned and not any(x["kind"] == "ride" for x in sessions)})
     return days
 
 

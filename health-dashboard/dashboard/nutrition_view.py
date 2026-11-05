@@ -515,6 +515,8 @@ def _history(p: dict):
         st.caption(f"7-day : 28-day load ratio {ratio:.2f}" if ratio else "Load ratio needs 4 weeks of rides.")
         st.caption("Completed lifts this and last week: " + (", ".join(c["date"] for c in stg.get("completed", [])) or "none")
                    + " · progress " + ", ".join(f"{k}: {v}" for k, v in (stg.get("progress") or {}).items()))
+        for note in stg.get("notes") or []:
+            st.caption(note)
         ops = M.read("SELECT ts, mode, op, date, ok, detail FROM fuel_garmin_ops ORDER BY id DESC LIMIT 20")
         if not ops.empty:
             st.dataframe(ops, hide_index=True, use_container_width=True)
