@@ -558,3 +558,18 @@ def test_blackout_dates_get_no_lift():
     assert [l["date"] for l in lifts] == [_at(5)]
     ok, why, _ = ST._valid(1, open_days, [], {**cfg, "lift_blackouts": black})
     assert not ok and why == f"Trip 1 ({_at(0)} to {_at(4)})"
+
+
+def test_new_lift_never_reuses_a_past_lifts_key_and_never_starts_in_the_past():
+    days, cfg = _days(_ride_week(["easy", "easy", "key", "rest", "rest", "rest", "rest"]), days=7)
+    wed = TODAY + timedelta(days=2)
+    lifts = _plan(days, cfg, today=wed, completed=[{"date": _at(0), "template": "A"}], progress={"A": 4, "B": 3},
+                  reserved_keys={f"lift-{_at(0)}-1"})
+    assert lifts and lifts[0]["plan_key"] != f"lift-{_at(0)}-1"
+    # at 19:00 on Wednesday there is no 75-min window left before 19:30: today is skipped
+    late = _plan(days, cfg, today=wed, completed=[{"date": _at(0), "template": "A"}], progress={"A": 4, "B": 3},
+                 now_min=19 * 60)
+    assert all(l["date"] != _at(2) for l in late)
+    early = _plan(days, cfg, today=wed, completed=[{"date": _at(0), "template": "A"}], progress={"A": 4, "B": 3},
+                  now_min=16 * 60 + 5)
+    assert early[0]["date"] == _at(2) and early[0]["start"] >= 16 * 60 + 35

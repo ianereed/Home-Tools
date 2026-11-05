@@ -268,6 +268,7 @@ def _valid(i: int, days: list[dict], taken: list[int], cfg: dict,
         gap = 180 if ride["category"] == "key" else 30
         busy = busy + [(ride["start"], ride["end"] + E.SHOWER_MIN, "ride")]
         first = int(math.ceil((ride["end"] + gap) / 15) * 15)
+    first = max(first, int(math.ceil((cfg.get("not_before") or {}).get(day["date"], 0) / 15) * 15))
     mins = cfg.get("lift_min", LIFT_MIN)
     for st in range(first, E.tmin(E.LATEST_END) - mins + 1, 15):
         if E.fits(st, st + mins, busy):
@@ -288,11 +289,14 @@ def lifts_per_week(settings: dict, monday: str) -> tuple[int, str | None]:
 def plan_lifts(days: list[dict], *, today: date, cfg: dict, settings: dict, completed: list[dict],
                previous: list[dict], load: dict[str, float], readiness: float | None,
                progress: dict[str, int], generated_week0: date | None = None,
-               missed: list[str] | None = None, notes: list[str] | None = None) -> list[dict]:
+               missed: list[str] | None = None, notes: list[str] | None = None,
+               reserved_keys: frozenset[str] | set[str] = frozenset(), now_min: int | None = None) -> list[dict]:
     """Desired lifts over the plan horizon. `completed`: strength activities (date) this horizon/week;
     `previous`: last run's desired lifts (sticky dates); `progress`: completed sessions per template;
     `missed`: dates of planned lifts that passed undone (a catch-up is placed in the same week if a day
-    passes the rules, never doubled up); `notes`: collects week-level messages (a lift that did not fit)."""
+    passes the rules, never doubled up); `notes`: collects week-level messages (a lift that did not fit);
+    `reserved_keys`: plan keys of past lifts (never reused, so a new lift can't overwrite history);
+    `now_min`: minutes since midnight now, so a lift placed today starts at least 30 min from now."""
     idx = {d["date"]: i for i, d in enumerate(days)}
     t = today.isoformat()
     upper = bool(settings.get("upper_body_cleared"))
@@ -300,7 +304,8 @@ def plan_lifts(days: list[dict], *, today: date, cfg: dict, settings: dict, comp
     minutes = LIFT_MIN + (int(settings.get("pt_minutes", 20)) if pt else 0)
     cfg = {**cfg, "lift_weekdays_only": bool(settings.get("lift_weekdays_only")), "lift_min": minutes,
            "lift_rest_weekdays": list(settings.get("lift_rest_weekdays") or []),
-           "lift_blackouts": list(settings.get("lift_blackouts") or [])}
+           "lift_blackouts": list(settings.get("lift_blackouts") or []),
+           "not_before": {t: now_min + 30} if now_min is not None else {}}
     ratio = acwr(load, today)
     prev_by_week: dict[str, list[dict]] = {}
     for p in previous:
@@ -379,7 +384,7 @@ def plan_lifts(days: list[dict], *, today: date, cfg: dict, settings: dict, comp
             if wk_missed:
                 msg += f"; the missed {', '.join(wk_missed)} lift is dropped, not doubled up"
             notes.append(msg + (f" ({'; '.join(reasons_week)})" if reasons_week else ""))
-        used_keys = {p[3] for p in picks if p[3]}
+        used_keys = {p[3] for p in picks if p[3]} | set(reserved_keys)
         free = (f"lift-{mon}-{n}" for n in range(1, 9) if f"lift-{mon}-{n}" not in used_keys)
         for i, st, why, key in sorted(picks):
             ds = days[i]["date"]
