@@ -98,13 +98,18 @@ def plan_strength(conn, snap: dict, settings: dict, today: date, acts: list[dict
     row = conn.execute("SELECT readiness FROM wellness WHERE date = ?", (today.isoformat(),)).fetchone()
     readiness = row[0] if row and row[0] is not None else None
     block = settings.get("strength_block_start")  # deload every 4th week counts from here
+    # planned lifts whose day passed without one (catch-up candidates this week)
+    missed = sorted({L["date"] for L in led.values() if L.get("kind", "lift") == "lift" and week_start <= L["date"] < today.isoformat()
+                     and L["status"] in ("synced", "moved_by_user") and all(c["date"] != L["date"] for c in completed)})
+    notes: list[str] = []
     lifts = strength.plan_lifts(days, today=today, cfg=cfg, settings=settings,
-                                completed=completed,
+                                completed=completed, missed=missed, notes=notes,
                                 previous=previous, load=load, readiness=readiness, progress=progress,
                                 generated_week0=date.fromisoformat(E.monday_of(block)) if block else None)
     info = {"lifts": lifts, "acwr": strength.acwr(load, today), "readiness": readiness,
             "progress": {k: v for k, v in progress.items() if k not in ("counted", "templates")},
-            "completed": completed, "upper_body_cleared": bool(settings.get("upper_body_cleared"))}
+            "completed": completed, "missed": missed, "notes": notes,
+            "upper_body_cleared": bool(settings.get("upper_body_cleared"))}
     return lifts, info
 
 

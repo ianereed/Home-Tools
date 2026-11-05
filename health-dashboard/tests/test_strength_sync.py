@@ -92,7 +92,8 @@ def test_high_load_ratio_drops_to_one_lift_and_light():
 def test_completed_lifts_count_toward_the_week():
     days, cfg = _days(WEEK)
     lifts = _plan(days, cfg, completed=[{"date": TODAY.isoformat(), "template": "A"}])
-    assert len(lifts) == 1 and lifts[0]["template"] == "B"
+    week1 = [l for l in lifts if E.monday_of(l["date"]) == TODAY.isoformat()]
+    assert len(week1) == 1 and week1[0]["template"] == "B"
 
 
 def test_prescription_levels_and_variants():
@@ -285,7 +286,7 @@ def test_levels_start_with_an_intro_and_continue_through_the_horizon():
 def test_completed_sessions_move_the_level_on():
     days, cfg = _days(WEEK)
     lifts = _plan(days, cfg, progress={"A": 1, "B": 0}, completed=[])
-    assert [(l["template"], l["level"]) for l in lifts] == [("A", 1), ("B", 0)]
+    assert [(l["template"], l["level"]) for l in lifts][:2] == [("A", 1), ("B", 0)]
     assert ST.level_for(0) == 0 and ST.level_for(1) == 1 and ST.level_for(3) == 2 and ST.level_for(40) == 6
 
 
@@ -305,10 +306,12 @@ def test_new_lifter_skips_the_day_two_days_before_a_key_ride():
     cats = [E.day_category(d) for d in days]
     assert cats[2] == "key" and cats[4] == "key" and cats[5] == "moderate"
     mon = TODAY.isoformat()
-    sat, wed = (TODAY + timedelta(days=5)).isoformat(), (TODAY + timedelta(days=2)).isoformat()
+    fri, wed = (TODAY + timedelta(days=4)).isoformat(), (TODAY + timedelta(days=2)).isoformat()
     prev = [{"date": wed, "plan_key": "lift-wed", "template": "B"}]   # last run had it on VO2 Wednesday
     lifts = _plan(days, cfg, completed=[{"date": mon, "template": "A"}], progress={"A": 1}, previous=prev)
-    assert [(l["date"], l["template"], l["level"]) for l in lifts] == [(sat, "B", 0)]
+    # Friday is a key day too (Saturday moderate): the lift goes after that ride
+    assert [(l["date"], l["template"], l["level"]) for l in lifts] == [(fri, "B", 0)]
+    assert lifts[0]["reasons"][0].startswith("hard day")
     assert any("moved off" in r and "2 days later" in r for r in lifts[0]["reasons"])
     # once lifting is established the guard is off and the kept Wednesday stays
     est = _plan(days, cfg, completed=[{"date": mon, "template": "A"}], progress={"A": 4, "B": 3}, previous=prev)
@@ -316,17 +319,20 @@ def test_new_lifter_skips_the_day_two_days_before_a_key_ride():
 
 
 def test_soreness_guard_gives_way_when_no_other_day_works():
-    # only Wednesday (key ride; Friday key) can hold a lift: the guard must not drop it
+    # only Wednesday (key ride; Friday key) can hold a normal lift: the guard must not drop it. Friday (day
+    # before the long ride) is the last resort, as a light session
     days, cfg = _days(_ride_week(["rest", "rest", "key", "rest", "key", "long", "rest"]), days=7)
     lifts = _plan(days, cfg)
-    assert [l["date"] for l in lifts] == [(TODAY + timedelta(days=2)).isoformat()]
+    assert [(l["date"], l["variant"]) for l in lifts] == [((TODAY + timedelta(days=2)).isoformat(), "normal"),
+                                                          ((TODAY + timedelta(days=4)).isoformat(), "light")]
+    assert "long ride tomorrow: light session" in lifts[1]["reasons"]
 
 
 def test_kept_date_refused_by_guard_is_reused_before_a_new_one():
     days, cfg = _days(_ride_week(["rest", "rest", "key", "rest", "key", "long", "rest"]), days=7)
     wed = (TODAY + timedelta(days=2)).isoformat()
     lifts = _plan(days, cfg, previous=[{"date": wed, "plan_key": "lift-keep", "template": "A"}])
-    assert [(l["date"], l["plan_key"]) for l in lifts] == [(wed, "lift-keep")]
+    assert [(l["date"], l["plan_key"]) for l in lifts][:1] == [(wed, "lift-keep")]
     assert not any("moved off" in r for r in lifts[0]["reasons"])
     assert "no other day this week avoids a key ride 2 days later" in lifts[0]["reasons"]
 
@@ -356,11 +362,10 @@ def test_known_weight_replaces_the_intro_note():
 
 
 def test_weekdays_only_keeps_lifts_off_the_weekend():
-    # Ian's week of 2026-10-26: the second lift lands on Saturday unless weekends are off
-    days, cfg = _days(_ride_week(["easy", "moderate", "key", "rest", "key", "moderate", "rest"]), days=7)
+    # only Saturday has a ride and no hard ride follows it: it lands there unless weekends are off
+    days, cfg = _days(_ride_week(["rest", "rest", "rest", "rest", "rest", "easy", "rest"]), days=7)
     assert any(date.fromisoformat(l["date"]).weekday() >= 5 for l in _plan(days, cfg))
-    lifts = _plan(days, cfg, settings={"lift_weekdays_only": True})
-    assert lifts and all(date.fromisoformat(l["date"]).weekday() < 5 for l in lifts)
+    assert _plan(days, cfg, settings={"lift_weekdays_only": True}) == []   # Saturday was the only day
 
 
 def test_lift_start_by_date_sets_the_time():
@@ -465,3 +470,91 @@ def test_side_plank_is_two_per_side_and_push_ups_carry_zero_weight():
     steps = ST.to_garmin_json(lift)["workoutSegments"][0]["workoutSteps"]
     push, bridge = steps[1]["workoutSteps"][0], steps[2]["workoutSteps"][0]
     assert push["weightValue"] == 0.0 and "weightValue" not in bridge
+
+
+# ---------------- placement rules (2026-11-04) ----------------
+
+def _at(offset):
+    return (TODAY + timedelta(days=offset)).isoformat()
+
+
+def test_key_day_is_first_choice_and_the_lift_waits_three_hours():
+    days, cfg = _days(_ride_week(["easy", "key", "easy", "easy", "easy", "rest", "rest"]), days=7)
+    lifts = _plan(days, cfg, progress={"A": 4, "B": 4})
+    assert lifts[0]["date"] == _at(1) and lifts[0]["reasons"][0].startswith("hard day")
+    ride = next(s for s in days[1]["sessions"] if s["kind"] == "ride")
+    assert lifts[0]["start"] >= ride["end"] + 180
+
+
+def test_day_with_no_ride_gets_a_lift_from_17_but_a_planned_rest_day_does_not():
+    # nothing planned yet (the week after the plan runs out): lifts still get placed
+    open_days, cfg = _days([], days=7)
+    lifts = _plan(open_days, cfg, progress={"A": 4, "B": 4})
+    assert len(lifts) == 2 and all(l["start"] == 17 * 60 for l in lifts)
+    assert all("no ride planned that day" in l["reasons"] for l in lifts)
+    # Coach's rest days and ride_by_date "rest" are real rest days
+    rest = _ride_week(["rest"] * 7)
+    days, cfg = _days(rest, days=7)
+    assert _plan(days, cfg, progress={"A": 4, "B": 4}) == []
+    s = {**_snap([], 7), "settings": {"ride_by_date": {_at(d): "rest" for d in range(7)}}}
+    d = E.build_days(s)
+    E.schedule(d, KG, E.config(s), place_lifts=False)
+    assert all(x["rest_planned"] for x in d) and _plan(d, E.config(s), progress={"A": 4, "B": 4}) == []
+
+
+def test_rest_weekdays_never_get_a_lift():
+    days, cfg = _days(_ride_week(["easy", "easy", "rest", "easy", "rest", "rest", "rest"]), days=7)
+    assert any(l["date"] == _at(0) for l in _plan(days, cfg, progress={"A": 4, "B": 4}))
+    lifts = _plan(days, cfg, progress={"A": 4, "B": 4}, settings={"lift_rest_weekdays": ["Mon"]})
+    assert lifts and all(l["date"] != _at(0) for l in lifts)
+
+
+def test_day_before_a_key_ride_stays_off_limits_even_for_a_catch_up():
+    days, cfg = _days(_ride_week(["easy", "easy", "easy", "easy", "key", "long", "rest"]), days=7)
+    notes = []
+    lifts = _plan(days, cfg, today=TODAY + timedelta(days=3), completed=[{"date": _at(0), "template": "A"}],
+                  progress={"A": 4, "B": 3}, missed=[_at(2)], notes=notes)
+    # Thursday is the day before Friday's key ride: refused. Friday (key, long ride next) takes it, light
+    assert [(l["date"], l["variant"]) for l in lifts] == [(_at(4), "light")]
+    assert "catch-up for the missed " + _at(2) + " lift" in lifts[0]["reasons"]
+    assert notes == []
+
+
+def test_missed_lift_with_no_valid_day_is_dropped_with_a_note():
+    days2, cfg = _days(_ride_week(["easy", "easy", "easy", "easy", "key", "long", "rest"]), days=7)
+    notes = []
+    lifts = _plan(days2, cfg, today=TODAY + timedelta(days=3), completed=[{"date": _at(0), "template": "A"},
+                  {"date": _at(3), "template": "B"}], progress={"A": 4, "B": 4}, missed=[_at(2)], notes=notes)
+    assert lifts == [] and notes == []  # two done this week: nothing to catch up
+    trip = [{"date": _at(4), "start": "00:00", "end": "23:59", "title": "Trip", "busy": False, "all_day": True,
+             "trip": True}]
+    days3, cfg3 = _days(_ride_week(["easy", "easy", "easy", "easy", "key", "long", "rest"]), calendar=trip, days=7)
+    notes = []
+    lifts = _plan(days3, cfg3, today=TODAY + timedelta(days=3), completed=[{"date": _at(0), "template": "A"}],
+                  progress={"A": 4, "B": 3}, missed=[_at(2)], notes=notes)
+    assert lifts == []
+    assert notes and "the missed " + _at(2) + " lift is dropped, not doubled up" in notes[0]
+
+
+def test_lift_phases_set_lifts_per_week():
+    two_weeks = _ride_week(["easy", "key", "easy", "key", "easy", "rest", "rest"])
+    two_weeks += [{**w, "date": (date.fromisoformat(w["date"]) + timedelta(days=7)).isoformat()} for w in two_weeks]
+    days, cfg = _days(two_weeks, days=14)
+    phases = [{"from": _at(7), "per_week": 1, "note": "enduro block: maintenance"}]
+    lifts = _plan(days, cfg, progress={"A": 4, "B": 4}, settings={"lift_phases": phases})
+    per = {}
+    for l in lifts:
+        per.setdefault(E.monday_of(l["date"]), []).append(l)
+    assert len(per[_at(0)]) == 2 and len(per[_at(7)]) == 1
+    assert "enduro block: maintenance: 1 lift a week" in per[_at(7)][0]["reasons"]
+    taper = [{"from": _at(0), "per_week": 0, "note": "race taper"}]
+    assert _plan(days, cfg, settings={"lift_phases": taper}) == []
+
+
+def test_blackout_dates_get_no_lift():
+    open_days, cfg = _days([], days=7)
+    black = [{"from": _at(0), "to": _at(4), "note": "Trip 1"}]
+    lifts = _plan(open_days, cfg, progress={"A": 4, "B": 4}, settings={"lift_blackouts": black})
+    assert [l["date"] for l in lifts] == [_at(5)]
+    ok, why, _ = ST._valid(1, open_days, [], {**cfg, "lift_blackouts": black})
+    assert not ok and why == f"Trip 1 ({_at(0)} to {_at(4)})"

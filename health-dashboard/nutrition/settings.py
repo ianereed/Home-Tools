@@ -44,6 +44,10 @@ DEFAULTS = {
     "lift_equipment": "gym",                 # gym | home (bodyweight)
     "lift_equipment_by_date": {},            # {"YYYY-MM-DD": "home"} one-off overrides
     "lift_weekdays_only": False,             # True: never plan a lift on Sat/Sun
+    "lift_rest_weekdays": [],                # ["Mon"]: weekdays that never get a lift (recovery days)
+    "lift_blackouts": [],                    # [{"from": "YYYY-MM-DD", "to": "YYYY-MM-DD", "note": "Trip"}] no lifts
+    "lift_phases": [],                       # [{"from": "YYYY-MM-DD", "per_week": 1, "note": "..."}] lifts per week by
+                                             #  season phase (default 2); the latest phase that has started wins
     "push_generated_rides": True,            # push planner-generated rides to Garmin when no Coach plan is active;
                                              # False when you (or Claude) schedule rides yourself
     "ride_by_date": {},                      # {"YYYY-MM-DD": "rest" | {"start": "09:00", "minutes": 120, "avg_power_w": 145, "name": ...}}
