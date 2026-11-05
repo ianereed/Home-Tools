@@ -14,7 +14,7 @@ import logging
 import socket
 import sys
 import time
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
 from collectors.db import get_connection, init_db
@@ -104,6 +104,8 @@ def plan_strength(conn, snap: dict, settings: dict, today: date, acts: list[dict
     notes: list[str] = []
     lifts = strength.plan_lifts(days, today=today, cfg=cfg, settings=settings,
                                 completed=completed, missed=missed, notes=notes,
+                                reserved_keys={k for k, L in led.items() if L["date"] < today.isoformat()},
+                                now_min=(lambda n: n.hour * 60 + n.minute)(datetime.now()) if today == date.today() else None,
                                 previous=previous, load=load, readiness=readiness, progress=progress,
                                 generated_week0=date.fromisoformat(E.monday_of(block)) if block else None)
     info = {"lifts": lifts, "acwr": strength.acwr(load, today), "readiness": readiness,
