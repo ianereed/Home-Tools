@@ -116,9 +116,12 @@ def meals_html(meals: dict) -> str:
     parts = [slot_html(sl) for sl in meals["slots"]]
     rf = meals.get("ride_fuel")
     if rf:
+        lo, hi = rf.get("fluid_ml_per_h") or (500, 750)
+        fluid = f"; drink {lo}-{hi} mL water/h (more in heat), electrolyte tab per bottle" if rf.get("fluid_ml_per_h") else ""
         parts.append(f'<div class="fuel-slot"><div class="fuel-head"><span class="fuel-time">on bike</span><b>Ride fuel</b>'
                      f'<span class="fuel-role">{rf["gph"]} g carbs/h</span></div><div class="fuel-tgt">{rf["carb_g"]:.0f} g carbs: '
-                     f'~{rf["ingredients"].get("sports drink mix", 0)} g drink mix, or dates / bananas</div></div>')
+                     f'gels (~21 g per serving), chews or one bar, or ~{rf["ingredients"].get("sports drink mix", 0)} g drink mix'
+                     f'{fluid}</div></div>')
     return '<div class="fuel-grid">' + "".join(parts) + "</div>"
 
 

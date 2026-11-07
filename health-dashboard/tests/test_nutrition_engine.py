@@ -119,3 +119,47 @@ def test_no_personal_values_in_committed_nutrition_code():
         text = p.read_text()
         hits = [n for n in needles if n in text]
         assert not hits, f"{p.name} contains personal values ({len(hits)} hits)"
+
+
+def _meals(s):
+    res = E.run(s, [0.5], meal_paces=[0.5])
+    return dict(res["plans"][0.5]["meals"])
+
+
+def test_pre_ride_meal_and_dinner_before_long_ride_are_low_fiber():
+    from nutrition import foods as F
+    meals = _meals(snap())
+    pre = [sl for m in meals.values() for sl in m["slots"] if "pre-ride" in sl["role"] and "meal" in sl]
+    assert pre and all(sl["meal"]["nutrients"]["fiber"] <= sl["fiber_cap"] + 0.01 for sl in pre)
+    assert all(sl["fiber_cap"] <= max(F.PRE_RIDE_FIBER_MAX, F.PRE_RIDE_FIBER_PER_G_CARB * sl["target"]["c"]) + 0.01
+               for sl in pre)
+    dinner = next(sl for sl in meals["2026-10-15"]["slots"] if sl["slot"] == "D")  # long ride on 10-16
+    assert "low-fiber" in dinner["role"]
+    assert dinner["meal"]["nutrients"]["fiber"] <= F.PRE_LONG_DINNER_FIBER_MAX
+    # an ordinary dinner (no long or key ride next day) is left alone
+    plain = next(sl for sl in meals["2026-10-16"]["slots"] if sl["slot"] == "D")
+    assert "low-fiber" not in plain["role"]
+
+
+def test_pre_ride_meal_close_to_the_start_stays_small():
+    day = {"date": "2026-10-16", "events": [], "sessions": [
+        {"kind": "ride", "start": E.tmin("08:00"), "end": E.tmin("11:00"), "minutes": 180, "on_bike_carb_g": 180,
+         "on_bike_gph": 60}]}
+    energy = {"carb_g": 6.0 * KG, "carb_g_per_kg": 6.0, "protein_g": 2.0 * KG, "fat_g": 1.0 * KG,
+              "fuel_tomorrow_g": 0, "kcal": 3500, "next": "easy"}
+    cfg = E.config({"constraints": {"earliest_food": "07:30"}})  # e.g. wake + medication gap: can't eat earlier
+    out = E.plan_meals(day, energy, 0, None, cfg)
+    pre = next(sl for sl in out["slots"] if "pre-ride" in sl["role"])
+    assert "small: 30 min" in pre["role"]
+    assert pre["target"]["c"] <= E.PRE_RIDE_SHORT_CARB_G_PER_KG * KG + 0.01
+    assert pre["target"]["f"] <= E.PRE_RIDE_SHORT_FAT_G + 0.01
+    assert pre["target"]["p"] <= E.PRE_RIDE_SHORT_PROTEIN_G + 0.01
+    # what the small breakfast can't hold moves to the first meal after the ride, so the day total is unchanged
+    day_c = sum(sl["target"]["c"] for sl in out["slots"])
+    assert day_c == pytest.approx(energy["carb_g"] - 180, abs=0.5)
+
+
+def test_ride_fuel_carries_hourly_fluid():
+    meals = _meals(snap())
+    rf = meals["2026-10-16"]["ride_fuel"]
+    assert rf["fluid_ml_per_h"] == E.RIDE_FLUID_ML_PER_H and rf["gph"] > 0
