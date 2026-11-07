@@ -85,6 +85,9 @@ _FOODS = {
     "frozen corn":                  (96, 3.4, 21.0, 1.5, 2.4, 0.2, 1, 218, "cup", 145),
     "kale (raw)":                   (35, 2.9, 4.4, 1.5, 4.1, 0.2, 53, 348, "cup", 21),
     "whole-wheat pita":             (266, 9.8, 55.0, 2.6, 7.4, 0.4, 340, 170, "pita", 64),
+    # low-fiber stand-ins for the meal before a ride and the dinner before a long / key ride (LOW_FIBER_SUBS)
+    "white bread or bagel":         (266, 8.9, 49.4, 3.3, 2.7, 0.7, 477, 126, "slice", 28),
+    "white pasta (cooked)":         (158, 5.8, 30.9, 0.9, 1.8, 0.2, 1, 44, "cup", 140),
 }
 
 # Dietary cholesterol, mg per 100 g (USDA FDC, approximate). Plant foods are 0.
@@ -116,6 +119,7 @@ GROCERY_HINTS = {
     "liquid egg whites": "Cartons of 100% egg whites.",
     "edamame (shelled, cooked)": "Frozen shelled edamame (both stores).",
     "frozen stir-fry vegetables": "Any unsauced frozen vegetable blend.",
+    "white bread or bagel": "Plain white sandwich bread, sourdough or a plain bagel; only for pre-ride meals and the night before long rides.",
 }
 
 GROCERY_SECTION = {
@@ -129,7 +133,7 @@ GROCERY_SECTION = {
     "Frozen": ["blueberries (frozen ok)", "raspberries (frozen ok)", "frozen stir-fry vegetables", "edamame (shelled, cooked)",
                "frozen corn"],
     "Pantry & grains": ["rolled oats (dry)", "brown rice (cooked)", "jasmine rice (cooked)", "quinoa (cooked)",
-                        "whole-wheat pasta (cooked)", "100% whole-wheat bread", "corn tortillas", "whole-wheat pita",
+                        "whole-wheat pasta (cooked)", "white pasta (cooked)", "100% whole-wheat bread", "white bread or bagel", "corn tortillas", "whole-wheat pita",
                         "lentils (cooked)", "black beans (no salt, drained)", "chickpeas (no salt, drained)",
                         "crushed tomatoes, no salt added", "hummus (homemade)", "low-sodium soy sauce", "honey"],
     "Nuts, seeds & oils": ["almonds", "walnuts", "natural peanut butter (no salt)", "chia seeds", "extra-virgin olive oil"],
@@ -288,7 +292,7 @@ LEVER_MAX = {
     "extra-virgin olive oil": 25, "walnuts": 40, "almonds": 40, "natural peanut butter (no salt)": 32,
     "avocado": 75, "hummus (homemade)": 90, "protein powder (whey isolate)": 60, "nonfat Greek yogurt": 400,
     "liquid egg whites": 300, "Medjool dates": 96, "banana": 240, "rolled oats (dry)": 120,
-    "100% whole-wheat bread": 86, "corn tortillas": 156, "extra-firm tofu": 300, "whole-wheat pita": 128,
+    "100% whole-wheat bread": 86, "white bread or bagel": 112, "corn tortillas": 156, "extra-firm tofu": 300, "whole-wheat pita": 128,
     "sweet potato (baked)": 400, "russet potato (baked, skin on)": 400,
 }
 
@@ -300,3 +304,18 @@ FALLBACK = {
     "p": {"*": ("nonfat Greek yogurt", 250)},
 }
 FIBER_SOFT_MAX = 55
+
+# Low-fiber swaps for the meal before a ride and the dinner before a long / key ride. Fiber slows gastric
+# emptying and is the usual culprit in exercise GI distress (Ian: urgent diarrhea after a hard 4.5 h ride
+# 2026-10-17). None = leave the ingredient out. Meals still over the cap after swapping are skipped.
+LOW_FIBER_SUBS = {
+    "100% whole-wheat bread": "white bread or bagel", "whole-wheat pita": "white bread or bagel",
+    "brown rice (cooked)": "jasmine rice (cooked)", "quinoa (cooked)": "jasmine rice (cooked)",
+    "whole-wheat pasta (cooked)": "white pasta (cooked)", "sweet potato (baked)": "jasmine rice (cooked)",
+    "raspberries (frozen ok)": "banana", "kale (raw)": "zucchini", "broccoli (cooked)": "zucchini",
+    "frozen stir-fry vegetables": "zucchini", "chia seeds": None, "walnuts": None,
+    "spinach / greens (raw)": None,
+}
+PRE_RIDE_FIBER_MAX = 6        # g in the meal before a ride ...
+PRE_RIDE_FIBER_PER_G_CARB = 0.08  # ... or 8 g per 100 g of its carbs when it is a big meal (bananas carry ~2.6 g/100 g)
+PRE_LONG_DINNER_FIBER_MAX = 10  # g in the dinner before a long or key ride

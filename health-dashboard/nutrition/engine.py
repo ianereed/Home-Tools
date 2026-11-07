@@ -38,6 +38,11 @@ PROTEIN_G_PER_KG = 2.0
 CARB_BASE_G_PER_KG = 2.5
 CARB_MIN_BASE_G_PER_KG = 2.0
 FUEL_TOMORROW_G_PER_KG = 0.5
+RIDE_FLUID_ML_PER_H = (500, 750)   # water per hour on the bike; more in heat
+PRE_RIDE_FULL_MEAL_MIN = 90        # a pre-ride meal closer than this to the start is kept small:
+PRE_RIDE_SHORT_CARB_G_PER_KG = 1.0  #   ~1 g/kg carbs (Thomas 2016 ACSM/AND/DC: 1-4 g/kg 1-4 h before)
+PRE_RIDE_SHORT_PROTEIN_G = 25
+PRE_RIDE_SHORT_FAT_G = 10
 FAT_FLOOR_G_PER_KG = 0.7
 FAT_CEIL_PCT = 0.30
 DEFICIT_CAP_PCT = 0.25
@@ -685,6 +690,7 @@ def meal_slots(day: dict, cfg: dict | None = None) -> list[dict]:
             if p["time"] > start - need:
                 p["time"] = max(earliest, start - need)
             tag(p, "pre-ride")
+            p["ride_start"] = start
         after = [s for s in home if s["time"] >= start and s is not p]
         if after:
             q = after[0]
@@ -813,6 +819,18 @@ def unit_hint(name: str, g: float) -> str:
     return f"~{txt or '0'} {unit}"
 
 
+def _rotation(slot: str, need_pre: bool, need_portable: bool, day_index: int, used: set) -> list[dict]:
+    """The slot's options in pick_meal's rotation order, unused ones first."""
+    opts = [m for m in F.MEALS if m["slot"] == slot]
+    if need_pre:
+        opts = [m for m in opts if m["pre_ok"]] or opts
+    if need_portable:
+        opts = [m for m in opts if m["portable"]] or opts
+    n = len(opts)
+    order = [opts[(day_index + j) % n] for j in range(n)]
+    return [m for m in order if m["id"] not in used] + [m for m in order if m["id"] in used]
+
+
 def pick_meal(slot: str, need_pre: bool, need_portable: bool, day_index: int, used: set) -> dict:
     opts = [m for m in F.MEALS if m["slot"] == slot]
     if need_pre:
@@ -844,50 +862,115 @@ def plan_meals(day: dict, energy: dict, day_index: int, prev_dinner: str | None,
         if k == "D" and energy["fuel_tomorrow_g"] > 0:
             cw[k] += energy["fuel_tomorrow_g"] / max(1.0, carbs_left) * sum(cw.values())
     sc, sp, sf = sum(cw.values()), sum(pw.values()), sum(fw.values())
-    out_slots = []
-    used = {prev_dinner} if prev_dinner else set()
+    kg = energy["carb_g"] / energy["carb_g_per_kg"] if energy.get("carb_g_per_kg") else None
+    targets = []
     for sl in slots:
         k = sl["slot"]
         target = {"p": energy["protein_g"] * pw[k] / sp, "c": carbs_left * cw[k] / sc, "f": energy["fat_g"] * fw[k] / sf}
         if "40 g+" in sl["role"]:
             target["p"] = max(target["p"], 40)
+        targets.append(target)
+    # A pre-ride meal that lands close to the start (e.g. an early group ride) stays small and light; what it
+    # can't hold moves to the first meal after the ride.
+    for i, sl in enumerate(slots):
+        gap = sl.get("ride_start", 10 ** 6) - sl["time"]
+        if "pre-ride" not in sl["role"] or gap >= PRE_RIDE_FULL_MEAL_MIN or kg is None:
+            continue
+        cap = {"c": PRE_RIDE_SHORT_CARB_G_PER_KG * kg, "p": PRE_RIDE_SHORT_PROTEIN_G, "f": PRE_RIDE_SHORT_FAT_G}
+        moved = {m: max(0.0, targets[i][m] - cap[m]) for m in cap}
+        if not any(moved.values()):
+            continue
+        targets[i] = {m: min(targets[i][m], cap[m]) for m in cap}
+        nxt = next((j for j in range(i + 1, len(slots)) if slots[j]["time"] > sl["ride_start"]), None)
+        if nxt is not None:
+            targets[nxt] = {m: targets[nxt][m] + moved[m] for m in cap}
+        sl["role"] += f"; small: {gap} min before the start"
+    out_slots = []
+    used = {prev_dinner} if prev_dinner else set()
+    low_fiber_dinner = energy.get("next") in ("key", "long")
+    for sl, target in zip(slots, targets):
+        k = sl["slot"]
+        pre = "pre-ride" in sl["role"]
+        fiber_cap = max(F.PRE_RIDE_FIBER_MAX, F.PRE_RIDE_FIBER_PER_G_CARB * target["c"]) if pre else (
+            F.PRE_LONG_DINNER_FIBER_MAX if k == "D" and low_fiber_dinner else None)
+        if fiber_cap is not None and not pre:
+            sl["role"] += ("; " if sl["role"] else "") + "low-fiber (long or hard ride tomorrow)"
         entry = {"slot": k, "name": SLOT_NAMES[k], "time": hhmm(sl["time"]), "role": sl["role"], "mode": sl["mode"],
                  "target": target}
+        if fiber_cap is not None:
+            entry["fiber_cap"] = fiber_cap
         if sl["mode"] in ("home", "packed"):
-            meal = pick_meal(k, "pre-ride" in sl["role"], sl["mode"] == "packed", day_index, used)
-            used.add(meal["id"])
-            entry["meal"] = build_meal(meal, target)
+            if fiber_cap is not None:
+                opts = _rotation(k, pre, sl["mode"] == "packed", day_index, used)
+                entry["meal"] = low_fiber_meal(opts, target, fiber_cap)
+                used.add(entry["meal"]["id"].split("~")[0])
+            else:
+                meal = pick_meal(k, pre, sl["mode"] == "packed", day_index, used)
+                used.add(meal["id"])
+                entry["meal"] = build_meal(meal, target)
         out_slots.append(entry)
 
     flags = enforce_limits(out_slots, energy, used)
     ride_fuel = None
     if on_bike > 0:
         mix_g = on_bike / 0.95
+        ride_mins = sum(s["minutes"] for s in day["sessions"] if s.get("on_bike_carb_g", 0) > 0)
         ride_fuel = {"carb_g": on_bike, "ingredients": {"sports drink mix": round(mix_g / 5) * 5},
-                     "gph": max(s.get("on_bike_gph", 0) for s in day["sessions"])}
+                     "gph": max(s.get("on_bike_gph", 0) for s in day["sessions"]),
+                     # ACSM 2007 (Sawka): ~0.4-0.8 L/h, tuned by weigh-ins to keep losses under 2% of body mass
+                     "fluid_ml_per_h": RIDE_FLUID_ML_PER_H, "minutes": ride_mins}
     return {"slots": out_slots, "ride_fuel": ride_fuel, "flags": flags}
 
 
-def _substitute(meal: dict, subs: dict) -> dict | None:
-    """Copy of a meal with ingredients swapped per subs; None if nothing in it matches."""
+def _substitute(meal: dict, subs: dict, tag: str = "sub") -> dict | None:
+    """Copy of a meal with ingredients swapped per subs (a None value drops the ingredient);
+    None if nothing in it matches."""
     hit = False
-    fixed = {}
-    for n, g in meal["fixed"].items():
-        if n in subs:
-            hit = True
-            fixed[subs[n]] = fixed.get(subs[n], 0) + g
-        else:
-            fixed[n] = fixed.get(n, 0) + g
+
+    def swap(items: dict) -> dict:
+        nonlocal hit
+        out = {}
+        for n, v in items.items():
+            if n in subs:
+                hit = True
+                if subs[n] is None:
+                    continue
+                n = subs[n]
+            out[n] = out.get(n, 0) + v
+        return out
+
+    fixed = swap(meal["fixed"])
+    c_extra = swap(meal.get("c_extra", {}))
     levers = {}
     for k, n in meal["levers"].items():
         if n in subs:
             hit = True
-            levers[k] = subs[n]
+            if subs[n] is not None:
+                levers[k] = subs[n]
         else:
             levers[k] = n
     if not hit:
         return None
-    return {**meal, "fixed": fixed, "levers": levers, "id": meal["id"] + "~sub"}
+    return {**meal, "fixed": fixed, "levers": levers, "c_extra": c_extra, "id": meal["id"] + "~" + tag}
+
+
+def low_fiber_meal(options: list[dict], target: dict, cap: float) -> dict | None:
+    """First option (in the given rotation order) that fits under the fiber cap after the low-fiber swaps;
+    if none fits, the lowest-fiber one. None when there are no options."""
+    best = None
+    for m in options:
+        sub = _substitute(m, F.LOW_FIBER_SUBS, "lowfiber")
+        built = build_meal(sub or m, target)
+        if sub is not None:
+            built["name"] = m["name"] + " (low-fiber swaps)"
+            built["method"] = m["method"] + " Low-fiber version: " + ", ".join(
+                f"{a} -> {b}" if b else f"skip the {a}" for a, b in F.LOW_FIBER_SUBS.items()
+                if a in m["fixed"] or a in m["levers"].values() or a in m.get("c_extra", {})) + "."
+        if built["nutrients"]["fiber"] <= cap:
+            return built
+        if best is None or built["nutrients"]["fiber"] < best["nutrients"]["fiber"]:
+            best = built
+    return best
 
 
 LIMIT_CHECKS = [  # (key, nutrient, label, limit(energy)->float | None; None = no limit)
@@ -924,7 +1007,11 @@ def enforce_limits(out_slots: list[dict], energy: dict, used: set, max_iter: int
             candidates += [m for m in F.MEALS if m["slot"] == worst["slot"] and m["id"] != worst["meal"]["id"]
                            and m["id"] not in used and (m["portable"] or not need_portable)
                            and (m["pre_ok"] or "pre-ride" not in worst["role"])]
-            built = [build_meal(m, worst["target"]) for m in candidates]
+            if worst.get("fiber_cap") is not None:
+                built = [b for b in (low_fiber_meal([m], worst["target"], worst["fiber_cap"]) for m in candidates)
+                         if b["nutrients"]["fiber"] <= worst["fiber_cap"]]
+            else:
+                built = [build_meal(m, worst["target"]) for m in candidates]
             if not built:
                 continue
             best = min(built, key=lambda b: b["nutrients"][nut])
