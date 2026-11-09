@@ -268,7 +268,8 @@ def run_refresh(reason: str, trigger: str = "manual", collect: bool = True, cale
         lifts, strength_info = plan_strength(conn, snap, settings, today, acts)
         res = E.run(snap, paces, lift_plan=lifts, meal_paces=["plan"])
         from . import rides as RD
-        # only when no Coach plan covers those days; off when someone else schedules the rides
+        # only on days no Coach plan covers, in weeks with none of your own Garmin rides (snapshot.assemble), so
+        # an unplanned week still gets rides on Garmin and a week you planned is never touched
         gen_rides = RD.desired_rides(res["days"]) if settings.get("push_generated_rides", True) else []
         store.set_state(conn, "lift_plan_last", [{"date": x["date"], "plan_key": x["plan_key"], "template": x["template"]}
                                                  for x in lifts])

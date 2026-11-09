@@ -86,14 +86,35 @@ def test_harder_of_coach_and_yours_wins_and_yours_add_up():
     assert [s["name"] for s in days[d2]["sessions"]] == ["Dog ride", "Threshold"]
 
 
-def test_your_last_ride_extends_the_planned_window():
-    rides = [_mine(TODAY.isoformat(), "Z2", 3600, 140), _mine((TODAY + timedelta(days=3)).isoformat(), "Z2", 3600, 140)]
-    snap = S.assemble(today=TODAY, settings={"horizon_end": (TODAY + timedelta(days=20)).isoformat()}, constraints={},
-                      athlete=ATHLETE, dexa=DEXA, weight_kg=None,
+def _snap_mine(rides, horizon_days=20):
+    return S.assemble(today=TODAY, settings={"horizon_end": (TODAY + timedelta(days=horizon_days)).isoformat()},
+                      constraints={}, athlete=ATHLETE, dexa=DEXA, weight_kg=None,
                       coach_plan=None, coach_workouts=[], coach_versions=[], activities=[], daily_stats=[], intake={},
                       calendar_events=[], garmin_rides=rides)
-    assert snap["coach_plan"]["window_end"] == (TODAY + timedelta(days=3)).isoformat()
-    assert min(w["date"] for w in snap["projected_workouts"]) == (TODAY + timedelta(days=4)).isoformat()
+
+
+def test_your_rides_plan_their_whole_week():
+    rides = [_mine(TODAY.isoformat(), "Z2", 3600, 140), _mine((TODAY + timedelta(days=3)).isoformat(), "Z2", 3600, 140)]
+    snap = _snap_mine(rides)
+    sunday = (TODAY + timedelta(days=6)).isoformat()
+    assert snap["coach_plan"]["window_end"] == sunday
+    assert min(w["date"] for w in snap["projected_workouts"]) == (TODAY + timedelta(days=7)).isoformat()
     days = {d["date"]: d for d in E.build_days(snap)}
-    gap = (TODAY + timedelta(days=1)).isoformat()
-    assert days[gap]["sessions"] == [] and days[gap]["source"] == "rest"
+    for gap in ((TODAY + timedelta(days=1)).isoformat(), sunday):
+        assert days[gap]["sessions"] == [] and days[gap]["source"] == "rest"
+
+
+def test_a_lone_far_off_ride_does_not_blank_the_weeks_before_it():
+    # Nov 2026: a retest scheduled a month out must not turn the unplanned weeks before it into rest.
+    retest = TODAY + timedelta(days=31)   # Thursday, 4 weeks later
+    snap = _snap_mine([_mine(retest.isoformat(), "FTP test", 3600, 200)], horizon_days=40)
+    days = {d["date"]: d for d in E.build_days(snap)}
+    for wk in range(4):
+        week = [(TODAY + timedelta(days=7 * wk + i)).isoformat() for i in range(7)]
+        assert any(s["kind"] == "ride" for ds in week for s in days[ds]["sessions"]), week[0]
+        assert {days[ds]["source"] for ds in week} <= {"generated"}
+    retest_week = [(retest - timedelta(days=retest.weekday()) + timedelta(days=i)).isoformat() for i in range(7)]
+    assert [ds for ds in retest_week if days[ds]["sessions"]] == [retest.isoformat()]
+    assert all(days[ds]["source"] == "rest" for ds in retest_week if ds != retest.isoformat())
+    nxt = (retest + timedelta(days=7 - retest.weekday())).isoformat()
+    assert days[nxt]["source"] == "generated"

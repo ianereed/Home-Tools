@@ -84,6 +84,11 @@ def earliest_food(athlete: dict, constraints: dict) -> str | None:
     return f"{m // 60:02d}:{m % 60:02d}"
 
 
+def _monday(ds: str) -> date:
+    d = date.fromisoformat(ds)
+    return d - timedelta(days=d.weekday())
+
+
 def assemble(*, today: date, settings: dict, constraints: dict, athlete: dict, dexa: dict, weight_kg: float | None,
              coach_plan: dict | None, coach_workouts: list[dict], coach_versions: list[dict],
              activities: list[dict], daily_stats: list[dict], intake: dict, calendar_events: list[dict],
@@ -91,16 +96,21 @@ def assemble(*, today: date, settings: dict, constraints: dict, athlete: dict, d
     end = date.fromisoformat(settings["horizon_end"])
     end = max(end, today + timedelta(days=13))
     days = (end - today).days + 1
-    window_end = date.fromisoformat(coach_workouts[-1]["date"]) if coach_workouts else None
+    coach_end = date.fromisoformat(coach_workouts[-1]["date"]) if coach_workouts else None
+    window_end = coach_end
     garmin_rides = [w for w in garmin_rides or [] if w["date"] >= today.isoformat()]
-    if garmin_rides:
-        # Days up to your last scheduled ride are planned (a day without a ride is rest); projection starts after.
-        last = date.fromisoformat(garmin_rides[-1]["date"])
-        window_end = max(window_end, last) if window_end else last
+    # A week (Mon-Sun) with one of your scheduled rides is planned by you: its other days are rest. A week with
+    # none still gets projected/generated rides, so a lone far-off ride (a retest weeks out) can't blank the
+    # weeks before it.
+    your_weeks = {_monday(w["date"]) for w in garmin_rides}
+    if your_weeks:
+        last_sunday = max(your_weeks) + timedelta(days=6)
+        window_end = max(window_end, last_sunday) if window_end else last_sunday
     plan_end = date.fromisoformat(coach_plan["end"]) if coach_plan else None
     coach_active = coach_plan is not None
-    projected = projection.project(today, end, coach_window_end=window_end, plan_end=plan_end, coach_active=coach_active,
+    projected = projection.project(today, end, coach_window_end=coach_end, plan_end=plan_end, coach_active=coach_active,
                                    versions=coach_versions, athlete=athlete, generated_since=generated_since)
+    projected = [w for w in projected if _monday(w["date"]) not in your_weeks]
     t = today.isoformat()
     prev_start = (today - timedelta(days=14)).isoformat()
     in_window = [w for w in coach_workouts if w["date"] >= t]
