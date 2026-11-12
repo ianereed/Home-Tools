@@ -448,6 +448,16 @@ def test_hip_block_starts_at_two_sets_and_builds_to_three():
     assert ST.prescription("A", 3, "light", False, True)[4]["sets"] == 2
 
 
+def test_saved_weight_label_renames_the_step():
+    b = {e["exercise"]: e for e in ST.prescription("B", 3, "normal", False, True, weights={
+        "STANDING_CABLE_HIP_ABDUCTION": {"lb": 30, "label": "Hip abduction machine"},
+        "BARBELL_HIP_THRUST_WITH_BENCH": {"lb": 50, "label": "Hip thrust (machine)"}})}
+    assert b["STANDING_CABLE_HIP_ABDUCTION"]["label"] == "Hip abduction machine"
+    assert b["STANDING_CABLE_HIP_ABDUCTION"]["weight_lb"] == 30
+    assert b["BARBELL_HIP_THRUST_WITH_BENCH"]["label"] == "Hip thrust (machine)"
+    assert b["LEG_RAISE"]["label"].startswith("Cable knee drive")
+
+
 def test_moved_lift_keeps_its_new_calendar_entry_and_a_done_day_is_kept():
     led = {"k1": _L("k1", D1, 1, 11)}
     moved = {22: {"schedule_id": 22, "workout_id": 1, "date": D2}}
