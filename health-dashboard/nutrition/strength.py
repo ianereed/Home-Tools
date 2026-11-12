@@ -14,8 +14,8 @@ bodyweight accessories), then level 1-6, +1 level every 2 sessions of that templ
 forward through the horizon, so future lifts continue from the last completed one. Every 4th week from
 the block start is a deload (-1 set). While lifting is new (first INTRO_SESSIONS sessions) a lift is kept
 off the day two days before a key ride when another day works, since soreness peaks ~48 h later. Load rules can swap in the 'light' variant (-1 set, +1 rep in reserve) or move a lift;
-Working weights (settings.strength_weights, {exerciseName: {"lb": n, "note": "..."}}) come from Ian's notes
-after a session; they go on the watch as each step's weight target. Every decision carries a human-readable reason.
+Working weights (settings.strength_weights, {exerciseName: {"lb": n, "note": "...", "label": "..."}}) come from Ian's notes
+after a session (an optional "label" renames the step, e.g. when he uses a machine in place of the cable); they go on the watch as each step's weight target. Every decision carries a human-readable reason.
 """
 from __future__ import annotations
 
@@ -112,6 +112,8 @@ def prescription(template: str, level: int, variant: str, deload: bool, upper: b
                 ex["weight_lb"] = w["lb"]
             elif cat in ("HIP_STABILITY", "LEG_RAISE"):
                 ex["note"] = "light cable, find your starting weight"
+            if w and w.get("label"):
+                ex["label"] = w["label"]
             out.append(ex)
         elif kind == "core":
             out.append({"label": label, "category": cat, "exercise": name,
@@ -131,6 +133,8 @@ def prescription(template: str, level: int, variant: str, deload: bool, upper: b
                 ex.pop("note", None)  # a known weight replaces "find your starting weight"
             if w and w.get("note"):
                 ex["note"] = w["note"]
+            if w and w.get("label"):
+                ex["label"] = w["label"]
             out.append(ex)
     return out + pt_exercises(pt)
 
