@@ -506,11 +506,11 @@ def test_key_day_is_first_choice_and_the_lift_waits_three_hours():
     assert lifts[0]["start"] >= ride["end"] + 180
 
 
-def test_day_with_no_ride_gets_a_lift_from_17_but_a_planned_rest_day_does_not():
+def test_day_with_no_ride_gets_a_lift_from_14_but_a_planned_rest_day_does_not():
     # nothing planned yet (the week after the plan runs out): lifts still get placed
     open_days, cfg = _days([], days=7)
     lifts = _plan(open_days, cfg, progress={"A": 4, "B": 4})
-    assert len(lifts) == 2 and all(l["start"] == 17 * 60 for l in lifts)
+    assert len(lifts) == 2 and all(l["start"] == 14 * 60 for l in lifts)
     assert all("no ride planned that day" in l["reasons"] for l in lifts)
     # Coach's rest days and ride_by_date "rest" are real rest days
     rest = _ride_week(["rest"] * 7)
@@ -593,3 +593,31 @@ def test_new_lift_never_reuses_a_past_lifts_key_and_never_starts_in_the_past():
     early = _plan(days, cfg, today=wed, completed=[{"date": _at(0), "template": "A"}], progress={"A": 4, "B": 3},
                   now_min=16 * 60 + 5)
     assert early[0]["date"] == _at(2) and early[0]["start"] >= 16 * 60 + 35
+
+
+def _days_with_slots(workouts, slots, days=14):
+    s = _snap(workouts, days)
+    s["workout_slots"] = slots
+    d = E.build_days(s)
+    E.schedule(d, KG, E.config(s), place_lifts=False)
+    return d, E.config(s)
+
+
+def test_ride_and_lift_times_come_from_your_google_calendar():
+    ride_day = WEEK[0]["date"]
+    days, cfg = _days_with_slots(WEEK, [{"date": ride_day, "start": "07:15", "end": "08:15", "sport": "cycling", "title": "🚴 Base"}])
+    ride = next(s for s in days[0]["sessions"] if s["kind"] == "ride")
+    assert ride["start"] == 7 * 60 + 15 and ride["reason"] == "time from your Google Calendar (07:15)"
+    first = _plan(days, cfg)[0]  # where the planner puts the first lift on its own
+    slots = [{"date": first["date"], "start": "19:30", "end": "20:45", "sport": "strength_training", "title": "🏋️ Lift A1"}]
+    days, cfg = _days_with_slots(WEEK, slots)
+    lift = _plan(days, cfg, settings={"lift_start_by_date": {first["date"]: "18:30"}})[0]  # the calendar beats the setting
+    assert lift["date"] == first["date"] and lift["start"] == 19 * 60 + 30
+    assert "time from your Google Calendar (19:30)" in lift["reasons"]
+
+
+def test_without_calendar_slots_rides_use_the_preferred_slot_and_lifts_default_to_2pm():
+    days, cfg = _days(WEEK)
+    ride = next(s for s in days[0]["sessions"] if s["kind"] == "ride")
+    assert ride["start"] == 10 * 60 and ride["reason"] == "preferred slot"
+    assert ST.DEFAULT_START == "14:00"

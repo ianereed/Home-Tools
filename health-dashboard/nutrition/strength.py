@@ -4,7 +4,7 @@ placed around rides/calendar, adjusted to training load.
 Placement (2026-11-04): hard rules in `_valid` (no lift the day before a key ride, on a long-ride day, a rest
 weekday, a planned rest day, a blackout, near a trip, or within 48 h of another; ride first, lift 3 h after a key
 ride). Preference: key days (after the ride, so easy days stay easy), then easy, moderate, and days with no ride
-(17:00). Last resort: the day before a long ride, as a light session. A missed lift is caught up in the same week
+(14:00). Last resort: the day before a long ride, as a light session. A missed lift is caught up in the same week
 when a day passes those rules, never doubled up; otherwise the week's note says it was dropped.
 
 Templates (Garmin exercise keys verified against connect.garmin.com/web-data/exercises/Exercises.json):
@@ -229,7 +229,7 @@ def acwr(load: dict[str, float], today: date, min_history_days: int = 21) -> flo
 FILL_ORDER = ("key", "easy", "moderate", "rest")
 FILL_REASON = {"key": "hard day: after the key ride, so the easy days stay easy", "easy": "easy-ride day",
                "moderate": "moderate-ride day", "rest": "no ride planned that day"}
-DEFAULT_START = "17:00"
+DEFAULT_START = "14:00"  # = gcal_sync.start_times.strength_training; the calendar event's time wins once it exists
 
 
 def _valid(i: int, days: list[dict], taken: list[int], cfg: dict,
@@ -238,7 +238,7 @@ def _valid(i: int, days: list[dict], taken: list[int], cfg: dict,
     Hard rules: no lift on a rest weekday (settings.lift_rest_weekdays), inside a blackout (settings.lift_blackouts,
     e.g. a trip the calendar doesn't flag), on a planned rest day, a long-ride day,
     the day before a key ride, within a day of a trip, or within 48 h of another lift; after a ride it waits
-    3 h (key) or 30 min. A day with no ride is fine (from 17:00). `before_long`: allow the day before a long
+    3 h (key) or 30 min. A day with no ride is fine (from 14:00). `before_long`: allow the day before a long
     ride (plan_lifts makes that session light). `soreness_guard`: also refuse the day two days before a key
     ride (new lifters' soreness peaks ~48 h after a lift)."""
     day = days[i]
@@ -417,7 +417,11 @@ def plan_lifts(days: list[dict], *, today: date, cfg: dict, settings: dict, comp
             if ds == t and readiness is not None and readiness < 25:
                 variant = "light"
                 reasons.append(f"Garmin readiness {readiness:.0f} < 25: light session")
-            if ds in (settings.get("lift_start_by_date") or {}):
+            cal_lift = next((w for w in days[i].get("workout_slots", []) if w["sport"] == "strength_training"), None)
+            if cal_lift:  # your calendar is the source of truth for when you lift
+                st = E.tmin(cal_lift["start"])
+                reasons.append(f"time from your Google Calendar ({cal_lift['start']})")
+            elif ds in (settings.get("lift_start_by_date") or {}):
                 st = E.tmin(settings["lift_start_by_date"][ds])
                 reasons.append(f"time set by you ({settings['lift_start_by_date'][ds]})")
             equipment = (settings.get("lift_equipment_by_date") or {}).get(ds) or settings.get("lift_equipment", "gym")

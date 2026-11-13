@@ -1,15 +1,16 @@
 """Garmin calendar -> Google Calendar mirror: desired events, bodies and the reconciliation diff (pure)."""
+from copy import deepcopy
 from datetime import date, timedelta
 
 from nutrition import gcal_workouts as G
-from nutrition.settings import load_settings
+from nutrition.settings import DEFAULTS
 
 TODAY = date(2026, 10, 14)
 END = TODAY + timedelta(days=45)
 
 
 def _settings(**over):
-    s = load_settings(path=None)
+    s = deepcopy(DEFAULTS)  # not load_settings(): the mini's data/fuel_settings.json would leak into the tests
     s["gcal_sync"].update(over)
     return s
 
@@ -44,7 +45,7 @@ def test_desired_events_cover_coach_lifts_and_rest_days_only():
     assert "6 x 0:30 all-out" in sprint["description"] and G.GARMIN_CAL_URL in sprint["description"]
     assert out["coach:u2"]["minutes"] == 120
     lift = out["workout:1809171360"]
-    assert lift["summary"] == "🏋️ Lift A1 light · Home bodyweight" and lift["start"] == "17:00" and lift["minutes"] == 45
+    assert lift["summary"] == "🏋️ Lift A1 light · Home bodyweight" and lift["start"] == "14:00" and lift["minutes"] == 45
     rest = out["rest:2026-10-16"]
     assert rest["all_day"] and rest["summary"] == "😴 Rest day (Coach)"
 
@@ -71,7 +72,8 @@ def test_event_bodies_are_tagged_free_and_timed_in_local_tz():
     body = G.event_body(spec)
     assert body["transparency"] == "transparent"
     assert body["reminders"] == {"useDefault": False, "overrides": []}
-    assert body["extendedProperties"]["private"] == {"source": "garmin-sync", "garmin_key": "coach:u1", "digest": spec["digest"]}
+    assert body["extendedProperties"]["private"] == {"source": "garmin-sync", "garmin_key": "coach:u1", "digest": spec["digest"],
+                                                     "synced_date": "2026-10-14", "synced_start": "10:00"}
     assert body["start"] == {"dateTime": "2026-10-14T10:00:00", "timeZone": "America/Los_Angeles"}
     assert body["end"] == {"dateTime": "2026-10-14T10:55:00", "timeZone": "America/Los_Angeles"}
     rest = G.desired_events([], [_task("2026-10-16", None, rest=True)], _settings(), TODAY, END)["rest:2026-10-16"]
@@ -106,7 +108,7 @@ def test_calendar_source_skips_our_own_mirror_events():
     raw = [{"summary": "🚴 Long Ride (Coach)", "start": "2026-10-17T10:00:00-07:00", "end": "2026-10-17T12:00:00-07:00",
             "all_day": False, "transparency": "transparent", "source_tag": "garmin-sync"},
            {"summary": "Group ride", "start": "2026-10-18T09:00:00-07:00", "end": "2026-10-18T12:00:00-07:00", "all_day": False}]
-    out = CS.classify(raw, load_settings(path=None))
+    out = CS.classify(raw, deepcopy(DEFAULTS))
     assert [e["title"] for e in out] == ["Group ride"]
 
 
@@ -127,3 +129,41 @@ def test_ride_by_date_drops_the_coach_ride_and_moves_the_group_ride():
     assert set(out) == {"rest:2026-10-17", "workout:77"}
     assert out["rest:2026-10-17"]["summary"] == "😴 Rest day (you)" and out["rest:2026-10-17"]["all_day"]
     assert out["workout:77"]["start"] == "09:00"
+
+
+def test_a_hand_moved_event_keeps_your_time_when_it_is_repatched():
+    desired = G.desired_events([LIFT], [], _settings(), TODAY, END, workout_minutes=lambda wid: 2700)
+    spec = desired["workout:1809171360"]
+    # the sync put it at 14:00 on 10-15; you dragged it to 17:30 the same day; then Garmin renamed it (stale digest)
+    moved = {"id": "e1", "key": spec["key"], "digest": "stale", "date": "2026-10-15",
+             "start": "2026-10-15T17:30:00-07:00", "end": "2026-10-15T18:15:00-07:00",
+             "synced_date": "2026-10-15", "synced_start": "14:00"}
+    body = G.diff(desired, [moved], TODAY)[0]["body"]
+    assert body["start"]["dateTime"] == "2026-10-15T17:30:00" and body["end"]["dateTime"] == "2026-10-15T18:15:00"
+    assert body["extendedProperties"]["private"]["synced_start"] == "14:00"  # still records the sync's own slot
+    # moved to another day by hand: your day and time stay
+    other_day = moved | {"date": "2026-10-16", "start": "2026-10-16T07:00:00-07:00"}
+    assert G.diff(desired, [other_day], TODAY)[0]["body"]["start"]["dateTime"] == "2026-10-16T07:00:00"
+    # Garmin moved the workout to a new day since: the new day wins, your time of day is kept
+    garmin_moved = moved | {"synced_date": "2026-10-14"}
+    assert G.diff(desired, [garmin_moved], TODAY)[0]["body"]["start"]["dateTime"] == "2026-10-15T17:30:00"
+    # not moved (still where the sync put it) or written before v3 (no placement): the sync's time
+    same = moved | {"start": "2026-10-15T14:00:00-07:00"}
+    legacy = {k: v for k, v in moved.items() if not k.startswith("synced_")}
+    for e in (same, legacy):
+        assert G.diff(desired, [e], TODAY)[0]["body"]["start"]["dateTime"] == "2026-10-15T14:00:00"
+    # a moved event whose content did not change is left alone
+    assert G.diff(desired, [moved | {"digest": spec["digest"]}], TODAY) == []
+
+
+def test_workout_slots_read_our_mirror_events_as_local_times():
+    from nutrition import calendar_source as CS
+    raw = [{"summary": "🚴 Threshold · 3x10 min", "start": "2026-11-12T10:00:00-08:00", "end": "2026-11-12T11:10:00-08:00",
+            "all_day": False, "source_tag": "garmin-sync"},
+           {"summary": "✅ 🏋️ Lift A1 · Full body + PT", "start": "2026-11-12T17:00:00-08:00",
+            "end": "2026-11-12T18:15:00-08:00", "all_day": False, "source_tag": "garmin-sync"},
+           {"summary": "😴 Rest day (Coach)", "start": "2026-11-13", "end": "2026-11-14", "all_day": True, "source_tag": "garmin-sync"},
+           {"summary": "🚴 Group ride", "start": "2026-11-15T09:00:00-08:00", "end": "2026-11-15T11:00:00-08:00", "all_day": False}]
+    assert CS.workout_slots(raw) == [
+        {"date": "2026-11-12", "start": "10:00", "end": "11:10", "sport": "cycling", "title": "🚴 Threshold · 3x10 min"},
+        {"date": "2026-11-12", "start": "17:00", "end": "18:15", "sport": "strength_training", "title": "🏋️ Lift A1 · Full body + PT"}]
