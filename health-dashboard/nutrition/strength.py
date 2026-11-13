@@ -337,8 +337,9 @@ def plan_lifts(days: list[dict], *, today: date, cfg: dict, settings: dict, comp
         picks: list[tuple[int, int, list[str], str | None]] = []
         soft: list[tuple[int, int, list[str], str | None, str]] = []  # kept dates refused only by the soreness guard
         intro = sim["A"] + sim["B"] < INTRO_SESSIONS
-        # 1) keep last run's dates when still valid (no flapping); lifts Ian moved by hand are pinned
-        for p in sorted(prev_by_week.get(mon, []), key=lambda p: p["date"]):
+        # 1) keep last run's dates when still valid (no flapping); lifts Ian moved by hand are pinned (and win a
+        #    full week, so a lift he drags into another week replaces one there rather than being dropped)
+        for p in sorted(prev_by_week.get(mon, []), key=lambda p: (not p.get("pinned"), p["date"])):  # yours first
             ds = p["date"]
             if ds < t or ds not in idx or len(picks) >= want:
                 continue
@@ -346,7 +347,7 @@ def plan_lifts(days: list[dict], *, today: date, cfg: dict, settings: dict, comp
                                  before_long=True)
             if p.get("pinned"):
                 st = st if st is not None else E.tmin(DEFAULT_START)
-                picks.append((idx[ds], st, ["date set by you in Garmin Connect"], p.get("plan_key")))
+                picks.append((idx[ds], st, ["date set by you (Garmin Connect or Google Calendar)"], p.get("plan_key")))
             elif ok:
                 picks.append((idx[ds], st, ["kept from the previous plan"], p.get("plan_key")))
             else:

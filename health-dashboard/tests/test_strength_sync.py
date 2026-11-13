@@ -621,3 +621,17 @@ def test_without_calendar_slots_rides_use_the_preferred_slot_and_lifts_default_t
     ride = next(s for s in days[0]["sessions"] if s["kind"] == "ride")
     assert ride["start"] == 10 * 60 and ride["reason"] == "preferred slot"
     assert ST.DEFAULT_START == "14:00"
+
+
+def test_a_pinned_lift_wins_a_full_week():
+    days, cfg = _days(WEEK)
+    done = {"A": 5, "B": 5}  # past the intro sessions, so both kept dates pass every rule
+    first = _plan(days, cfg, progress=done)
+    prev = [{"date": l["date"], "plan_key": l["plan_key"], "template": l["template"]} for l in first]
+    friday = (TODAY + timedelta(days=4)).isoformat()  # you dragged a lift from last week into this one, onto Friday
+    assert all(p["date"] < friday for p in prev if E.monday_of(p["date"]) == E.monday_of(TODAY.isoformat()))
+    lifts = _plan(days, cfg, progress=done,
+                  previous=prev + [{"date": friday, "plan_key": "lift-moved", "template": "A", "pinned": True}])
+    week = [l for l in lifts if E.monday_of(l["date"]) == E.monday_of(TODAY.isoformat())]
+    assert len(week) == 2 and any(l["plan_key"] == "lift-moved" and l["date"] == friday for l in week)
+    assert "date set by you (Garmin Connect or Google Calendar)" in next(l for l in week if l["plan_key"] == "lift-moved")["reasons"]
