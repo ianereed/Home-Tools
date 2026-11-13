@@ -13,7 +13,8 @@ Progression: the first session of each template is an intro (level 0: fewer reps
 bodyweight accessories), then level 1-6, +1 level every 2 sessions of that template. Levels are projected
 forward through the horizon, so future lifts continue from the last completed one. Every 4th week from
 the block start is a deload (-1 set). While lifting is new (first INTRO_SESSIONS sessions) a lift is kept
-off the day two days before a key ride when another day works, since soreness peaks ~48 h later. Load rules can swap in the 'light' variant (-1 set, +1 rep in reserve) or move a lift;
+off the day two days before a key ride when another day works, since soreness peaks ~48 h later. Load rules can swap in the 'light' variant (-1 set, +1 rep in reserve) or move a lift
+(settings.lift_variant_by_date {date: 'normal'|'light'} overrides them for a day);
 Working weights (settings.strength_weights, {exerciseName: {"lb": n, "note": "...", "label": "..."}}) come from Ian's notes
 after a session (an optional "label" renames the step, e.g. when he uses a machine in place of the cable); they go on the watch as each step's weight target. Every decision carries a human-readable reason.
 """
@@ -422,6 +423,11 @@ def plan_lifts(days: list[dict], *, today: date, cfg: dict, settings: dict, comp
             equipment = (settings.get("lift_equipment_by_date") or {}).get(ds) or settings.get("lift_equipment", "gym")
             if equipment == "home":
                 reasons.append("bodyweight session at home")
+            forced = (settings.get("lift_variant_by_date") or {}).get(ds)
+            if forced in ("normal", "light") and forced != variant:
+                variant = forced
+                reasons = [r for r in reasons if not r.endswith(": light session")]
+                reasons.append(f"{forced} session set by you")
             ex = prescription(template, level, variant, deload, upper, equipment,
                               settings.get("strength_weights"), pt)
             ex, swapped = apply_swaps(ex, settings.get("exercise_swaps"), ds)
