@@ -328,6 +328,16 @@ def test_soreness_guard_gives_way_when_no_other_day_works():
     assert "long ride tomorrow: light session" in lifts[1]["reasons"]
 
 
+def test_variant_set_by_date_overrides_the_light_rules():
+    days, cfg = _days(_ride_week(["rest", "rest", "key", "rest", "key", "long", "rest"]), days=7)
+    fri = (TODAY + timedelta(days=4)).isoformat()
+    lifts = _plan(days, cfg, settings={"lift_variant_by_date": {fri: "normal"}})
+    f = next(l for l in lifts if l["date"] == fri)
+    assert f["variant"] == "normal" and "light" not in f["name"]
+    assert "normal session set by you" in f["reasons"]
+    assert not any(r.endswith(": light session") for r in f["reasons"])
+
+
 def test_kept_date_refused_by_guard_is_reused_before_a_new_one():
     days, cfg = _days(_ride_week(["rest", "rest", "key", "rest", "key", "long", "rest"]), days=7)
     wed = (TODAY + timedelta(days=2)).isoformat()

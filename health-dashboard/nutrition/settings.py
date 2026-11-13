@@ -57,6 +57,7 @@ DEFAULTS = {
     "pt_minutes": 20,
     "exercise_swaps": {},                    # {"until": "YYYY-MM-DD", "reason": ..., "swap": {exerciseName: null | {...}},
                                              #  "note": {exerciseName: "..."}} temporary changes, e.g. around an injury                        # extra minutes the PT block adds to each lift
+    "lift_variant_by_date": {},              # {"YYYY-MM-DD": "normal"|"light"} overrides the automatic light rules
     "lift_start_by_date": {},                # {"YYYY-MM-DD": "18:00"} one-off lift times (fuel plan + Google Calendar)
     "strength_block_start": None,            # "YYYY-MM-DD" first lift of the block: deload weeks count from it
     "strength_weights": {},                  # {"GOBLET_SQUAT": {"lb": 30, "note": "..."}} working weights, from Ian's notes
