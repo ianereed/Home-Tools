@@ -167,3 +167,126 @@ def test_workout_slots_read_our_mirror_events_as_local_times():
     assert CS.workout_slots(raw) == [
         {"date": "2026-11-12", "start": "10:00", "end": "11:10", "sport": "cycling", "title": "🚴 Threshold · 3x10 min"},
         {"date": "2026-11-12", "start": "17:00", "end": "18:15", "sport": "strength_training", "title": "🏋️ Lift A1 · Full body + PT"}]
+
+
+def _ev(key, placed_at, synced_date, synced_start="14:00", summary="🏋️ Lift A1 light · Home bodyweight", digest="d"):
+    d, hm = placed_at
+    return {"id": f"ev-{key}", "key": key, "digest": digest, "date": d, "summary": summary,
+            "start": f"{d}T{hm}:00-07:00", "end": f"{d}T23:00:00-07:00",
+            "synced_date": synced_date, "synced_start": synced_start}
+
+
+def test_day_moves_only_for_scheduled_workouts_dragged_to_another_day():
+    key = "workout:1809171360"
+    assert G.day_moves([_ev(key, ("2026-10-16", "18:00"), "2026-10-15")], [LIFT], TODAY, END) == [
+        {"key": key, "schedule_id": 1809171360, "workout_id": 1730120564, "sport": "strength_training",
+         "title": LIFT["title"], "from": "2026-10-15", "to": "2026-10-16", "start": "18:00"}]
+    none = [
+        _ev(key, ("2026-10-15", "18:00"), "2026-10-15"),                    # moved in time only
+        _ev(key, ("2026-10-16", "18:00"), "2026-10-14"),                    # Garmin moved it since (Garmin: 10-15)
+        _ev(key, ("2026-10-13", "18:00"), "2026-10-15"),                    # dragged into the past
+        {k: v for k, v in _ev(key, ("2026-10-16", "18:00"), "2026-10-15").items() if not k.startswith("synced")},  # pre-v3
+        _ev("coach:u1", ("2026-10-16", "10:00"), "2026-10-15", "10:00"),   # Coach workouts never move from here
+    ]
+    for e in none:
+        assert G.day_moves([e], [LIFT, _coach_item("2026-10-15", "u1")], TODAY, END) == []
+
+
+def test_move_ride_override_follows_the_ride_and_drops_a_rest_day_there():
+    group = {"start": "09:00", "minutes": 120}
+    rbd, note = G.move_ride_override({"2026-10-18": group, "2026-10-17": "rest"}, "2026-10-18", "2026-10-17")
+    assert rbd == {"2026-10-17": group} and "rest day 2026-10-17 dropped" in note and "moved" in note
+    assert G.move_ride_override({"2026-10-19": group}, "2026-10-18", "2026-10-17") == ({"2026-10-19": group}, None)
+    rbd, note = G.move_ride_override({"2026-10-18": group, "2026-10-17": {"start": "07:00"}}, "2026-10-18", "2026-10-17")
+    assert rbd["2026-10-18"] == group and "kept" in note
+
+
+class _FakeGarmin:
+    def __init__(self, fail=None):
+        self.calls, self.fail = [], fail
+
+    def schedule_workout(self, wid, ds):
+        self.calls.append(("schedule", wid, ds))
+        if self.fail == "schedule":
+            raise ConnectionError("down")
+        return {"workoutScheduleId": 555}
+
+    def unschedule_workout(self, sid):
+        self.calls.append(("unschedule", sid))
+
+
+def _ledger_db(tmp_path):
+    import sqlite3
+    conn = sqlite3.connect(tmp_path / "h.db")
+    conn.executescript("""
+        CREATE TABLE fuel_garmin_workouts (plan_key TEXT PRIMARY KEY, kind TEXT, date TEXT, spec_hash TEXT, name TEXT,
+          garmin_workout_id INTEGER, garmin_schedule_id INTEGER, status TEXT, reasons_json TEXT, created_at TEXT, updated_at TEXT);
+        CREATE TABLE fuel_garmin_ops (id INTEGER PRIMARY KEY, ts TEXT, run_id INTEGER, mode TEXT, op TEXT, plan_key TEXT,
+          workout_id INTEGER, schedule_id INTEGER, date TEXT, ok INTEGER, detail TEXT);
+        CREATE TABLE fuel_state (key TEXT PRIMARY KEY, value TEXT, updated_at TEXT);""")
+    conn.execute("INSERT INTO fuel_garmin_workouts VALUES ('lift-2026-10-12-2','lift','2026-10-15','h','n',1730120564,"
+                 "1809171360,'synced','[]','t','t')")
+    conn.commit()
+    return conn
+
+
+def test_a_lift_dragged_to_another_day_moves_in_garmin_and_keeps_your_time(tmp_path):
+    from nutrition import store
+    conn = _ledger_db(tmp_path)
+    items, s = [dict(LIFT)], _settings()
+    existing = [_ev("workout:1809171360", ("2026-10-16", "18:00"), "2026-10-15")]
+    fc = _FakeGarmin()
+    res = G.apply_day_moves(fc, conn, G.day_moves(existing, items, TODAY, END), items, existing, s,
+                            settings_path=tmp_path / "unused.json")
+    assert fc.calls == [("schedule", 1730120564, "2026-10-16"), ("unschedule", 1809171360)]
+    assert res[0]["ok"] and res[0]["lift"] == "lift-2026-10-12-2" and res[0]["schedule_id"] == 555
+    assert conn.execute("SELECT date, garmin_schedule_id, status FROM fuel_garmin_workouts").fetchone() == \
+        ("2026-10-16", 555, "moved_by_user")
+    assert store.get_state(conn, "refresh_requested") == 1
+    # this run then re-patches the same event under its new key, on the new day at your time
+    desired = G.desired_events(items, [], s, TODAY, END, workout_minutes=lambda wid: 2700)
+    ops = G.diff(desired, existing, TODAY)
+    assert [(o["op"], o["key"], o["event_id"]) for o in ops] == [("patch", "workout:555", "ev-workout:1809171360")]
+    body = ops[0]["body"]
+    assert body["start"]["dateTime"] == "2026-10-16T18:00:00"
+    assert body["extendedProperties"]["private"]["synced_date"] == "2026-10-16"
+    # a failed Garmin call changes nothing; the event keeps your day and the next run retries
+    items2, existing2 = [dict(LIFT)], [_ev("workout:1809171360", ("2026-10-16", "18:00"), "2026-10-15")]
+    res = G.apply_day_moves(_FakeGarmin(fail="schedule"), conn, G.day_moves(existing2, items2, TODAY, END),
+                            items2, existing2, s, settings_path=tmp_path / "unused.json")
+    assert not res[0]["ok"] and items2[0]["id"] == 1809171360 and existing2[0]["key"] == "workout:1809171360"
+    conn.close()
+
+
+def test_a_ride_dragged_to_another_day_takes_its_ride_by_date_entry(tmp_path):
+    import json
+    ride = {"itemType": "workout", "id": 77, "date": "2026-10-18", "title": "Group ride · 2h", "workoutId": 1745984637,
+            "sportTypeKey": "cycling"}
+    path = tmp_path / "fuel_settings.json"
+    path.write_text(json.dumps({"ride_by_date": {"2026-10-18": {"start": "09:00", "minutes": 120}}, "x": "·"}, indent=2))
+    s = _settings()
+    s["ride_by_date"] = {"2026-10-18": {"start": "09:00", "minutes": 120}}
+    conn = _ledger_db(tmp_path)
+    items = [ride]
+    existing = [_ev("workout:77", ("2026-10-17", "09:00"), "2026-10-18", "09:00", summary="🚴 Group ride · 2h")]
+    res = G.apply_day_moves(_FakeGarmin(), conn, G.day_moves(existing, items, TODAY, END), items, existing, s,
+                            settings_path=path)
+    assert res[0]["ok"] and "lift" not in res[0]
+    assert json.loads(path.read_text())["ride_by_date"] == {"2026-10-17": {"start": "09:00", "minutes": 120}}
+    assert json.loads(path.read_text())["x"] == "·"
+    assert (tmp_path / res[0]["settings_backup"]).exists() and s["ride_by_date"] == {"2026-10-17": {"start": "09:00", "minutes": 120}}
+    conn.close()
+
+
+def test_a_lift_garmin_re_created_reuses_its_event_and_your_time():
+    # the planner replaced the lift (new workout, new schedule id) on the same day; you had dragged it to 17:30
+    new = LIFT | {"id": 1900000000, "workoutId": 1800000000}
+    desired = G.desired_events([new], [], _settings(), TODAY, END, workout_minutes=lambda wid: 2700)
+    old = _ev("workout:1809171360", ("2026-10-15", "17:30"), "2026-10-15")
+    ops = G.diff(desired, [old], TODAY)
+    assert [(o["op"], o["key"], o["event_id"]) for o in ops] == [("patch", "workout:1900000000", "ev-workout:1809171360")]
+    assert ops[0]["body"]["start"]["dateTime"] == "2026-10-15T17:30:00"
+    assert ops[0]["body"]["extendedProperties"]["private"]["garmin_key"] == "workout:1900000000"
+    # a different sport or another day is not the same workout: delete + insert
+    ride_ev = _ev("workout:1809171360", ("2026-10-15", "17:30"), "2026-10-15", summary="🚴 Base")
+    assert sorted(o["op"] for o in G.diff(desired, [ride_ev], TODAY)) == ["delete", "insert"]
