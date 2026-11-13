@@ -9,7 +9,8 @@ Request (stdin JSON), either or both parts:
            {"op": "patch",  "key": K, "event_id": ID, "body": {...}},
            {"op": "delete", "key": K, "event_id": ID}]}
 Response (stdout JSON):
-  {"ok": true, "existing": [{"id", "key", "digest", "date", "summary"}], "results": [{"key", "op", "ok", "event_id"|"error"}]}
+  {"ok": true, "existing": [{"id", "key", "digest", "date", "summary", "start", "end", "synced_date", "synced_start"}],
+   "results": [{"key", "op", "ok", "event_id"|"error"}]}
 
 Only events carrying extendedProperties.private.source == tag are ever listed; the caller only ever
 patches/deletes ids that came back from such a listing, so nothing else on the calendar is touched.
@@ -45,10 +46,12 @@ def _existing(svc, cal: str, tag: str, start: str, end: str) -> list[dict]:
                                  privateExtendedProperty=[f"source={tag}"]).execute()
         for e in resp.get("items", []):
             priv = (e.get("extendedProperties") or {}).get("private") or {}
-            st = e.get("start") or {}
+            st, en = e.get("start") or {}, e.get("end") or {}
             out.append({"id": e["id"], "key": priv.get("garmin_key"), "digest": priv.get("digest"),
                         "date": (st.get("dateTime") or st.get("date") or "")[:10], "summary": e.get("summary"),
-                        "status": e.get("status")})
+                        "status": e.get("status"), "start": st.get("dateTime") or st.get("date"),
+                        "end": en.get("dateTime") or en.get("date"),
+                        "synced_date": priv.get("synced_date"), "synced_start": priv.get("synced_start")})
         token = resp.get("nextPageToken")
         if not token:
             return out

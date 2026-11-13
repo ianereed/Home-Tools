@@ -392,6 +392,7 @@ def build_days(snap: dict) -> list[dict]:
                               "If you go, keep it easy and add ~70 g carbs around it."})
         days.append({"date": ds, "dow": day.strftime("%a"), "sessions": sessions, "source": source,
                      "note": None, "notes": notes, "events": events,
+                     "workout_slots": [w for w in snap.get("workout_slots", []) if w["date"] == ds],
                      "rest_planned": rest_planned and not any(x["kind"] == "ride" for x in sessions)})
     return days
 
@@ -444,11 +445,18 @@ def schedule(days: list[dict], kg: float, cfg: dict | None = None, place_lifts: 
     """Assign ride times, then (unless a strength plan is supplied separately) place 2 lifts per 7-day block."""
     cfg = _cfg(cfg)
     for day in days:
+        # the Garmin -> Calendar mirror's 🚴 events, in time order: where you have each ride on Google Calendar
+        cal_rides = [w for w in day.get("workout_slots", []) if w["sport"] == "cycling"]
         for s in day["sessions"]:
             if s["kind"] != "ride" or s.get("completed"):
                 continue
             if s["type"] == "BIKEPACKING":
                 s["start"], s["end"], s["reason"] = tmin("08:00"), tmin("08:00") + int(s["minutes"]) + 120, "trip day (moving time + stops)"
+                continue
+            if cal_rides:  # your calendar is the source of truth for when you ride
+                w = cal_rides.pop(0)
+                s["start"], s["end"], s["reason"] = tmin(w["start"]), tmin(w["start"]) + math.ceil(s["minutes"]), \
+                    f"time from your Google Calendar ({w['start']})"
                 continue
             if s.get("fixed_start") is not None:
                 s["start"], s["end"], s["reason"] = s["fixed_start"], s["fixed_start"] + math.ceil(s["minutes"]), "time set by you"

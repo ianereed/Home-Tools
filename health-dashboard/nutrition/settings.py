@@ -66,7 +66,7 @@ DEFAULTS = {
         "mode": "live",                      # off | dry_run | live
         "calendar_id": "primary",            # resolved by the mini's Google token (= personal gmail)
         "window_days": 45,
-        "start_times": {"strength_training": "17:00", "default": "10:00"},   # cycling falls back to preferred_ride
+        "start_times": {"strength_training": "14:00", "default": "10:00"},   # cycling falls back to preferred_ride
         "default_minutes": {"cycling": 60, "strength_training": 45, "default": 60},
         "include_rest_days": True,
     },

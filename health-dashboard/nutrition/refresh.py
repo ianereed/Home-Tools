@@ -230,16 +230,19 @@ def run_refresh(reason: str, trigger: str = "manual", collect: bool = True, cale
             gen_since = plan["end"]
 
         # 4) calendar (cached fallback)
-        events = []
+        events, slots = [], []
         if calendar and settings.get("calendar_ids"):
             try:
                 raw = calendar_source.fetch_raw(settings["calendar_ids"], today.isoformat(), settings["horizon_end"])
                 events = calendar_source.classify(raw, settings)
+                slots = calendar_source.workout_slots(raw)  # ride/lift times as they sit on your calendar
                 store.set_state(conn, "calendar_cache", events)
+                store.set_state(conn, "workout_slots_cache", slots)
                 sources["calendar"] = "ok"
             except Exception as e:
                 log.warning("calendar fetch failed: %s", e)
                 events = store.get_state(conn, "calendar_cache") or []
+                slots = store.get_state(conn, "workout_slots_cache") or []
                 sources["calendar"] = f"stale ({type(e).__name__})"
         else:
             sources["calendar"] = "off"
@@ -259,6 +262,7 @@ def run_refresh(reason: str, trigger: str = "manual", collect: bool = True, cale
                           weight_kg=weight, coach_plan=plan, coach_workouts=workouts, coach_versions=versions,
                           activities=acts, daily_stats=stats, intake=intake, calendar_events=events,
                           generated_since=gen_d, garmin_rides=my_rides)
+        snap["workout_slots"] = slots
         paces = list(settings.get("paces", [])) + ["plan"]
         if snap["daily_stats_prev_14d"]:
             hist = E.history(snap, ["plan"])

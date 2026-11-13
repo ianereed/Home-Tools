@@ -7,7 +7,12 @@ Rules:
   else on the calendar is invisible to it.
 - Past dates are never modified: the window is [today, today + gcal_sync.window_days].
 - State lives in the calendar itself (tag + garmin_key + digest), so a lost DB or a hand-deleted event
-  is simply re-created on the next run; a hand-edited event is overwritten (its digest no longer matches).
+  is simply re-created on the next run. Each event also records where the sync put it (synced_date +
+  synced_start): an event you MOVED by hand keeps your day and time, even when its title or length is
+  re-patched, and the fuel planner times that session from the calendar (calendar_source.workout_slots).
+  Other hand edits (title, description) are overwritten.
+- New events start at gcal_sync.start_times (rides 10:00, lifts 14:00) unless ride_by_date /
+  lift_start_by_date set a time for that date.
 - Google API calls run in event-aggregator's venv via collectors/gcal_write.py (one list + one apply).
 """
 from __future__ import annotations
@@ -24,6 +29,7 @@ import sys
 import time
 from datetime import date, datetime, timedelta
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 from . import coach, store
 from .settings import load_settings
@@ -39,8 +45,9 @@ LOCK_PATH = ROOT / "data" / "gcal_sync.lock"
 GARMIN_CAL_URL = "https://connect.garmin.com/modern/calendar"
 FP_PREFIX = "FP · "
 ICON = {"cycling": "🚴", "strength_training": "🏋️", "running": "🏃", "hiking": "🥾", "swimming": "🏊"}
-BODY_VERSION = 2  # bump when event_body() changes shape so existing events get re-patched
-FOOTER = "Synced from Garmin Connect by health-dashboard three times a day; edits made here are overwritten."
+BODY_VERSION = 3  # bump when event_body() changes shape so existing events get re-patched
+FOOTER = ("Synced from Garmin Connect by health-dashboard three times a day. Move this event to change when you "
+          "train (the fuel planner follows the calendar); other edits are overwritten.")
 
 
 # ---------------------------------------------------------------- pure: Garmin items -> desired events
@@ -164,16 +171,21 @@ def _spec(key, d, summary, description, all_day, start, minutes) -> dict:
     return spec
 
 
-def event_body(spec: dict) -> dict:
+def event_body(spec: dict, at: tuple[str, str] | None = None) -> dict:
+    """`at` = (date, "HH:MM") puts a timed event where you moved it instead of where the sync would.
+    synced_date/synced_start always record the sync's own placement, so a later run can tell you moved it."""
     body = {"summary": spec["summary"], "description": spec["description"], "transparency": "transparent",
             "reminders": {"useDefault": False, "overrides": []},  # no notifications for mirrored workouts
-            "extendedProperties": {"private": {"source": TAG, "garmin_key": spec["key"], "digest": spec["digest"]}}}
+            "extendedProperties": {"private": {"source": TAG, "garmin_key": spec["key"], "digest": spec["digest"],
+                                               "synced_date": spec["date"], "synced_start": spec["start"] or ""}}}
     d = date.fromisoformat(spec["date"])
     if spec["all_day"]:
         body["start"] = {"date": d.isoformat()}
         body["end"] = {"date": (d + timedelta(days=1)).isoformat()}
     else:
-        h, m = (int(x) for x in spec["start"].split(":"))
+        ds, hm = at or (spec["date"], spec["start"])
+        d = date.fromisoformat(ds)
+        h, m = (int(x) for x in hm.split(":"))
         s = datetime(d.year, d.month, d.day, h, m)
         e = s + timedelta(minutes=spec["minutes"])
         body["start"] = {"dateTime": s.isoformat(), "timeZone": TZ}
@@ -181,8 +193,31 @@ def event_body(spec: dict) -> dict:
     return body
 
 
+def placed(e: dict) -> tuple[str, str] | None:
+    """(date, "HH:MM") local of a listed event's start; None for all-day or unknown."""
+    st = e.get("start") or ""
+    if "T" not in st:
+        return None
+    dt = datetime.fromisoformat(st)
+    if dt.tzinfo:
+        dt = dt.astimezone(ZoneInfo(TZ))
+    return dt.date().isoformat(), f"{dt.hour:02d}:{dt.minute:02d}"
+
+
+def moved_to(e: dict, spec: dict) -> tuple[str, str] | None:
+    """Where you put a timed event by hand, if you moved it; None if it is still where the sync put it.
+    If Garmin moved the workout to another day since, the new day wins and your time of day is kept."""
+    if spec["all_day"] or not e.get("synced_date") or not e.get("synced_start"):
+        return None  # events written before v3 carry no placement: treated as not moved
+    at = placed(e)
+    if at is None or at == (e["synced_date"], e["synced_start"]):
+        return None
+    return at if spec["date"] == e["synced_date"] else (spec["date"], at[1])
+
+
 def diff(desired: dict[str, dict], existing: list[dict], today: date) -> list[dict]:
-    """Pure: ops that make the tagged events in the window equal `desired`. Past dates are left alone."""
+    """Pure: ops that make the tagged events in the window equal `desired`. Past dates are left alone.
+    A hand-moved event keeps your day and time (see moved_to); only its content is re-patched."""
     t0 = today.isoformat()
     ops, seen = [], set()
     for e in existing:
@@ -195,7 +230,7 @@ def diff(desired: dict[str, dict], existing: list[dict], today: date) -> list[di
         seen.add(key)
         if e.get("digest") != desired[key]["digest"]:
             ops.append({"op": "patch", "key": key, "event_id": e["id"], "date": desired[key]["date"],
-                        "body": event_body(desired[key])})
+                        "body": event_body(desired[key], at=moved_to(e, desired[key]))})
     for key, spec in desired.items():
         if key not in seen:
             ops.append({"op": "insert", "key": key, "date": spec["date"], "body": event_body(spec)})

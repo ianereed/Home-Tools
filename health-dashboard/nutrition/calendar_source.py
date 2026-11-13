@@ -95,6 +95,28 @@ def classify(raw: list[dict], settings: dict) -> list[dict]:
     return out
 
 
+SLOT_SPORT = {"🚴": "cycling", "🏋": "strength_training"}  # icon prefix of our mirror events (gcal_workouts.ICON)
+
+
+def workout_slots(raw: list[dict]) -> list[dict]:
+    """Our own Garmin -> Calendar mirror events -> where you have each workout on the calendar:
+    [{date, start, end, sport, title}] (timed events only, local time). The planner takes ride and lift
+    times from these, so moving the event in Google Calendar moves the session in the fuel plan."""
+    out = []
+    for e in raw:
+        if e.get("source_tag") != "garmin-sync" or e.get("all_day") or e.get("status") == "cancelled":
+            continue
+        title = (e.get("summary") or "").removeprefix("✅ ")
+        sport = next((s for icon, s in SLOT_SPORT.items() if title.startswith(icon)), None)
+        if not sport:
+            continue
+        s, t = _local(e["start"]), _local(e["end"])
+        out.append({"date": s.date().isoformat(), "start": _hm(s.hour * 60 + s.minute),
+                    "end": _hm(t.hour * 60 + t.minute) if t.date() == s.date() else "23:59",
+                    "sport": sport, "title": title})
+    return sorted(out, key=lambda x: (x["date"], x["start"]))
+
+
 def trip_sessions(events: list[dict], settings: dict) -> list[dict]:
     """Calendar trips matching settings.trip_sessions → planned sessions (one per trip date)."""
     out, seen = [], set()
